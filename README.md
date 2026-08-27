@@ -21,6 +21,7 @@ market analysis, built on top of performance and market data.
 | Analytical schema (`dim_player`, `fact_*`) | Working — 9 tables, 96 CHECK constraints |
 | Loading into PostgreSQL | Working — transactional, idempotent, self-checking |
 | Serving from PostgreSQL | Working — the API reads the database, not providers |
+| Scheduled data pipeline | Working — verified before publishing; FootyStats half idle |
 | Canonical model and provider abstraction | Working, tested |
 | Mock performance provider | Working — 1,728 demo players |
 | Transfermarkt ingestion | Working — schema profiled, 2 attributes confirmed absent |
@@ -71,7 +72,8 @@ document disagrees with it, it wins.
 
 Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
 12 to 21 are blocked on a FootyStats API key and cannot begin without one;
-phases 22 to 24 (pipelines, deployment, polish) are not blocked.
+phase 22 (pipelines) is done as far as an idle FootyStats allows; 23 and 24
+(deployment, polish) are not blocked.
 
 Two things in `docs/architecture.md` were built while phase 12 was blocked and
 are labelled as such rather than borrowing a phase number.

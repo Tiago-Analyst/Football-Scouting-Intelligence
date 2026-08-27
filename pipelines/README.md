@@ -35,4 +35,13 @@ to run — writing nothing, exit code 2 — until there is something real to wor
 from.
 
 If validation fails, the previous production data stays live. Corrupted data is
-never published.
+never published — and that is enforced rather than intended. `--verify` runs the
+serving quality suite inside the load transaction, so a failing check rolls the
+whole load back:
+
+```bash
+python -m pipelines.load.load_providers --source transfermarkt --replace --verify
+```
+
+`.github/workflows/pipeline.yml` runs this on the cadence set in
+`config/competitions.yaml`.

@@ -589,6 +589,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Load provider data into PostgreSQL.")
     parser.add_argument("--source", choices=["demo", "transfermarkt"], default="demo")
     parser.add_argument("--replace", action="store_true", help="purge this source before loading")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "Run the full data quality suite inside the load transaction and roll "
+            "back if any check fails. Use in scheduled pipelines."
+        ),
+    )
     args = parser.parse_args(argv)
 
     from app.core.config import get_settings
@@ -614,6 +622,28 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  FAIL {entity}.{name}: {count} {detail or ''}")
             return 1
 
+        if args.verify:
+            # The loader checks what it wrote. This runs the *serving* quality
+            # suite - coverage, freshness, integrity - against the uncommitted
+            # data, so section 23's "update production data only if tests
+            # succeed" is literally true rather than approximately true.
+            #
+            # Without this the suite runs after the commit, which means a
+            # failure is discovered with the bad data already live.
+            from pipelines.quality.report import run as run_quality
+
+            verification = run_quality(session)
+            failures = [check for check in verification if check.failed]
+            if failures:
+                session.rollback()
+                print(f"\nVERIFICATION FAILED for '{args.source}'. Nothing was written.")
+                for check in failures:
+                    print(f"  FAIL {check.entity}.{check.name}: {check.count} {check.detail or ''}")
+                return 1
+            verified = len(verification)
+        else:
+            verified = 0
+
         session.commit()
     except Exception:
         session.rollback()
@@ -628,6 +658,8 @@ def main(argv: list[str] | None = None) -> int:
     for entity, name, status, count, detail in report.checks:
         line = f"  [{status.upper():<4}] {entity}.{name}  ({count})"
         print(f"{line}  {detail}" if detail else line)
+    if verified:
+        print(f"\nVERIFIED against {verified} serving quality checks before publishing.")
     return 0
 
 

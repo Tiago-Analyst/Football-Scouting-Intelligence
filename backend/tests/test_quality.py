@@ -252,3 +252,39 @@ class TestQualityEndpoint:
     def test_no_check_reports_an_unknown_status(self, client: TestClient) -> None:
         body = client.get("/api/v1/data-quality").json()
         assert all(c["status"] in {"pass", "warn", "fail"} for c in body["checks"])
+
+
+class TestVerificationBeforePublishing:
+    """Specification section 23: a failed validation publishes nothing.
+
+    The loader's `--verify` runs this suite *inside* the load transaction and
+    rolls back on any failure. These cover the detection half; the rollback
+    itself is three lines in `load_providers.main` and was exercised against the
+    real database by forcing a failure on a `--replace` load and confirming the
+    row counts were unchanged afterwards.
+    """
+
+    def test_a_healthy_database_produces_no_failures(self, db_session: Session) -> None:
+        from pipelines.quality.report import run
+
+        assert [c for c in run(db_session) if c.failed] == []
+
+    def test_an_impossible_threshold_is_detected_as_a_failure(
+        self, db_session: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If this stopped failing, `--verify` would wave everything through
+        and the section 23 guarantee would be vacuous."""
+        import pipelines.quality.report as report
+
+        monkeypatch.setattr(report, "MIN_MINUTES_COVERAGE", 1.01)
+        failures = [c for c in report.run(db_session) if c.failed]
+        assert [c.name for c in failures] == ["minutes_coverage"]
+
+    def test_warnings_alone_never_block_a_publish(self, db_session: Session) -> None:
+        """Staleness and absent metrics are facts about a source, not faults in
+        a refresh. Blocking on them would stop the pipeline for something no
+        rerun can fix."""
+        from pipelines.quality.report import run
+
+        checks = run(db_session)
+        assert all(not c.failed for c in checks if c.status == "warn")

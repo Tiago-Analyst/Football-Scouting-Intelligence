@@ -1590,6 +1590,91 @@ refresh; the demo data purged to confirm `/health` returns `503` with
 `analytics: unavailable`, then reloaded and confirmed back at `200 ok` with
 1,728 players across 4 competitions.
 
+## Scheduled pipelines (Phase 22, partial)
+
+Specification sections 22 and 23. Partial because half of what the pipeline is
+meant to refresh does not exist yet: FootyStats has no key, so those steps are
+written, guarded, and switched off.
+
+### The rule that was not actually enforced
+
+Section 23 rule 11: *update production data only if tests succeed*, and on
+failure *keep the previous production version active*.
+
+The loader already ran its own post-load checks before committing and rolled
+back on failure, so that much held. But the *serving* quality suite —
+`pipelines/quality/report.py`, which checks coverage, freshness and integrity —
+ran as a separate step **after** the commit. A failure there was discovered with
+the bad data already live. The rule was approximately true, not true.
+
+`--verify` closes it. The full serving suite now runs inside the load
+transaction, against the uncommitted data, and any failure rolls the whole load
+back:
+
+```bash
+python -m pipelines.load.load_providers --source transfermarkt --replace --verify
+```
+
+**Demonstrated, not assumed.** A `--replace` load was run with the minutes
+coverage threshold set to an impossible 1.01, so verification could not pass.
+`--replace` purges the source before loading, so a broken rollback here does not
+leave stale data — it leaves *nothing*. Before: 1,728 player-seasons and 51,877
+players. Verification failed, exit code 1. After: 1,728 and 51,877, untouched.
+
+Warnings do not block. Staleness and absent metrics are facts about a source
+rather than faults in a refresh, and a pipeline that halts on them stops for
+something no rerun can fix.
+
+### The cadence is configured, and the duplication is checked
+
+Section 22 requires the refresh frequency to be configurable, so it lives in
+`config/competitions.yaml`: Transfermarkt weekly, FootyStats three times a week,
+each with an `enabled` flag.
+
+GitHub will not read a cron from a config file — the schedule has to be a
+literal in the workflow. So the same fact is written twice, and two copies of a
+fact drift. A test asserts the workflow's crons and the config's crons are the
+same set, which turns a silent divergence into a failing build.
+
+The `enabled` flags are read at runtime, so switching a source off is a
+configuration change rather than a workflow edit.
+
+### A scheduled job that cannot succeed gets muted
+
+No production database exists until Phase 23. A weekly workflow that failed
+every Sunday for a reason nobody could fix would be muted within a month, and
+then ignored on the week it mattered.
+
+So the workflow checks first. With no `POSTGRES_HOST` secret it writes a run
+summary saying there is nothing to refresh and exits successfully. Every step
+that touches a database is conditional on that check.
+
+FootyStats is handled the same way: its steps run only when a key exists *and*
+the config enables it. The key reaches them as an environment variable, never in
+a `run:` line where it would land in a public log — there is a test for that
+too.
+
+### Separate from CI on purpose
+
+`ci.yml` answers "is this commit sound?". `pipeline.yml` answers "is the
+production data current?". They fail for unrelated reasons, and combining them
+would make a stale dataset look like a broken build.
+
+The pipeline also refuses to run on `push` or `pull_request`: a data refresh
+triggered by a commit would republish production data on an unrelated code
+change. Concurrency is capped at one run, because two loads writing the same
+tables simultaneously is the one way to get a half-published dataset past a
+transactional loader.
+
+Logs and the availability report are uploaded as artefacts and kept 30 days,
+and the run summary states plainly when nothing was published.
+
+### What is still missing from this phase
+
+The FootyStats half — retrieval, its identity resolution run, and a refresh that
+has anything to refresh. None of it can be written against a provider that has
+never answered.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What
