@@ -73,11 +73,18 @@ class TestErrorsCarryUsefulDetail:
         assert excinfo.value.details.get("app_mode") == "production"
 
     def test_unvalidated_error_explains_what_is_required(self) -> None:
+        """The refusal has to say what would lift it, not just that it refused.
+
+        Since the mapping file became the authority, this message names the
+        pipeline that produces the evidence and the file that records it.
+        """
         with pytest.raises(DataNotValidatedError) as excinfo:
             build_performance_provider(
                 build_settings(app_mode="production", footystats_api_key="key")
             )
-        assert "profiled" in str(excinfo.value)
+        message = str(excinfo.value)
+        assert "profiling" in message
+        assert "footystats_mapping.yaml" in message
 
     def test_errors_never_include_the_api_key(self) -> None:
         secret = "SUPER_SECRET_KEY_VALUE"

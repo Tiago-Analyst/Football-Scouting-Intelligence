@@ -38,6 +38,20 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
+/**
+ * A full calendar date, for account timestamps.
+ *
+ * `formatDate` is month-and-year because that is the right precision for a
+ * transfer or a valuation. "When did I last sign in" is not.
+ */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** Thousands-separated integer, e.g. minutes played. */
 export function formatCount(value: number): string {
   return value.toLocaleString("en-GB");

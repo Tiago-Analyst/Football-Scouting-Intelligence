@@ -19,6 +19,7 @@ from app.core.config import AppMode, Settings, get_settings
 from app.core.errors import DataNotValidatedError, ProviderNotConfiguredError
 from app.core.logging import get_logger
 from app.providers.base import PerformanceDataProvider
+from app.providers.footystats_mapping import get_mapping
 from app.providers.market_base import MarketDataProvider, MarketDataUnavailableError
 from app.providers.market_mock import MockMarketProvider
 from app.providers.mock import MockPerformanceProvider
@@ -41,13 +42,18 @@ def build_performance_provider(settings: Settings) -> PerformanceDataProvider:
             details={"app_mode": settings.app_mode.value},
         )
 
-    # A key alone is not enough. The provider is written only after real
-    # responses have been profiled and the field mapping verified; until then
-    # there is nothing to construct, and guessing a mapping is prohibited.
+    # A key alone is not enough. Which metrics FootyStats can supply is read
+    # from the verified mapping rather than asserted here, so "not validated
+    # yet" is a fact in a file that the profiling pipeline updates — not a
+    # `raise` somebody has to remember to delete.
+    mapping = get_mapping()
+    mapping.require()  # empty mapping -> DataNotValidatedError
+
     raise DataNotValidatedError(
-        "FootyStatsProvider is not implemented. The provider field schema must "
-        "be profiled against real API responses before any mapping is written.",
-        details={"required_phase": "FootyStats API validation"},
+        "FootyStatsProvider is not implemented. The field mapping is verified "
+        f"for {len(mapping.available_metrics)} metrics, but no provider has been "
+        "written against it yet.",
+        details={"verified_metrics": len(mapping.available_metrics)},
     )
 
 

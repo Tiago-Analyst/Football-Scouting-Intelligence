@@ -1,0 +1,302 @@
+# Player role definitions.
+#
+# A role score measures how closely a player's statistical profile resembles a
+# style of play. It is NOT player quality, NOT a probability, and NOT a scouting
+# grade (spec section 31, rules 20 and 21).
+#
+# HOW THESE ARE COMPUTED
+#
+# Identical to intelligence scores: every component is converted to a contextual
+# percentile first, then weighted. Components come from two namespaces, kept
+# separate so a name can never be ambiguous:
+#
+#   metrics:  derived metrics (app/analytics/metrics.py)
+#   scores:   intelligence scores (config/intelligence_scores.yaml)
+#
+# Components use the "oriented" percentile, where higher is always better, so
+# metrics in LOWER_IS_BETTER are inverted automatically. The spec's "Inverse
+# Dribbled Past /90", "Inverse Dispossessed /90" and "Inverse Goals Conceded
+# /90" therefore appear below as the plain metric. Do NOT add a separate inverse
+# component; it would be inverted twice.
+#
+# ON `position_groups`
+#
+# The FIRST group listed is the one the spec assigns the role (section 10).
+# Any FURTHER groups are a judgement call and are open to review.
+#
+# They exist because section 11 requires every player to be scored against "all
+# compatible roles" and to be shown alternatives. Without adjacency a central
+# midfielder would have exactly one compatible role, so the alternatives list
+# would always be empty and the feature would not work. Adjacency is kept
+# deliberately tight: only groups whose players genuinely appear in that role.
+
+# A CONSEQUENCE OF THESE WEIGHTS, MEASURED
+#
+# How concentrated a role's weights are determines how high it can score. On the
+# demo dataset the correlation between a role's largest single weight and its
+# 90th-percentile score is +0.76:
+#
+#   Shot Stopper       top weight 45%   p90 score 84.0
+#   Poacher            top weight 30%   p90 score 79.7
+#   Box-to-Box         top weight 15%   p90 score 65.2
+#
+# The mechanism is not a defect. A role spread across eight components requires a
+# player to rank well on all eight, and percentiles correlate only weakly across
+# metrics, so the weighted average regresses towards 50. A specialist role lets a
+# specialist score near the top.
+#
+# THE CONSEQUENCE THAT MATTERS: role scores are comparable **between players
+# within one role**, and between roles **for one player** (which is what "best
+# role" means). They are NOT comparable across different roles for different
+# players. A Box-to-Box score of 65 does not indicate a worse player than a
+# Poacher score of 80; the two roles sit on different effective scales.
+#
+# The weights are left exactly as the spec defines them. Rescaling each role to
+# its own distribution would make cross-role comparison valid but would change
+# what the spec says the numbers are, and that is a product decision rather than
+# an implementation one.
+
+version: 1
+
+roles:
+  # -- Centre-back ---------------------------------------------------------
+  ball_playing_centre_back:
+    label: Ball-Playing Centre-Back
+    position_groups: [CB]
+    description: >-
+      A centre-back who starts attacks. Progressive passing dominates, with
+      enough defensive weight that a poor defender cannot top the role on
+      passing alone.
+    components:
+      metrics:
+        progressive_passes_per90: 30
+        pass_completion: 20
+        completed_passes_per90: 15
+        interceptions_per90: 15
+        duel_win_percentage: 10
+        aerial_duel_win_percentage: 10
+
+  defensive_stopper:
+    label: Defensive Stopper
+    position_groups: [CB]
+    description: >-
+      A centre-back who defends the box. Weighted towards volume of defensive
+      actions and winning contests.
+    components:
+      metrics:
+        interceptions_per90: 25
+        successful_tackles_per90: 20
+        blocks_per90: 15
+        clearances_per90: 15
+        duel_win_percentage: 15
+        aerial_duel_win_percentage: 10
+
+  # -- Full-back / wing-back ----------------------------------------------
+  defensive_full_back:
+    label: Defensive Full-Back
+    position_groups: [FB_WB]
+    description: >-
+      A full-back who defends first. Being dribbled past counts against and is
+      inverted automatically.
+    components:
+      metrics:
+        successful_tackles_per90: 25
+        interceptions_per90: 20
+        dribbled_past_per90: 20
+        duel_win_percentage: 15
+        progressive_passes_per90: 10
+        aerial_duel_win_percentage: 10
+
+  attacking_full_back:
+    label: Attacking Full-Back
+    position_groups: [FB_WB]
+    description: >-
+      A full-back who supplies the attack from wide areas.
+    components:
+      metrics:
+        accurate_crosses_per90: 25
+        progressive_passes_per90: 20
+        key_passes_per90: 15
+        xa_per90: 15
+        successful_dribbles_per90: 15
+        pass_completion: 10
+
+  # -- Defensive midfield --------------------------------------------------
+  ball_winning_midfielder:
+    label: Ball-Winning Midfielder
+    position_groups: [DM, CM]
+    description: >-
+      A midfielder who regains possession. Ball Security is included as a whole
+      intelligence score rather than a single metric, because keeping the ball
+      after winning it is part of the role.
+    components:
+      metrics:
+        successful_tackles_per90: 25
+        interceptions_per90: 25
+        duel_win_percentage: 20
+        aerial_duel_win_percentage: 10
+        progressive_passes_per90: 10
+      scores:
+        ball_security: 10
+
+  deep_lying_playmaker:
+    label: Deep-Lying Playmaker
+    position_groups: [DM, CM]
+    description: >-
+      A midfielder who builds play from deep. High passing volume and
+      progression, with losing the ball counting against.
+    components:
+      metrics:
+        progressive_passes_per90: 30
+        completed_passes_per90: 20
+        pass_completion: 20
+        key_passes_per90: 10
+        xa_per90: 10
+        dispossessed_per90: 10
+
+  # -- Central midfield ----------------------------------------------------
+  box_to_box_midfielder:
+    label: Box-to-Box Midfielder
+    position_groups: [CM, DM, AM]
+    description: >-
+      A midfielder who contributes at both ends. Deliberately the flattest
+      weighting of any role: the profile is defined by breadth rather than by
+      excelling at one thing.
+    components:
+      metrics:
+        progressive_passes_per90: 15
+        successful_tackles_per90: 15
+        interceptions_per90: 15
+        duel_win_percentage: 15
+        successful_dribbles_per90: 10
+        xa_per90: 10
+        npxg_per90: 10
+        pass_completion: 10
+
+  # -- Attacking midfield --------------------------------------------------
+  advanced_playmaker:
+    label: Advanced Playmaker
+    position_groups: [AM, CM]
+    description: >-
+      A creator in the final third, weighted towards expected assists rather
+      than assists themselves.
+    components:
+      metrics:
+        xa_per90: 30
+        key_passes_per90: 25
+        progressive_passes_per90: 15
+        successful_dribbles_per90: 15
+        pass_completion: 10
+        npxg_per90: 5
+
+  # -- Wingers -------------------------------------------------------------
+  creative_winger:
+    label: Creative Winger
+    position_groups: [WINGER, AM]
+    description: >-
+      A wide player who creates for others, by cross or by carry.
+    components:
+      metrics:
+        xa_per90: 25
+        key_passes_per90: 20
+        accurate_crosses_per90: 20
+        successful_dribbles_per90: 20
+        dribble_success_percentage: 10
+        npxg_per90: 5
+
+  direct_winger:
+    label: Direct Winger
+    position_groups: [WINGER, AM]
+    description: >-
+      A wide player who attacks the defender. Fouls drawn count towards the
+      role because a defender who has to foul has also been beaten.
+    components:
+      metrics:
+        successful_dribbles_per90: 25
+        npxg_per90: 20
+        dribble_success_percentage: 15
+        shots_per90: 15
+        xa_per90: 10
+        fouls_drawn_per90: 10
+        dispossessed_per90: 5
+
+  inside_forward:
+    label: Inside Forward
+    position_groups: [WINGER, FORWARD]
+    description: >-
+      A wide player who scores rather than supplies.
+    components:
+      metrics:
+        npxg_per90: 30
+        non_penalty_goals_per90: 25
+        shots_per90: 15
+        successful_dribbles_per90: 15
+        xa_per90: 10
+        shot_conversion: 5
+
+  # -- Forwards ------------------------------------------------------------
+  poacher:
+    label: Poacher
+    position_groups: [FORWARD]
+    description: >-
+      A forward whose value is concentrated in the box. The most narrowly
+      weighted role: almost everything rests on shot volume, position and
+      conversion.
+    components:
+      metrics:
+        non_penalty_goals_per90: 30
+        npxg_per90: 30
+        shots_on_target_per90: 15
+        shot_conversion: 15
+        shot_quality: 10
+
+  complete_forward:
+    label: Complete Forward
+    position_groups: [FORWARD]
+    description: >-
+      A forward who scores, creates, holds the ball and competes. Like
+      box-to-box, defined by breadth rather than by one strength.
+    components:
+      metrics:
+        npxg_per90: 20
+        non_penalty_goals_per90: 15
+        xa_per90: 15
+        key_passes_per90: 10
+        duel_win_percentage: 10
+        aerial_duel_win_percentage: 10
+        successful_dribbles_per90: 10
+        pass_completion: 5
+        fouls_drawn_per90: 5
+
+  target_forward:
+    label: Target Forward
+    position_groups: [FORWARD]
+    description: >-
+      A forward who occupies defenders and wins the ball in the air.
+    components:
+      metrics:
+        aerial_duel_win_percentage: 25
+        aerial_duels_won_per90: 20
+        npxg_per90: 20
+        duel_win_percentage: 15
+        fouls_drawn_per90: 10
+        key_passes_per90: 5
+        xa_per90: 5
+
+  # -- Goalkeeper ----------------------------------------------------------
+  shot_stopper:
+    label: Shot Stopper
+    position_groups: [GK]
+    description: >-
+      A goalkeeper measured on saves. Read this with care - see `caveat`.
+    caveat: >-
+      Basic goalkeeping statistics are heavily dependent on team context: a
+      keeper behind a poor defence faces more and better chances, which inflates
+      save volume and deflates save percentage. Without a post-shot expected
+      goals metric, elite shot-stopping cannot be inferred from these figures.
+    components:
+      metrics:
+        save_percentage: 45
+        inside_box_saves_per90: 20
+        goals_conceded_per90: 20
+        saves_per90: 15

@@ -4,11 +4,11 @@ A football scouting and recruitment intelligence platform: contextual
 percentiles, player role fit, statistical similarity, recruitment profiles and
 market analysis, built on top of performance and market data.
 
-> **Status: Phase 1B complete — Transfermarkt pipeline.**
-> Alongside the demo performance dataset, real market data is now ingested:
-> 50,149 players, 656,301 valuations and 175,165 transfers from the public
-> Transfermarkt dataset, mapped only after profiling the actual schema. The
-> analytical engines that consume both are next.
+> **Status: Phase 9 complete — demo website.**
+> The site is fully navigable on demo data: player search, profiles with
+> percentiles and role fit, similarity, a recruitment profile builder,
+> replacement finder and market opportunities. Authentication and shortlists are
+> next; real performance data still awaits a FootyStats key.
 
 ## Current state, stated plainly
 
@@ -17,14 +17,25 @@ market analysis, built on top of performance and market data.
 | Next.js → FastAPI → PostgreSQL request path | Working, verified |
 | Database migrations (Alembic) | Working, baseline applied |
 | Design system and site shell | Working, all routes navigable |
-| Page content and filtering | Placeholder only — no real data or filtering |
-| Analytical schema (`dim_player`, `fact_*`) | Not started — Phase 2 |
+| Website pages | Working on demo data — search, profiles, similarity, recruitment |
+| Analytical schema (`dim_player`, `fact_*`) | Working — 9 tables, 96 CHECK constraints |
+| Loading into PostgreSQL | Working — transactional, idempotent, self-checking |
 | Canonical model and provider abstraction | Working, tested |
 | Mock performance provider | Working — 1,728 demo players |
 | Transfermarkt ingestion | Working — schema profiled, 2 attributes confirmed absent |
 | Market data model and providers | Working, tested |
-| Metrics, percentiles, scores, roles, similarity | Not started — Phases 4–8 |
-| **FootyStats integration** | **Not started, and deliberately blocked** |
+| Identity resolution | Working — 100% precision, 86% recall, measured |
+| Derived metrics (per-90, ratios, score utilities) | Working, tested |
+| Contextual percentiles (3 scopes) | Working, tested |
+| Intelligence scores (8 of 9) | Working — `aerial_presence` undefined in spec |
+| Player roles (15) | Working — all reachable, decomposable |
+| Statistical similarity | Working — percentile representation, measured |
+| Authentication (accounts + sessions) | Working — Argon2id, server-side sessions |
+| Sign-in, registration and account pages | Working — server actions, no JavaScript required |
+| Shortlists (save, note, compare, export) | Working — owner-scoped, tested |
+| Data quality reporting | Working — measured feature impact, published |
+| FootyStats validation apparatus | Working — probe, profiler, mapping gate |
+| **FootyStats integration** | **Blocked on an API key, deliberately** |
 
 ### About FootyStats
 
@@ -36,8 +47,18 @@ verified**. Accordingly:
   labels it "Pending validation".
 - Demo mode uses clearly-labelled fabricated data and never calls FootyStats.
 
-When a key arrives, work pauses for the API validation phase (profile the real
-responses, publish a field-availability report) *before* any mapping is written.
+The tooling for that validation is built and tested — it simply has nothing to
+observe yet. When a key arrives:
+
+```bash
+python -m pipelines.footystats.probe     # record real responses
+python -m pipelines.footystats.profile   # write the field-availability report
+```
+
+Then a person reads `docs/footystats_field_availability.md` and records what
+they are satisfied about in `config/footystats_mapping.yaml`, which is the only
+thing that can grant the provider a metric. It is empty today, and the provider
+therefore offers nothing. Both scripts refuse and write nothing without a key.
 Replacing `MockPerformanceProvider` with `FootyStatsProvider` is intended to be
 a provider-layer change only.
 
@@ -157,6 +178,34 @@ and per-90 medians by position group — run from `backend/`:
 
 It exits non-zero on any consistency violation and runs in CI for that reason.
 
+To inspect percentile behaviour — population sizes, distribution centring, and
+one player measured against all three comparison contexts:
+
+```bash
+.venv/Scripts/python -m scripts.profile_percentiles
+```
+
+To inspect intelligence score output — configuration, distributions, and worked
+examples decomposed into their components:
+
+```bash
+.venv/Scripts/python -m scripts.profile_intelligence
+```
+
+To inspect role fit — which roles are used, how they split by position, and
+example players with their best role decomposed:
+
+```bash
+.venv/Scripts/python -m scripts.profile_roles
+```
+
+To compare the two similarity feature representations on stability and
+discrimination:
+
+```bash
+.venv/Scripts/python -m scripts.evaluate_similarity
+```
+
 ### Transfermarkt snapshot
 
 Market data is not committed. Fetch and profile it from the repository root:
@@ -174,7 +223,36 @@ and retrieval time. The profiler regenerates
 [docs/transfermarkt_field_availability.md](docs/transfermarkt_field_availability.md),
 which records what the dataset actually contains — including the attributes the
 spec expects that are **not** present. Tests that need the snapshot are marked
-`integration` and skip without it.
+`snapshot` and skip without it.
+
+### Identity resolution
+
+```bash
+backend/.venv/Scripts/python -m pipelines.identity_resolution.run
+```
+
+Resolves players across sources and regenerates
+[docs/identity_resolution_report.md](docs/identity_resolution_report.md). Needs
+the Transfermarkt snapshot. Nothing is written to the database — this reports
+how resolution behaves so it can be inspected before being acted on.
+
+### Loading into PostgreSQL
+
+From the repository root, after `alembic upgrade head`:
+
+```bash
+backend/.venv/Scripts/python -m pipelines.load.load_providers --source demo --replace
+```
+
+```bash
+backend/.venv/Scripts/python -m pipelines.load.load_providers --source transfermarkt --replace
+```
+
+Each load is transactional and runs quality checks afterwards, writing the
+results to `fact_data_quality`. A failed check rolls the load back, so partial
+or corrupted data is never left behind. `--replace` purges that source first;
+without it, a second run fails on the bridge's uniqueness constraint, which is
+the intended protection against duplicating players.
 
 ## Security
 
@@ -183,6 +261,16 @@ code, in a browser request, in the repository, or in logs. `.env` is
 git-ignored, secrets are wrapped in `SecretStr`, credential-shaped keys are
 scrubbed from every log line, and CI fails if a key value or a tracked `.env`
 appears in the repository.
+
+Passwords are hashed with Argon2id (`argon2-cffi`); no cryptography is written
+in this project. Sessions are opaque and server-side — only a SHA-256 of the
+session token is stored, so the table cannot be replayed if it leaks — and are
+carried in an `httpOnly`, `SameSite=Lax` cookie, marked `Secure` outside local
+development. Every sign-in failure returns the identical message, and an unknown
+email still costs one Argon2 verification, so the form cannot enumerate accounts.
+
+Reading is public by design: browsing, search, profiles, similarity and
+recruitment need no account. An account exists only to own personal data.
 
 ## Data licensing
 

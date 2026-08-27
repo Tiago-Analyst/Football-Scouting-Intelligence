@@ -1,0 +1,14 @@
+# Human-confirmed player mappings.
+#
+# A mapping listed here always wins over whatever the resolver decides, and is
+# recorded in bridge_player_source with manual_override = true. An automated
+# re-run can never quietly reverse a decision a person has checked.
+#
+# Add a row when the resolver reported a pair as ambiguous or left it unmatched
+# and you have verified the correct answer by hand.
+#
+# source            the providing system of the record being resolved
+# source_player_id  that provider's identifier
+# target_player_id  the Transfermarkt identifier it refers to
+# note              why, so the decision can be re-checked later
+source,source_player_id,target_player_id,note

@@ -13,6 +13,11 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "alembic>=1.14",
     "structlog>=24.4",
+    # Argon2 password hashing. The reference implementation, used rather than
+    # anything hand-written: spec section 19 forbids custom password
+    # cryptography, and this is the one part of the system where a subtle
+    # mistake is silently catastrophic.
+    "argon2-cffi>=23.1",
 ]
 
 [project.optional-dependencies]
@@ -93,7 +98,12 @@ exclude = ["^alembic/"]
 # -----------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `app` is importable through the editable install; `pipelines` lives at the
+# repository root and is not packaged, so the root is added explicitly. Tests
+# need it because the loader is pipeline code that writes through the ORM.
+pythonpath = [".", ".."]
 addopts = "-q --strict-markers"
 markers = [
-    "integration: requires a live PostgreSQL database",
+    "integration: requires a live PostgreSQL database (CI provisions one)",
+    "snapshot: requires the downloaded Transfermarkt snapshot (CI does not)",
 ]

@@ -12,8 +12,10 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
+from app.core.database import get_engine
 from app.main import create_app
 
 
@@ -54,3 +56,27 @@ def settings() -> Settings:
 def client(settings: Settings) -> Iterator[TestClient]:
     with build_client(settings) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def db_session() -> Iterator[Session]:
+    """A session whose work is always rolled back.
+
+    Each test runs inside a transaction on its own connection, discarded
+    afterwards. That keeps tests isolated from each other and from whatever the
+    developer happens to have loaded locally, without truncating tables anyone
+    might be using.
+    """
+    engine = get_engine()
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection, expire_on_commit=False)
+    try:
+        yield session
+    finally:
+        session.close()
+        # A failed flush rolls the session back on its own, which also ends this
+        # transaction; rolling back again warns.
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()

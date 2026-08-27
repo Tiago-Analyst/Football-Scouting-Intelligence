@@ -57,3 +57,278 @@ export interface ApiErrorBody {
     details?: Record<string, unknown>;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Analytical results (Phase 9)
+// ---------------------------------------------------------------------------
+
+/** The population a percentile was measured against. Never hidden. */
+export interface ComparisonContext {
+  scope: string;
+  position_group: string;
+  season_id: string;
+  competition_ids: string[];
+  population_size: number;
+  minimum_minutes: number;
+  label: string;
+  /** Present whenever the comparison spans more than one competition. */
+  caveat: string | null;
+  strength_adjusted: boolean;
+}
+
+export interface Metric {
+  metric: string;
+  label: string;
+  value: number | null;
+  percentile: number | null;
+  /** A low value is the better outcome, so the UI must say so. */
+  lower_is_better: boolean;
+  unavailable_reason: string | null;
+}
+
+export interface ScoreComponent {
+  metric: string;
+  label: string;
+  weight: number;
+  percentile: number | null;
+  contribution: number | null;
+}
+
+export interface Score {
+  key: string;
+  label: string;
+  score: number | null;
+  coverage: number;
+  components: ScoreComponent[];
+  missing: string[];
+  caveat: string | null;
+}
+
+export interface RoleFit {
+  best: Score | null;
+  alternatives: Score[];
+  /** What a role score does and does not claim. */
+  meaning: string;
+}
+
+export interface Sample {
+  minutes: number | null;
+  band: "full" | "low" | "insufficient";
+  explanation: string;
+}
+
+export interface PlayerSummary {
+  player_id: string;
+  name: string;
+  age: number | null;
+  position_group: string;
+  raw_position: string | null;
+  club: string | null;
+  competition: string;
+  nationality: string | null;
+  minutes: number | null;
+  sample_band: "full" | "low" | "insufficient";
+  market_value_eur: number | null;
+  contract_expires: string | null;
+  best_role: string | null;
+  best_role_score: number | null;
+}
+
+export interface PlayerDetail extends PlayerSummary {
+  preferred_foot: string | null;
+  height_cm: number | null;
+  date_of_birth: string | null;
+  is_mock: boolean;
+}
+
+export interface PlayerList {
+  items: PlayerSummary[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface PlayerStats {
+  player_id: string;
+  sample: Sample;
+  context: ComparisonContext | null;
+  metrics: Metric[];
+  scores: Score[];
+}
+
+export interface SimilarPlayer {
+  player: PlayerSummary;
+  similarity: number;
+  shared_features: number;
+  /** Low values mean the profiles match in shape but not in strength. */
+  profile_strength_ratio: number;
+  comparable_strength: boolean;
+}
+
+export interface SimilarPlayers {
+  target: PlayerSummary;
+  results: SimilarPlayer[];
+  meaning: string;
+}
+
+export interface Competition {
+  competition_id: string;
+  name: string;
+  player_count: number;
+}
+
+export interface Role {
+  key: string;
+  label: string;
+  description: string;
+  position_groups: string[];
+  caveat: string | null;
+}
+
+export interface RecruitmentCandidate {
+  player: PlayerSummary;
+  score: number;
+  components: ScoreComponent[];
+  coverage: number;
+}
+
+export interface RecruitmentResults {
+  items: RecruitmentCandidate[];
+  total: number;
+  offset: number;
+  limit: number;
+  context_caveat: string | null;
+}
+
+export interface ReplacementCandidate {
+  player: PlayerSummary;
+  overall: number;
+  similarity: number;
+  role_fit: number | null;
+  market_fit: number | null;
+  comparable_strength: boolean;
+}
+
+export interface ReplacementResults {
+  target: PlayerSummary;
+  items: ReplacementCandidate[];
+  meaning: string;
+}
+
+export interface Opportunity {
+  player: PlayerSummary;
+  best_role_score: number | null;
+  reasons: string[];
+}
+
+export interface Opportunities {
+  items: Opportunity[];
+  total: number;
+  criteria: string[];
+  /** States what the list claims — and, crucially, what it does not. */
+  disclaimer: string;
+}
+
+// ---------------------------------------------------------------------------
+// Authentication
+// ---------------------------------------------------------------------------
+
+/**
+ * The signed-in user.
+ *
+ * Deliberately narrow. The backend never returns the password hash or any
+ * session identifier, so neither appears here.
+ */
+export interface AuthUser {
+  user_id: number;
+  email: string;
+  display_name: string | null;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Shortlists
+// ---------------------------------------------------------------------------
+
+export interface Shortlist {
+  shortlist_id: number;
+  name: string;
+  description: string | null;
+  entry_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShortlistEntry {
+  player_key: string;
+  /** Null when the saved player is not in the current data. */
+  player: PlayerSummary | null;
+  /** The name captured when they were saved. Shown only when `player` is null. */
+  saved_as: string | null;
+  note: string | null;
+  added_at: string;
+  unavailable_reason: string | null;
+}
+
+export interface ShortlistDetail extends Shortlist {
+  entries: ShortlistEntry[];
+}
+
+export interface ComparedPlayer {
+  player: PlayerSummary;
+  sample: Sample;
+  note: string | null;
+  metrics: Metric[];
+  scores: Score[];
+  role: Score | null;
+}
+
+export interface ComparisonResponse {
+  context: ComparisonContext | null;
+  players: ComparedPlayer[];
+  /** Present when the columns are not measured against the same population. */
+  caveat: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Data quality
+// ---------------------------------------------------------------------------
+
+export type CheckStatus = "pass" | "warn" | "fail";
+
+export interface QualityCheck {
+  source: string;
+  entity: string;
+  check_name: string;
+  status: CheckStatus;
+  record_count: number;
+  detail: string | null;
+  executed_at: string;
+}
+
+export interface SourceFreshness {
+  source: string;
+  last_checked_at: string;
+  age_days: number;
+  checks_run: number;
+  failures: number;
+  warnings: number;
+}
+
+export interface Volumes {
+  players: number;
+  competitions: number;
+  clubs: number;
+  player_seasons: number;
+}
+
+export interface DataQualityResponse {
+  /** What these checks do and do not establish. Always rendered with them. */
+  meaning: string;
+  /** Set when there is nothing to report, so an empty page cannot look clean. */
+  notice: string | null;
+  volumes: Volumes;
+  sources: SourceFreshness[];
+  checks: QualityCheck[];
+}

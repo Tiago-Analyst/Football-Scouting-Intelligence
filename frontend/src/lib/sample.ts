@@ -1,10 +1,14 @@
 /**
  * Minutes-played sample-size bands.
  *
- * Thresholds mirror the analytical rules the backend will enforce. They live
- * here so the shell can render the badge with mock content; once the API
- * returns a classification, this becomes a display-only mapping and the
- * backend stays the single source of truth.
+ * MIRROR ONLY. The authoritative definition lives in
+ * `backend/app/analytics/sample.py`; these constants exist so the shell can
+ * render the badge before the API is wired up.
+ *
+ * Do not change the thresholds here alone. If the two drift apart, the UI will
+ * show a "full sample" badge on a player the backend has excluded from
+ * rankings, which is worse than showing nothing. Once the API returns a
+ * classification, this file becomes a display-only mapping.
  */
 export type SampleBand = "full" | "low" | "insufficient";
 

@@ -70,9 +70,45 @@ jobs:
         run: alembic upgrade head
 
       - name: Test
-        # Integration tests are deselected: they need the 218 MB
-        # Transfermarkt snapshot, which is not downloaded in CI.
-        run: pytest -q -m "not integration"
+        # Only snapshot tests are deselected: they need the 218 MB
+        # Transfermarkt archive. Database tests DO run - the postgres
+        # service above exists precisely so they can.
+        run: pytest -q -m "not snapshot"
+
+      - name: Demo load into PostgreSQL
+        # Exercises the whole write path against a real database: migrations,
+        # constraints, foreign keys and the post-load quality checks. Uses the
+        # mock providers only, so it needs no downloaded data.
+        working-directory: .
+        run: python -m pipelines.load.load_providers --source demo --replace
+
+      - name: Percentile engine sanity
+        # Percentiles underpin every score and ranking, and a mis-scoped
+        # population produces numbers that look reasonable and rank the wrong
+        # players. Fails if any position group is too small to rank or a
+        # distribution stops being centred.
+        working-directory: backend
+        run: python -m scripts.profile_percentiles
+
+      - name: Intelligence scores sanity
+        # Fails if a score stops computing, stops separating players, or its
+        # components stop summing to its total. A score that ranks everybody
+        # alike is worse than no score: it looks authoritative and says nothing.
+        working-directory: backend
+        run: python -m scripts.profile_intelligence
+
+      - name: Role engine sanity
+        # Fails if a role becomes unreachable or is crowded out within its own
+        # position group. A role engine that assigns one role to everybody looks
+        # like it works while carrying no information.
+        working-directory: backend
+        run: python -m scripts.profile_roles
+
+      - name: Similarity evaluation
+        # Measures percentile vs z-score stability, and fails if either stops
+        # recognising a near-identical profile or stops separating the top ten.
+        working-directory: backend
+        run: python -m scripts.evaluate_similarity
 
       - name: Demo dataset consistency
         # The mock dataset feeds percentiles, role scores and similarity. A
@@ -80,6 +116,22 @@ jobs:
         # attempted, a ratio outside 0-1) must fail here rather than surface
         # later as an inexplicable ranking.
         run: python -m scripts.profile_mock_data
+
+      - name: Data quality report
+        # Runs against the database the demo load just filled. Fails the build
+        # on any failing check, so data that is not fit to serve cannot ship
+        # quietly. Warnings (staleness, absent metrics) do not fail: they are
+        # facts about the source, not faults in the build.
+        working-directory: .
+        run: python -m pipelines.quality.report --persist
+
+      - name: FootyStats validation gate
+        # Asserts the gate is still shut: no field mapping may exist without a
+        # recorded response behind it. Runs with no API key, which is exactly
+        # the state this check is about — if a mapping ever appears here that
+        # nobody profiled, this fails before it can reach production.
+        working-directory: backend
+        run: pytest -q tests/test_footystats_validation.py
 
   frontend:
     name: Frontend (lint, types, build)

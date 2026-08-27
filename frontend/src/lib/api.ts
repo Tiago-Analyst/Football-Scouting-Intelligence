@@ -26,7 +26,8 @@ export class ApiError extends Error {
   }
 }
 
-function baseUrl(): string {
+/** The FastAPI origin. Exported for callers that fetch a non-JSON body. */
+export function baseUrl(): string {
   const url = process.env.API_BASE_URL;
   if (!url) {
     throw new Error(
@@ -40,14 +41,28 @@ interface ApiFetchOptions {
   /** Seconds to cache the response. Omit for always-fresh reads. */
   revalidate?: number;
   signalTimeoutMs?: number;
+  /** Defaults to GET. */
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  /** JSON body, for the search endpoints that take a filter object. */
+  body?: unknown;
   /**
-   * Non-2xx statuses to treat as a successful, parseable response.
+   * Raw `Cookie` header to forward to FastAPI.
    *
-   * Readiness is the motivating case: a degraded backend answers /health with
-   * 503 and a populated body describing which dependency is down. That body is
-   * the report we want to render, not an error to swallow.
+   * The browser's session cookie is set on the Next.js origin, so it never
+   * reaches FastAPI on its own. Authenticated calls have to relay it
+   * explicitly, and only the calls that need it do — a request that does not
+   * pass this sends no session at all.
    */
+  cookie?: string;
+  /** Statuses to treat as a parseable answer rather than an error. */
   acceptStatuses?: number[];
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  status: number;
+  /** `Set-Cookie` values from FastAPI, for the caller to relay onward. */
+  setCookie: string[];
 }
 
 /**
@@ -56,15 +71,40 @@ interface ApiFetchOptions {
  * so callers have a single failure type to handle.
  */
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { revalidate, signalTimeoutMs = DEFAULT_TIMEOUT_MS } = options;
+  return (await apiFetchWithHeaders<T>(path, options)).data;
+}
+
+/**
+ * As `apiFetch`, but also returns the status and any `Set-Cookie` FastAPI
+ * issued. Sign-in needs both: the session token exists only in that header —
+ * deliberately, since putting it in the JSON body would expose it to any
+ * client-side code that renders the response.
+ */
+export async function apiFetchWithHeaders<T>(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<ApiResponse<T>> {
+  const { revalidate, signalTimeoutMs = DEFAULT_TIMEOUT_MS, method = "GET", body } = options;
   const url = `${baseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { Accept: "application/json" },
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(options.cookie ? { Cookie: options.cookie } : {}),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(signalTimeoutMs),
-      ...(revalidate === undefined ? { cache: "no-store" } : { next: { revalidate } }),
+      // Only a plain GET may be cached. A POST is a search here rather than a
+      // mutation, but the body decides the result and Next keys its cache on
+      // the URL alone; and a cookie-bearing response is specific to one
+      // signed-in person, so it must never enter a shared cache either.
+      ...(revalidate === undefined || method !== "GET" || options.cookie
+        ? { cache: "no-store" }
+        : { next: { revalidate } }),
     });
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : "unknown error";
@@ -91,5 +131,5 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     );
   }
 
-  return parsed as T;
+  return { data: parsed as T, status: response.status, setCookie: response.headers.getSetCookie() };
 }

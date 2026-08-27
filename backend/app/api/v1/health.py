@@ -14,6 +14,7 @@ from app.core.config import Settings
 from app.core.database import check_database_connection, get_schema_revision
 from app.core.errors import AppError
 from app.core.logging import get_logger
+from app.providers.footystats_mapping import get_mapping
 from app.providers.registry import build_market_provider, build_performance_provider
 from app.schemas.system import (
     DataSourceStatus,
@@ -97,10 +98,24 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
                 else "No API key supplied. Production performance data is unavailable."
             ),
         )
+    # A key is necessary and not sufficient. How many fields have actually been
+    # verified against a real response is read from the mapping file, so this
+    # answer changes when the profiling pipeline runs rather than when someone
+    # remembers to edit this string.
+    verified = len(get_mapping().available_metrics)
+    if verified == 0:
+        return DependencyStatus(
+            name="footystats",
+            status="degraded",
+            detail=(
+                "API key present, but no field has been verified against a real "
+                "API response. Run the profiling pipeline."
+            ),
+        )
     return DependencyStatus(
         name="footystats",
         status="degraded",
-        detail="API key present, but the provider field schema is not yet validated.",
+        detail=f"{verified} field(s) verified, but no provider is written against them yet.",
     )
 
 

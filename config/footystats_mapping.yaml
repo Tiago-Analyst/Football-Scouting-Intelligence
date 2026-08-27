@@ -1,0 +1,60 @@
+# FootyStats field mapping.
+#
+# ============================================================================
+# THIS FILE IS EMPTY, AND THAT IS ITS CURRENT CORRECT STATE.
+# ============================================================================
+#
+# It is empty because no FootyStats response has been observed. No API key has
+# been available to this project, so no field has been seen, so no field may be
+# mapped. `FootyStatsProvider` supplies exactly the metrics recorded here and
+# nothing else — an empty file means the provider offers no metrics and every
+# feature that needs them stays switched off.
+#
+# That is a deliberate design. The alternative — writing a mapping that looks
+# right — produces numbers nobody can trace back to an observation, and those
+# numbers reach a recruitment decision.
+#
+# ----------------------------------------------------------------------------
+# How to fill it in
+# ----------------------------------------------------------------------------
+#
+# 1. Set FOOTYSTATS_API_KEY in .env
+# 2. python -m pipelines.footystats.probe      records real responses
+# 3. python -m pipelines.footystats.profile    writes the evidence report
+# 4. Read docs/footystats_field_availability.md
+# 5. For each metric you are satisfied about, add an entry below.
+#
+# A metric belongs here only when you can answer "what does this field count?"
+# from the response, not from the field's name. `shots` and `shots_on_target`
+# are one careless line apart, and the loader cannot tell them apart for you.
+#
+# ----------------------------------------------------------------------------
+# Entry format
+# ----------------------------------------------------------------------------
+#
+#   metrics:
+#     minutes:
+#       field: minutes_played_overall     # the observed field, exactly
+#       response: league-players          # the response it was seen in
+#       verified_on: 2026-09-01           # when a person checked it
+#       note: >                           # what convinced you it is this metric
+#         Season total across all competitions in the league. Confirmed against
+#         three players whose appearance counts matched.
+#
+# Every one of those five keys is required. `verified_on` and `note` exist
+# because a mapping nobody can audit is a mapping nobody should trust; the
+# loader rejects an entry that omits them.
+
+version: 1
+
+# The responses this mapping was built from. Filled in by whoever writes the
+# mapping, and checked against what the probe actually recorded.
+verified_against: []
+
+# Metric name (from CanonicalMetric) -> observed field. Empty until observed.
+metrics: {}
+
+# Fields the profile showed to exist but which were deliberately NOT mapped,
+# with the reason. Recording a rejection is as useful as recording a mapping:
+# it stops the same field being reconsidered from scratch every time.
+rejected: {}

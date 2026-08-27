@@ -1,0 +1,146 @@
+# Intelligence score definitions.
+#
+# Weights live here rather than in code so they can be reviewed and tuned
+# without touching the engine (spec section 31, rule 5).
+#
+# HOW THESE ARE COMPUTED
+#
+# Each component metric is converted to a **contextual percentile first**, then
+# weighted (spec section 9). This is not a stylistic choice: progressive passes
+# per 90 runs roughly 0-12 while pass completion runs 0-100, so weighting the
+# raw values would let one metric dominate purely because of its unit.
+#
+# Components use the "oriented" percentile, where higher is always better.
+# Metrics listed in LOWER_IS_BETTER (dispossessed, dribbled past, fouls
+# committed, goals conceded) are therefore inverted automatically — which is why
+# "Inverse Dispossessed /90" in the spec appears below simply as
+# `dispossessed_per90`. Do NOT add a separate inverse metric; it would be
+# inverted twice.
+#
+# Weights are percentages and are normalised before use, so a block that adds to
+# 99 or 101 shifts relative emphasis rather than rescaling every score.
+#
+# `min_coverage` is the share of weight that must be present for a score to be
+# produced. It defaults to 1.0 — every component required — so a score is never
+# quietly built from whichever components happened to be available. A score
+# computed from a subset is not comparable with one computed from the full set.
+
+version: 1
+
+scores:
+  ball_progression:
+    label: Ball Progression
+    description: >-
+      Moving the ball upfield, by pass or by carry. High volume of progressive
+      passing is the dominant signal; dribbling contributes because carrying is
+      the other way to advance play.
+    components:
+      progressive_passes_per90: 45
+      completed_passes_per90: 20
+      key_passes_per90: 15
+      successful_dribbles_per90: 20
+
+  ball_security:
+    label: Ball Security
+    description: >-
+      Keeping possession. Pass completion dominates; being dispossessed counts
+      against, and is inverted automatically.
+    components:
+      pass_completion: 45
+      dribble_success_percentage: 20
+      dispossessed_per90: 25
+      completed_passes_per90: 10
+
+  chance_creation:
+    label: Chance Creation
+    description: >-
+      Generating shots for team-mates. Weighted towards expected assists and key
+      passes rather than assists themselves, which depend on whether a team-mate
+      finished the chance.
+    components:
+      xa_per90: 40
+      key_passes_per90: 35
+      accurate_crosses_per90: 15
+      assists_per90: 10
+
+  defensive_activity:
+    label: Defensive Activity
+    description: >-
+      Volume of defensive actions. Measures how much a player does out of
+      possession, not how well their team defends.
+    components:
+      successful_tackles_per90: 35
+      interceptions_per90: 35
+      blocks_per90: 15
+      duels_won_per90: 15
+
+  duel_dominance:
+    label: Duel Dominance
+    description: >-
+      Winning direct contests. Success rates are weighted above volume, because
+      contesting many duels badly is not dominance.
+    components:
+      duel_win_percentage: 50
+      aerial_duel_win_percentage: 30
+      duels_won_per90: 20
+
+  one_v_one_threat:
+    label: 1v1 Threat
+    description: >-
+      Beating an opponent directly. Fouls drawn are included because a defender
+      who has to foul has also been beaten.
+    components:
+      successful_dribbles_per90: 50
+      dribble_success_percentage: 30
+      fouls_drawn_per90: 20
+
+  goal_threat:
+    label: Goal Threat
+    description: >-
+      Getting into positions to score. Built on expected goals and shot volume
+      rather than goals, so it reflects the chances a player generates rather
+      than whether they went in.
+    components:
+      npxg_per90: 35
+      shots_per90: 25
+      shots_on_target_per90: 20
+      successful_dribbles_per90: 10
+      xa_per90: 10
+
+  finishing:
+    label: Finishing
+    description: >-
+      Converting the chances taken. Read this with care - see `caveat`.
+    caveat: >-
+      Finishing is noisy. Goals above expected regresses heavily over the sample
+      available in a single season, so a high score describes what happened
+      rather than a reliable measurement of finishing ability. Sample size
+      matters more here than for any other score.
+    components:
+      non_penalty_goals_per90: 35
+      npxg_per90: 20
+      shot_conversion: 20
+      shot_accuracy: 15
+      shot_quality: 10
+
+# ---------------------------------------------------------------------------
+# NOT IMPLEMENTED: aerial_presence
+# ---------------------------------------------------------------------------
+# `fact_player_intelligence_scores` in the master spec (section 5) lists
+# `aerial_presence_score`, but section 9 — which defines the weights for every
+# other score — does not define it.
+#
+# No definition has been invented. Choosing weights here would be the same error
+# as guessing a provider field: the number would look exactly as authoritative
+# as the eight defined scores while resting on nothing.
+#
+# The metrics needed are already available (`aerial_duel_win_percentage`,
+# `aerial_duels_won_per90`, `aerial_duels_per90`, plus height from the market
+# data), so this needs a decision rather than more work. A plausible starting
+# point, requiring sign-off before use:
+#
+#   aerial_presence:
+#     components:
+#       aerial_duel_win_percentage: 50
+#       aerial_duels_won_per90: 35
+#       aerial_duels_per90: 15

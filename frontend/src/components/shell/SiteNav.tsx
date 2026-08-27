@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { signOutAction } from "@/app/actions/auth";
 import { cn } from "@/lib/cn";
 import { PRIMARY_NAV, SECONDARY_NAV } from "@/lib/nav";
 
@@ -40,7 +41,12 @@ export function DesktopNav() {
   );
 }
 
-export function MobileNav() {
+/**
+ * `signedInAs` arrives as a prop rather than being read here: session state is
+ * resolved on the server, so the menu cannot briefly render the wrong answer
+ * while the client works out who is signed in.
+ */
+export function MobileNav({ signedInAs }: { signedInAs: string | null }) {
   const pathname = usePathname();
 
   // Openness is stored as "the route the menu was opened on" and compared with
@@ -111,6 +117,27 @@ export function MobileNav() {
                 </li>
               ))}
             </ul>
+            <div className="mt-3 border-t border-border pt-3 sm:hidden">
+              {signedInAs ? (
+                <div className="flex items-center justify-between gap-3">
+                  <Link href="/account" className="min-w-0 truncate text-sm text-muted">
+                    {signedInAs}
+                  </Link>
+                  <form action={signOutAction}>
+                    <button
+                      type="submit"
+                      className="rounded-md border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:text-text"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <Link href="/sign-in" className="block text-sm font-medium text-accent">
+                  Sign in
+                </Link>
+              )}
+            </div>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3">
               {SECONDARY_NAV.map((item) => (
                 <li key={item.href}>

@@ -3,183 +3,372 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { Field, NumberRange, Select, TextInput } from "@/components/ui/Field";
-import { FilterGroup, FilterPanel } from "@/components/ui/FilterPanel";
+import { ButtonLink } from "@/components/ui/Button";
+import { Field, Select, TextInput } from "@/components/ui/Field";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
-import { Callout } from "@/components/ui/States";
+import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
-import { PREVIEW_PLAYERS } from "@/lib/mock/preview";
+import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 
 export const metadata: Metadata = { title: "Player search" };
 
 const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
+const PAGE_SIZE = 25;
 
-/**
- * Player search - interface shell.
- *
- * Layout, filters and table are real components; the rows are fixed preview
- * fixtures and the controls do not filter yet. That is stated on the page
- * rather than left for the reader to discover by clicking.
- */
-export default function PlayerSearchPage() {
+const SORTS = [
+  { value: "minutes", label: "Minutes played" },
+  { value: "role_score", label: "Role fit" },
+  { value: "market_value", label: "Market value" },
+  { value: "age", label: "Age" },
+  { value: "name", label: "Name" },
+];
+
+function first(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw && raw.length > 0 ? raw : undefined;
+}
+
+export default async function PlayerSearchPage(props: PageProps<"/players">) {
+  const params = await props.searchParams;
+
+  const filters = {
+    search: first(params.search),
+    position_group: first(params.position_group),
+    competition: first(params.competition),
+    role: first(params.role),
+    age_min: first(params.age_min),
+    age_max: first(params.age_max),
+    minutes_min: first(params.minutes_min) ?? "900",
+    market_value_max: first(params.market_value_max),
+    contract_within_months: first(params.contract_within_months),
+    sort: first(params.sort) ?? "minutes",
+  };
+  const offset = Number(first(params.offset) ?? 0);
+
+  const [results, competitions, roles] = await Promise.all([
+    searchPlayers({ ...filters, offset, limit: PAGE_SIZE }),
+    getCompetitions(),
+    getRoles(),
+  ]);
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Database"
         title="Player search"
-        description="Filter the player database by profile, playing time, performance and market criteria."
+        description="Filter by profile, playing time and market criteria. Every player is ranked against their own position group."
       />
 
-      <Callout tone="note" title="Interface preview">
-        Filters and sorting are not connected yet — they arrive with the demo dataset in a later
-        phase. The rows below are fixed placeholders, not search results.
-      </Callout>
+      {results === null ? (
+        <ErrorState
+          title="Could not load players"
+          description="The API did not respond. Check that the backend is running."
+        />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          {/* A plain GET form: filters live in the URL, so a search is
+              shareable and the back button behaves as people expect. */}
+          <form
+            method="get"
+            className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Filters</h2>
+              <Link href="/players" className="text-xs text-muted hover:text-text">
+                Reset
+              </Link>
+            </div>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <FilterPanel className="lg:sticky lg:top-20 lg:self-start">
-          <FilterGroup title="Identity">
-            <Field label="Name" htmlFor="f-name">
-              <TextInput id="f-name" type="search" placeholder="Search players…" disabled />
+            <Field label="Name" htmlFor="search">
+              <TextInput
+                id="search"
+                name="search"
+                type="search"
+                placeholder="Search players…"
+                defaultValue={filters.search ?? ""}
+              />
             </Field>
-            <Field label="Nationality" htmlFor="f-nat">
-              <Select id="f-nat" disabled defaultValue="">
-                <option value="">Any</option>
-              </Select>
-            </Field>
-            <Field label="Preferred foot" htmlFor="f-foot">
-              <Select id="f-foot" disabled defaultValue="">
-                <option value="">Any</option>
-                <option>Left</option>
-                <option>Right</option>
-                <option>Both</option>
-              </Select>
-            </Field>
-          </FilterGroup>
 
-          <FilterGroup title="Position &amp; role">
-            <Field label="Position group" htmlFor="f-pos">
-              <Select id="f-pos" disabled defaultValue="">
+            <Field label="Position group" htmlFor="position_group">
+              <Select
+                id="position_group"
+                name="position_group"
+                defaultValue={filters.position_group ?? ""}
+              >
                 <option value="">Any</option>
                 {POSITION_GROUPS.map((group) => (
-                  <option key={group}>{group}</option>
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Role" htmlFor="f-role">
-              <Select id="f-role" disabled defaultValue="">
+
+            <Field label="Competition" htmlFor="competition">
+              <Select id="competition" name="competition" defaultValue={filters.competition ?? ""}>
                 <option value="">Any</option>
+                {competitions.map((competition) => (
+                  <option key={competition.competition_id} value={competition.competition_id}>
+                    {competition.name}
+                  </option>
+                ))}
               </Select>
             </Field>
-          </FilterGroup>
 
-          <FilterGroup title="Profile">
-            <Field label="Age" htmlFor="age_min">
-              <NumberRange name="age" min={15} max={45} disabled />
+            <Field label="Best role" htmlFor="role">
+              <Select id="role" name="role" defaultValue={filters.role ?? ""}>
+                <option value="">Any</option>
+                {roles.map((role) => (
+                  <option key={role.key} value={role.key}>
+                    {role.label}
+                  </option>
+                ))}
+              </Select>
             </Field>
-            <Field label="Height" htmlFor="height_min">
-              <NumberRange name="height" min={150} max={215} unit="cm" disabled />
-            </Field>
-          </FilterGroup>
 
-          <FilterGroup title="Playing time">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Min age" htmlFor="age_min">
+                <TextInput
+                  id="age_min"
+                  name="age_min"
+                  type="number"
+                  min={14}
+                  max={50}
+                  className="tabular"
+                  defaultValue={filters.age_min ?? ""}
+                />
+              </Field>
+              <Field label="Max age" htmlFor="age_max">
+                <TextInput
+                  id="age_max"
+                  name="age_max"
+                  type="number"
+                  min={14}
+                  max={50}
+                  className="tabular"
+                  defaultValue={filters.age_max ?? ""}
+                />
+              </Field>
+            </div>
+
             <Field
               label={
                 <>
-                  Minutes played
+                  Minimum minutes
                   <Tooltip label="Why does minutes played matter?">
-                    Per-90 figures from a small sample are volatile. Players under 450 minutes are
-                    excluded from rankings by default; lower this filter to include them.
+                    Per-90 figures are volatile over short spells. Players under 450 minutes are
+                    excluded from rankings by default; lower this to include them.
                   </Tooltip>
                 </>
               }
               htmlFor="minutes_min"
-              hint="Default minimum is 900 minutes."
             >
-              <NumberRange name="minutes" min={0} step={90} disabled />
+              <TextInput
+                id="minutes_min"
+                name="minutes_min"
+                type="number"
+                min={0}
+                step={90}
+                className="tabular"
+                defaultValue={filters.minutes_min}
+              />
             </Field>
-          </FilterGroup>
 
-          <FilterGroup title="Market">
-            <Field label="Market value" htmlFor="value_min">
-              <NumberRange name="value" min={0} unit="€m" disabled />
+            <Field label="Max market value (€)" htmlFor="market_value_max">
+              <TextInput
+                id="market_value_max"
+                name="market_value_max"
+                type="number"
+                min={0}
+                step={500000}
+                className="tabular"
+                defaultValue={filters.market_value_max ?? ""}
+              />
             </Field>
-            <Field label="Contract expires within" htmlFor="f-contract">
-              <Select id="f-contract" disabled defaultValue="">
+
+            <Field label="Contract expires within" htmlFor="contract_within_months">
+              <Select
+                id="contract_within_months"
+                name="contract_within_months"
+                defaultValue={filters.contract_within_months ?? ""}
+              >
                 <option value="">Any</option>
-                <option>6 months</option>
-                <option>12 months</option>
-                <option>18 months</option>
-                <option>24 months</option>
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
+                <option value="18">18 months</option>
+                <option value="24">24 months</option>
               </Select>
             </Field>
-          </FilterGroup>
-        </FilterPanel>
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">
-              <span className="tabular font-medium text-text">{PREVIEW_PLAYERS.length}</span>{" "}
-              placeholder rows
-            </p>
-            <Badge tone="warning">Mock data</Badge>
-          </div>
-
-          <TableWrap>
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Player</TH>
-                  <TH numeric>Age</TH>
-                  <TH>Club</TH>
-                  <TH>Competition</TH>
-                  <TH>Best role</TH>
-                  <TH numeric>Fit</TH>
-                  <TH numeric>Minutes</TH>
-                  <TH numeric>Value</TH>
-                  <TH numeric>Contract</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {PREVIEW_PLAYERS.map((player) => (
-                  <TR key={player.slug} interactive>
-                    <TD>
-                      <Link
-                        href={`/players/${player.slug}`}
-                        className="font-medium transition-colors hover:text-accent"
-                      >
-                        {player.name}
-                      </Link>
-                      <span className="mt-0.5 flex items-center gap-1.5">
-                        <span className="text-xs text-subtle">{player.position}</span>
-                        <SampleSizeBadge minutes={player.minutes} showTooltip={false} />
-                      </span>
-                    </TD>
-                    <TD numeric>{player.age}</TD>
-                    <TD className="whitespace-nowrap">{player.club}</TD>
-                    <TD className="whitespace-nowrap text-muted">{player.competition}</TD>
-                    <TD className="whitespace-nowrap">{player.bestRole}</TD>
-                    <TD numeric className="font-medium">
-                      {player.roleScore}
-                    </TD>
-                    <TD numeric>{formatCount(player.minutes)}</TD>
-                    <TD numeric>{formatEuro(player.marketValueEur)}</TD>
-                    <TD numeric className="whitespace-nowrap text-muted">
-                      {formatDate(player.contractUntil)}
-                    </TD>
-                  </TR>
+            <Field label="Sort by" htmlFor="sort">
+              <Select id="sort" name="sort" defaultValue={filters.sort}>
+                {SORTS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
-              </TBody>
-            </Table>
-          </TableWrap>
+              </Select>
+            </Field>
 
-          <p className="text-[11px] leading-relaxed text-subtle">
-            Fit is a role score: the statistical resemblance between a player&apos;s profile and a
-            role definition, on a 0–100 scale. It is not a scouting grade or a probability.
-          </p>
-        </section>
-      </div>
+            <button
+              type="submit"
+              className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+            >
+              Apply filters
+            </button>
+          </form>
+
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted">
+                <span className="tabular font-medium text-text">
+                  {formatCount(results.total)}
+                </span>{" "}
+                players match
+                {results.total > PAGE_SIZE ? (
+                  <>
+                    {" "}
+                    · showing {offset + 1}–{Math.min(offset + PAGE_SIZE, results.total)}
+                  </>
+                ) : null}
+              </p>
+              <Badge tone="warning">Demo data</Badge>
+            </div>
+
+            {results.items.length === 0 ? (
+              <EmptyState
+                title="No players match these filters"
+                description="Try widening the age range, lowering the minimum minutes, or clearing the role filter."
+                action={
+                  <ButtonLink href="/players" variant="secondary" size="sm">
+                    Reset filters
+                  </ButtonLink>
+                }
+              />
+            ) : (
+              <>
+                <TableWrap>
+                  <Table>
+                    <THead>
+                      <TR>
+                        <TH>Player</TH>
+                        <TH numeric>Age</TH>
+                        <TH>Club</TH>
+                        <TH>Competition</TH>
+                        <TH>Best role</TH>
+                        <TH numeric>Fit</TH>
+                        <TH numeric>Minutes</TH>
+                        <TH numeric>Value</TH>
+                        <TH numeric>Contract</TH>
+                      </TR>
+                    </THead>
+                    <TBody>
+                      {results.items.map((player) => (
+                        <TR key={player.player_id} interactive>
+                          <TD>
+                            <Link
+                              href={`/players/${player.player_id}`}
+                              className="font-medium transition-colors hover:text-accent"
+                            >
+                              {player.name}
+                            </Link>
+                            <span className="mt-0.5 flex items-center gap-1.5">
+                              <span className="text-xs text-subtle">
+                                {player.raw_position ?? player.position_group}
+                              </span>
+                              {player.minutes !== null ? (
+                                <SampleSizeBadge minutes={player.minutes} showTooltip={false} />
+                              ) : null}
+                            </span>
+                          </TD>
+                          <TD numeric>{player.age ?? "–"}</TD>
+                          <TD className="whitespace-nowrap">{player.club ?? "–"}</TD>
+                          <TD className="whitespace-nowrap text-muted">{player.competition}</TD>
+                          <TD className="whitespace-nowrap">{player.best_role ?? "–"}</TD>
+                          <TD numeric className="font-medium">
+                            {player.best_role_score !== null
+                              ? Math.round(player.best_role_score)
+                              : "–"}
+                          </TD>
+                          <TD numeric>
+                            {player.minutes !== null ? formatCount(player.minutes) : "–"}
+                          </TD>
+                          <TD numeric>
+                            {player.market_value_eur !== null
+                              ? formatEuro(player.market_value_eur)
+                              : "–"}
+                          </TD>
+                          <TD numeric className="whitespace-nowrap text-muted">
+                            {player.contract_expires ? formatDate(player.contract_expires) : "–"}
+                          </TD>
+                        </TR>
+                      ))}
+                    </TBody>
+                  </Table>
+                </TableWrap>
+
+                <Pagination total={results.total} offset={offset} params={params} />
+              </>
+            )}
+
+            <Callout tone="note" title="What “Fit” means">
+              Fit is a role score: the statistical resemblance between a player&apos;s profile and
+              a role definition, on a 0–100 scale. It is not a scouting grade, a probability, or a
+              measure of quality. Scores are comparable between players within one role, but not
+              across different roles.
+            </Callout>
+          </section>
+        </div>
+      )}
     </div>
+  );
+}
+
+function Pagination({
+  total,
+  offset,
+  params,
+}: {
+  total: number;
+  offset: number;
+  params: Record<string, string | string[] | undefined>;
+}) {
+  if (total <= PAGE_SIZE) return null;
+
+  const build = (nextOffset: number) => {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      const raw = Array.isArray(value) ? value[0] : value;
+      if (key !== "offset" && raw) search.set(key, raw);
+    }
+    if (nextOffset > 0) search.set("offset", String(nextOffset));
+    return `/players?${search.toString()}`;
+  };
+
+  const page = Math.floor(offset / PAGE_SIZE) + 1;
+  const pages = Math.ceil(total / PAGE_SIZE);
+
+  return (
+    <nav className="flex items-center justify-between" aria-label="Pagination">
+      {offset > 0 ? (
+        <ButtonLink href={build(Math.max(0, offset - PAGE_SIZE))} variant="secondary" size="sm">
+          Previous
+        </ButtonLink>
+      ) : (
+        <span />
+      )}
+      <span className="tabular text-xs text-muted">
+        Page {page} of {pages}
+      </span>
+      {offset + PAGE_SIZE < total ? (
+        <ButtonLink href={build(offset + PAGE_SIZE)} variant="secondary" size="sm">
+          Next
+        </ButtonLink>
+      ) : (
+        <span />
+      )}
+    </nav>
   );
 }

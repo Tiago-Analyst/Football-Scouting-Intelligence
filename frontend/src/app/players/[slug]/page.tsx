@@ -1,46 +1,49 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { SaveToShortlist } from "@/components/shortlists/SaveToShortlist";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { StatTile } from "@/components/ui/StatTile";
-import { Callout, ComingSoonState } from "@/components/ui/States";
+import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import {
-  PREVIEW_INTELLIGENCE,
-  PREVIEW_METRICS,
-  PREVIEW_PLAYERS,
-  PREVIEW_ROLE_FIT,
-} from "@/lib/mock/preview";
-
-export function generateStaticParams() {
-  return PREVIEW_PLAYERS.map((player) => ({ slug: player.slug }));
-}
+  getPlayer,
+  getPlayerRoles,
+  getPlayerStats,
+  getSimilarPlayers,
+} from "@/lib/players";
+import { getCurrentUser } from "@/lib/auth";
+import { getShortlists } from "@/lib/shortlists";
+import type { Score } from "@/types/api";
 
 export async function generateMetadata(props: PageProps<"/players/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
-  const player = PREVIEW_PLAYERS.find((candidate) => candidate.slug === slug);
+  const player = await getPlayer(slug);
   return { title: player ? player.name : "Player" };
 }
 
-/**
- * Player profile - interface shell.
- *
- * Demonstrates the profile layout: identity header, best role, intelligence
- * scores, and a metric table where every percentile carries its comparison
- * population. All figures are placeholders.
- */
 export default async function PlayerProfilePage(props: PageProps<"/players/[slug]">) {
   const { slug } = await props.params;
-  const player = PREVIEW_PLAYERS.find((candidate) => candidate.slug === slug);
+  const player = await getPlayer(slug);
   if (!player) notFound();
 
-  const comparison = `${player.positionGroup} · ${player.competition} · 2026/27`;
+  const [stats, roles, similar, user, shortlists] = await Promise.all([
+    getPlayerStats(slug),
+    getPlayerRoles(slug),
+    getSimilarPlayers(slug, { limit: 6 }),
+    getCurrentUser(),
+    // Returns an empty list for a signed-out visitor without calling the API,
+    // so a public profile costs nothing extra to render.
+    getShortlists(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -49,25 +52,47 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         title={player.name}
         description={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>{player.age} years</span>
+            {player.age !== null ? <span>{player.age} years</span> : null}
             <Sep />
-            <span>{player.position}</span>
-            <Sep />
-            <span>{player.nationality}</span>
-            <Sep />
-            <span>{player.club}</span>
+            <span>{player.raw_position ?? player.position_group}</span>
+            {player.nationality ? (
+              <>
+                <Sep />
+                <span>{player.nationality}</span>
+              </>
+            ) : null}
+            {player.club ? (
+              <>
+                <Sep />
+                <span>{player.club}</span>
+              </>
+            ) : null}
             <Sep />
             <span>{player.competition}</span>
-            <Sep />
-            <span>
-              {player.foot} footed · {player.heightCm}cm
-            </span>
+            {player.preferred_foot ? (
+              <>
+                <Sep />
+                <span>{player.preferred_foot} footed</span>
+              </>
+            ) : null}
+            {player.height_cm ? (
+              <>
+                <Sep />
+                <span>{player.height_cm}cm</span>
+              </>
+            ) : null}
           </span>
         }
         actions={
           <>
-            <Badge tone="warning">Mock data</Badge>
-            <SampleSizeBadge minutes={player.minutes} />
+            {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
+            {player.minutes !== null ? <SampleSizeBadge minutes={player.minutes} /> : null}
+            <SaveToShortlist
+              playerId={player.player_id}
+              playerName={player.name}
+              shortlists={shortlists}
+              signedIn={user !== null}
+            />
           </>
         }
       />
@@ -75,23 +100,39 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Best role"
-          value={player.roleScore}
+          value={roles?.best?.score !== undefined && roles.best?.score !== null
+            ? Math.round(roles.best.score)
+            : "–"}
           unit="/ 100"
-          hint={player.bestRole}
+          hint={roles?.best?.label ?? "Not available"}
           tone="accent"
         />
         <StatTile
           label="Minutes played"
-          value={formatCount(player.minutes)}
+          value={player.minutes !== null ? formatCount(player.minutes) : "–"}
           hint="2026/27 season"
         />
         <StatTile
           label="Market value"
-          value={formatEuro(player.marketValueEur)}
-          hint="Transfermarkt estimate, not a fee"
+          value={player.market_value_eur !== null ? formatEuro(player.market_value_eur) : "–"}
+          hint="Estimate, not a fee"
         />
-        <StatTile label="Contract until" value={formatDate(player.contractUntil)} />
+        <StatTile
+          label="Contract until"
+          value={player.contract_expires ? formatDate(player.contract_expires) : "–"}
+        />
       </div>
+
+      {stats?.sample && stats.sample.band !== "full" ? (
+        <Callout
+          tone={stats.sample.band === "low" ? "warning" : "caution"}
+          title={
+            stats.sample.band === "low" ? "Low sample size" : "Insufficient sample size"
+          }
+        >
+          {stats.sample.explanation}
+        </Callout>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -100,23 +141,38 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               <span className="flex items-center gap-1.5">
                 Intelligence profile
                 <Tooltip label="What are intelligence scores?">
-                  Each score combines several underlying metrics, converted to percentiles within
-                  the comparison group first, then weighted. A score of 0–100 describes where this
-                  player sits on that composite — not how good they are.
+                  Each score combines several metrics, converted to percentiles within the
+                  comparison group first, then weighted. A score of 0–100 says where this player
+                  sits on that composite — not how good they are.
                 </Tooltip>
               </span>
             }
             description="Composite scores built from contextual percentiles."
           />
           <CardBody className="space-y-3.5">
-            {PREVIEW_INTELLIGENCE.map((item) => (
-              <div key={item.label} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
-                <span className="text-xs text-muted">{item.label}</span>
-                <PercentileBar percentile={item.score} />
+            {(stats?.scores ?? []).map((score) => (
+              <div key={score.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
+                <span className="flex items-center gap-1 text-xs text-muted">
+                  {score.label}
+                  {score.caveat ? (
+                    <Tooltip label={`About ${score.label}`}>{score.caveat}</Tooltip>
+                  ) : null}
+                </span>
+                {score.score !== null ? (
+                  <PercentileBar percentile={score.score} />
+                ) : (
+                  <span className="text-xs text-subtle">
+                    Not available — missing {score.missing.join(", ")}
+                  </span>
+                )}
               </div>
             ))}
           </CardBody>
-          <CardFooter className="text-subtle">Compared with {comparison}</CardFooter>
+          {stats?.context ? (
+            <CardFooter className="text-subtle">
+              Compared with {stats.context.label} · {stats.context.population_size} players
+            </CardFooter>
+          ) : null}
         </Card>
 
         <Card>
@@ -125,21 +181,26 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
             description="Statistical fit against each role compatible with this position."
           />
           <CardBody className="space-y-3.5">
-            {PREVIEW_ROLE_FIT.map((item, index) => (
-              <div key={item.role} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
-                <span className="flex items-center gap-1.5 text-xs">
-                  <span className={index === 0 ? "font-medium" : "text-muted"}>{item.role}</span>
-                </span>
-                <PercentileBar percentile={item.score} />
-              </div>
-            ))}
+            {roles?.best ? (
+              [roles.best, ...roles.alternatives].map((role, index) => (
+                <div key={role.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
+                  <span className={index === 0 ? "text-xs font-medium" : "text-xs text-muted"}>
+                    {role.label}
+                  </span>
+                  <PercentileBar percentile={role.score ?? 0} />
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted">No role fit could be computed.</p>
+            )}
           </CardBody>
           <CardFooter className="text-subtle">
-            Role score measures resemblance to a profile. It is not player quality, a probability,
-            or a scouting grade.
+            {roles?.meaning ?? "Role score measures resemblance to a profile."}
           </CardFooter>
         </Card>
       </div>
+
+      {roles?.best ? <WhyBestRole role={roles.best} /> : null}
 
       <Card>
         <CardHeader
@@ -148,8 +209,8 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
             <span className="flex items-center gap-1.5">
               Per 90 minutes, with percentile rank
               <Tooltip label="What does a percentile mean here?">
-                A 94th percentile means this player ranks above 94% of the comparison group on that
-                metric. The comparison group is stated below the table and is never hidden.
+                A 94th percentile means this player ranks above 94% of the comparison group on
+                that metric. The comparison group is stated below the table and is never hidden.
               </Tooltip>
             </span>
           }
@@ -164,37 +225,161 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               </TR>
             </THead>
             <TBody>
-              {PREVIEW_METRICS.map((row) => (
-                <TR key={row.metric}>
-                  <TD>{row.metric}</TD>
-                  <TD numeric>{row.per90.toFixed(1)}</TD>
+              {(stats?.metrics ?? []).map((metric) => (
+                <TR key={metric.metric}>
                   <TD>
-                    <PercentileBar percentile={row.percentile} />
+                    <span className="flex items-center gap-1.5">
+                      {metric.label}
+                      {metric.lower_is_better ? (
+                        <span className="text-[10px] text-subtle">(lower is better)</span>
+                      ) : null}
+                    </span>
+                  </TD>
+                  <TD numeric>{metric.value !== null ? metric.value.toFixed(2) : "–"}</TD>
+                  <TD>
+                    {metric.percentile !== null ? (
+                      <PercentileBar percentile={metric.percentile} />
+                    ) : (
+                      <span className="text-xs text-subtle">
+                        {metric.unavailable_reason ?? "Not available"}
+                      </span>
+                    )}
                   </TD>
                 </TR>
               ))}
             </TBody>
           </Table>
         </TableWrap>
-        <CardFooter>
-          <span className="text-subtle">
-            Compared with <span className="text-text">{comparison}</span>
-          </span>
-        </CardFooter>
+        {stats?.context ? (
+          <CardFooter>
+            <span className="text-subtle">
+              Compared with <span className="text-text">{stats.context.label}</span> ·{" "}
+              {stats.context.population_size} players with at least{" "}
+              {stats.context.minimum_minutes} minutes
+            </span>
+          </CardFooter>
+        ) : null}
       </Card>
 
-      <Callout tone="warning" title="Cross-league comparison is not strength-adjusted">
-        These percentiles rank the player within {player.competition} only. Percentiles calculated
-        across multiple competitions do not currently account for differences in competition
-        strength.
-      </Callout>
+      {stats?.context?.caveat ? (
+        <Callout tone="warning" title="Cross-league comparison is not strength-adjusted">
+          {stats.context.caveat}
+        </Callout>
+      ) : null}
 
-      <ComingSoonState
-        phase="Later phase"
-        feature="Similar players, market value history and transfer history"
-        description="These sections need the analytical pipeline and market data, which are built after the metrics and similarity engines."
-      />
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Similar players</h2>
+          <ButtonLink href={`/similar?player=${player.player_id}`} variant="secondary" size="sm">
+            Open similarity search
+          </ButtonLink>
+        </div>
+
+        {similar && similar.results.length > 0 ? (
+          <>
+            <TableWrap>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Player</TH>
+                    <TH numeric>Age</TH>
+                    <TH>Club</TH>
+                    <TH>Best role</TH>
+                    <TH numeric>Similarity</TH>
+                    <TH numeric>Value</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {similar.results.map((entry) => (
+                    <TR key={entry.player.player_id} interactive>
+                      <TD>
+                        <Link
+                          href={`/players/${entry.player.player_id}`}
+                          className="font-medium transition-colors hover:text-accent"
+                        >
+                          {entry.player.name}
+                        </Link>
+                        {!entry.comparable_strength ? (
+                          <span className="mt-0.5 block">
+                            <Badge tone="warning">Different profile strength</Badge>
+                          </span>
+                        ) : null}
+                      </TD>
+                      <TD numeric>{entry.player.age ?? "–"}</TD>
+                      <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
+                      <TD className="whitespace-nowrap text-muted">
+                        {entry.player.best_role ?? "–"}
+                      </TD>
+                      <TD numeric className="font-medium">
+                        {Math.round(entry.similarity)}
+                      </TD>
+                      <TD numeric>
+                        {entry.player.market_value_eur !== null
+                          ? formatEuro(entry.player.market_value_eur)
+                          : "–"}
+                      </TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            </TableWrap>
+            <p className="text-[11px] leading-relaxed text-subtle">{similar.meaning}</p>
+          </>
+        ) : (
+          <EmptyState
+            title="No similar players found"
+            description="There may be too few comparable players in this position group."
+          />
+        )}
+      </section>
     </div>
+  );
+}
+
+function WhyBestRole({ role }: { role: Score }) {
+  const components = [...role.components].sort(
+    (a, b) => (b.contribution ?? 0) - (a.contribution ?? 0),
+  );
+  return (
+    <Card>
+      <CardHeader
+        title={`Why ${role.label} = ${role.score !== null ? Math.round(role.score) : "–"}`}
+        description="Every component that produced the score, and what each contributed."
+      />
+      <TableWrap className="rounded-none border-0">
+        <Table>
+          <THead>
+            <TR>
+              <TH>Component</TH>
+              <TH numeric>Percentile</TH>
+              <TH numeric>Weight</TH>
+              <TH numeric>Contributes</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {components.map((component) => (
+              <TR key={component.metric}>
+                <TD>{component.label}</TD>
+                <TD numeric>
+                  {component.percentile !== null ? component.percentile.toFixed(1) : "–"}
+                </TD>
+                <TD numeric className="text-muted">
+                  {Math.round(component.weight)}%
+                </TD>
+                <TD numeric className="font-medium">
+                  {component.contribution !== null ? component.contribution.toFixed(1) : "–"}
+                </TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      </TableWrap>
+      {role.caveat ? (
+        <CardFooter>
+          <span className="text-warning">{role.caveat}</span>
+        </CardFooter>
+      ) : null}
+    </Card>
   );
 }
 

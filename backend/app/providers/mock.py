@@ -649,7 +649,11 @@ def _generate_player(
     )
 
     age = max(16, min(38, round(rng.gauss(25.0, 4.2))))
-    birth_year = REFERENCE_DATE.year - age
+    # REFERENCE_DATE is 1 January, so any birthday falls later in its year and
+    # the player has not yet had it. Subtracting the extra year makes the age
+    # computed downstream match the age intended here - without it the youngest
+    # generated players read as 15, which is not a plausible senior squad age.
+    birth_year = REFERENCE_DATE.year - age - 1
     date_of_birth = date(birth_year, rng.randint(1, 12), rng.randint(1, 28))
 
     # Squad role drives playing time, which is what produces the full-sample,

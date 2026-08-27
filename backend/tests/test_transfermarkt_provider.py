@@ -1,6 +1,6 @@
 """TransfermarktDatasetProvider, against the real snapshot.
 
-Marked `integration` and skipped when the snapshot is absent: the archive is
+Marked `snapshot` and skipped when the archive is absent: the archive is
 218 MB and is not downloaded in CI. Run
 `python -m pipelines.transfermarkt.download` from the repository root first.
 
@@ -25,7 +25,7 @@ from app.providers.transfermarkt import (
 from app.schemas.canonical import PositionGroup
 from app.schemas.market import TransferType
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.snapshot
 
 SNAPSHOT_PRESENT = all((DEFAULT_TABLES_DIR / f"{name}.csv.gz").exists() for name in REQUIRED_TABLES)
 requires_snapshot = pytest.mark.skipif(

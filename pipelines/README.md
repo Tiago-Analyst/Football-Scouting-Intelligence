@@ -13,9 +13,26 @@ Provider → Raw snapshot → Validation → Identity resolution
 ```
 
 Build order: `transfermarkt/` (Phase 1B), `transformations/` and `metrics/`
-(Phases 4–8), `footystats/` (Phase 14, only after the real API schema has been
-profiled), `identity_resolution/` (Phases 3 and 15), `quality/` and `load/`
+(Phases 4–8), `identity_resolution/` (Phase 3), `quality/` and `load/`
 alongside.
+
+`quality/` reports on the loaded data rather than on a load. `coverage.py`
+measures which canonical metrics are populated and what their absence would
+disable — the dependency graph is discovered by blanking a field and seeing what
+stops computing, not by a hand-written table that would drift. `report.py` runs
+the checks and exits 1 on any failure, so it can gate a deployment:
+
+```bash
+python -m pipelines.quality.report            # print
+python -m pipelines.quality.report --persist  # and record in fact_data_quality
+```
+
+`footystats/` holds the validation apparatus, not an ingestion pipeline. `probe`
+records real API responses and `profile` describes them; neither interprets a
+field. An ingestion pipeline may only be written after a person has read the
+profile and filled in `config/footystats_mapping.yaml`, and both scripts refuse
+to run — writing nothing, exit code 2 — until there is something real to work
+from.
 
 If validation fails, the previous production data stays live. Corrupted data is
 never published.

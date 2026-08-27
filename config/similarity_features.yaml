@@ -1,0 +1,109 @@
+# Feature vectors for statistical similarity, by position group.
+#
+# Similarity is position-specific (spec section 12): comparing a centre-back to
+# a winger on the same features would rank on position rather than on style.
+#
+# WHICH FEATURES, AND WHO CHOSE THEM
+#
+# The midfield vector is the one the spec states explicitly. Every other vector
+# is a judgement call, built to the same shape: cover progression, retention,
+# creation, defending, duelling and threat, so that two players sharing a
+# position are separated by *style* rather than by which department the source
+# happens to describe well.
+#
+# A feature set that is all attacking would make every defensive difference
+# invisible; one that is all volume would make a low-minutes specialist look
+# like a poor version of a starter rather than a different kind of player.
+#
+# NOTE ON `tackles_per90`
+#
+# The spec's midfield vector names `tackles_per90`, not successful tackles.
+# Kept as specified: attempted tackles measure how often a player engages,
+# which is a style signal, while success rate is a quality signal that belongs
+# in role scoring.
+
+version: 1
+
+position_groups:
+  # Stated by the spec (section 12). The other vectors follow its shape.
+  DM: &midfield
+    - progressive_passes_per90
+    - completed_passes_per90
+    - pass_completion
+    - key_passes_per90
+    - xa_per90
+    - successful_dribbles_per90
+    - tackles_per90
+    - interceptions_per90
+    - duel_win_percentage
+    - aerial_duel_win_percentage
+    - dispossessed_per90
+
+  CM: *midfield
+  AM: *midfield
+
+  CB:
+    - progressive_passes_per90
+    - completed_passes_per90
+    - pass_completion
+    - tackles_per90
+    - interceptions_per90
+    - blocks_per90
+    - clearances_per90
+    - duel_win_percentage
+    - aerial_duel_win_percentage
+    - aerial_duels_per90
+    - dribbled_past_per90
+
+  FB_WB:
+    - progressive_passes_per90
+    - completed_passes_per90
+    - pass_completion
+    - crosses_per90
+    - key_passes_per90
+    - xa_per90
+    - successful_dribbles_per90
+    - tackles_per90
+    - interceptions_per90
+    - duel_win_percentage
+    - dribbled_past_per90
+
+  WINGER:
+    - successful_dribbles_per90
+    - dribble_success_percentage
+    - crosses_per90
+    - key_passes_per90
+    - xa_per90
+    - shots_per90
+    - npxg_per90
+    - non_penalty_goals_per90
+    - fouls_drawn_per90
+    - dispossessed_per90
+    - progressive_passes_per90
+
+  FORWARD:
+    - shots_per90
+    - shots_on_target_per90
+    - npxg_per90
+    - non_penalty_goals_per90
+    - shot_quality
+    - xa_per90
+    - key_passes_per90
+    - successful_dribbles_per90
+    - aerial_duels_won_per90
+    - aerial_duel_win_percentage
+    - duel_win_percentage
+
+  # Goalkeeping metrics are few and heavily team-dependent, so this vector is
+  # thin by necessity. Passing is included because sweeper-keeper and
+  # traditional keeper are a genuine stylistic split that the shot-stopping
+  # metrics alone cannot see.
+  GK:
+    - saves_per90
+    - inside_box_saves_per90
+    - save_percentage
+    - goals_conceded_per90
+    - clean_sheet_percentage
+    - passes_per90
+    - pass_completion
+    - progressive_passes_per90

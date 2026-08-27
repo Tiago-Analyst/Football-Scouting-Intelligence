@@ -2,7 +2,7 @@
 import "server-only";
 
 import { apiFetch } from "@/lib/api";
-import type { HealthResponse, MetaResponse } from "@/types/api";
+import type { DataQualityResponse, HealthResponse, MetaResponse } from "@/types/api";
 
 /**
  * Readiness of the backend and its dependencies.
@@ -24,6 +24,22 @@ export async function getMeta(): Promise<MetaResponse | null> {
   try {
     return await apiFetch<MetaResponse>("/api/v1/meta", { revalidate: 60 });
   } catch {
+    return null;
+  }
+}
+
+/**
+ * The data quality report.
+ *
+ * Never cached: the point of the page is to say how current the data is, and
+ * serving a stale answer to that question would be self-defeating.
+ */
+export async function getDataQuality(): Promise<DataQualityResponse | null> {
+  try {
+    return await apiFetch<DataQualityResponse>("/api/v1/data-quality");
+  } catch {
+    // The page renders an explicit failure state rather than an error boundary:
+    // "we cannot tell you about data quality right now" is itself the answer.
     return null;
   }
 }

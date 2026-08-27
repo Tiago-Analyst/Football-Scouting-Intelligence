@@ -1,0 +1,94 @@
+# FootyStats endpoints to probe.
+#
+# ============================================================================
+# EVERY ENTRY IN THIS FILE IS AN UNVERIFIED HYPOTHESIS.
+# ============================================================================
+#
+# These paths come from public documentation, not from an observed response.
+# Nothing here may be treated as fact until `pipelines/footystats/probe.py` has
+# called it with a real key and recorded what came back. The probe reports which
+# of these exist, which return an error, and which return a shape nobody
+# expected — that report is the evidence, and this file is only the question.
+#
+# The distinction that matters: listing a candidate *endpoint* is how you find
+# out what a provider offers. Listing a candidate *metric field* would be
+# guessing at data, which the specification prohibits outright. So there are no
+# field names anywhere in this file. Fields are discovered by the probe and
+# recorded in `config/footystats_mapping.yaml` only after a human has seen them.
+#
+# Parameters are resolved in order: a stage may use an id discovered by an
+# earlier stage. Nothing is hardcoded — if the catalogue stage returns no
+# leagues, the later stages do not run and say so.
+
+version: 1
+
+# Requests per minute the probe will not exceed. Deliberately conservative:
+# this runs once, and being slow costs nothing next to being rate-limited or
+# looking like abuse to the provider.
+rate_limit_per_minute: 20
+
+stages:
+  - name: catalogue
+    description: >
+      Endpoints that need nothing but the key. These establish that the key
+      works at all and produce the ids every later stage depends on.
+    endpoints:
+      - path: /test-call
+        params: {}
+        purpose: Documented example call. Cheapest possible check that a key is live.
+        expect: unknown
+
+      - path: /league-list
+        params: {}
+        purpose: >
+          The competition catalogue, and the source of the season ids the
+          player endpoints need. If this returns nothing usable, no later stage
+          can run.
+        expect: unknown
+        # Where the next stage looks for a season id. A path into the response,
+        # verified to exist before it is used.
+        discovers:
+          season_id: unknown
+
+      - path: /country-list
+        params: {}
+        purpose: Nationality vocabulary, for identity resolution against Transfermarkt.
+        expect: unknown
+
+  - name: competition
+    description: Endpoints scoped to one season, using an id discovered above.
+    requires: [season_id]
+    endpoints:
+      - path: /league-season
+        params: { season_id: "${season_id}" }
+        purpose: Season metadata and, per the documentation, aggregate statistics.
+        expect: unknown
+
+      - path: /league-teams
+        params: { season_id: "${season_id}" }
+        purpose: Club dimension for this season.
+        expect: unknown
+        discovers:
+          team_id: unknown
+
+      - path: /league-players
+        params: { season_id: "${season_id}" }
+        purpose: >
+          The endpoint this whole project depends on. Every per-player metric
+          in the canonical model has to come from here or from /player-stats,
+          or it does not exist and the feature that needs it stays switched off.
+        expect: unknown
+        discovers:
+          player_id: unknown
+
+  - name: entity
+    description: Single-entity endpoints, using ids discovered above.
+    requires: [player_id]
+    endpoints:
+      - path: /player-stats
+        params: { player_id: "${player_id}" }
+        purpose: >
+          Per-player detail. Probed separately from /league-players because the
+          two may carry different fields, and the difference decides whether a
+          season load needs one request per competition or one per player.
+        expect: unknown
