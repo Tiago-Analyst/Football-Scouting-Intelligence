@@ -9,16 +9,23 @@ metrics, ranked against position-scoped distributions and scored against up to
 four roles. Doing that inside a request handler would make every page load
 proportional to the size of the database.
 
-In production this layer reads from PostgreSQL. In demo mode it reads from the
-mock providers, which is what makes the site fully navigable before any real
-performance data exists.
+**It reads PostgreSQL, in every mode.** It used to call the providers directly,
+which meant the loader wrote tables nothing read: the loader's refusal to commit
+a failing load - "corrupted data is never published" - guarded a database no
+reader consulted, and a provider call sat inside the serving process. Demo mode
+is no different now; the demo load writes the mock provider's output to the
+database, and the site serves that.
+
+A consequence worth stating: **the API needs a load to have happened.** An empty
+database is reported as empty rather than rendered as a working but deserted
+site.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from functools import lru_cache
 
 from app.analytics.intelligence import IntelligenceScore, IntelligenceScoreEngine
@@ -37,10 +44,16 @@ from app.analytics.similarity import (
     SimilarityFilters,
     SimilarityResult,
 )
-from app.core.config import Settings, get_settings
+from app.core.config import AppMode, Settings, get_settings
+from app.core.database import get_session_factory
 from app.core.logging import get_logger
 from app.providers.market_base import MarketDataProvider
-from app.providers.registry import build_market_provider, build_performance_provider
+from app.providers.registry import build_market_provider
+from app.repositories.analytics_repository import (
+    UniverseFingerprint,
+    fingerprint,
+    load_universe,
+)
 from app.schemas.canonical import PlayerSeasonStats, PositionGroup, PreferredFoot
 
 log = get_logger(__name__)
@@ -94,6 +107,24 @@ class AnalyticsView:
     best_roles: dict[str, RoleFit] = field(default_factory=dict)
     build_seconds: float = 0.0
     is_mock: bool = True
+    #: Which loaded sources the view was built from. Empty before a first load.
+    sources: frozenset[str] = field(default_factory=frozenset)
+    #: Loaded player-seasons left out because they carry no position group, and
+    #: so cannot be ranked against a comparison population.
+    players_without_position: int = 0
+    #: When this view was assembled, and what the database held at the time.
+    built_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    fingerprint: UniverseFingerprint | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        """No data has been loaded.
+
+        Callers must say so rather than serving an empty site as a working one:
+        a search returning nothing looks the same whether the filter was narrow
+        or the database was never filled.
+        """
+        return not self.players
 
     # -- Lookups ------------------------------------------------------------
 
@@ -171,85 +202,106 @@ def _age_at(born: date | None, reference: date) -> int | None:
 
 
 def build_view(settings: Settings) -> AnalyticsView:
-    """Assemble the analytical universe from the configured providers."""
+    """Assemble the analytical universe from what the pipeline loaded."""
     started = time.perf_counter()
-    performance = build_performance_provider(settings)
+
+    # The market provider stays: valuation history and transfers are served per
+    # player rather than held in the view. Everything the *view* needs now comes
+    # from the database.
     market = build_market_provider(settings)
 
-    market_by_id = {p.source_player_id: p for p in market.get_players()}
+    with get_session_factory()() as session:
+        loaded_fingerprint = fingerprint(session)
+        universe = load_universe(session)
 
-    view = AnalyticsView(market=market, is_mock=performance.info.is_mock)
+    view = AnalyticsView(
+        market=market,
+        is_mock=settings.app_mode is AppMode.DEMO,
+        sources=universe.sources,
+        fingerprint=loaded_fingerprint,
+    )
+    # Only competitions and clubs that actually have players in the view. The
+    # dimension tables hold every competition any source has ever mentioned -
+    # 65 of them arrive with the Transfermarkt market data and carry no
+    # performance stats at all - and listing those as searchable would offer
+    # filters that can only ever return nothing.
+    view.clubs.update(universe.clubs)
+
+    if universe.is_empty:
+        # Not an error. A database before its first load is a normal state, and
+        # the engines below would otherwise rank nobody against nobody.
+        view.build_seconds = time.perf_counter() - started
+        log.warning("analytics_view_empty", reason="no player-seasons loaded")
+        return view
+
     population: list[PlayerMetrics] = []
     candidates: dict[str, SimilarityCandidate] = {}
     player_metrics: dict[str, PlayerMetrics] = {}
 
-    for competition in performance.get_competitions():
-        view.competitions[competition.competition_id] = competition.name
-        for season in performance.get_seasons(competition.competition_id):
-            clubs = {
-                c.club_id: c.name
-                for c in performance.get_clubs(competition.competition_id, season.season_id)
-            }
-            view.clubs.update(clubs)
+    skipped_no_position = 0
 
-            identities = {
-                p.source_player_id: p
-                for p in performance.get_players(competition.competition_id, season.season_id)
-            }
-            for stats in performance.get_competition_stats(
-                competition.competition_id, season.season_id
-            ):
-                identity = identities.get(stats.source_player_id)
-                if identity is None:
-                    continue
+    for loaded in universe.players:
+        if loaded.position_group is None:
+            # Percentiles are scoped to a position group, so a player without
+            # one cannot be ranked against anybody. Including them would put a
+            # player in the site with no comparison population behind their
+            # numbers, which is worse than leaving them out and saying so.
+            skipped_no_position += 1
+            continue
 
-                metrics = compute_derived(stats)
-                market_player = market_by_id.get(stats.source_player_id)
-                age = _age_at(identity.date_of_birth, REFERENCE_DATE)
+        metrics = compute_derived(loaded.stats)
+        record = PlayerRecord(
+            player_key=loaded.player_key,
+            full_name=loaded.full_name,
+            position_group=loaded.position_group,
+            raw_position=loaded.raw_position,
+            competition_id=loaded.competition_id,
+            competition_name=loaded.competition_name,
+            club_id=loaded.club_id,
+            club_name=loaded.club_name,
+            nationality=loaded.nationality,
+            preferred_foot=loaded.preferred_foot,
+            height_cm=loaded.height_cm,
+            date_of_birth=loaded.date_of_birth,
+            age=_age_at(loaded.date_of_birth, REFERENCE_DATE),
+            market_value_eur=loaded.market_value_eur,
+            contract_expires=loaded.contract_expires,
+            minutes=loaded.stats.minutes,
+            sample_band=classify_minutes(loaded.stats.minutes),
+            stats=loaded.stats,
+            metrics=metrics,
+        )
+        view.players[record.player_key] = record
+        view.competitions[record.competition_id] = record.competition_name
 
-                record = PlayerRecord(
-                    player_key=stats.source_player_id,
-                    full_name=identity.full_name,
-                    position_group=identity.position_group,
-                    raw_position=identity.raw_position,
-                    competition_id=competition.competition_id,
-                    competition_name=competition.name,
-                    club_id=identity.club_id,
-                    club_name=clubs.get(identity.club_id),
-                    nationality=identity.nationality,
-                    preferred_foot=identity.preferred_foot,
-                    height_cm=identity.height_cm,
-                    date_of_birth=identity.date_of_birth,
-                    age=age,
-                    market_value_eur=(market_player.market_value_eur if market_player else None),
-                    contract_expires=(market_player.contract_expires if market_player else None),
-                    minutes=stats.minutes,
-                    sample_band=classify_minutes(stats.minutes),
-                    stats=stats,
-                    metrics=metrics,
-                )
-                view.players[record.player_key] = record
+        record_metrics = PlayerMetrics(
+            player_key=record.player_key,
+            position_group=record.position_group,
+            competition_id=record.competition_id,
+            season_id=loaded.stats.season_id,
+            metrics=metrics,
+        )
+        population.append(record_metrics)
+        player_metrics[record.player_key] = record_metrics
+        candidates[record.player_key] = SimilarityCandidate(
+            player_key=record.player_key,
+            display_name=record.full_name,
+            position_group=record.position_group,
+            competition_id=record.competition_id,
+            club_id=record.club_id,
+            age=record.age,
+            market_value_eur=record.market_value_eur,
+            contract_expires=record.contract_expires,
+            nationality=record.nationality,
+        )
 
-                record_metrics = PlayerMetrics(
-                    player_key=record.player_key,
-                    position_group=record.position_group,
-                    competition_id=record.competition_id,
-                    season_id=stats.season_id,
-                    metrics=metrics,
-                )
-                population.append(record_metrics)
-                player_metrics[record.player_key] = record_metrics
-                candidates[record.player_key] = SimilarityCandidate(
-                    player_key=record.player_key,
-                    display_name=record.full_name,
-                    position_group=record.position_group,
-                    competition_id=record.competition_id,
-                    club_id=record.club_id,
-                    age=record.age,
-                    market_value_eur=record.market_value_eur,
-                    contract_expires=record.contract_expires,
-                    nationality=record.nationality,
-                )
+    view.players_without_position = skipped_no_position
+    if skipped_no_position:
+        log.warning(
+            "players_excluded_without_position",
+            count=skipped_no_position,
+            of=len(universe.players),
+        )
 
     view.percentiles = PercentileEngine(population)
     view.intelligence = IntelligenceScoreEngine(view.percentiles)
@@ -276,3 +328,25 @@ def build_view(settings: Settings) -> AnalyticsView:
 def get_analytics_view() -> AnalyticsView:
     """Process-wide analytical view. Tests clear with `.cache_clear()`."""
     return build_view(get_settings())
+
+
+def refresh_analytics_view() -> AnalyticsView:
+    """Rebuild the view from the database.
+
+    Held in memory for the life of the process, so a load that happens while
+    the API is running does not reach it on its own. Rather than rebuild on a
+    timer - which would make the site briefly disagree with itself for reasons
+    nobody could see - staleness is *reported* by `is_stale`, and this is the
+    explicit way to act on it.
+    """
+    get_analytics_view.cache_clear()
+    return get_analytics_view()
+
+
+def view_is_stale() -> bool:
+    """Whether the database has been loaded since this view was built."""
+    view = get_analytics_view()
+    if view.fingerprint is None:
+        return True
+    with get_session_factory()() as session:
+        return fingerprint(session) != view.fingerprint

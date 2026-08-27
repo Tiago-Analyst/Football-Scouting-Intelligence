@@ -1,0 +1,62 @@
+# Which competitions to ingest, and how often.
+#
+# Specification section 32 requires this file; section 22 requires the refresh
+# frequency to be configurable.
+#
+# ============================================================================
+# THE FOOTYSTATS COMPETITION LIST IS EMPTY, AND THAT IS CORRECT TODAY.
+# ============================================================================
+#
+# No FootyStats API key has been available, so the league catalogue has never
+# been retrieved and no competition identifier has been observed. Writing ids
+# here from documentation or from memory would be exactly the guess the
+# specification prohibits.
+#
+# The list is populated from what `pipelines.footystats.probe` records when it
+# calls /league-list — real identifiers from a real response, chosen by a
+# person. Until then the FootyStats ingestion has nothing to iterate over, which
+# is the honest state rather than an oversight.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# Refresh cadence (specification section 22)
+# ---------------------------------------------------------------------------
+#
+# Expressed as cron so a scheduler can read it directly. The suggested cadence
+# is FootyStats two to three times per week and Transfermarkt weekly; the
+# values below are that suggestion, and are meant to be changed.
+refresh:
+  footystats:
+    # Mondays, Wednesdays and Fridays, early morning UTC.
+    cron: "0 4 * * 1,3,5"
+    enabled: false          # nothing to fetch without a key
+  transfermarkt:
+    # Sundays. The public dataset is rebuilt on its own schedule; fetching more
+    # often mostly re-downloads an unchanged archive.
+    cron: "0 5 * * 0"
+    enabled: true
+
+# ---------------------------------------------------------------------------
+# FootyStats competitions to ingest
+# ---------------------------------------------------------------------------
+#
+# Each entry, once a person adds one, must carry:
+#
+#   - season_id:  the identifier observed in a real /league-list response
+#   - name:       the competition's name as that response gives it
+#   - country:    the country the response reports
+#   - added_on:   when a person chose to include it
+#
+# Nothing may be added here that has not been seen in a recorded response.
+footystats: []
+
+# ---------------------------------------------------------------------------
+# Transfermarkt
+# ---------------------------------------------------------------------------
+#
+# The public dataset is ingested whole rather than competition by competition:
+# it arrives as one archive, and filtering it before load would discard the
+# identities that identity resolution needs to match against.
+transfermarkt:
+  ingest_all_competitions: true

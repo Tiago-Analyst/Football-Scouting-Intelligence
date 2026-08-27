@@ -20,6 +20,7 @@ market analysis, built on top of performance and market data.
 | Website pages | Working on demo data — search, profiles, similarity, recruitment |
 | Analytical schema (`dim_player`, `fact_*`) | Working — 9 tables, 96 CHECK constraints |
 | Loading into PostgreSQL | Working — transactional, idempotent, self-checking |
+| Serving from PostgreSQL | Working — the API reads the database, not providers |
 | Canonical model and provider abstraction | Working, tested |
 | Mock performance provider | Working — 1,728 demo players |
 | Transfermarkt ingestion | Working — schema profiled, 2 attributes confirmed absent |
@@ -61,6 +62,19 @@ thing that can grant the provider a metric. It is empty today, and the provider
 therefore offers nothing. Both scripts refuse and write nothing without a key.
 Replacing `MockPerformanceProvider` with `FootyStatsProvider` is intended to be
 a provider-layer change only.
+
+## The specification
+
+`docs/specification.md` is the authoritative brief: what was asked for, the
+phase order, and the rules that constrain provider data. Where any other
+document disagrees with it, it wins.
+
+Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
+12 to 21 are blocked on a FootyStats API key and cannot begin without one;
+phases 22 to 24 (pipelines, deployment, polish) are not blocked.
+
+Two things in `docs/architecture.md` were built while phase 12 was blocked and
+are labelled as such rather than borrowing a phase number.
 
 ## Architecture
 
@@ -130,6 +144,16 @@ cd frontend && npm install
 
 ## Running
 
+**Load the data first.** The API serves from PostgreSQL, so a fresh database has
+nothing to show. From the repository root:
+
+```bash
+backend/.venv/Scripts/python -m pipelines.load.load_providers --source demo --replace
+```
+
+Skipping this is not a silent failure: `/health` reports
+`analytics: unavailable` and answers 503 until a load has run.
+
 Backend, from `backend/`:
 
 ```bash
@@ -144,6 +168,9 @@ npm run dev
 
 Then open <http://localhost:3000>. API docs are at
 <http://127.0.0.1:8000/docs> (disabled when `APP_ENV=production`).
+
+The analytical view is built once per process. A load that runs while the API is
+up therefore does not reach it — `/health` says so, and the fix is a restart.
 
 Two pages exist for inspection rather than for users:
 

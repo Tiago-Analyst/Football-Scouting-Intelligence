@@ -1,5 +1,12 @@
 # Architecture
 
+> **Phase numbers here refer to `docs/specification.md`, section 30.** Three
+> sections below are marked otherwise: the FootyStats validation gate is
+> *groundwork* for Phase 12 rather than Phase 12 itself, which cannot begin
+> without an API key, and two sections record work done while that phase was
+> blocked. They are not specification phases and borrow no number from one.
+
+
 Decisions taken so far, and the reasoning behind them. Engineering rule 18:
 architectural choices are documented with their justification, so a later
 change is a deliberate revision rather than an accident.
@@ -1224,7 +1231,7 @@ Phase 9 — and it leaks nothing, but the status code is wrong for crawlers and
 monitoring. Fixing it means moving the loading boundary below the routes that
 call `notFound()`, which is a change to every page and not a Phase 11 decision.
 
-## FootyStats validation gate (Phase 12)
+## FootyStats validation gate (groundwork for Phase 12)
 
 No FootyStats API key has ever been available to this project, so no FootyStats
 response has ever been observed, so no FootyStats field is mapped. That is not
@@ -1341,7 +1348,7 @@ empty, and the mapping cannot be filled without a key. The sequence is:
 Steps 1 to 4 cannot be done by inference, and step 5 must not be started before
 step 4 is real.
 
-## Data quality, surfaced (Phase 13)
+## Data quality, surfaced (unplanned, while Phase 12 was blocked)
 
 The loader has recorded its checks into `fact_data_quality` since Phase 5, and
 nothing has ever read them. A check nobody can see is barely better than a check
@@ -1378,10 +1385,29 @@ and its absence disables six of the fifteen roles, because it feeds a score that
 several roles depend on. That is not a relationship anyone would reliably
 enumerate by hand.
 
-Three metrics turn out to have no dependents at all — `starts`,
-`penalties_taken` and `penalties_saved`. They are stored and displayed, and
-nothing computes from them. Worth knowing before treating their absence as
-urgent.
+Two metrics turn out to have no dependents at all — `starts` and
+`penalties_saved`. They are stored and displayed, and nothing computes from
+them. Worth knowing before treating their absence as urgent.
+
+**A correction, and how the measurement caught its own bug.** This originally
+read *three* metrics, including `penalties_taken`. That was wrong, and the fault
+was in the probe record rather than in the analysis: it set `penalties_taken`
+equal to `shots`, so non-penalty shots came to zero and `shot_conversion` and
+`shot_quality` divided by zero. Both returned `None` from the *baseline* probe,
+so blanking any field could not make them "stop computing" — they had never
+started — and the measurement concluded nothing depended on them.
+
+Aligning the Phase 12 profiler to the specification is what surfaced it: the
+profiler marks a derived metric `DERIVABLE` when every input it needs is
+available, and against a response carrying all 38 canonical metrics those two
+still came back `UNAVAILABLE` with "no measured inputs". Setting
+`penalties_taken` well below `shots` took the measured dependency count from 82
+to 88, and `penalties_taken` now correctly shows two derived metrics, one
+intelligence score and two roles depending on it.
+
+The lesson is about the shape of the error. A hand-written dependency table
+would have stated the truth here and been believed; the measurement stated a
+falsehood and was checkable, which is why it got caught.
 
 ### A check that cries wolf gets ignored
 
@@ -1452,6 +1478,118 @@ page renders them. A deliberately failing check was injected into
 `fact_data_quality` to confirm the page shouts rather than buries it — the
 caution callout, the row and the source all appeared — and then removed.
 
+## The serving layer reads PostgreSQL (unplanned, while Phase 12 was blocked)
+
+The architecture has said `Browser -> Next.js -> FastAPI -> PostgreSQL` since the
+first commit. For the player-facing half it was not true. The loader wrote
+`dim_player` and `fact_player_season_stats`, and `build_view` assembled the
+analytical universe by calling the providers directly — so the database held
+player data that **nothing read**.
+
+Two consequences, and neither was cosmetic.
+
+**The validation gate protected nothing.** The loader refuses to commit a load
+whose checks fail, so that "corrupted data is never published" (section 23). But
+the site was not serving the database, so the gate guarded a store no reader
+consulted. Whatever the loader accepted or rejected, the site showed the same
+figures.
+
+**A provider call sat in the serving process.** `PerformanceDataProvider` states
+that providers are consumed by the ingestion pipeline and never during a web
+request. Building the view from providers at startup put a DuckDB scan of a
+218 MB dataset — and, once FootyStats exists, an API call — inside the API
+process.
+
+`app/repositories/analytics_repository.py` now reads the universe out of
+PostgreSQL, and `build_view` uses it. Demo mode is no different: the demo load
+writes the mock provider output to the database, and the site serves that.
+
+### The player key stayed the provider's
+
+The obvious key for a player read from the database is `dim_player.player_id`.
+Using it would have changed every player URL and orphaned every shortlist entry
+saved against the old key — those entries would have rendered as "not in current
+data", which is the graceful path, but graceful degradation is not a reason to
+break something avoidable.
+
+So the repository joins `bridge_player_source` and keys players by the
+provider's own identifier, which is what the rest of the system already used.
+`/players/mock-p-000011` still resolves, and so does every saved shortlist.
+
+### Three things the database contains that the site should not show
+
+Reading real tables surfaced three cases the provider path never had to face.
+
+**Competitions with no players.** `dim_competition` holds every competition any
+source has mentioned; 65 of the 69 arrive with the Transfermarkt market data and
+carry no performance statistics at all. Listing them as searchable would offer
+filters that can only ever return nothing. `view.competitions` is now built from
+the players actually in the view. A test caught this — it asserted every listed
+competition has a positive player count, and failed.
+
+**Players with no position group.** Percentiles are scoped to a position group,
+so a player without one has no comparison population. They are excluded from the
+view and counted, and the count is reported: putting them on the site would mean
+numbers ranked against nobody.
+
+**Fact rows without a dimension.** Skipped rather than fatal. The quality report
+asserts this never happens, and one broken row should not take down the whole
+site while that is investigated.
+
+### An empty database is a state, not a crash
+
+A database before its first load is normal, and the honest answer is to say so.
+`AnalyticsView.is_empty` is set, `/health` reports `analytics: unavailable` with
+what to do about it, and the endpoints return empty results rather than errors.
+
+Verifying that surfaced a second defect: `/health` computed its overall verdict
+from the database connection alone, so with **no player data at all** it still
+answered `200 ok`. The verdict now considers the dependencies the product cannot
+serve without — postgresql and analytics — and returns `503 degraded`.
+FootyStats is deliberately excluded from that set: an absent key is the expected
+state in demo mode, and letting it turn the service red would train anyone
+watching to ignore a red service.
+
+### Staleness is reported, not guessed away
+
+The view is assembled once per process, so a load that runs while the API is up
+does not reach it. Two options: rebuild on a timer, or say so.
+
+Rebuilding on a timer would make the site briefly disagree with itself for
+reasons no one could see. Instead the view records a fingerprint of what the
+database held when it was built — a count of player-seasons and the newest
+recorded load, two scalar queries — and `view_is_stale()` compares it against
+the database now. `/health` reports "the database has been loaded since; restart
+the API to serve the new data", and `refresh_analytics_view()` is the explicit
+way to act on it.
+
+### The cost, measured
+
+Building from the database takes **1.3s** against roughly 0.4s from the mock
+provider in memory, for the same 1,728 player-seasons. That is once per process,
+not once per request, and it buys a serving path that the ingestion gate actually
+protects.
+
+### CI had to be reordered, and would have failed
+
+Tests ran before the demo load. With the view reading the database, every
+analytics test would have run against an empty one. The load now precedes the
+test step — which is simply the truth about the system: the API has nothing to
+serve until a load has happened, and neither do its tests.
+
+### Validation
+
+`tests/test_analytics_repository.py` — 19 tests. The round trip is checked
+against `CanonicalMetric` rather than a written-out field list, so a metric that
+stopped being read from the database would fail rather than look like a provider
+that stopped supplying it; and values are asserted to be real, since `hasattr`
+alone would pass on a record of nothing but None.
+
+Exercised live: staleness detected after a simulated load and cleared by a
+refresh; the demo data purged to confirm `/health` returns `503` with
+`analytics: unavailable`, then reloaded and confirmed back at `200 ok` with
+1,728 players across 4 competitions.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What
@@ -1461,7 +1599,7 @@ model:
 ```
 PerformanceDataProvider (interface)
   ├─ MockPerformanceProvider     built
-  └─ FootyStatsProvider          Phase 13, after real-response profiling
+  └─ FootyStatsProvider          Phase 13, after Phase 12 profiling
         ↓
 Canonical internal model  ← everything above this line depends only on this
         ↓

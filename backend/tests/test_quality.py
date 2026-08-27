@@ -64,6 +64,25 @@ class TestDependencyMap:
         unused = {m for m, deps in dependency_map().items() if not deps}
         assert CanonicalMetric.STARTS in unused
 
+    def test_penalties_taken_has_dependents(self) -> None:
+        """A regression guard on the probe record.
+
+        It once set `penalties_taken` equal to `shots`, so non-penalty shots was
+        zero, `shot_conversion` and `shot_quality` divided by zero and were None
+        in the baseline — and the measurement concluded, wrongly, that nothing
+        depended on penalties at all.
+        """
+        assert dependency_map()[CanonicalMetric.PENALTIES_TAKEN]
+
+    def test_every_derived_metric_is_reachable(self) -> None:
+        """No derived metric may be invisible to the dependency measurement.
+
+        One that never computes in the baseline looks exactly like one nothing
+        depends on, and would be silently missing from every impact report.
+        """
+        reachable = {d for deps in dependency_map().values() for d in deps}
+        assert set(DerivedMetric) - reachable == set()
+
 
 class TestImpactOfAbsence:
     def test_no_absence_costs_nothing(self) -> None:

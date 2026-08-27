@@ -23,6 +23,7 @@ from app.schemas.system import (
     LivenessResponse,
     MetaResponse,
 )
+from app.services.analytics_service import get_analytics_view, view_is_stale
 
 log = get_logger(__name__)
 
@@ -65,10 +66,21 @@ def health(response: Response, settings: SettingsDep) -> HealthResponse:
 
     dependencies = [
         DependencyStatus(name="postgresql", status=db_status, detail=db_detail),
+        _analytics_status(),
         _footystats_status(settings),
     ]
 
-    overall = "ok" if db_status == "ok" else "degraded"
+    # Only the dependencies the product cannot serve without decide the overall
+    # verdict. FootyStats is deliberately excluded: an absent key is the expected
+    # state in demo mode, and letting it turn the whole service red would train
+    # anyone watching to ignore a red service.
+    #
+    # `analytics` is included, and that is the point of this list existing. An
+    # empty database used to report "ok" while search, profiles and every ranking
+    # had nothing to return.
+    required = {"postgresql", "analytics"}
+    blocking = [d for d in dependencies if d.name in required and d.status != "ok"]
+    overall = "ok" if not blocking else "degraded"
     if overall != "ok":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -116,6 +128,61 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
         name="footystats",
         status="degraded",
         detail=f"{verified} field(s) verified, but no provider is written against them yet.",
+    )
+
+
+def _analytics_status() -> DependencyStatus:
+    """What the site is actually serving, and whether it is current.
+
+    The view is assembled from the database once per process. A load that runs
+    while the API is up therefore does not reach it, and the honest thing is to
+    say so here rather than to serve last week's figures under this week's
+    freshness badge.
+    """
+    try:
+        view = get_analytics_view()
+    except AppError as exc:
+        return DependencyStatus(name="analytics", status="unavailable", detail=exc.message)
+
+    if view.is_empty:
+        return DependencyStatus(
+            name="analytics",
+            status="unavailable",
+            detail=(
+                "No player data is loaded. Run the ingestion pipeline; until then "
+                "search, profiles and rankings have nothing to serve."
+            ),
+        )
+
+    excluded = (
+        f" {view.players_without_position} excluded for having no position group."
+        if view.players_without_position
+        else ""
+    )
+
+    try:
+        stale = view_is_stale()
+    except AppError:
+        stale = False
+
+    if stale:
+        return DependencyStatus(
+            name="analytics",
+            status="degraded",
+            detail=(
+                f"Serving {len(view.players)} player-seasons built at "
+                f"{view.built_at.isoformat(timespec='seconds')}. The database has been "
+                "loaded since; restart the API to serve the new data."
+            ),
+        )
+
+    return DependencyStatus(
+        name="analytics",
+        status="ok",
+        detail=(
+            f"{len(view.players)} player-seasons across {len(view.competitions)} "
+            f"competitions, built at {view.built_at.isoformat(timespec='seconds')}.{excluded}"
+        ),
     )
 
 

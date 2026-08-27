@@ -1,0 +1,132 @@
+# The metrics the Phase 12 availability report must account for.
+#
+# Specification section 12 (PHASE 12) requires `docs/footystats_metric_availability.md`
+# to group every expected metric into fourteen named categories and mark each one
+# AVAILABLE, DERIVABLE, UNAVAILABLE or UNCLEAR.
+#
+# This file supplies the grouping. It contains **no FootyStats field names** and
+# never will: it names only canonical metrics (from `CanonicalMetric`) and derived
+# metrics (from `DerivedMetric`), which are provider-independent by construction.
+# Which FootyStats field satisfies which of these is discovered by the probe and
+# recorded, after human review, in `config/footystats_mapping.yaml`.
+#
+# Assigning a metric to a category is a judgement about what the metric measures,
+# not a claim about any provider's data.
+
+version: 1
+
+# Category -> the canonical (raw, per-season total) metrics it covers.
+canonical:
+  Identity: []            # Identity fields come from Transfermarkt; see docs/transfermarkt_field_availability.md
+  Playing Time:
+    - appearances
+    - starts
+    - minutes
+  Goals:
+    - goals
+    - non_penalty_goals
+    - assists
+  Expected Goals:
+    - xg
+    - npxg
+    - xa
+  Shooting:
+    - shots
+    - shots_on_target
+    - penalties_taken
+  Passing:
+    - passes
+    - passes_completed
+  Progression:
+    - progressive_passes
+  Creation:
+    - key_passes
+    - crosses
+    - accurate_crosses
+  Dribbling:
+    - dribbles
+    - successful_dribbles
+  Defending:
+    - tackles
+    - successful_tackles
+    - interceptions
+    - blocks
+    - clearances
+  Duels:
+    - duels
+    - duels_won
+  Aerial:
+    - aerial_duels
+    - aerial_duels_won
+  Discipline:
+    - fouls_committed
+    - fouls_drawn
+    - dispossessed
+    - dribbled_past
+  Goalkeeping:
+    - saves
+    - inside_box_saves
+    - goals_conceded
+    - clean_sheets
+    - penalties_saved
+
+# Category -> the derived metrics it covers. These are never supplied by a
+# provider; they are computed from canonical metrics, so their availability
+# follows from their inputs and is measured rather than declared.
+derived:
+  Playing Time: []
+  Goals:
+    - goals_per90
+    - non_penalty_goals_per90
+    - assists_per90
+  Expected Goals:
+    - xg_per90
+    - npxg_per90
+    - xa_per90
+  Shooting:
+    - shots_per90
+    - shots_on_target_per90
+    - shot_accuracy
+    - shot_conversion
+    - shot_quality
+  Passing:
+    - passes_per90
+    - completed_passes_per90
+    - pass_completion
+  Progression:
+    - progressive_passes_per90
+  Creation:
+    - key_passes_per90
+    - crosses_per90
+    - accurate_crosses_per90
+    - cross_accuracy
+  Dribbling:
+    - dribbles_per90
+    - successful_dribbles_per90
+    - dribble_success_percentage
+  Defending:
+    - tackles_per90
+    - successful_tackles_per90
+    - interceptions_per90
+    - blocks_per90
+    - clearances_per90
+    - tackle_success_percentage
+  Duels:
+    - duels_per90
+    - duels_won_per90
+    - duel_win_percentage
+  Aerial:
+    - aerial_duels_per90
+    - aerial_duels_won_per90
+    - aerial_duel_win_percentage
+  Discipline:
+    - fouls_committed_per90
+    - fouls_drawn_per90
+    - dispossessed_per90
+    - dribbled_past_per90
+  Goalkeeping:
+    - saves_per90
+    - inside_box_saves_per90
+    - save_percentage
+    - goals_conceded_per90
+    - clean_sheet_percentage

@@ -69,18 +69,20 @@ jobs:
       - name: Migrate
         run: alembic upgrade head
 
+      - name: Demo load into PostgreSQL
+        # Runs BEFORE the tests, because the analytical view reads the database:
+        # the API has nothing to serve until a load has happened, and neither do
+        # its tests. Also exercises the whole write path against a real database
+        # - migrations, constraints, foreign keys and the post-load quality
+        # checks - using the mock providers only, so it needs no downloaded data.
+        working-directory: .
+        run: python -m pipelines.load.load_providers --source demo --replace
+
       - name: Test
         # Only snapshot tests are deselected: they need the 218 MB
         # Transfermarkt archive. Database tests DO run - the postgres
         # service above exists precisely so they can.
         run: pytest -q -m "not snapshot"
-
-      - name: Demo load into PostgreSQL
-        # Exercises the whole write path against a real database: migrations,
-        # constraints, foreign keys and the post-load quality checks. Uses the
-        # mock providers only, so it needs no downloaded data.
-        working-directory: .
-        run: python -m pipelines.load.load_providers --source demo --replace
 
       - name: Percentile engine sanity
         # Percentiles underpin every score and ranking, and a mis-scoped
@@ -124,6 +126,13 @@ jobs:
         # facts about the source, not faults in the build.
         working-directory: .
         run: python -m pipelines.quality.report --persist
+
+      - name: Data dictionary is current
+        # Generated from the canonical model, the derived metrics and the
+        # SQLAlchemy metadata. A dictionary that disagrees with the code is
+        # worse than none, because it is consulted and believed.
+        working-directory: backend
+        run: python -m scripts.generate_data_dictionary --check
 
       - name: FootyStats validation gate
         # Asserts the gate is still shut: no field mapping may exist without a

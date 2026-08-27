@@ -132,6 +132,13 @@ def _probe_stats(*, omit: CanonicalMetric | None = None) -> PlayerSeasonStats:
             values[metric.value] = 30
         elif metric is CanonicalMetric.STARTS:
             values[metric.value] = 25
+        elif metric is CanonicalMetric.PENALTIES_TAKEN:
+            # Must stay well below `shots`. Set equal to it, non-penalty shots
+            # became zero, `shot_conversion` and `shot_quality` divided by zero
+            # and came back None from the *baseline* probe - so the measurement
+            # concluded nothing depended on them at all, and their inputs went
+            # unreported in the impact analysis.
+            values[metric.value] = 5
         else:
             values[metric.value] = _PROBE_TOTAL // 2 if metric in subsets else _PROBE_TOTAL
 
