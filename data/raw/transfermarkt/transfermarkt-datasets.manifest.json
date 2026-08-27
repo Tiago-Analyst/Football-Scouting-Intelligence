@@ -1,0 +1,10 @@
+{
+  "source_repository": "https://github.com/dcaribou/transfermarkt-datasets",
+  "licence": "CC0-1.0",
+  "url": "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.zip",
+  "file": "transfermarkt-datasets.zip",
+  "size_bytes": 228537407,
+  "sha256": "3e6742a9c5002b202eeb8803a123bbc2d9c13ae582eb45ffb6f587843693fffa",
+  "retrieved_at": "2026-08-27T13:37:22.725115+00:00",
+  "note": "Raw provider snapshot. Not redistributed and not committed to the repository. Retained so transformations are reproducible."
+}

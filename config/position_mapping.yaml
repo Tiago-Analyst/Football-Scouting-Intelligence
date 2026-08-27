@@ -1,0 +1,59 @@
+# Source position labels -> standardised position groups.
+#
+# Every label below was observed in the real dataset and its row count recorded
+# at the time of mapping (snapshot of 2026-08-27, 50,149 players). Nothing here
+# is anticipated: a label that has not been seen is not mapped, and an unmapped
+# label leaves position_group unset rather than being guessed into the nearest
+# group.
+#
+# Regenerate the observed labels with:
+#   python -m pipelines.transfermarkt.profile
+#
+# Groups are defined in app/schemas/canonical.py (PositionGroup).
+
+transfermarkt:
+  # `sub_position` is the mapping source, not `position`. The coarser
+  # `position` column has only four values and collapses wingers into "Attack",
+  # which would put a left winger in the same percentile pool as a centre
+  # forward - exactly the comparison the position groups exist to prevent.
+  sub_position:
+    Goalkeeper: GK                 # 5,828
+
+    Centre-Back: CB                # 8,765
+
+    Right-Back: FB_WB              # 3,701
+    Left-Back: FB_WB               # 3,495
+
+    Defensive Midfield: DM         # 4,123
+
+    Central Midfield: CM           # 5,498
+
+    Attacking Midfield: AM         # 3,520
+
+    # Wide midfielders sit with wingers: in current formations their output
+    # profile (crosses, dribbles, wide progression) matches wingers far more
+    # closely than central midfielders.
+    Left Winger: WINGER            # 3,297
+    Right Winger: WINGER           # 3,170
+    Left Midfield: WINGER          # 566
+    Right Midfield: WINGER         # 565
+
+    Centre-Forward: FORWARD        # 6,749
+    # A second striker plays off a forward rather than wide, so FORWARD fits
+    # better than AM on shot volume and aerial involvement.
+    Second Striker: FORWARD        # 286
+
+  # Labels that carry no positional information. These are recorded so the
+  # absence is deliberate and visible, not an oversight in the table above.
+  unmapped:
+    # The dataset writes the literal string "Missing" rather than a null.
+    - Missing                      # 586 players
+
+  # `position` is retained on each record as raw_position for auditing, but is
+  # never used to derive a group.
+  coarse_position_not_used_for_grouping:
+    - Goalkeeper
+    - Defender
+    - Midfield
+    - Attack
+    - Missing

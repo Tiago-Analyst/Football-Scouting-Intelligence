@@ -1,0 +1,59 @@
+# Optional local stack.
+#
+# Not required for development on this machine, where PostgreSQL and Node are
+# installed natively. It exists so a second developer, or a CI job, can bring
+# up an identical database without a native install.
+#
+#   docker compose up -d postgres
+#
+# The host port defaults to 5433 so this does NOT collide with a natively
+# installed PostgreSQL already listening on 5432. Point the backend at it with
+# POSTGRES_PORT=5433 in .env.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fri-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fri}
+      POSTGRES_USER: ${POSTGRES_USER:-fri_app}
+      # No default: compose must fail rather than start with a guessable password.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fri_app} -d ${POSTGRES_DB:-fri}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fri-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_MODE: ${APP_MODE:-demo}
+      APP_ENV: ${APP_ENV:-development}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-fri}
+      POSTGRES_USER: ${POSTGRES_USER:-fri_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000}
+      # Passed through from the host environment; never baked into the image.
+      FOOTYSTATS_API_KEY: ${FOOTYSTATS_API_KEY:-}
+      LOG_FORMAT: json
+    ports:
+      - "8000:8000"
+    profiles: ["full"]
+
+volumes:
+  postgres_data:

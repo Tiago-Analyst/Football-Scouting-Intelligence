@@ -1,0 +1,66 @@
+# ---- Secrets -------------------------------------------------------------
+# NEVER commit real credentials. FOOTYSTATS_API_KEY must not reach the repo.
+.env
+.env.*
+# Template files carry no secrets and must be committed. This covers nested
+# ones such as frontend/.env.local.example, which a bare !.env.example misses.
+!*.example
+*.pem
+*.key
+secrets/
+
+# ---- Python --------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+dist/
+build/
+
+# ---- Node / Next.js ------------------------------------------------------
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.vercel/
+npm-debug.log*
+yarn-error.log*
+
+# ---- Data ----------------------------------------------------------------
+# Raw provider snapshots are large and licence-restricted: never commit them.
+# Re-including .gitkeep requires first re-including the directories: git does
+# not descend into an excluded directory, so a negation inside one never fires.
+data/raw/**
+!data/raw/**/
+!data/raw/**/.gitkeep
+# Snapshot manifests record the URL, checksum and retrieval time of a raw
+# download. They are metadata, not provider data, and committing them is what
+# makes "which snapshot produced this table?" answerable later.
+!data/raw/**/*.manifest.json
+data/processed/**
+!data/processed/**/
+!data/processed/**/.gitkeep
+*.duckdb
+*.duckdb.wal
+*.parquet
+*.sqlite
+*.db
+
+# Manual mapping overrides ARE tracked - they are curated project inputs.
+!data/manual/**
+
+# ---- OS / editor ---------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json

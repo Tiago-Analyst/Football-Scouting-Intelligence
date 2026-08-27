@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Design tokens
+   ==========================================================================
+
+   Each colour is declared ONCE via CSS light-dark(), which resolves against
+   the element's `color-scheme`. Switching themes therefore only sets
+   `color-scheme` - there is no duplicated dark palette to drift out of sync.
+
+     :root                      -> follows the operating system
+     :root[data-theme="light"]  -> forced light
+     :root[data-theme="dark"]   -> forced dark
+
+   ThemeScript applies data-theme before first paint, so there is no flash of
+   the wrong theme.
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* -- Surfaces ---------------------------------------------------------- */
+  --page: light-dark(#fbfcfd, #080b0e);
+  --surface: light-dark(#ffffff, #10151b);
+  --surface-2: light-dark(#f4f6f8, #171d25);
+  --surface-3: light-dark(#eaeef2, #1e2630);
+
+  /* -- Lines ------------------------------------------------------------- */
+  --border: light-dark(#e2e6ec, #232b35);
+  --border-strong: light-dark(#cbd2db, #323d4a);
+
+  /* -- Text -------------------------------------------------------------- */
+  --text: light-dark(#0c1116, #e8edf3);
+  /* Muted and subtle are both real caption text, so both must clear WCAG AA
+     (4.5:1) against the *worst* background they sit on, which is --surface-2.
+     Measured, not eyeballed - the previous subtle value failed at 2.83:1. */
+  --text-muted: light-dark(#4d5663, #98a3b1);
+  --text-subtle: light-dark(#656f7c, #818c99);
+
+  /* -- Accent: pitch green ----------------------------------------------- */
+  --accent: light-dark(#0b7a5c, #2fd39b);
+  --accent-hover: light-dark(#096349, #57ddad);
+  --accent-fg: light-dark(#ffffff, #04140e);
+
+  /* -- Semantic ---------------------------------------------------------- */
+  --positive: light-dark(#16794f, #35d39a);
+  --warning: light-dark(#8a5a00, #e0a83c);
+  --danger: light-dark(#b02a20, #f4776b);
+  --info: light-dark(#1d5fa8, #6bb6f4);
+
+  /* -- Percentile ramp ---------------------------------------------------
+     Used by PercentileBar. Deliberately NOT red-to-green: red/green alone is
+     the most common form of colour-vision exclusion, so the ramp also moves
+     from dark to light and every use is paired with the numeric value. */
+  --pct-low: light-dark(#b9c0ca, #39434f);
+  --pct-mid: light-dark(#7fa8c9, #3f6d92);
+  --pct-high: light-dark(#2f8f6d, #2fa87e);
+  --pct-elite: light-dark(#0b7a5c, #2fd39b);
+
+  /* -- Elevation --------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px light-dark(rgb(12 17 22 / 6%), rgb(0 0 0 / 40%));
+  --shadow-md: 0 4px 12px light-dark(rgb(12 17 22 / 8%), rgb(0 0 0 / 50%));
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Map tokens onto Tailwind utilities (bg-surface, text-muted, border-border…) */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+
+  --color-positive: var(--positive);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --shadow-card: var(--shadow-sm);
+  --shadow-pop: var(--shadow-md);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+body {
+  background: var(--page);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Statistics must align on the decimal point when stacked in a column, so
+   figures use tabular numerals wherever they appear. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* A single visible focus treatment across every interactive element. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Respect a reduced-motion preference: transitions become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

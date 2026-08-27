@@ -1,0 +1,19 @@
+# Normalise line endings. Development happens on Windows, CI runs on Linux;
+# without this, checked-in CRLF breaks shell scripts and produces noisy diffs.
+* text=auto eol=lf
+
+# Windows-only files keep CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary: never touch.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.parquet binary
+*.duckdb binary
+
+# Generated; collapse in diffs and exclude from language stats.
+frontend/package-lock.json linguist-generated=true -diff
