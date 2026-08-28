@@ -22,6 +22,8 @@ market analysis, built on top of performance and market data.
 | Loading into PostgreSQL | Working — transactional, idempotent, self-checking |
 | Serving from PostgreSQL | Working — the API reads the database, not providers |
 | Scheduled data pipeline | Working — verified before publishing; FootyStats half idle |
+| Production readiness | Working — posture checked, not merely intended |
+| Accessibility and SEO | Working — audited on every route, in CI |
 | Canonical model and provider abstraction | Working, tested |
 | Mock performance provider | Working — 1,728 demo players |
 | Transfermarkt ingestion | Working — schema profiled, 2 attributes confirmed absent |
@@ -72,8 +74,9 @@ document disagrees with it, it wins.
 
 Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
 12 to 21 are blocked on a FootyStats API key and cannot begin without one;
-phase 22 (pipelines) is done as far as an idle FootyStats allows; 23 and 24
-(deployment, polish) are not blocked.
+phase 22 (pipelines) is done as far as an idle FootyStats allows, and phase 23
+is prepared up to the decisions that are the owner's — see `docs/deployment.md`.
+Phase 24 (polish) is done.
 
 Two things in `docs/architecture.md` were built while phase 12 was blocked and
 are labelled as such rather than borrowing a phase number.
@@ -282,6 +285,30 @@ results to `fact_data_quality`. A failed check rolls the load back, so partial
 or corrupted data is never left behind. `--replace` purges that source first;
 without it, a second run fails on the bridge's uniqueness constraint, which is
 the intended protection against duplicating players.
+
+## Checking the site
+
+With both servers running, audit every route for accessibility and SEO defects:
+
+```bash
+cd frontend && npm run audit
+```
+
+It checks the delivered markup — headings, landmarks, labels, alt text, link
+text — and exits 1 on any failure. CI runs it against a real running instance.
+
+## Deploying
+
+`docs/deployment.md` covers it. Before deploying anything, run the check that
+gates it:
+
+```bash
+cd backend
+APP_ENV=production APP_MODE=production python -m scripts.check_production
+```
+
+Exit code 1 means do not deploy. It reads configuration only and never prints a
+password, so it is safe to run against production credentials.
 
 ## Security
 

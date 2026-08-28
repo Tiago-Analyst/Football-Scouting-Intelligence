@@ -1675,6 +1675,206 @@ The FootyStats half — retrieval, its identity resolution run, and a refresh th
 has anything to refresh. None of it can be written against a provider that has
 never answered.
 
+## Production readiness (Phase 23, partial)
+
+Partial because deployment ends in decisions that are not mine: which platform,
+which domain, which licence. What is here is everything up to that point, plus
+the thing that was missing and mattered most.
+
+### The posture was correct and unverifiable
+
+Production behaviour is a set of `if settings.is_production` branches spread
+across the codebase — API docs disabled in one place, `Secure` cookies in
+another, error detail hidden in a third. Each is right on its own. None of them
+is checkable as a whole.
+
+That is exactly how a deployment configured with `APP_ENV=development` by
+accident looks completely normal while serving interactive API docs, permissive
+CORS and stack traces. Nothing would report it, because nothing was asking.
+
+`backend/scripts/check_production.py` asserts the posture from outside, using
+the same `Settings` object the application will use. It reads configuration
+only — no connections, no requests — so it is safe against production
+credentials, and it never prints a password.
+
+It refuses a deployment for: a non-production `APP_ENV`, `DEBUG` on, a CORS
+origin on localhost or plain http, a default database password, a superuser
+database connection, production mode with no provider key, and a `.env` tracked
+by git. Demo mode warns rather than fails: a public preview on fabricated data
+is legitimate, but must be deliberate.
+
+**Two of those catch mistakes this project would actually have made.** The
+Postgres superuser password is still the one winget installed, and the local
+CORS origins are the ones in `.env` today. Run against the development
+environment it produces four failures and two warnings; against a sound
+production configuration, nothing.
+
+A checker that fails everything is as useless as one that passes everything, so
+the tests assert it discriminates: a sound configuration produces no findings at
+all, and each individual fault produces exactly its own.
+
+### The application is tested for honouring it
+
+The checks would be theatre if production did not actually differ.
+`tests/test_production_readiness.py` drives the real app under production
+settings and asserts `/docs`, `/redoc` and `/openapi.json` return 404, that HSTS
+is present in production and absent in development, that the security headers
+are always set, and that an unhandled error leaks nothing **even with `DEBUG`
+on** — which is the combination a hurried deployment produces.
+
+### HSTS is production-only, deliberately
+
+Sending `Strict-Transport-Security` from a development server pins `localhost`
+to https in the developer's browser for a year, across every project they run on
+that port, and undoing it is obscure. So it is gated on `is_production` rather
+than set unconditionally.
+
+The frontend sends its own headers, because a page is a different threat surface
+from a JSON API: an API cannot be framed into a clickjacking attack and a page
+can. `Referrer-Policy` there is `strict-origin-when-cross-origin` rather than
+the API's `no-referrer` — a player URL names a player, and sending that to
+whatever a user clicks through to leaks who was being scouted.
+
+**No Content-Security-Policy.** One worth having needs nonces threaded through
+Next's inline scripts; one loose enough to avoid that work is reassurance rather
+than protection. Left undone and stated rather than added badly.
+
+### Containers
+
+`frontend/Dockerfile` joins the existing backend one. Multi-stage, unprivileged
+user, healthcheck that hits a real page rather than a static asset — so it fails
+when the app boots but cannot render, which is what an unreachable API looks
+like.
+
+`API_BASE_URL` is deliberately not baked in at build time. It is read per
+request by server components, so baking it would tie one image to one
+environment — and the reason it is not a `NEXT_PUBLIC_` variable at all is that
+it must never reach the browser.
+
+`output: "standalone"` makes the image ship a server bundle instead of
+`node_modules`. Setting it surfaced that Next 16 has removed the `eslint` key
+from `next.config.ts` entirely: ESLint no longer runs during `next build`, and
+linting is a separate step that CI already runs.
+
+### The pipeline now refuses a misconfigured production
+
+`pipeline.yml` runs the production check before it touches anything. A scheduled
+job that writes to production through a superuser connection, or against a
+database still using its installation default password, is worse than one that
+does not run.
+
+### What is still yours
+
+Two decisions block the rest, and both are documented in `docs/deployment.md`.
+
+**The licence.** `LICENSE` still reads "all rights reserved, no permission
+granted". Deploying a public site under it is a contradiction: nobody, including
+you, has been granted permission to use what is published.
+
+**The platform.** Everything above works for any target, but the final wiring
+differs — Vercel builds Next itself and ignores the frontend Dockerfile, while a
+container platform uses it.
+
+And what nobody has done: nothing is deployed, there is no backup or restore
+procedure, and no error tracking or uptime monitoring. `/health` is the only
+signal and nothing is watching it.
+
+## Polish (Phase 24)
+
+The last phase in the specification, and the one most easily done by impression.
+So it was measured instead.
+
+### An audit of the delivered markup
+
+`frontend/scripts/audit-pages.mjs` fetches all thirteen public routes and checks
+what the browser actually receives: `lang`, a single `h1`, heading order,
+landmarks, `alt` text, an accessible name on every form control, link text, and
+`rel=noopener` on external links.
+
+Deliberately the *delivered* markup, not the source. A component can look
+correct in JSX and render without its label once three components compose, and
+only what a browser receives is worth asserting.
+
+It is not a substitute for axe or a screen reader. It catches the structural
+mistakes that are unambiguous and easy to reintroduce.
+
+### The first run found eight defects, and all eight were mine
+
+The audit reported eight unlabelled number inputs on `/recruitment` — the
+intelligence score weights. Reading the delivered HTML showed the inputs sitting
+inside `<label>` elements with their text in a nested `<span>`, which is
+implicit labelling: valid HTML, correctly announced as "Ball Progression, spin
+button, 30".
+
+The page was right. The checker only understood `<label for="id">`.
+
+That is the same failure as the coverage check that reported goalkeeping metrics
+as sparse at 12%. A checker that cries wolf on correct work gets ignored, and
+then it is worth less than nothing, because people learn to skip past it.
+
+Fixed, and then self-tested against synthetic pages: a deliberately broken one
+produces all five defect classes, a correct one produces none. A checker that
+passes everything is as useless as one that fails everything, and after a fix
+like this the risk is the first, not the second.
+
+Current result: thirteen routes, no defects.
+
+### Search engines, and a deliberate refusal
+
+`robots.ts` and `sitemap.ts` were both absent, as was every social metadata tag.
+
+**Until the site has a real origin, `robots.txt` disallows everything and every
+page carries `noindex`.** A preview deployment that gets indexed is hard to
+undo, and this one would put 1,728 fabricated footballers into search results
+under a name that reads as authoritative.
+
+Set `SITE_URL` and both flip: verified by running the site with a public origin
+and confirming `robots.txt` switches to `Allow: /` with the disallow list,
+`og:url` and the sitemap resolve absolutely, and the pages become `index,
+follow`.
+
+Player profiles stay out of the sitemap even then. Every player in this
+deployment is invented, and inviting a search engine to present them as real is
+not a thing to do by omission.
+
+`/account`, `/shortlists`, `/sign-in`, `/register`, `/design-system` and
+`/status` are excluded too — personal, operational, or a dead end for someone
+arriving from a search result.
+
+### CI now starts the application
+
+It never did. A green build meant the code compiled, not that a page rendered —
+and every property the audit checks exists only in delivered markup.
+
+The new `end-to-end` job brings up PostgreSQL, migrates, loads the demo data
+with `--verify`, starts the backend, builds and starts the frontend, waits for
+both to answer, and audits every route. It prints both logs on failure, because
+the failure it is most likely to catch is one of them refusing to start.
+
+### What was already good enough to leave alone
+
+Loading, empty and error states were built in Phase 0.5 and used throughout;
+colour contrast was measured against WCAG AA when the palette was chosen;
+tooltips explain the unfamiliar metrics; the methodology page and
+`docs/methodology.md` cover the limitations. Rewriting them for the sake of
+having a Polish phase would have been churn.
+
+The heaviest document is `/players` at 137KB of HTML, which is a search page
+rendering a full table server-side. Worth knowing; not worth optimising before
+anyone has waited on it.
+
+### Left undone, on purpose
+
+No Content-Security-Policy — one worth having needs nonces threaded through
+Next's inline scripts, and a looser one is reassurance rather than protection.
+
+No frontend test runner, so `lib/site.ts` has no unit tests; its two branches
+were verified by running the site both ways. That gap has been open since
+Phase 11 and adding Vitest is a decision, not a detail.
+
+No `opengraph-image`. A social card would need a design, and an ugly one is
+worse than the default.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

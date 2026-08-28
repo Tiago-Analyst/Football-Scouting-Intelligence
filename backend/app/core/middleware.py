@@ -50,12 +50,24 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Conservative security headers for a JSON API."""
 
+    def __init__(self, app: ASGIApp, *, hsts: bool = False) -> None:
+        super().__init__(app)
+        # HSTS only in production. On a development machine it would pin
+        # localhost to https for six months in the developer's browser, which
+        # is remarkably annoying to undo and affects every project they run on
+        # that port.
+        self._hsts = hsts
+
     async def dispatch(self, request: Request, call_next: RequestHandler) -> Response:
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if self._hsts:
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
         return response
 
 
@@ -124,6 +136,6 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
         expose_headers=["X-Request-ID"],
         max_age=600,
     )
-    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
     app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.rate_limit_per_minute)
     app.add_middleware(RequestContextMiddleware)

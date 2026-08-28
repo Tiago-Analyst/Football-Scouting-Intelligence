@@ -198,3 +198,104 @@ jobs:
             exit 1
           fi
           echo "No FootyStats key value in tracked files."
+
+  end-to-end:
+    name: Serve the site and audit it
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # CI has never actually started the application. A green build means the
+    # code compiles, not that a page renders, and every accessibility and SEO
+    # property worth checking exists only in delivered markup.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: fri
+          POSTGRES_USER: fri_app
+          POSTGRES_PASSWORD: ci_password_not_a_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fri_app -d fri"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: fri
+      POSTGRES_USER: fri_app
+      POSTGRES_PASSWORD: ci_password_not_a_secret
+      APP_MODE: demo
+      APP_ENV: development
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+      API_BASE_URL: http://127.0.0.1:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -e ".[dev,pipelines]"
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Migrate and load
+        run: |
+          cd backend && alembic upgrade head && cd ..
+          python -m pipelines.load.load_providers --source demo --replace --verify
+
+      - name: Start the backend
+        working-directory: backend
+        run: |
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > ../backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+              echo "backend up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::backend did not become healthy"; cat ../backend.log; exit 1
+
+      - name: Build and start the frontend
+        working-directory: frontend
+        run: |
+          npm run build
+          nohup npm start > ../frontend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/ > /dev/null; then
+              echo "frontend up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::frontend did not become healthy"; cat ../frontend.log; exit 1
+
+      - name: Audit every route
+        working-directory: frontend
+        # Checks the delivered markup: a missing h1, an unlabelled control, an
+        # image with no alt text, a page with no description. Not a substitute
+        # for axe or a screen reader - it catches the structural mistakes that
+        # are unambiguous and easy to reintroduce.
+        run: npm run audit
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "--- backend ---"; tail -n 100 backend.log || true
+          echo "--- frontend ---"; tail -n 100 frontend.log || true
