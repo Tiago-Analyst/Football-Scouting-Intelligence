@@ -210,7 +210,15 @@ class TestReportAgainstTheDatabase:
 
     def test_integrity_checks_run(self, db_session: Session) -> None:
         names = {c.name for c in integrity_checks(db_session)}
-        assert names == {"position_group_mapped", "no_orphan_stats"}
+        assert names == {
+            "position_group_mapped",
+            "no_orphan_stats",
+            # Fabricated players must never share a comparison population
+            # with real ones: similarity compares across competitions, so
+            # demo data reaches real players even though percentiles
+            # cannot.
+            "fabricated_data_is_not_mixed_with_real",
+        }
 
     def test_a_check_never_reports_an_unknown_status(self, db_session: Session) -> None:
         """The database constrains status to three values; a fourth would be

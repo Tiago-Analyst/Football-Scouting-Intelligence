@@ -39,6 +39,7 @@ from app.analytics.percentiles import (
 from app.analytics.roles import RoleEngine, RoleFit
 from app.analytics.sample import SampleBand, classify_minutes
 from app.analytics.similarity import (
+    MINIMUM_SIMILARITY,
     SimilarityCandidate,
     SimilarityEngine,
     SimilarityFilters,
@@ -180,6 +181,7 @@ class AnalyticsView:
         filters: SimilarityFilters | None = None,
         limit: int = 20,
         minimum_minutes: int | None = 900,
+        minimum_similarity: float = MINIMUM_SIMILARITY,
     ) -> list[SimilarityResult]:
         if self.similarity is None:
             return []
@@ -189,6 +191,7 @@ class AnalyticsView:
                 filters=filters,
                 limit=limit,
                 minimum_minutes=minimum_minutes,
+                minimum_similarity=minimum_similarity,
                 today=REFERENCE_DATE,
             )
         except KeyError:

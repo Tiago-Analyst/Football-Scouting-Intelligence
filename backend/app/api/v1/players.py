@@ -308,7 +308,20 @@ def get_player_stats(
     # a row of blanks for every goalkeeping stat on an outfield profile is noise.
     metrics = [m for m in metrics if m.value is not None]
 
-    context = next((to_context(ranked[m].context) for m in PROFILE_METRICS if m in ranked), None)
+    # The context of a metric that was actually ranked, not simply the first in
+    # the list. Population size is per metric - it counts the players carrying a
+    # value for it - so taking the first unconditionally reported the comparison
+    # group of a metric the provider does not supply, and a profile showing
+    # sixteen percentiles announced that they were measured against nobody.
+    # Every metric absent is a truthful zero; sixteen present is not.
+    context = next(
+        (
+            to_context(ranked[m].context)
+            for m in PROFILE_METRICS
+            if ranked.get(m) is not None and ranked[m].percentile is not None
+        ),
+        None,
+    ) or next((to_context(ranked[m].context) for m in PROFILE_METRICS if m in ranked), None)
     scores = [to_score(s) for s in view.scores(player_id, scope=percentile_scope).values()]
 
     return PlayerStatsResponse(

@@ -28,19 +28,61 @@ def api() -> TestClient:
 
 @pytest.fixture(scope="module")
 def a_midfielder(api: TestClient) -> dict:
-    response = api.get(
-        "/api/v1/players",
-        params={"position_group": "DM", "minutes_min": 900, "limit": 1, "sort": "role_score"},
+    """A midfielder the percentile engine can actually rank.
+
+    Taking the first row was enough while the database always held the dense
+    demo universe. Against real data most players sit in a competition and
+    position group with fewer than the ten comparable player-seasons a
+    percentile needs, so the first row has an empty comparison population and
+    every test built on it fails for a reason that is not a fault.
+    """
+    # A defensive midfielder first, because that is the shape these tests were
+    # written around; any outfield player if no midfielder is rankable, because
+    # what the tests actually need is a populated comparison group.
+    for params in (
+        {"position_group": "DM", "minutes_min": 900, "limit": 25, "sort": "role_score"},
+        {"minutes_min": 900, "limit": 60, "sort": "role_score"},
+    ):
+        response = api.get("/api/v1/players", params=params)
+        assert response.status_code == 200
+        for item in response.json()["items"]:
+            stats = api.get(f"/api/v1/players/{item['player_id']}/stats").json()
+            # A percentile the engine actually produced. `context` sits at the
+            # top of the response rather than on each metric, so looking for it
+            # there finds nothing and skips every test built on this fixture.
+            if any(metric.get("percentile") is not None for metric in stats.get("metrics", [])):
+                return item
+
+    pytest.skip(
+        "no loaded player has a comparison population; these paths need a "
+        "competition with at least ten players in one position group"
     )
-    assert response.status_code == 200
-    items = response.json()["items"]
-    assert items
-    return items[0]
 
 
 @pytest.fixture(scope="module")
 def stats(api: TestClient, a_midfielder: dict) -> dict:
     return api.get(f"/api/v1/players/{a_midfielder['player_id']}/stats").json()
+
+
+@pytest.fixture(scope="module")
+def a_replaceable_player(api: TestClient) -> dict:
+    """A player who actually has comparable peers.
+
+    Replacement is built on similarity, and similarity now withholds pairs that
+    do not resemble each other rather than padding a list to length. So a target
+    with no close peers correctly yields no replacements - which is the right
+    behaviour and the wrong fixture for testing that replacements are ranked.
+    """
+    items = api.get(
+        "/api/v1/players", params={"minutes_min": 900, "limit": 60, "sort": "role_score"}
+    ).json()["items"]
+    for item in items:
+        similar = api.get(
+            f"/api/v1/players/{item['player_id']}/similar", params={"limit": 5}
+        ).json()
+        if similar.get("results"):
+            return item
+    pytest.skip("no loaded player has a comparable peer to be replaced by")
 
 
 @pytest.fixture(scope="module")
@@ -150,7 +192,14 @@ class TestPlayerStats:
         body = api.get(
             f"/api/v1/players/{a_midfielder['player_id']}/stats", params={"scope": "global"}
         ).json()
-        assert body["context"]["caveat"]
+        context = body["context"]
+        # The warning belongs to a comparison that actually crosses leagues, and
+        # a global scope does not guarantee one: if every comparable player
+        # happens to sit in a single competition, there is no cross-league
+        # effect to warn about. Asserting the caveat unconditionally only held
+        # while the seeded universe always spanned several competitions.
+        spans_leagues = len(context["competition_ids"]) > 1
+        assert bool(context["caveat"]) is spans_leagues
 
     def test_an_unknown_scope_is_rejected(self, api: TestClient, a_midfielder: dict) -> None:
         response = api.get(
@@ -225,7 +274,7 @@ class TestRecruitment:
         body = api.post(
             "/api/v1/recruitment/search",
             json={
-                "weights": {"ball_progression": 60, "defensive_activity": 40},
+                "weights": {"ball_security": 60, "chance_creation": 40},
                 "filters": {"position_groups": ["DM"], "min_minutes": 900},
                 "limit": 10,
             },
@@ -233,6 +282,26 @@ class TestRecruitment:
         assert body["items"]
         scores = [c["score"] for c in body["items"]]
         assert scores == sorted(scores, reverse=True)
+
+    def test_a_profile_built_on_a_withheld_score_returns_nobody(self, api: TestClient) -> None:
+        """Ball Progression cannot be produced from FootyStats - it needs
+        progressive passes, which the provider does not supply - so a profile
+        weighting it matches nobody.
+
+        Returning nothing is correct. Returning nothing *without saying why* is
+        not: the page looks identical to a search whose filters were simply too
+        narrow. Connecting that explanation is Phase 19's job; this pins the
+        behaviour so the fix has something to change.
+        """
+        body = api.post(
+            "/api/v1/recruitment/search",
+            json={
+                "weights": {"ball_progression": 100},
+                "filters": {"position_groups": ["DM"], "min_minutes": 900},
+                "limit": 10,
+            },
+        ).json()
+        assert body["items"] == []
 
     def test_every_candidate_explains_itself(self, api: TestClient) -> None:
         """Section 13: every recommendation must be explainable."""
@@ -274,10 +343,10 @@ class TestRecruitment:
 
 
 class TestReplacement:
-    def test_ranks_replacements(self, api: TestClient, a_midfielder: dict) -> None:
+    def test_ranks_replacements(self, api: TestClient, a_replaceable_player: dict) -> None:
         body = api.post(
             "/api/v1/replacement/search",
-            json={"player_id": a_midfielder["player_id"], "limit": 10},
+            json={"player_id": a_replaceable_player["player_id"], "limit": 10},
         ).json()
         assert body["items"]
         scores = [c["overall"] for c in body["items"]]
@@ -294,11 +363,13 @@ class TestReplacement:
         ).json()
         assert all(c["market_fit"] is None for c in body["items"])
 
-    def test_market_fit_appears_with_a_budget(self, api: TestClient, a_midfielder: dict) -> None:
+    def test_market_fit_appears_with_a_budget(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
         body = api.post(
             "/api/v1/replacement/search",
             json={
-                "player_id": a_midfielder["player_id"],
+                "player_id": a_replaceable_player["player_id"],
                 "filters": {"max_market_value_eur": 20_000_000},
                 "limit": 5,
             },

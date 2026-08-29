@@ -188,6 +188,10 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
     return checks
 
 
+#: The generated universe. Useful alone, never beside real data.
+DEMO_SOURCE = "demo"
+
+
 def integrity_checks(session: Session) -> list[Check]:
     """Invariants that must hold whatever the source."""
     no_position = (
@@ -209,6 +213,22 @@ def integrity_checks(session: Session) -> list[Check]:
         or 0
     )
 
+    # Fabricated players must not share a comparison population with real ones.
+    #
+    # Percentiles are scoped to a competition, so demo players cannot creep into
+    # a real player's rank. Similarity is not: comparing across leagues is the
+    # whole point of it, so every loaded player is a candidate. With both
+    # sources present, 80% of the similar players suggested for a real
+    # footballer were invented ones - a real centre back matched to a generated
+    # name at an index of 91.
+    #
+    # Nothing about that output looks wrong. It is well-formed, plausibly
+    # ordered, and confidently numbered, which is why this is a failure rather
+    # than a warning.
+    sources = set(session.scalars(select(FactPlayerSeasonStats.source).distinct()).all())
+    real_sources = sorted(sources - {DEMO_SOURCE})
+    mixed = DEMO_SOURCE in sources and bool(real_sources)
+
     return [
         Check(
             "dim_player",
@@ -222,6 +242,18 @@ def integrity_checks(session: Session) -> list[Check]:
             "no_orphan_stats",
             _verdict(orphan_stats == 0),
             orphan_stats,
+        ),
+        Check(
+            "fact_player_season_stats",
+            "fabricated_data_is_not_mixed_with_real",
+            _verdict(not mixed),
+            len(sources),
+            (
+                f"demo data is loaded alongside {', '.join(real_sources)}; "
+                "similarity would suggest invented players to real ones"
+                if mixed
+                else f"sources loaded: {', '.join(sorted(sources)) or 'none'}"
+            ),
         ),
     ]
 

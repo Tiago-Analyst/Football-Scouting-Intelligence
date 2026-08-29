@@ -18,6 +18,7 @@ from app.analytics.metrics import DerivedMetric, DerivedMetrics
 from app.analytics.percentiles import PercentileEngine, PlayerMetrics
 from app.analytics.similarity import (
     MIN_FEATURES,
+    MINIMUM_SIMILARITY,
     SIMILARITY_MEANING,
     FeatureRepresentation,
     SimilarityCandidate,
@@ -204,7 +205,7 @@ class TestIdenticalAndNearIdentical:
         entries.append(make_player("clone", clone_values, club="other"))
         engine = build_engine(entries)
 
-        results = engine.similar_to("p10", limit=5)
+        results = matches(engine, "p10", limit=5)
         assert results
         assert results[0].candidate.player_key == "clone"
         assert results[0].similarity == pytest.approx(100.0)
@@ -216,7 +217,7 @@ class TestIdenticalAndNearIdentical:
         entries.append(make_player("nudged", nudged, club="other"))
         engine = build_engine(entries)
 
-        results = engine.similar_to("p10", limit=5)
+        results = matches(engine, "p10", limit=5)
         assert results[0].candidate.player_key == "nudged"
         assert results[0].similarity > 95.0
 
@@ -232,7 +233,7 @@ class TestIdenticalAndNearIdentical:
         entries.append(make_player("mirror_b", opposite, club="b"))
         engine = build_engine(entries)
 
-        results = engine.similar_to("mirror_a", limit=40)
+        results = matches(engine, "mirror_a", limit=40)
         ranked = {r.candidate.player_key: r.similarity for r in results}
         assert ranked.get("mirror_b", 0.0) < 25.0
 
@@ -262,7 +263,7 @@ class TestPositionBehaviour:
                 )
             )
         engine = build_engine(entries)
-        results = engine.similar_to("p10", limit=50)
+        results = matches(engine, "p10", limit=50)
         assert results
         assert all(r.candidate.position_group is PositionGroup.CM for r in results)
 
@@ -273,8 +274,21 @@ class TestPositionBehaviour:
 
     def test_the_target_is_never_returned_as_similar_to_itself(self) -> None:
         engine = build_engine(varied_cohort())
-        results = engine.similar_to("p10", limit=50)
+        results = matches(engine, "p10", limit=50)
         assert all(r.candidate.player_key != "p10" for r in results)
+
+
+def matches(engine, key: str, **kwargs):  # type: ignore[no-untyped-def]
+    """Every ranked result, with the production floor removed.
+
+    `similar_to` withholds pairs below `MINIMUM_SIMILARITY`, because a list of
+    five names implies five resemblances. These tests are about ordering,
+    filtering and explanation on cohorts built to be picked apart, so they need
+    to see the whole ranking - including the pairs the product would decline to
+    offer. The floor has its own tests below.
+    """
+    kwargs.setdefault("minimum_similarity", 0.0)
+    return engine.similar_to(key, **kwargs)
 
 
 class TestFiltering:
@@ -311,7 +325,7 @@ class TestFiltering:
     def test_maximum_age_excludes_older_players(self, engine: SimilarityEngine) -> None:
         keys = {
             r.candidate.player_key
-            for r in engine.similar_to("p10", filters=SimilarityFilters(max_age=25), limit=50)
+            for r in matches(engine, "p10", filters=SimilarityFilters(max_age=25), limit=50)
         }
         assert "young_cheap" in keys
         assert "old_costly" not in keys
@@ -319,7 +333,7 @@ class TestFiltering:
     def test_minimum_age_excludes_younger_players(self, engine: SimilarityEngine) -> None:
         keys = {
             r.candidate.player_key
-            for r in engine.similar_to("p10", filters=SimilarityFilters(min_age=30), limit=50)
+            for r in matches(engine, "p10", filters=SimilarityFilters(min_age=30), limit=50)
         }
         assert "old_costly" in keys
         assert "young_cheap" not in keys
@@ -329,16 +343,16 @@ class TestFiltering:
     ) -> None:
         keys = {
             r.candidate.player_key
-            for r in engine.similar_to(
-                "p10", filters=SimilarityFilters(max_market_value_eur=5_000_000), limit=50
+            for r in matches(
+                engine, "p10", filters=SimilarityFilters(max_market_value_eur=5_000_000), limit=50
             )
         }
         assert "young_cheap" in keys
         assert "old_costly" not in keys
 
     def test_competition_filter_restricts_the_pool(self, engine: SimilarityEngine) -> None:
-        results = engine.similar_to(
-            "p10", filters=SimilarityFilters(competitions=frozenset({"c2"})), limit=50
+        results = matches(
+            engine, "p10", filters=SimilarityFilters(competitions=frozenset({"c2"})), limit=50
         )
         assert results
         assert all(r.candidate.competition_id == "c2" for r in results)
@@ -346,27 +360,28 @@ class TestFiltering:
     def test_different_competition_only_excludes_the_targets_league(
         self, engine: SimilarityEngine
     ) -> None:
-        results = engine.similar_to(
-            "p10", filters=SimilarityFilters(different_competition_only=True), limit=50
+        results = matches(
+            engine, "p10", filters=SimilarityFilters(different_competition_only=True), limit=50
         )
         assert results
         assert all(r.candidate.competition_id != "c1" for r in results)
 
     def test_exclude_same_club_drops_team_mates(self, engine: SimilarityEngine) -> None:
-        results = engine.similar_to(
-            "p10", filters=SimilarityFilters(exclude_same_club=True), limit=50
+        results = matches(
+            engine, "p10", filters=SimilarityFilters(exclude_same_club=True), limit=50
         )
         assert all(r.candidate.club_id != "club1" for r in results)
 
     def test_younger_than_target_uses_the_targets_age(self, engine: SimilarityEngine) -> None:
-        results = engine.similar_to(
-            "p10", filters=SimilarityFilters(younger_than_target=True), limit=50
+        results = matches(
+            engine, "p10", filters=SimilarityFilters(younger_than_target=True), limit=50
         )
         assert results
         assert all((r.candidate.age or 99) < 25 for r in results)
 
     def test_contract_filter_keeps_only_expiring_deals(self, engine: SimilarityEngine) -> None:
-        results = engine.similar_to(
+        results = matches(
+            engine,
             "p10",
             filters=SimilarityFilters(contract_expiring_within_months=18),
             limit=50,
@@ -377,8 +392,8 @@ class TestFiltering:
         assert "old_costly" not in keys
 
     def test_nationality_filter_restricts_the_pool(self, engine: SimilarityEngine) -> None:
-        results = engine.similar_to(
-            "p10", filters=SimilarityFilters(nationalities=frozenset({"Spain"})), limit=50
+        results = matches(
+            engine, "p10", filters=SimilarityFilters(nationalities=frozenset({"Spain"})), limit=50
         )
         assert results
         assert all(r.candidate.nationality == "Spain" for r in results)
@@ -389,7 +404,7 @@ class TestFiltering:
         entries.append(make_player("fringe", values, club="c9", minutes=200))
         engine = build_engine(entries)
         keys = {
-            r.candidate.player_key for r in engine.similar_to("p10", limit=50, minimum_minutes=900)
+            r.candidate.player_key for r in matches(engine, "p10", limit=50, minimum_minutes=900)
         }
         assert "fringe" not in keys
 
@@ -402,7 +417,7 @@ class TestFiltering:
         engine = build_engine(entries)
         keys = {
             r.candidate.player_key
-            for r in engine.similar_to("p10", filters=SimilarityFilters(max_age=22), limit=50)
+            for r in matches(engine, "p10", filters=SimilarityFilters(max_age=22), limit=50)
         }
         assert "unknown_age" in keys
 
@@ -410,27 +425,27 @@ class TestFiltering:
 class TestRangeAndOutput:
     def test_every_similarity_is_within_range(self) -> None:
         engine = build_engine(varied_cohort())
-        for result in engine.similar_to("p10", limit=50):
+        for result in matches(engine, "p10", limit=50):
             assert 0.0 <= result.similarity <= 100.0
 
     def test_results_are_ordered_most_similar_first(self) -> None:
         engine = build_engine(varied_cohort())
-        scores = [r.similarity for r in engine.similar_to("p10", limit=50)]
+        scores = [r.similarity for r in matches(engine, "p10", limit=50)]
         assert scores == sorted(scores, reverse=True)
 
     def test_the_limit_is_respected(self) -> None:
         engine = build_engine(varied_cohort())
-        assert len(engine.similar_to("p10", limit=3)) == 3
+        assert len(matches(engine, "p10", limit=3)) == 3
 
     def test_results_report_how_many_features_were_shared(self) -> None:
         engine = build_engine(varied_cohort())
-        for result in engine.similar_to("p10", limit=5):
+        for result in matches(engine, "p10", limit=5):
             assert result.shared_features >= MIN_FEATURES
 
     def test_feature_gaps_explain_the_match(self) -> None:
         """Section 12 results have to be interpretable, not just ordered."""
         engine = build_engine(varied_cohort())
-        result = engine.similar_to("p10", limit=1)[0]
+        result = matches(engine, "p10", limit=1)[0]
         assert result.feature_gaps
         gaps = [gap for _, gap in result.feature_gaps]
         assert gaps == sorted(gaps)
@@ -438,20 +453,20 @@ class TestRangeAndOutput:
     def test_the_meaning_travels_with_the_result(self) -> None:
         """Rule 21: never described as a probability."""
         engine = build_engine(varied_cohort())
-        result = engine.similar_to("p10", limit=1)[0]
+        result = matches(engine, "p10", limit=1)[0]
         assert result.meaning == SIMILARITY_MEANING
         assert "not a probability" in result.meaning
 
     def test_an_unknown_target_raises(self) -> None:
         engine = build_engine(varied_cohort())
         with pytest.raises(KeyError, match="unknown player"):
-            engine.similar_to("nobody")
+            matches(engine, "nobody")
 
     def test_a_player_with_too_few_features_returns_nothing(self) -> None:
         entries = varied_cohort()
         entries.append(make_player("sparse", {"goals_per90": 1.0}, club="c8"))
         engine = build_engine(entries)
-        assert engine.similar_to("sparse") == []
+        assert matches(engine, "sparse") == []
 
 
 class TestRepresentations:
@@ -466,7 +481,7 @@ class TestRepresentations:
         }
         entries.append(make_player("clone", clone_values, club="other"))
         engine = build_engine(entries, representation)
-        results = engine.similar_to("p10", limit=3)
+        results = matches(engine, "p10", limit=3)
         assert results[0].candidate.player_key == "clone"
         assert results[0].similarity > 95.0
 
@@ -483,7 +498,7 @@ class TestRepresentations:
         engine = build_engine(entries)
 
         match = next(
-            r for r in engine.similar_to("strong", limit=50) if r.candidate.player_key == "weak"
+            r for r in matches(engine, "strong", limit=50) if r.candidate.player_key == "weak"
         )
         assert match.similarity > 90.0
         assert match.profile_strength_ratio < 0.9
@@ -493,7 +508,7 @@ class TestRepresentations:
         """Uncentred percentiles all sit in the positive orthant, so every pair
         would score highly and nothing would be distinguishable."""
         engine = build_engine(varied_cohort())
-        results = engine.similar_to("p0", limit=40)
+        results = matches(engine, "p0", limit=40)
         assert min(r.similarity for r in results) < 50.0
 
 
@@ -533,9 +548,43 @@ class TestAgainstTheMockDataset:
             for k, r in players.items()
             if r.position_group is PositionGroup.CM and (r.minutes or 0) >= 900
         )
-        results = engine.similar_to(target, limit=10, minimum_minutes=900)
+        results = matches(engine, target, limit=10, minimum_minutes=900)
         assert results
         assert all(r.candidate.position_group is PositionGroup.CM for r in results)
         assert all(0.0 <= r.similarity <= 100.0 for r in results)
         # A real cohort should produce a genuine ranking, not a flat list.
         assert results[0].similarity - results[-1].similarity > 1.0
+
+
+class TestTheFloor:
+    """Returning a player nobody would call similar.
+
+    Found by looking at real output: a midfielder's five closest matches ran
+    67.8, 22.7, 6.7, 0.0, 0.0 - and all five were presented the same way. An
+    index of 0 means the profiles point in opposing directions, which
+    `to_similarity_index` says itself.
+    """
+
+    def test_pairs_below_the_floor_are_not_offered(self) -> None:
+        engine = build_engine(varied_cohort())
+        for result in engine.similar_to("p10", limit=50):
+            assert result.similarity >= MINIMUM_SIMILARITY
+
+    def test_the_list_gets_shorter_rather_than_padded(self) -> None:
+        """Fewer real matches must mean fewer names, not the same names with
+        worse numbers. Filling to `limit` answers "who is similar to this
+        player" with players who are not."""
+        engine = build_engine(varied_cohort())
+        floored = engine.similar_to("p10", limit=50)
+        everything = engine.similar_to("p10", limit=50, minimum_similarity=0.0)
+        assert len(floored) < len(everything)
+
+    def test_a_player_with_no_resemblance_gets_an_empty_answer(self) -> None:
+        """Silence is the honest answer, and the caller can tell it apart from
+        a player who is simply not in the data."""
+        engine = build_engine(varied_cohort())
+        assert engine.similar_to("p10", limit=50, minimum_similarity=100.1) == []
+
+    def test_a_caller_can_widen_the_net_deliberately(self) -> None:
+        engine = build_engine(varied_cohort())
+        assert engine.similar_to("p10", limit=50, minimum_similarity=0.0)

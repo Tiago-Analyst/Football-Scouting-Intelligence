@@ -50,9 +50,20 @@ class TestReadingTheUniverse:
     ) -> None:
         """Switching to the database's integer id would change every player URL
         and orphan every shortlist entry saved against the old key."""
-        keys = [p.player_key for p in universe.players]
-        assert all(not key.isdigit() for key in keys[:50])
-        assert any(key.startswith("mock-p-") for key in keys)
+        from sqlalchemy import select
+
+        from app.core.database import get_session_factory
+        from app.models import BridgePlayerSource
+
+        keys = {p.player_key for p in universe.players}
+        assert keys
+
+        # Stated directly rather than inferred from the shape of the string:
+        # FootyStats ids are numeric, so "does not look like a database id" was
+        # only ever true of the demo universe.
+        with get_session_factory()() as session:
+            provider_ids = set(session.scalars(select(BridgePlayerSource.source_player_id)).all())
+        assert keys <= provider_ids
 
     def test_identity_survives_the_round_trip(self, universe: LoadedUniverse) -> None:
         player = next(p for p in universe.players if p.position_group is not None)
@@ -84,7 +95,10 @@ class TestReadingTheUniverse:
         assert any(p.club_name for p in with_club)
 
     def test_sources_are_reported(self, universe: LoadedUniverse) -> None:
-        assert "demo" in universe.sources
+        """Whichever source is seeded. Naming one here couples the suite to the
+        developer's database, and fabricated data may no longer sit beside real
+        data - so which one is loaded is not fixed."""
+        assert universe.sources
 
 
 class TestFingerprint:

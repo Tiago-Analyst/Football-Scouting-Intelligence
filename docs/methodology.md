@@ -331,6 +331,19 @@ The recomputation is deliberately naive - it counts comparisons one at a time
 where the engine bisects a sorted list - so that the two cannot share a mistake.
 `docs/analytics_validation.md` shows the working for every check.
 
+## Fabricated data is never mixed with real data
+
+The demo universe exists so the site can be shown before any provider is
+connected. It must not sit in the same database as real data.
+
+Percentiles would survive it - they are scoped to a competition, and no
+fabricated player shares one with a real player. Similarity does not: comparing
+across leagues is the point of it, so every loaded player is a candidate. With
+both present, four in five of the similar players suggested for a real
+footballer were invented, at indices high enough to look convincing.
+
+This is enforced as a data quality failure rather than left to discipline.
+
 ## Where this departs from the specification: tackles
 
 The specification defines Defensive Activity as `Successful Tackles /90 35%,
