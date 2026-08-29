@@ -232,6 +232,24 @@ jobs:
           set -o pipefail
           python -m pipelines.quality.derived_coverage             --source "${{ inputs.source || 'transfermarkt' }}" 2>&1 | tee pipeline-derived.log
 
+      - name: Recompute sample players independently
+        if: steps.preflight.outputs.database == 'true' && success()
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        # Rebuilds each figure from the raw season totals without calling the
+        # engines, and fails the job on any disagreement. Unlike absent metrics,
+        # a percentile that does not reproduce is a fault, not a fact about a
+        # source - so this one is allowed to stop the run.
+        run: |
+          set -o pipefail
+          python -m pipelines.quality.validate_analytics --players 12 2>&1             | tee pipeline-validation.log
+
       - name: Summarise the run
         if: always() && steps.preflight.outputs.database == 'true'
         run: |

@@ -53,7 +53,19 @@ python -m pipelines.quality.derived_coverage   # what the data actually produced
 
 The first probes a synthetic record to find the dependency graph. The second
 runs the engines over the loaded rows and counts the output, which is the only
-way to notice a field the provider declares and never populates. `probe`
+way to notice a field the provider declares and never populates.
+
+A third checks the arithmetic itself:
+
+```bash
+python -m pipelines.quality.validate_analytics --players 12
+```
+
+It rebuilds every per-90, percentile, intelligence score and role score from
+the raw season totals without calling the engines, and exits non-zero on any
+disagreement. Unlike an absent metric, a percentile that does not reproduce is
+a fault rather than a fact about a source, so it is allowed to fail the
+pipeline. `probe`
 records real API responses and `profile` describes them; neither interprets a
 field. An ingestion pipeline may only be written after a person has read the
 profile and filled in `config/footystats_mapping.yaml`, and both scripts refuse

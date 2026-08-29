@@ -2171,6 +2171,66 @@ within goalkeepers it is complete. Restricted to player-seasons of at least 450
 minutes, 38 of the 43 derived metrics reach 100% in the position group they
 belong to, and the other five are the absent ones.
 
+## Percentiles, scores and roles on real data (Phase 17)
+
+The engines were built and tested in earlier phases. What this phase adds is
+evidence that they are producing the right numbers from the real rows, arrived
+at by a route that shares no code with them.
+
+### Checking a thing against itself proves it is deterministic
+
+A test that calls `percentile_of` and compares the answer with `percentile_of`
+would pass forever and mean nothing. So
+`pipelines.quality.validate_analytics` reads `fact_player_season_stats`
+directly and rebuilds every figure from the raw season totals:
+
+- the **per-90** by dividing the total by the minutes the statistics cover -
+  which is the assumption most worth re-checking, because using minutes played
+  instead inflates every rate wherever detailed coverage is partial;
+- the **percentile** by counting, one comparison at a time, how many of the
+  comparison population fall below and how many tie - deliberately the slow way,
+  so it cannot share an off-by-one with the bisecting implementation;
+- the **intelligence score** by weighting the component percentiles itself,
+  renormalising over the components that are present;
+- the **role score** the same way, over metric percentiles and whole
+  intelligence scores together.
+
+Every check prints its arithmetic - `626 / 2160 * 90`, `8 below + 1 equal of
+12` - so any single one can still be followed by hand, which is what the
+specification asks for. Doing it only by hand would validate the players who
+were looked at, on the day they were looked at; recomputing keeps validating
+them.
+
+The two percentile implementations are also made to argue with each other over
+two thousand random tie-heavy populations in the test suite. Ties are where
+percentile definitions usually part company, and mid-rank is the whole reason
+the many defenders with no shots on target share a percentile instead of piling
+up at zero.
+
+### Both sides agreeing on nothing is not agreement
+
+The report counts substantive checks separately: those where an actual number
+was compared on both sides. A check where the engine and the recomputation both
+say "cannot be computed" is a correct result and a weak one - it says they agree
+about absence, not about arithmetic.
+
+That distinction is not decorative. A sample drawn only from goalkeepers scores
+close to a hundred per cent agreement while comparing almost no numbers at all,
+because the outfield metrics and every intelligence score are rightly empty for
+them. Reporting that as validation would be flattering the engine with its own
+silence.
+
+### Goalkeepers get no intelligence scores, and should not
+
+Measured rather than assumed: for a goalkeeper with a full season, every one of
+the eight scores is withheld, because the components they are built from -
+shots, dribbles, crosses, interceptions - are absent. Not absent as in missing
+data: absent as in goalkeepers do not do those things.
+
+That is the correct outcome. "Goal Threat" for a goalkeeper would be a number
+about nothing. It is worth stating out loud because eight empty score slots look
+like a data problem, and the product should say which it is.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What
