@@ -22,44 +22,44 @@ not goalkeepers, which is not a data quality problem.
 | `progressive_passes_per90` | 0% | - | 0% | absent |
 | `successful_tackles_per90` | 0% | - | 0% | absent |
 | `tackle_success_percentage` | 0% | - | 0% | absent |
-| `accurate_crosses_per90` | 59% | WINGER | 98% | complete |
-| `aerial_duels_won_per90` | 94% | WINGER | 100% | complete |
-| `assists_per90` | 100% | FB_WB | 100% | complete |
-| `blocks_per90` | 65% | CB | 97% | complete |
-| `clean_sheet_percentage` | 100% | FB_WB | 100% | complete |
-| `clearances_per90` | 98% | FORWARD | 100% | complete |
-| `completed_passes_per90` | 98% | WINGER | 100% | complete |
-| `cross_accuracy` | 59% | WINGER | 98% | complete |
-| `crosses_per90` | 71% | WINGER | 100% | complete |
-| `dispossessed_per90` | 70% | WINGER | 100% | complete |
-| `dribble_success_percentage` | 69% | WINGER | 97% | complete |
-| `dribbled_past_per90` | 80% | FB_WB | 99% | complete |
-| `dribbles_per90` | 75% | WINGER | 98% | complete |
-| `duel_win_percentage` | 97% | WINGER | 100% | complete |
-| `duels_per90` | 97% | WINGER | 100% | complete |
-| `duels_won_per90` | 97% | WINGER | 100% | complete |
-| `fouls_committed_per90` | 79% | WINGER | 100% | complete |
-| `fouls_drawn_per90` | 91% | WINGER | 100% | complete |
-| `goals_conceded_per90` | 100% | FB_WB | 100% | complete |
-| `goals_per90` | 100% | FB_WB | 100% | complete |
-| `inside_box_saves_per90` | 22% | GK | 98% | complete |
-| `interceptions_per90` | 77% | FB_WB | 99% | complete |
-| `key_passes_per90` | 80% | WINGER | 100% | complete |
-| `non_penalty_goals_per90` | 100% | FB_WB | 100% | complete |
-| `npxg_per90` | 100% | FB_WB | 100% | complete |
-| `pass_completion` | 98% | WINGER | 100% | complete |
-| `passes_per90` | 98% | WINGER | 100% | complete |
-| `save_percentage` | 22% | GK | 98% | complete |
-| `saves_per90` | 22% | GK | 98% | complete |
-| `shot_accuracy` | 66% | FORWARD | 100% | complete |
-| `shot_conversion` | 76% | WINGER | 100% | complete |
-| `shot_quality` | 76% | WINGER | 100% | complete |
-| `shots_on_target_per90` | 66% | FORWARD | 100% | complete |
-| `shots_per90` | 76% | WINGER | 100% | complete |
-| `successful_dribbles_per90` | 69% | WINGER | 97% | complete |
-| `tackles_per90` | 83% | WINGER | 100% | complete |
-| `xa_per90` | 100% | FB_WB | 100% | complete |
-| `xg_per90` | 100% | FB_WB | 100% | complete |
+| `dribbled_past_per90` | 73% | DM | 90% | partial |
+| `accurate_crosses_per90` | 61% | AM | 96% | complete |
+| `aerial_duels_won_per90` | 94% | FORWARD | 99% | complete |
+| `assists_per90` | 100% | DM | 100% | complete |
+| `blocks_per90` | 66% | CB | 97% | complete |
+| `clean_sheet_percentage` | 100% | DM | 100% | complete |
+| `clearances_per90` | 97% | DM | 99% | complete |
+| `completed_passes_per90` | 99% | FORWARD | 100% | complete |
+| `cross_accuracy` | 61% | AM | 96% | complete |
+| `crosses_per90` | 74% | WINGER | 98% | complete |
+| `dispossessed_per90` | 73% | WINGER | 98% | complete |
+| `dribble_success_percentage` | 72% | WINGER | 96% | complete |
+| `dribbles_per90` | 79% | DM | 99% | complete |
+| `duel_win_percentage` | 98% | FORWARD | 100% | complete |
+| `duels_per90` | 98% | FORWARD | 100% | complete |
+| `duels_won_per90` | 98% | FORWARD | 100% | complete |
+| `fouls_committed_per90` | 83% | FORWARD | 99% | complete |
+| `fouls_drawn_per90` | 92% | FORWARD | 99% | complete |
+| `goals_conceded_per90` | 100% | DM | 100% | complete |
+| `goals_per90` | 100% | DM | 100% | complete |
+| `inside_box_saves_per90` | 17% | GK | 99% | complete |
+| `interceptions_per90` | 80% | DM | 99% | complete |
+| `key_passes_per90` | 82% | AM | 98% | complete |
+| `non_penalty_goals_per90` | 100% | DM | 100% | complete |
+| `npxg_per90` | 100% | DM | 100% | complete |
+| `pass_completion` | 99% | FORWARD | 100% | complete |
+| `passes_per90` | 99% | FORWARD | 100% | complete |
+| `save_percentage` | 18% | GK | 99% | complete |
+| `saves_per90` | 18% | GK | 99% | complete |
+| `shot_accuracy` | 69% | FORWARD | 97% | complete |
+| `shot_conversion` | 80% | WINGER | 98% | complete |
+| `shot_quality` | 80% | WINGER | 98% | complete |
+| `shots_on_target_per90` | 69% | FORWARD | 97% | complete |
+| `shots_per90` | 80% | WINGER | 98% | complete |
+| `successful_dribbles_per90` | 72% | WINGER | 96% | complete |
+| `tackles_per90` | 86% | FORWARD | 99% | complete |
+| `xa_per90` | 100% | DM | 100% | complete |
+| `xg_per90` | 100% | DM | 100% | complete |
 
 ## Scores and roles
 
@@ -68,29 +68,29 @@ player for a score, and only the compatible position groups for a role.
 
 | Feature | Kind | Produced for | Status | Why |
 | --- | --- | ---: | --- | --- |
-| `ball_playing_centre_back` | role | 0% of 99 | withheld | provider: aerial_duel_win_percentage, progressive_passes_per90 (60% of weight survives, needs 100%) |
-| `deep_lying_playmaker` | role | 0% of 100 | withheld | provider: progressive_passes_per90 (70% of weight survives, needs 100%) |
-| `advanced_playmaker` | role | 24% of 79 | caveated | sample: most comparison populations are below the minimum |
-| `attacking_full_back` | role | 46% of 76 | caveated | sample: most comparison populations are below the minimum |
-| `ball_winning_midfielder` | role | 35% of 100 | caveated | sample: most comparison populations are below the minimum |
-| `box_to_box_midfielder` | role | 26% of 129 | caveated | sample: most comparison populations are below the minimum |
-| `complete_forward` | role | 38% of 34 | caveated | sample: most comparison populations are below the minimum |
-| `defensive_full_back` | role | 61% of 76 | caveated | partial: computed without aerial_duel_win_percentage, progressive_passes_per90, on renormalised weights |
-| `defensive_stopper` | role | 35% of 99 | caveated | sample: most comparison populations are below the minimum |
-| `direct_winger` | role | 30% of 91 | caveated | sample: most comparison populations are below the minimum |
-| `shot_stopper` | role | 63% of 115 | caveated | - |
-| `target_forward` | role | 38% of 34 | caveated | sample: most comparison populations are below the minimum |
-| `creative_winger` | role | 29% of 91 | available | sample: most comparison populations are below the minimum |
-| `inside_forward` | role | 42% of 96 | available | sample: most comparison populations are below the minimum |
-| `poacher` | role | 41% of 34 | available | sample: most comparison populations are below the minimum |
-| `ball_progression` | score | 0% of 515 | withheld | provider: progressive_passes_per90 (55% of weight survives, needs 100%) |
-| `duel_dominance` | score | 0% of 515 | withheld | provider: aerial_duel_win_percentage (70% of weight survives, needs 100%) |
-| `defensive_activity` | score | 22% of 515 | caveated | sample: most comparison populations are below the minimum |
-| `finishing` | score | 26% of 515 | caveated | sample: most comparison populations are below the minimum |
-| `ball_security` | score | 23% of 515 | available | sample: most comparison populations are below the minimum |
-| `chance_creation` | score | 23% of 515 | available | sample: most comparison populations are below the minimum |
-| `goal_threat` | score | 22% of 515 | available | sample: most comparison populations are below the minimum |
-| `one_v_one_threat` | score | 24% of 515 | available | sample: most comparison populations are below the minimum |
+| `ball_playing_centre_back` | role | 0% of 173 | withheld | provider: aerial_duel_win_percentage, progressive_passes_per90 (60% of weight survives, needs 100%) |
+| `deep_lying_playmaker` | role | 0% of 184 | withheld | provider: progressive_passes_per90 (70% of weight survives, needs 100%) |
+| `advanced_playmaker` | role | 47% of 161 | caveated | sample: most comparison populations are below the minimum |
+| `attacking_full_back` | role | 60% of 131 | caveated | partial: computed without progressive_passes_per90, on renormalised weights |
+| `ball_winning_midfielder` | role | 52% of 184 | caveated | partial: computed without aerial_duel_win_percentage, progressive_passes_per90, on renormalised weights |
+| `box_to_box_midfielder` | role | 38% of 233 | caveated | sample: most comparison populations are below the minimum |
+| `complete_forward` | role | 65% of 77 | caveated | partial: computed without aerial_duel_win_percentage, on renormalised weights |
+| `defensive_full_back` | role | 60% of 131 | caveated | partial: computed without aerial_duel_win_percentage, progressive_passes_per90, on renormalised weights |
+| `defensive_stopper` | role | 57% of 173 | caveated | partial: computed without aerial_duel_win_percentage, on renormalised weights |
+| `direct_winger` | role | 47% of 170 | caveated | sample: most comparison populations are below the minimum |
+| `shot_stopper` | role | 68% of 157 | caveated | - |
+| `target_forward` | role | 66% of 77 | caveated | partial: computed without aerial_duel_win_percentage, on renormalised weights |
+| `creative_winger` | role | 45% of 170 | available | sample: most comparison populations are below the minimum |
+| `inside_forward` | role | 66% of 198 | available | - |
+| `poacher` | role | 69% of 77 | available | - |
+| `ball_progression` | score | 0% of 892 | withheld | provider: progressive_passes_per90 (55% of weight survives, needs 100%) |
+| `duel_dominance` | score | 0% of 892 | withheld | provider: aerial_duel_win_percentage (70% of weight survives, needs 100%) |
+| `defensive_activity` | score | 32% of 892 | caveated | sample: most comparison populations are below the minimum |
+| `finishing` | score | 40% of 892 | caveated | sample: most comparison populations are below the minimum |
+| `ball_security` | score | 38% of 892 | available | sample: most comparison populations are below the minimum |
+| `chance_creation` | score | 33% of 892 | available | sample: most comparison populations are below the minimum |
+| `goal_threat` | score | 35% of 892 | available | sample: most comparison populations are below the minimum |
+| `one_v_one_threat` | score | 39% of 892 | available | sample: most comparison populations are below the minimum |
 
 ## Absent, and switched off
 
