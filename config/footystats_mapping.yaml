@@ -293,14 +293,6 @@ metrics:
       Verified arithmetically across 290 player-seasons. Distinct from
       dribbles_total_overall, which is attempts: mapping the two the wrong way
       round would report a 100% success rate for everyone.
-  successful_tackles:
-    field: detailed.tackles_successful_total_overall
-    response: player-stats
-    verified_on: 2026-08-29
-    note: >
-      Distinct from tackles_total_overall, which is attempts. Too few non-zero
-      values in the sample to verify arithmetically, but the naming pattern
-      matches every other successful/attempted pair that was verified.
   tackles:
     field: detailed.tackles_total_overall
     response: player-stats
@@ -361,6 +353,13 @@ rejected:
     give every player a 0% aerial success rate, and it also blocks
     deriving the aerial duel total, which the provider does not supply
     directly.
+  "detailed.tackles_successful_total_overall": >-
+    The key appears in 10,464 of 26,483 sampled records and its value is
+    non-null in none of them, while tackles_total_overall beside it carries
+    real figures in 8,184. This was mapped on the strength of the naming
+    pattern - every other successful/attempted pair had verified - with a
+    note admitting the sample held too few non-zero values to check. The
+    pattern was not evidence, and a wider sample says so.
   "detailed.progressive_passes_total_overall": >-
     The key exists in every response and its value is null in every one of
     691 sampled records, while passes_total_overall beside it carries real
@@ -405,4 +404,12 @@ absent:
     reason: >-
       only aerial_duels_won_total_overall is supplied. The attempt count is
       absent, and aerial_duels_won_percentage_overall - which would allow
-      deriving it - returns 0 for every sampled record.
+      deriving it - returns 0 for every sampled record. The key
+      aerial_duels_total_overall never appears at all.
+  - metric: successful_tackles
+    reason: >-
+      tackles_successful_total_overall is declared and never populated:
+      non-null in 0 of the 10,464 sampled records that carry the key.
+      tackles_total_overall is supplied and is NOT a substitute - attempts
+      and successes are different measurements, and swapping one for the
+      other would change what every score built on it means.

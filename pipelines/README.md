@@ -41,7 +41,19 @@ python -m pipelines.load.load_providers --source footystats --replace --verify
 The load reads the snapshots and never calls the API, which makes it fast,
 atomic, and repeatable without the provider being up.
 
-The validation apparatus is unchanged. `probe`
+The validation apparatus is unchanged.
+
+`quality/` holds two coverage checks that answer different questions and are
+easy to confuse:
+
+```bash
+python -m pipelines.quality.coverage           # what the code can compute
+python -m pipelines.quality.derived_coverage   # what the data actually produced
+```
+
+The first probes a synthetic record to find the dependency graph. The second
+runs the engines over the loaded rows and counts the output, which is the only
+way to notice a field the provider declares and never populates. `probe`
 records real API responses and `profile` describes them; neither interprets a
 field. An ingestion pipeline may only be written after a person has read the
 profile and filled in `config/footystats_mapping.yaml`, and both scripts refuse

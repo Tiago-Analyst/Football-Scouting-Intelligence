@@ -214,6 +214,24 @@ jobs:
           set -o pipefail
           python -m pipelines.quality.report --persist 2>&1 | tee pipeline-quality.log
 
+      - name: Measure what the loaded data can produce
+        if: steps.preflight.outputs.database == 'true' && success()
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        # Regenerated per run so the published limitations describe the data
+        # that is actually live. Absent metrics are a fact about the provider,
+        # not a fault in the refresh, so this reports rather than fails - hence
+        # no --fail-on-absent.
+        run: |
+          set -o pipefail
+          python -m pipelines.quality.derived_coverage             --source "${{ inputs.source || 'transfermarkt' }}" 2>&1 | tee pipeline-derived.log
+
       - name: Summarise the run
         if: always() && steps.preflight.outputs.database == 'true'
         run: |
