@@ -267,6 +267,25 @@ only that the figures behind it are present and self-consistent.
 
 ---
 
+## When a provider contradicts itself
+
+Real FootyStats data contains a player with one shot and two shots on target.
+
+One of those two numbers is wrong and there is no way to tell which. Keeping
+either would be choosing one at random and then presenting the guess as
+measurement, and a shot accuracy of 200% would follow that player through every
+percentile and score built on it.
+
+Both become unknown, which is the only thing actually known about them. It is
+the "absent is not zero" rule reaching its natural end: **a contradicted figure
+is not a small figure, it is no figure.**
+
+Every containment pair the database constrains is checked before the write, and
+each violation is counted and reported by the load rather than absorbed - a
+provider contradicting itself often is a mapping to re-examine, not noise. In
+the current data it happens once in 1,516 rows, which is reassuring about the
+mapping rather than alarming about the provider.
+
 ## Identity resolution
 
 FootyStats and Transfermarkt identifiers cannot be assumed to match, and players

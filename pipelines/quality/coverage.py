@@ -99,8 +99,10 @@ class Impact:
     roles: frozenset[str]
 
 
-def _probe_stats(*, omit: CanonicalMetric | None = None) -> PlayerSeasonStats:
-    """A fully-populated stats record, optionally missing one field.
+def _probe_stats(
+    *, omit: CanonicalMetric | None = None, omit_all: set[CanonicalMetric] | None = None
+) -> PlayerSeasonStats:
+    """A fully-populated stats record, optionally missing one field or several.
 
     Ratios use a smaller numerator than denominator so that a record with every
     field set still satisfies the model's consistency rules — completed passes
@@ -122,9 +124,13 @@ def _probe_stats(*, omit: CanonicalMetric | None = None) -> PlayerSeasonStats:
         CanonicalMetric.SAVES,
     }
 
+    excluded = set(omit_all or ())
+    if omit is not None:
+        excluded.add(omit)
+
     values: dict[str, int] = {}
     for metric in CanonicalMetric:
-        if metric is omit:
+        if metric in excluded:
             continue
         if metric is CanonicalMetric.MINUTES:
             values[metric.value] = _PROBE_MINUTES
@@ -174,26 +180,55 @@ def dependency_map() -> dict[CanonicalMetric, frozenset[DerivedMetric]]:
 def impact_of_absence(absent: set[CanonicalMetric]) -> Impact:
     """What cannot be computed if these canonical metrics are missing.
 
+    Measured by blanking the whole set at once, not by combining the
+    per-metric results of `dependency_map`.
+
+    The difference is not academic. `minutes` and `recorded_minutes` are a
+    fallback pair: the metrics engine uses the second where a provider supplies
+    it and the first otherwise, so blanking either alone costs nothing. Union
+    the two individual answers and you conclude that losing both costs nothing
+    — the opposite of true, since without any minutes no per-90 exists at all.
+
+    One-at-a-time measurement cannot see a dependency that only breaks when
+    several fields go together. Measuring the actual set can.
+
     A score or role is lost when *any* required component is lost, because both
     engines default to `min_coverage = 1.0` — a score is never quietly built
     from whichever components happened to survive.
     """
-    dependencies = dependency_map()
-    lost_derived: set[DerivedMetric] = set()
-    for metric in absent:
-        lost_derived |= dependencies.get(metric, frozenset())
+    if not absent:
+        return Impact(frozenset(), frozenset(), frozenset())
+
+    baseline = _computed(_probe_stats())
+    remaining = _computed(_probe_stats(omit_all=absent))
+    lost_derived: set[DerivedMetric] = set(baseline - remaining)
+
+    # A score or role survives when the weight that remains still meets its own
+    # `min_coverage`. Treating every definition as requiring the full 100% would
+    # over-report: a role that documents which component it can do without, and
+    # renormalises the rest, is not lost when that component goes.
+    def survives(weights: dict[object, float], lost: set[object], floor: float) -> bool:
+        total = sum(weights.values())
+        if total <= 0:
+            return False
+        remaining = sum(w for component, w in weights.items() if component not in lost)
+        return remaining / total >= floor
 
     lost_scores = {
         key
         for key, definition in get_definitions().items()
-        if set(definition.components) & lost_derived
+        if not survives(dict(definition.components), set(lost_derived), definition.min_coverage)
     }
 
-    lost_roles = {
-        role.key
-        for role in get_roles().values()
-        if (set(role.metric_weights) & lost_derived) or (set(role.score_weights) & lost_scores)
-    }
+    lost_roles = set()
+    for role in get_roles().values():
+        weights: dict[object, float] = {
+            **{m: w for m, w in role.metric_weights.items()},
+            **{s: w for s, w in role.score_weights.items()},
+        }
+        unavailable: set[object] = set(lost_derived) | set(lost_scores)
+        if not survives(weights, unavailable, role.min_coverage):
+            lost_roles.add(role.key)
 
     return Impact(
         derived_metrics=frozenset(lost_derived),

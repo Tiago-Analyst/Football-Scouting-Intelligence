@@ -76,6 +76,8 @@ class FactPlayerSeasonStats(Base):
     appearances: Mapped[int | None] = _metric()
     starts: Mapped[int | None] = _metric()
     minutes: Mapped[int | None] = _metric()
+    #: The minutes the per-metric statistics cover. See `PlayerSeasonStats`.
+    recorded_minutes: Mapped[int | None] = _metric()
 
     # -- Goals ---------------------------------------------------------------
     goals: Mapped[int | None] = _metric()
@@ -172,6 +174,13 @@ class FactPlayerSeasonStats(Base):
         CheckConstraint(
             "appearances IS NULL OR minutes IS NULL OR minutes <= appearances * 120",
             name="minutes_within_appearances",
+        ),
+        CheckConstraint(
+            # The statistics cannot cover more minutes than were played. A
+            # provider returning otherwise is misunderstood, not merely noisy,
+            # and every per-90 built on it would be wrong.
+            "recorded_minutes IS NULL OR minutes IS NULL OR recorded_minutes <= minutes",
+            name="recorded_minutes_within_minutes",
         ),
         Index("ix_stats_competition_season", "competition_id", "season_id"),
         Index("ix_stats_player_season", "player_id", "season_id"),

@@ -257,7 +257,12 @@ def compute_derived(stats: PlayerSeasonStats, *, player_id: int | None = None) -
     provider that does not carry a field disables the features depending on it
     rather than contributing a fabricated zero.
     """
-    minutes = stats.minutes
+    # The minutes the statistics actually cover, which is what every rate below
+    # must divide by. A provider that records detail for only some matches
+    # supplies fewer here than `minutes`, and dividing by the larger figure
+    # would understate every rate in proportion to the gap. Providers that do
+    # not distinguish the two leave it unset and the two are the same.
+    minutes = stats.recorded_minutes if stats.recorded_minutes is not None else stats.minutes
 
     # Penalties inflate shooting volume and conversion, so finishing metrics are
     # computed on open play. Non-penalty shots are unknown if either input is.

@@ -43,12 +43,32 @@ class TestProductionMode:
         with pytest.raises(ProviderNotConfiguredError):
             build_performance_provider(build_settings(app_mode="production", footystats_api_key=""))
 
-    def test_with_a_key_still_refuses_until_the_schema_is_validated(self) -> None:
-        """A key is not sufficient. The field mapping has to be written against
-        observed responses first, and guessing it is prohibited."""
+    def test_with_a_key_it_builds_the_real_provider(self) -> None:
+        """This asserted a refusal until the provider existed.
+
+        The gate it protected has not gone: the registry still refuses unless
+        the mapping grants at least one metric, and the mapping still refuses
+        any entry that cannot name the response it was verified against. What
+        changed is that both are now satisfied.
+        """
+        provider = build_performance_provider(
+            build_settings(app_mode="production", footystats_api_key="a-real-looking-key")
+        )
+        assert provider.info.name == "FootyStatsProvider"
+        assert provider.info.is_mock is False
+
+    def test_an_empty_mapping_still_refuses(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The gate itself, tested directly rather than through the absence of
+        a provider: no verified field, no provider, whatever else is in place.
+        """
+        from app.providers import registry
+        from app.providers.footystats_mapping import FootyStatsMapping
+
+        empty = FootyStatsMapping(metrics={}, verified_against=(), rejected={})
+        monkeypatch.setattr(registry, "get_mapping", lambda: empty)
         with pytest.raises(DataNotValidatedError):
             build_performance_provider(
-                build_settings(app_mode="production", footystats_api_key="a-real-looking-key")
+                build_settings(app_mode="production", footystats_api_key="a-key")
             )
 
     @pytest.mark.parametrize("api_key", ["", "   ", "a-real-looking-key"])
@@ -72,22 +92,25 @@ class TestErrorsCarryUsefulDetail:
             build_performance_provider(build_settings(app_mode="production", footystats_api_key=""))
         assert excinfo.value.details.get("app_mode") == "production"
 
-    def test_unvalidated_error_explains_what_is_required(self) -> None:
-        """The refusal has to say what would lift it, not just that it refused.
+    def test_the_refusal_without_a_key_says_which_mode(self) -> None:
+        """The refusal has to say what would lift it, not just that it
+        refused."""
+        with pytest.raises(ProviderNotConfiguredError) as excinfo:
+            build_performance_provider(build_settings(app_mode="production", footystats_api_key=""))
+        assert "FootyStats API key" in str(excinfo.value)
 
-        Since the mapping file became the authority, this message names the
-        pipeline that produces the evidence and the file that records it.
-        """
-        with pytest.raises(DataNotValidatedError) as excinfo:
-            build_performance_provider(
-                build_settings(app_mode="production", footystats_api_key="key")
-            )
-        message = str(excinfo.value)
-        assert "profiling" in message
-        assert "footystats_mapping.yaml" in message
+    def test_errors_never_include_the_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Whatever the registry refuses for, the key must not be in the
+        message: it reaches logs, and in development it reaches responses."""
+        from app.providers import registry
+        from app.providers.footystats_mapping import FootyStatsMapping
 
-    def test_errors_never_include_the_api_key(self) -> None:
         secret = "SUPER_SECRET_KEY_VALUE"
+        monkeypatch.setattr(
+            registry,
+            "get_mapping",
+            lambda: FootyStatsMapping(metrics={}, verified_against=(), rejected={}),
+        )
         with pytest.raises(DataNotValidatedError) as excinfo:
             build_performance_provider(
                 build_settings(app_mode="production", footystats_api_key=secret)

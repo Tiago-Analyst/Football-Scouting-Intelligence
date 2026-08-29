@@ -3,19 +3,10 @@
 # Specification section 32 requires this file; section 22 requires the refresh
 # frequency to be configurable.
 #
-# ============================================================================
-# THE FOOTYSTATS COMPETITION LIST IS EMPTY, AND THAT IS CORRECT TODAY.
-# ============================================================================
-#
-# No FootyStats API key has been available, so the league catalogue has never
-# been retrieved and no competition identifier has been observed. Writing ids
-# here from documentation or from memory would be exactly the guess the
-# specification prohibits.
-#
-# The list is populated from what `pipelines.footystats.probe` records when it
-# calls /league-list — real identifiers from a real response, chosen by a
-# person. Until then the FootyStats ingestion has nothing to iterate over, which
-# is the honest state rather than an oversight.
+# Every `season_id` below was observed in a real /league-list response on
+# 2026-08-29. None is invented. Re-derive them with the probe rather than editing
+# by hand: season ids change every season, and a stale id silently loads last
+# year's football.
 
 version: 1
 
@@ -23,17 +14,17 @@ version: 1
 # Refresh cadence (specification section 22)
 # ---------------------------------------------------------------------------
 #
-# Expressed as cron so a scheduler can read it directly. The suggested cadence
-# is FootyStats two to three times per week and Transfermarkt weekly; the
-# values below are that suggestion, and are meant to be changed.
+# Expressed as cron so a scheduler can read it directly. `.github/workflows/
+# pipeline.yml` carries the same crons as literals - GitHub cannot read one
+# from a file - and a test asserts the two sets match.
 refresh:
   footystats:
     # Mondays, Wednesdays and Fridays, early morning UTC.
     cron: "0 4 * * 1,3,5"
-    enabled: false          # nothing to fetch without a key
+    enabled: true
   transfermarkt:
-    # Sundays. The public dataset is rebuilt on its own schedule; fetching more
-    # often mostly re-downloads an unchanged archive.
+    # Sundays. The public dataset is rebuilt on its own schedule; fetching
+    # more often mostly re-downloads an unchanged archive.
     cron: "0 5 * * 0"
     enabled: true
 
@@ -41,15 +32,269 @@ refresh:
 # FootyStats competitions to ingest
 # ---------------------------------------------------------------------------
 #
-# Each entry, once a person adds one, must carry:
+# 47 of the 50 subscribed competitions, being those with a
+# 2026 or later season in the catalogue. Three are excluded below.
+footystats:
+  - season_id: 17550
+    name: Africa CAF Champions League
+    country: Africa
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17381
+    name: Asia AFC Champions League
+    country: Asia
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17326
+    name: Australia A-League
+    country: Australia
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17181
+    name: Austria Bundesliga
+    country: Austria
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17171
+    name: Belgium Pro League
+    country: Belgium
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16544
+    name: Brazil Serie A
+    country: Brazil
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 16741
+    name: Canada Canadian Premier League
+    country: Canada
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 16789
+    name: China Chinese Super League
+    country: China
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 16614
+    name: Colombia Categoria Primera A
+    country: Colombia
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17087
+    name: Croatia Prva HNL
+    country: Croatia
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17428
+    name: Cyprus First Division
+    country: Cyprus
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17157
+    name: Czech Republic First League
+    country: Czech Republic
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17091
+    name: Denmark Superliga
+    country: Denmark
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17184
+    name: England Championship
+    country: England
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17234
+    name: England FA Cup
+    country: England
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17111
+    name: England League Cup
+    country: England
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17146
+    name: England Premier League
+    country: England
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17128
+    name: Europe UEFA Champions League
+    country: Europe
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17127
+    name: Europe UEFA Europa League
+    country: Europe
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16572
+    name: Finland Veikkausliiga
+    country: Finland
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17102
+    name: France Ligue 1
+    country: France
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17117
+    name: France Ligue 2
+    country: France
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17212
+    name: Germany 2. Bundesliga
+    country: Germany
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17210
+    name: Germany Bundesliga
+    country: Germany
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17356
+    name: Greece Super League
+    country: Greece
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17165
+    name: Hungary NB I
+    country: Hungary
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17084
+    name: Italy Serie A
+    country: Italy
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17115
+    name: Japan J1 League
+    country: Japan
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17099
+    name: Mexico Liga MX
+    country: Mexico
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17097
+    name: Netherlands Eredivisie
+    country: Netherlands
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16558
+    name: Norway Eliteserien
+    country: Norway
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17112
+    name: Poland Ekstraklasa
+    country: Poland
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17217
+    name: Portugal Liga NOS
+    country: Portugal
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17215
+    name: Portugal LigaPro
+    country: Portugal
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17178
+    name: Russia Russian Premier League
+    country: Russia
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17426
+    name: Saudi Arabia Professional League
+    country: Saudi Arabia
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17148
+    name: Scotland Premiership
+    country: Scotland
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16556
+    name: South America Copa Libertadores
+    country: South America
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 16547
+    name: South America Copa Sudamericana
+    country: South America
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 16627
+    name: South Korea K League 1
+    country: South Korea
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17199
+    name: Spain La Liga
+    country: Spain
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17269
+    name: Spain Segunda División
+    country: Spain
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16576
+    name: Sweden Allsvenskan
+    country: Sweden
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17129
+    name: Switzerland Super League
+    country: Switzerland
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 17265
+    name: Turkey Süper Lig
+    country: Turkey
+    season: 20262027
+    added_on: 2026-08-29
+  - season_id: 16504
+    name: USA MLS
+    country: USA
+    season: 2026
+    added_on: 2026-08-29
+  - season_id: 17191
+    name: Ukraine Ukrainian Premier League
+    country: Ukraine
+    season: 20262027
+    added_on: 2026-08-29
+
+# ---------------------------------------------------------------------------
+# Subscribed, but excluded
+# ---------------------------------------------------------------------------
 #
-#   - season_id:  the identifier observed in a real /league-list response
-#   - name:       the competition's name as that response gives it
-#   - country:    the country the response reports
-#   - added_on:   when a person chose to include it
+# These three are on the subscription, and the catalogue carries no season for
+# them later than the year shown. Their countries do have 2026 entries, but
+# only for cups and minor competitions - the top flights themselves stop.
 #
-# Nothing may be added here that has not been seen in a recorded response.
-footystats: []
+# Loading them would put football several years old on a site that presents
+# itself as current, which is worse than their absence. Recorded here rather
+# than dropped so nobody has to rediscover why they are missing.
+excluded:
+  - name: Argentina Primera División
+    latest_season: 20202021
+    latest_season_id: 5220
+    reason: no season later than this exists in the catalogue
+  - name: Chile Primera División
+    latest_season: 20162017
+    latest_season_id: 495
+    reason: no season later than this exists in the catalogue
+  - name: Uruguay Primera División
+    latest_season: 20152016
+    latest_season_id: 855
+    reason: no season later than this exists in the catalogue
 
 # ---------------------------------------------------------------------------
 # Transfermarkt

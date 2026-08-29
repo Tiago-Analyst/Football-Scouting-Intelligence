@@ -65,6 +65,7 @@ class CanonicalMetric(StrEnum):
     APPEARANCES = "appearances"
     STARTS = "starts"
     MINUTES = "minutes"
+    RECORDED_MINUTES = "recorded_minutes"
 
     # -- Goals ---------------------------------------------------------------
     GOALS = "goals"
@@ -182,7 +183,20 @@ class PlayerIdentity(BaseModel):
     preferred_foot: PreferredFoot | None = None
     height_cm: int | None = Field(default=None, ge=100, le=250)
     raw_position: str
-    position_group: PositionGroup
+    #: The standardised group, when the source is specific enough to determine
+    #: one. `None` where it is not, which is a real case rather than a defect:
+    #: FootyStats reports only Goalkeeper, Defender, Midfielder and Forward, so
+    #: it can place a goalkeeper and cannot tell a centre-back from a full-back
+    #: or a winger from a centre-forward.
+    #:
+    #: Guessing would be worse than leaving it unset. Percentiles are scoped to
+    #: a position group precisely so that a full-back is not ranked against
+    #: centre-backs, and filling this in from a four-value vocabulary would
+    #: recreate the comparison the grouping exists to prevent.
+    #:
+    #: A player without a group is excluded from the analytical view until
+    #: identity resolution supplies one from a source that knows.
+    position_group: PositionGroup | None = None
     club_id: str
     competition_id: str
 
@@ -210,6 +224,22 @@ class PlayerSeasonStats(BaseModel):
     appearances: int | None = Field(default=None, ge=0)
     starts: int | None = Field(default=None, ge=0)
     minutes: int | None = Field(default=None, ge=0)
+    #: Minutes of play the per-metric statistics actually cover.
+    #:
+    #: Not the same thing as `minutes`, and the difference is not cosmetic. A
+    #: provider may record detailed statistics for only some of the matches a
+    #: player appeared in, and its counts then describe those matches alone.
+    #: Dividing such a total by *all* minutes played understates the rate in
+    #: exact proportion to the gap.
+    #:
+    #: Measured against FootyStats: 87% of player-seasons have full coverage,
+    #: and the worst case in the sample recorded 82 of 303 minutes played - a
+    #: per-90 over total minutes would have reported 27% of the true value with
+    #: nothing to indicate anything was wrong.
+    #:
+    #: `None` when a provider does not distinguish the two, in which case the
+    #: metrics engine falls back to `minutes`.
+    recorded_minutes: int | None = Field(default=None, ge=0)
 
     # -- Goals ---------------------------------------------------------------
     goals: int | None = Field(default=None, ge=0)

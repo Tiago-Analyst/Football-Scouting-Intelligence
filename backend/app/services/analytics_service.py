@@ -267,7 +267,14 @@ def build_view(settings: Settings) -> AnalyticsView:
             market_value_eur=loaded.market_value_eur,
             contract_expires=loaded.contract_expires,
             minutes=loaded.stats.minutes,
-            sample_band=classify_minutes(loaded.stats.minutes),
+            # Classified on the minutes the statistics cover, not on time on
+            # the pitch. The sample-size rule exists to stop a ranking being
+            # built on too little evidence, and the evidence is those minutes.
+            sample_band=classify_minutes(
+                loaded.stats.recorded_minutes
+                if loaded.stats.recorded_minutes is not None
+                else loaded.stats.minutes
+            ),
             stats=loaded.stats,
             metrics=metrics,
         )
