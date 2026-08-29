@@ -153,6 +153,81 @@ Current results are in `docs/identity_resolution_report.md`.
 
 ---
 
+## Running it against real data (Phase 15)
+
+Measured against the loaded FootyStats competitions: **774 of 1,566 players
+matched (49.4%)**, none ambiguous, none needing manual review.
+
+The headline number hides the finding that matters, which is that recall is not
+a property of the resolver here - it is a property of the reference dataset:
+
+| Competition | Matched |
+| --- | ---: |
+| Croatia Prva HNL | 83% |
+| Belgium Pro League | 81% |
+| Austria Bundesliga | 78% |
+| AFC Champions League | 67% |
+| Brazil Serie A | 44% |
+| China Chinese Super League | 35% |
+| Colombia Categoria Primera A | 31% |
+| Canada Canadian Premier League | 21% |
+
+The public `dcaribou/transfermarkt-datasets` snapshot covers European football
+thoroughly and the rest of the world thinly. Where it knows the players, four in
+five are matched; where it does not, there is nothing to match against.
+
+This is a coverage limit, not an accuracy one, and it must not be presented as
+one. **A player missing from the site is not a player who failed a quality
+threshold.**
+
+### What inspection showed before anything was merged
+
+The specification says to stop and inspect at this phase, so the first run was
+report-only. Of the matches:
+
+- every one scored 0.95 or above, and 93% were exact name plus date of birth;
+- 19 had names that differ between the sources - `Benjamin Seko` against
+  `Benjamin Sesko`, `Lucas Estella Perri` against `Lucas Perri`,
+  `Vitalii Mykolenko` against `Vitaliy Mykolenko`, `Lucas Gourna Douath`
+  against `Lucas Gourna-Douath`. All are the same person, and each also agreed
+  on date of birth. This is the normalisation work paying for itself;
+- the players left unmatched all *had* a date of birth, so the resolver was not
+  short of signal. They are cases where the sources use different names for the
+  same person - `Edward Nketiah` against the `Eddie Nketiah` he plays under,
+  `Beto Bercique` against a longer legal name, a Brazilian listed only as
+  `John`. Refusing is the correct outcome: guessing here is exactly how one
+  career gets attached to another.
+
+### The three defects the first merge exposed
+
+All three were one mistake wearing different clothes: **something pointing at
+the duplicate row was not moved before the duplicate was deleted**.
+
+**The bridge row was deleted by cascade.** `dim_player` cascades to
+`bridge_player_source`, and the merge repointed the bridge *after* deleting the
+duplicate. The `UPDATE` then matched zero rows and said nothing. The statistics
+survived, because those were repointed first, but the mapping back to the
+provider's id was gone - and losing it breaks nothing visibly, it just recreates
+the duplicate on the next run. `merge_player` now owns the whole operation
+instead of trusting the order it is called in, and raises if the bridge update
+does not touch exactly one row.
+
+**Purging a source would have deleted the other source's players.** `purge`
+found players through their bridge rows. After a merge that bridge points at the
+*shared* identity, so `--replace --source footystats` would have deleted the
+Transfermarkt player it had been merged into, with the market values and
+transfers hanging off it. The bridge means "this source knows this player", not
+"this source owns this row". Facts are now removed by their own source column,
+and a player is removed only when no other source still knows them.
+
+**A snapshot being written could not be read.** A full fetch takes hours, so
+loading while one is in progress is normal operation - and the gzip stream then
+has no end-of-stream marker. The truncated-*line* case was handled; the
+truncated-*file* case, one layer below it, raised. Refusing would mean no load
+is possible until every competition has finished.
+
+None of the three would have announced itself in the data.
+
 ## What this does not yet do
 
 FootyStats identities have never been matched, because FootyStats has never been

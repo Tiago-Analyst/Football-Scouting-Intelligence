@@ -57,3 +57,22 @@ transfermarkt:
     - Midfield
     - Attack
     - Missing
+
+footystats:
+  # FootyStats reports one `position` field with four values. Counts are from
+  # 800 players across the Premier League, Serie A, Ligue 1 and the Bundesliga,
+  # observed 2026-08-29.
+  #
+  # Only the goalkeeper maps. The other three each cover two or three groups,
+  # and choosing one would put a full-back in the centre-backs' percentile pool
+  # or a winger in the centre-forwards' - exactly the comparison the groups
+  # exist to prevent. They are left unmapped, and identity resolution supplies
+  # the group from Transfermarkt's `sub_position`, which distinguishes all
+  # thirteen labels.
+  position:
+    Goalkeeper: GK                 # 86 - unambiguous
+
+    # Deliberately unmapped. The value on the right would be a guess.
+    # Defender:   CB or FB_WB      # 272
+    # Midfielder: DM, CM or AM     # 235
+    # Forward:    WINGER or FORWARD # 207

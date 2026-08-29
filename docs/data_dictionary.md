@@ -18,6 +18,7 @@ are absent stays absent rather than being imputed.
 | `appearances` | Playing Time | int or None | `>= 0`, nullable |
 | `starts` | Playing Time | int or None | `>= 0`, nullable |
 | `minutes` | Playing Time | int or None | `>= 0`, nullable |
+| `recorded_minutes` | Playing Time | int or None | `>= 0`, nullable |
 | `goals` | Goals | int or None | `>= 0`, nullable |
 | `non_penalty_goals` | Goals | int or None | `>= 0`, nullable |
 | `assists` | Goals | int or None | `>= 0`, nullable |
@@ -123,14 +124,14 @@ Applied through Alembic migrations; never created by hand.
 | `dim_season` | 4 | 2 | 0 |
 | `fact_data_quality` | 8 | 3 | 1 |
 | `fact_market_value` | 6 | 5 | 1 |
-| `fact_player_season_stats` | 44 | 50 | 3 |
+| `fact_player_season_stats` | 45 | 52 | 3 |
 | `fact_transfer` | 12 | 6 | 1 |
 | `shortlist` | 6 | 4 | 1 |
 | `shortlist_entry` | 7 | 4 | 1 |
 | `user_account` | 7 | 4 | 0 |
 | `user_session` | 7 | 4 | 2 |
 
-13 tables, 95 constraints in total.
+13 tables, 97 constraints in total.
 
 The constraint count is high on purpose: section 24 requires that impossible
 values must not be *storable*, not merely that they are not written. A negative

@@ -22,7 +22,6 @@ from pipelines.footystats.probe import REDACTED, find_first_id, redact, resolve_
 
 from app.core.errors import DataNotValidatedError
 from app.providers.footystats_mapping import (
-    MAPPING_PATH,
     FootyStatsMapping,
     MappingError,
     load_mapping,
@@ -44,41 +43,66 @@ def write(tmp_path: Path, body: str) -> Path:
 
 
 class TestTheShippedMapping:
+    """The mapping was empty until an API key arrived. These asserted that.
+
+    Now that real responses have been profiled, the invariant they protected -
+    nothing may be claimed without evidence - is expressed as: every entry names
+    the field, the response it was seen in, when a person checked it, and what
+    established it.
+    """
+
     def test_it_parses(self) -> None:
         load_mapping()
 
-    def test_it_is_empty_because_nothing_has_been_observed(self) -> None:
-        """This is the correct state, not a gap. No API key has been available,
-        so no response has been seen, so no field may be mapped."""
-        assert load_mapping().is_empty
-
-    def test_an_empty_mapping_claims_no_metrics(self) -> None:
-        assert load_mapping().available_metrics == frozenset()
-
-    def test_an_empty_mapping_reports_every_metric_as_missing(self) -> None:
-        assert load_mapping().missing() == frozenset(CanonicalMetric)
-
-    def test_requiring_it_refuses(self) -> None:
-        """A provider built on an empty mapping would return records with every
-        metric None, which is indistinguishable from a player who did nothing."""
-        with pytest.raises(DataNotValidatedError):
-            load_mapping().require()
-
-    def test_it_names_no_response_it_has_seen(self) -> None:
-        """The file is in its pristine state: nothing observed, nothing claimed.
-
-        Asserted on the parsed mapping rather than on the file's text, which
-        would only be testing how the YAML happens to be laid out.
-        """
-        assert MAPPING_PATH.exists()
+    def test_it_is_populated(self) -> None:
         mapping = load_mapping()
-        assert mapping.verified_against == ()
-        assert mapping.rejected == {}
+        assert not mapping.is_empty
+        assert len(mapping.available_metrics) > 25
 
-    def test_no_field_name_is_claimed_anywhere(self) -> None:
-        """The guard that matters: a metric cannot appear here without the
-        loader also demanding the response it was observed in."""
-        assert [entry.field for entry in load_mapping().metrics.values()] == []
+    def test_every_entry_names_the_response_it_was_seen_in(self) -> None:
+        """A field nobody can trace back to a recorded response is a guess."""
+        mapping = load_mapping()
+        for entry in mapping.metrics.values():
+            assert entry.response in mapping.verified_against, entry.metric.value
+
+    def test_every_entry_justifies_itself(self) -> None:
+        """The loader enforces a minimum length; this asserts the notes say
+        something specific rather than merely being long enough."""
+        for entry in load_mapping().metrics.values():
+            assert len(entry.note) > 30, entry.metric.value
+
+    def test_the_minutes_distinction_is_recorded(self) -> None:
+        """The single most consequential entry.
+
+        FootyStats records detailed statistics for only some matches, so a
+        season total divided by all minutes played understates every rate. The
+        two quantities are mapped separately and must not be collapsed.
+        """
+        mapping = load_mapping()
+        minutes = mapping.metrics[CanonicalMetric.MINUTES]
+        recorded = mapping.metrics[CanonicalMetric.RECORDED_MINUTES]
+        assert minutes.field != recorded.field
+        assert "recorded" in recorded.field
+
+    def test_the_metrics_that_are_absent_are_still_missing(self) -> None:
+        """Two have no usable field, and the site disables what depends on them
+        rather than approximating it.
+
+        `dispossessed` was on this list until the provider's own spelling turned
+        up - `dispossesed`, with one 's'. Searching for the correct spelling
+        reported a metric as absent that was there all along.
+        """
+        missing = {m.value for m in load_mapping().missing()}
+        assert {"progressive_passes", "aerial_duels"} <= missing
+        assert "dispossessed" not in missing
+
+    def test_no_rejected_field_was_mapped_anyway(self) -> None:
+        """Two fields carry the right name and no value - a null progressive
+        passes total, an aerial duel percentage that is always zero. Mapping
+        either would read as available until somebody checked."""
+        mapping = load_mapping()
+        mapped = {entry.field for entry in mapping.metrics.values()}
+        assert mapped.isdisjoint(mapping.rejected)
 
 
 # ---------------------------------------------------------------------------

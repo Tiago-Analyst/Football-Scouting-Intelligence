@@ -56,18 +56,47 @@ class TestCadence:
         for name, entry in competitions["refresh"].items():
             assert isinstance(entry.get("enabled"), bool), name
 
-    def test_footystats_is_disabled(self, competitions: dict) -> None:
-        """No API key exists, so there is nothing to fetch. Enabling it would
-        schedule a job that can only fail."""
-        assert competitions["refresh"]["footystats"]["enabled"] is False
+    def test_footystats_is_enabled(self, competitions: dict) -> None:
+        """A key now exists and the catalogue has been probed, so the schedule
+        has something to fetch. This asserted the opposite until then."""
+        assert competitions["refresh"]["footystats"]["enabled"] is True
 
 
 class TestCompetitionList:
-    def test_no_footystats_competition_is_listed(self, competitions: dict) -> None:
-        """The guard that matters. No competition identifier has ever been
-        observed in a real response, so any entry here would be invented —
-        exactly what the specification prohibits."""
-        assert competitions["footystats"] == []
+    def test_every_competition_carries_its_evidence(self, competitions: dict) -> None:
+        """This asserted the list was empty, because no identifier had ever been
+        observed. Now that /league-list has been called, the invariant it
+        protected is unchanged — nothing here may be invented — but it is
+        expressed as: every entry says what it is and when it was seen.
+        """
+        entries = competitions["footystats"]
+        assert entries, "the catalogue has been probed; this should not be empty"
+        for entry in entries:
+            assert isinstance(entry["season_id"], int), entry
+            assert entry["name"], entry
+            assert entry["season"], entry
+            assert entry["added_on"], entry
+
+    def test_season_ids_are_unique(self, competitions: dict) -> None:
+        """The same season twice would load one competition's players twice and
+        double every count derived from them."""
+        ids = [e["season_id"] for e in competitions["footystats"]]
+        assert len(set(ids)) == len(ids)
+
+    def test_every_competition_has_a_current_season(self, competitions: dict) -> None:
+        """A stale season id silently loads football several years old onto a
+        site that presents itself as current. Three subscribed competitions have
+        no recent season at all and are recorded under `excluded` instead."""
+        for entry in competitions["footystats"]:
+            year = int(str(entry["season"])[:4])
+            assert year >= 2026, entry
+
+    def test_excluded_competitions_say_why(self, competitions: dict) -> None:
+        """Dropping them silently would leave the next person to rediscover that
+        their top flights stop years ago in this catalogue."""
+        for entry in competitions.get("excluded") or []:
+            assert entry["reason"], entry
+            assert entry["latest_season"], entry
 
     def test_transfermarkt_is_ingested_whole(self, competitions: dict) -> None:
         """Filtering it before load would discard the identities that identity

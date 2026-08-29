@@ -152,15 +152,27 @@ jobs:
         # changed under us is caught here rather than as a puzzling load error.
         run: python -m pipelines.transfermarkt.profile
 
+      - name: Restore the snapshot cache
+        if: steps.preflight.outputs.footystats == 'true'
+        uses: actions/cache@v4
+        with:
+          path: data/raw/footystats/snapshots
+          key: footystats-snapshots-${{ github.run_id }}
+          restore-keys: footystats-snapshots-
+
       - name: Retrieve FootyStats data
         if: steps.preflight.outputs.footystats == 'true'
+        # A full fetch is one request per player - roughly 23,500 across the 47
+        # configured competitions, or thirteen hours at the account's rate
+        # limit. It cannot finish inside a job, and it does not need to:
+        # `--resume` means each run continues where the last one stopped, so
+        # three runs a week converge and then keep the snapshots current.
+        #
+        # `timeout-minutes` on the job bounds it; an interrupted fetch loses at
+        # most twenty-five players' work.
         env:
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
-        # Records raw responses. Writes no mapping: specification Phase 12
-        # requires a person to review the profile before any field is mapped.
-        run: |
-          python -m pipelines.footystats.probe
-          python -m pipelines.footystats.profile
+        run: python -m pipelines.footystats.ingest --resume
 
       - name: Load and verify
         if: steps.preflight.outputs.database == 'true'

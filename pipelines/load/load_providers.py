@@ -351,6 +351,7 @@ class ProviderLoader:
 
         metric_names = [m.value for m in CanonicalMetric]
         rows: list[dict[str, Any]] = []
+        contradictions: dict[str, int] = {}
 
         for competition in self.performance.get_competitions():
             for season in self.performance.get_seasons(competition.competition_id):
@@ -369,7 +370,19 @@ class ProviderLoader:
                         "source": self.source,
                     }
                     row.update({name: getattr(record, name) for name in metric_names})
+                    for violation in reconcile_contradictions(row):
+                        contradictions[violation] = contradictions.get(violation, 0) + 1
                     rows.append(row)
+
+        if contradictions:
+            detail = ", ".join(f"{k} ({v})" for k, v in sorted(contradictions.items()))
+            self.report.check(
+                "season_stats",
+                "provider_internal_consistency",
+                "warn",
+                sum(contradictions.values()),
+                f"contradictory pairs blanked rather than guessed: {detail}",
+            )
 
         self.report.record("season_stats", _bulk_insert(self.session, FactPlayerSeasonStats, rows))
 
@@ -552,14 +565,65 @@ def _normalize(name: str) -> str:
     return normalize_name(name)
 
 
+#: Pairs the canonical model holds to be subset-and-total, mirroring the CHECK
+#: constraints on `fact_player_season_stats`.
+CONTAINMENT_PAIRS: tuple[tuple[str, str], ...] = (
+    ("passes_completed", "passes"),
+    ("shots_on_target", "shots"),
+    ("duels_won", "duels"),
+    ("aerial_duels_won", "aerial_duels"),
+    ("non_penalty_goals", "goals"),
+    ("recorded_minutes", "minutes"),
+)
+
+
+def reconcile_contradictions(row: dict[str, Any]) -> list[str]:
+    """Blank both halves of any pair the provider contradicted itself on.
+
+    Observed in real FootyStats data: a player with one shot and two shots on
+    target. One of the two numbers is wrong and there is no way to tell which,
+    so keeping either would be choosing one at random and presenting the guess
+    as measurement - and a shot accuracy of 200% would follow it everywhere.
+
+    Both become unknown, which is the only thing actually known about them.
+    That is the "absent is not zero" rule reaching its natural end: a
+    contradicted figure is not a small figure, it is no figure. Every violation
+    is counted and reported, because a provider contradicting itself often is a
+    mapping to re-examine, not noise to absorb.
+    """
+    violated: list[str] = []
+    for subset, total in CONTAINMENT_PAIRS:
+        low, high = row.get(subset), row.get(total)
+        if low is not None and high is not None and low > high:
+            row[subset] = None
+            row[total] = None
+            violated.append(f"{subset}>{total}")
+    return violated
+
+
 def purge(session: Session, source: str) -> None:
     """Remove everything previously loaded from one source.
 
-    Facts cascade from `dim_player`, so players are deleted through their bridge
-    rows and the rest follows. Reference data is keyed by source prefix.
+    Deleting players through their bridge rows is wrong once identity
+    resolution has run. A merged player's bridge points at the *shared*
+    identity row, so purging FootyStats that way would delete the Transfermarkt
+    player it was merged into - along with their market values and every other
+    source's statistics. The bridge means "this source knows this player", not
+    "this source owns this row".
+
+    So facts go by their own source column, and a player is removed only when
+    no other source still knows them.
     """
-    player_ids = select(BridgePlayerSource.player_id).where(BridgePlayerSource.source == source)
-    session.execute(delete(DimPlayer).where(DimPlayer.player_id.in_(player_ids)))
+    mine = select(BridgePlayerSource.player_id).where(BridgePlayerSource.source == source)
+    shared = select(BridgePlayerSource.player_id).where(BridgePlayerSource.source != source)
+
+    session.execute(delete(FactPlayerSeasonStats).where(FactPlayerSeasonStats.source == source))
+    session.execute(
+        delete(DimPlayer).where(DimPlayer.player_id.in_(mine), ~DimPlayer.player_id.in_(shared))
+    )
+    # Whatever survived the line above is a shared identity; its bridge row for
+    # this source did not cascade and would otherwise outlive the data it names.
+    session.execute(delete(BridgePlayerSource).where(BridgePlayerSource.source == source))
     session.execute(delete(DimClub).where(DimClub.source == source))
     session.execute(delete(DimCompetition).where(DimCompetition.source == source))
     session.execute(delete(FactDataQuality).where(FactDataQuality.source == source))
@@ -573,6 +637,43 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
             performance=MockPerformanceProvider(),
             market=MockMarketProvider(),
         )
+    if source == "footystats":
+        # Reads the snapshots rather than the API. The fetch takes hours and the
+        # load runs in one transaction; keeping them apart is what makes the load
+        # fast, atomic and repeatable without asking the provider again.
+        from app.core.config import get_settings
+        from app.providers.footystats import FootyStatsProvider
+        from app.providers.footystats_snapshot import SnapshotReader, SnapshotUnavailableError
+
+        reader = SnapshotReader()
+        available = reader.available_seasons()
+        if not available:
+            raise SnapshotUnavailableError(
+                "No FootyStats snapshots found. Run `python -m pipelines.footystats.ingest` first."
+            )
+
+        performance = FootyStatsProvider(get_settings())
+        performance._get = reader  # type: ignore[method-assign]
+        # Only competitions that were actually fetched. Offering one without a
+        # snapshot would fail mid-load, after other competitions had been read.
+        performance._competitions = [
+            entry
+            for entry in performance._competitions
+            if str(entry["season_id"]) in set(available)
+        ]
+        log.info(
+            "footystats_load_scope",
+            snapshots=len(available),
+            competitions=len(performance._competitions),
+        )
+        return ProviderLoader(
+            session,
+            source="footystats",
+            performance=performance,
+            # Market data comes from Transfermarkt, loaded as its own source.
+            market=None,
+        )
+
     if source == "transfermarkt":
         # Market data only: there is no verified performance provider yet, and
         # linking one to these identities is identity resolution work.
@@ -587,7 +688,7 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Load provider data into PostgreSQL.")
-    parser.add_argument("--source", choices=["demo", "transfermarkt"], default="demo")
+    parser.add_argument("--source", choices=["demo", "transfermarkt", "footystats"], default="demo")
     parser.add_argument("--replace", action="store_true", help="purge this source before loading")
     parser.add_argument(
         "--verify",

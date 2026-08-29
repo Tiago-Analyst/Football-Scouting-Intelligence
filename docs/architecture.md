@@ -1875,6 +1875,236 @@ Phase 11 and adding Vitest is a decision, not a detail.
 No `opengraph-image`. A social card would need a design, and an ugly one is
 worse than the default.
 
+## FootyStats validated, and the provider written (Phases 12 and 13)
+
+The API key arrived. What follows is what the API turned out to be, which is not
+what anyone assumed — including me, twice.
+
+### What the profiling found
+
+Seven endpoints answered; the account allows 1,800 requests an hour. The data
+sits in two places, and the split shapes everything downstream:
+
+| Endpoint | Cost | Carries |
+| --- | --- | --- |
+| `/league-players?season_id=` | one call per season | identity, minutes, goals, assists — **no action statistics at all** |
+| `/player-stats?player_id=` | **one call per player** | a `detailed` object with 188 fields, 126 of them actions |
+
+So a competition costs one roster call plus one call per player. At 500 players
+that is roughly seventeen minutes, and it is the shape of the API rather than a
+choice.
+
+### Two wrong conclusions, both caught before they were acted on
+
+**"FootyStats has no action data."** Mid-investigation I checked `detailed` on
+the first record of a `/player-stats` response, found `null`, and concluded the
+API carried no shots, passes, tackles or expected goals whatever. I got as far
+as computing the impact — all eight scores and all fifteen roles impossible —
+before the profiler, which walks every record rather than the first, found the
+188 fields. The record I sampled was a 2016 MLS season where the player did not
+feature.
+
+**"`dispossessed` is absent."** Searching the field list for `dispossess`
+returned nothing. The provider spells it `dispossesed`, with one 's'. The metric
+was there the whole time, and is now mapped — recovering the `ball_security`
+score and three roles.
+
+Both were caught by tooling that looked at everything rather than at a sample,
+which is the argument for having built it.
+
+### Fields verified arithmetically, not by name
+
+`xg_total_overall` and `xg_per_90_overall` both contain "xg", and mapping the
+wrong one passes a rate off as a total. So each candidate was checked against
+the identity
+
+```
+total / recorded_minutes * 90  ==  the provider's own per_90 field
+```
+
+across 346 player-seasons of Premier League 2026/27. Twenty-three metrics
+agreed in **every** record. That is what establishes a `_total_overall` field
+really is a season total.
+
+### The finding that changed the data model
+
+The first run of that check failed at about 75% agreement. The cause was not a
+wrong field: **FootyStats records detailed statistics for only some matches**,
+and computes its per-90 figures over those minutes rather than over minutes
+played.
+
+Measured across 376 player-seasons: 87% have full coverage. The worst had 82
+recorded minutes against 303 played — where a per-90 over total minutes reports
+**27% of the true value**, with nothing on screen to indicate anything is wrong.
+
+One field could not carry both meanings, so `recorded_minutes` joins the
+canonical model (migration `0005`), with a check constraint that it can never
+exceed `minutes`. The metrics engine divides by it where a provider supplies it
+and by `minutes` otherwise; the sample-size band uses it too, because the
+900-minute threshold exists to guarantee enough evidence and the evidence is
+those minutes.
+
+### What the provider cannot supply
+
+Two metrics have a field with the right name that is never populated —
+`progressive_passes_total_overall` is null in all 691 sampled records, and
+`aerial_duels_won_percentage_overall` is zero in all of them. A declared but
+empty field is more dangerous than an absent one: it reads as available until
+somebody checks.
+
+There is no substitute. `long_passes_per_game_overall` and its short-pass
+counterpart are also zero throughout, so nothing in this API measures ball
+progression.
+
+**Position is the other gap.** FootyStats reports four positions — Goalkeeper,
+Defender, Midfielder, Forward — where the canonical model has eight groups. Only
+the goalkeeper is unambiguous. `PlayerIdentity.position_group` is now optional,
+and the provider leaves it unset for everyone else: filling it in from a
+four-value vocabulary would rank full-backs against centre-backs and wingers
+against centre-forwards, which is the comparison position groups exist to
+prevent. Identity resolution supplies it from Transfermarkt, which distinguishes
+all thirteen labels.
+
+### Nine roles brought back, two left disabled
+
+Losing progressive passes and aerial duel attempts costs three intelligence
+scores and would have cost eleven of the fifteen roles.
+
+The engine already had the mechanism: a role may declare a `min_coverage` below
+1.0, drop the absent component, renormalise the rest, and report the reduced
+coverage with a caveat. Nine roles now do, each with `min_coverage` set to the
+share of weight that actually survives — a floor, so any *further* loss still
+disables the role — and a caveat naming exactly what is missing.
+
+Two are left disabled. `deep_lying_playmaker` and `ball_playing_centre_back`
+each lose 40%, of which 30 points are progressive passing. That is not a
+component of those roles, it is what their names promise; renormalising would
+produce a number measuring something else under a name that claims progression.
+
+**Result: 6 of 8 scores, 13 of 15 roles, across 47 competitions.**
+
+### A third defect in the measurement
+
+Configuring those nine changed nothing at first, because `impact_of_absence`
+assumed every definition required full coverage. It also could not see that
+`minutes` and `recorded_minutes` are a fallback pair: each alone measured as
+costless, so unioning them concluded that losing both cost nothing — when losing
+both costs the entire analytical layer.
+
+Both fixed by measuring the actual absent set against each definition's own
+floor, rather than composing per-metric results.
+
+### The provider
+
+`app/providers/footystats.py` reads every field path from
+`config/footystats_mapping.yaml`. No FootyStats field name appears anywhere else
+in the application, and a test asserts it by scanning the source.
+
+Rate-limited to 1,800/hour, retries only what can succeed on a retry, caches the
+roster and per-player detail because ingestion asks repeatedly, and never puts a
+URL in an exception — the URL carries the key in its query string.
+
+50 tests, no network: the fixtures carry the provider's real field names and
+structure with invented players, because section 29 forbids redistributing
+provider data and proving a field is read from the right place does not require
+a real footballer.
+
+### Validation
+
+Exercised against the live API through the registry in production mode: 47
+competitions, seasons parsed in both the split-year and calendar-year formats,
+20 clubs, 200 players of whom only the 20 goalkeepers carry a position group,
+and a player record whose per-90 figures compute from the canonical model.
+
+## Real ingestion (Phase 14)
+
+The shape of the API decides the shape of this phase. Action statistics need one
+request per player, so the 47 configured competitions come to roughly 23,500
+requests — about thirteen hours at the account's 1,800 an hour.
+
+### Fetching and loading are separate stages
+
+Thirteen hours inside a database transaction is not a plan. It holds locks for
+half a day, keeps everything in memory, and loses the lot to one network blip
+near the end.
+
+So `pipelines/footystats/ingest.py` does one thing: it fetches, and writes what
+it received to disk. `pipelines/load/load_providers.py --source footystats`
+reads those files.
+
+That split buys three things beyond avoiding the long transaction. The load
+becomes **reproducible** — the same snapshot loads to the same rows, and section
+4 asks for exactly that. It becomes **fast and atomic**, seconds rather than
+hours, inside the transaction that `--verify` already guards. And it stops
+needing the provider to be up: re-running last week's load works at three in the
+morning when FootyStats is down, because the data is already here.
+
+### Interruption is survivable, because it will happen
+
+A thirteen-hour job that must complete perfectly to be useful is a job nobody
+dares start. Progress is written per competition every twenty-five players, so
+an interrupted run loses at most twenty-five players' work and `--resume`
+continues from there.
+
+Two failure modes are handled rather than assumed away. A **progress file
+claiming work that no snapshot contains** is discarded — trusting it would
+silently drop players, and refetching is only slow. A **truncated final line**,
+which is exactly what an interrupted write leaves, is counted and skipped; the
+rest of the file is intact and usable, so refusing to read it would throw away
+hours of good work over one bad line.
+
+One player failing does not stop a competition, and one competition failing does
+not stop the run. Both are counted and reported.
+
+### What is stored
+
+One gzipped JSON-lines file per competition: the roster, then one line per
+player carrying that player's **complete** `/player-stats` response — not
+filtered to the season being ingested, because a filtered snapshot is no longer
+the raw response and the point of keeping it is to re-derive anything later
+without asking again.
+
+Measured: 30 players compress from 7.8 MB to 429 KB, about 18:1, because the
+responses repeat their 188 field names in every record. A full run is roughly
+330 MB. A manifest records every file with its SHA-256, because a snapshot
+nobody can verify is a snapshot nobody should reload from.
+
+### The snapshot reader is the provider's transport
+
+`app/providers/footystats_snapshot.py` replaces the one method the provider uses
+to reach the network, and returns responses in the API's own shape. The provider
+is unchanged and unaware — which matters, because reproducing its parsing here
+would be a second implementation to keep in step with the first.
+
+A defect the tests caught: asking for a player before any season had been read
+returned "no such player", because the reader only knew players from seasons it
+had loaded. The real load asks for the roster first, so it worked by call order
+rather than by design — and a reader that drops players depending on the order
+it is called in would lose them silently. It now loads what it needs before
+answering.
+
+Clubs are deliberately served as empty. The roster carries `club_team_id` and
+Transfermarkt knows club names better; inventing them here would not be honest.
+
+### The scheduled pipeline
+
+`--resume` is what makes a thirteen-hour fetch fit a scheduled job that cannot
+run for thirteen hours. Each run continues where the last stopped, the snapshot
+directory is cached between runs, and three runs a week converge and then keep
+the snapshots current.
+
+### Validation
+
+Exercised end to end against the live API: 30 players fetched into a snapshot,
+a second run with `--resume` making zero requests, a third fetching only the ten
+that were new, then a load from disk that touched no network and passed all
+twelve serving quality checks before committing.
+
+`tests/test_footystats_ingest.py` — 17 tests covering the resume paths, the
+corrupt-progress and truncated-file cases, and that every request the provider
+makes during a load can be answered from a snapshot. If one could not, the load
+would reach for the network mid-transaction.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

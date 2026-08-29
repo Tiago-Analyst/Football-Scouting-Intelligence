@@ -27,7 +27,21 @@ python -m pipelines.quality.report            # print
 python -m pipelines.quality.report --persist  # and record in fact_data_quality
 ```
 
-`footystats/` holds the validation apparatus, not an ingestion pipeline. `probe`
+`footystats/` holds both the validation apparatus and the ingestion. Fetching is
+separate from loading because a full fetch is one request per player - about
+23,500 across the 47 configured competitions, or thirteen hours - and that
+cannot live inside a database transaction:
+
+```bash
+python -m pipelines.footystats.ingest --dry-run   # what it would fetch, and how long
+python -m pipelines.footystats.ingest --resume    # fetch, continuing where it stopped
+python -m pipelines.load.load_providers --source footystats --replace --verify
+```
+
+The load reads the snapshots and never calls the API, which makes it fast,
+atomic, and repeatable without the provider being up.
+
+The validation apparatus is unchanged. `probe`
 records real API responses and `profile` describes them; neither interprets a
 field. An ingestion pipeline may only be written after a person has read the
 profile and filled in `config/footystats_mapping.yaml`, and both scripts refuse

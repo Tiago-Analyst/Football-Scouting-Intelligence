@@ -39,17 +39,27 @@ market analysis, built on top of performance and market data.
 | Shortlists (save, note, compare, export) | Working — owner-scoped, tested |
 | Data quality reporting | Working — measured feature impact, published |
 | FootyStats validation apparatus | Working — probe, profiler, mapping gate |
-| **FootyStats integration** | **Blocked on an API key, deliberately** |
+| FootyStats field validation | Done — 35 of 39 metrics mapped, each with evidence |
+| `FootyStatsProvider` | Working — reads the verified mapping, 47 competitions |
+| FootyStats ingestion | Working — resumable snapshots, load reads from disk |
 
 ### About FootyStats
 
-No FootyStats API key is available yet, and **no FootyStats field has been
-verified**. Accordingly:
+The API has been profiled and the field mapping written against recorded
+responses. `config/footystats_mapping.yaml` carries, for every metric, the field
+it came from, the response it was seen in, and what established it — 23 of them
+verified arithmetically rather than by name.
 
-- No provider field mapping exists. None will be written from guesswork.
-- Every data source reports `validated: false` through the API, and the UI
-  labels it "Pending validation".
-- Demo mode uses clearly-labelled fabricated data and never calls FootyStats.
+What it cannot supply is recorded just as explicitly:
+
+- **Progressive passes** and **aerial duel attempts** have fields that are never
+  populated. Nothing else in the API measures ball progression, so the three
+  scores and two roles depending on them stay switched off.
+- **Position group** is unavailable for outfield players: the provider reports
+  four positions where the model has eight groups. Identity resolution supplies
+  it from Transfermarkt.
+- Demo mode still uses clearly-labelled fabricated data and never calls
+  FootyStats.
 
 The tooling for that validation is built and tested — it simply has nothing to
 observe yet. When a key arrives:
@@ -76,7 +86,9 @@ Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
 12 to 21 are blocked on a FootyStats API key and cannot begin without one;
 phase 22 (pipelines) is done as far as an idle FootyStats allows, and phase 23
 is prepared up to the decisions that are the owner's — see `docs/deployment.md`.
-Phase 24 (polish) is done.
+Phase 24 (polish) is done. Phases 12 to 15 (FootyStats validation, the
+provider, real ingestion, and identity resolution against real data) are done;
+16 to 21 — real metrics, percentiles, scores, roles and similarity — remain.
 
 Two things in `docs/architecture.md` were built while phase 12 was blocked and
 are labelled as such rather than borrowing a phase number.

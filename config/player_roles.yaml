@@ -92,6 +92,12 @@ roles:
         aerial_duel_win_percentage: 10
 
   # -- Full-back / wing-back ----------------------------------------------
+    min_coverage: 0.89
+    caveat: >-
+      Computed without aerial duel win percentage, which the performance
+      provider does not supply - it reports aerial duels won but not
+      attempted. That component carried 10% of this role.
+
   defensive_full_back:
     label: Defensive Full-Back
     position_groups: [FB_WB]
@@ -106,6 +112,11 @@ roles:
         duel_win_percentage: 15
         progressive_passes_per90: 10
         aerial_duel_win_percentage: 10
+    min_coverage: 0.79
+    caveat: >-
+      Computed without progressive passes or aerial duel win percentage,
+      neither of which the performance provider supplies. They carried 10%
+      each; the defensive core of the role is intact.
 
   attacking_full_back:
     label: Attacking Full-Back
@@ -122,6 +133,13 @@ roles:
         pass_completion: 10
 
   # -- Defensive midfield --------------------------------------------------
+    min_coverage: 0.79
+    caveat: >-
+      Computed without progressive passes, which the performance provider
+      does not supply. That component carried 20% of this role, and the
+      crossing and chance creation that define an attacking full-back are
+      intact.
+
   ball_winning_midfielder:
     label: Ball-Winning Midfielder
     position_groups: [DM, CM]
@@ -138,6 +156,12 @@ roles:
         progressive_passes_per90: 10
       scores:
         ball_security: 10
+    min_coverage: 0.69
+    caveat: >-
+      Computed without progressive passes, aerial duel win percentage or
+      the ball security score, none of which the performance provider
+      supports. They carried 30% between them; tackling, interceptions and
+      duels won, which carry 70%, are intact.
 
   deep_lying_playmaker:
     label: Deep-Lying Playmaker
@@ -174,6 +198,13 @@ roles:
         pass_completion: 10
 
   # -- Attacking midfield --------------------------------------------------
+    min_coverage: 0.84
+    caveat: >-
+      Computed without progressive passes, which the performance provider
+      does not supply. That component carried 15% of this role; the
+      defensive and attacking contributions that define a box-to-box
+      midfielder are intact.
+
   advanced_playmaker:
     label: Advanced Playmaker
     position_groups: [AM, CM]
@@ -190,6 +221,12 @@ roles:
         npxg_per90: 5
 
   # -- Wingers -------------------------------------------------------------
+    min_coverage: 0.84
+    caveat: >-
+      Computed without progressive passes, which the performance provider
+      does not supply. That component carried 15%; expected assists and
+      key passes, which carry 55% between them, are intact.
+
   creative_winger:
     label: Creative Winger
     position_groups: [WINGER, AM]
@@ -219,6 +256,10 @@ roles:
         xa_per90: 10
         fouls_drawn_per90: 10
         dispossessed_per90: 5
+    min_coverage: 0.94
+    caveat: >-
+      Computed without inverse dispossessions, which the performance
+      provider does not supply. That component carried 5% of this role.
 
   inside_forward:
     label: Inside Forward
@@ -267,6 +308,10 @@ roles:
         successful_dribbles_per90: 10
         pass_completion: 5
         fouls_drawn_per90: 5
+    min_coverage: 0.89
+    caveat: >-
+      Computed without aerial duel win percentage, which the performance
+      provider does not supply. That component carried 10% of this role.
 
   target_forward:
     label: Target Forward
@@ -284,6 +329,13 @@ roles:
         xa_per90: 5
 
   # -- Goalkeeper ----------------------------------------------------------
+    min_coverage: 0.74
+    caveat: >-
+      Computed without aerial duel win percentage: the provider reports
+      aerial duels won but not attempted, so efficiency cannot be
+      measured. Aerial volume, which carries 20%, is still counted. Read
+      this as aerial presence rather than aerial success.
+
   shot_stopper:
     label: Shot Stopper
     position_groups: [GK]

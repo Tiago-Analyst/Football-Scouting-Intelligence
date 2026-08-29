@@ -22,6 +22,7 @@ canonical:
     - appearances
     - starts
     - minutes
+    - recorded_minutes
   Goals:
     - goals
     - non_penalty_goals

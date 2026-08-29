@@ -45,13 +45,16 @@ class TestDependencyMap:
         health while establishing nothing at all."""
         assert sum(len(v) for v in dependency_map().values()) > 50
 
-    def test_minutes_is_the_single_point_of_failure(self) -> None:
-        """Every per-90 figure divides by minutes, so its absence takes almost
-        the whole analytical layer with it. Worth asserting because it is the
-        one metric a load must never be allowed to lose."""
-        losses = dependency_map()[CanonicalMetric.MINUTES]
-        assert len(losses) > 25
-        assert DerivedMetric.GOALS_PER90 in losses
+    def test_neither_minutes_field_is_critical_on_its_own(self) -> None:
+        """`minutes` and `recorded_minutes` are a fallback pair.
+
+        The engine divides by the minutes the statistics cover where a provider
+        supplies them and by total minutes otherwise, so blanking either alone
+        changes nothing. Asserted because it is surprising, and because the
+        one-at-a-time map cannot express what follows.
+        """
+        assert dependency_map()[CanonicalMetric.MINUTES] == frozenset()
+        assert dependency_map()[CanonicalMetric.RECORDED_MINUTES] == frozenset()
 
     def test_a_ratio_depends_on_both_of_its_inputs(self) -> None:
         dependencies = dependency_map()
@@ -91,16 +94,43 @@ class TestImpactOfAbsence:
         assert impact.scores == frozenset()
         assert impact.roles == frozenset()
 
-    def test_losing_minutes_disables_every_role(self) -> None:
-        impact = impact_of_absence({CanonicalMetric.MINUTES})
+    def test_losing_both_minutes_fields_disables_everything(self) -> None:
+        """Every per-90 divides by one of them, so losing both takes the whole
+        analytical layer.
+
+        This is the case that one-at-a-time measurement cannot see: each field
+        alone is covered by the other, so unioning their individual results
+        concludes that losing both costs nothing. `impact_of_absence` blanks the
+        actual set instead, which is why this passes.
+        """
+        impact = impact_of_absence({CanonicalMetric.MINUTES, CanonicalMetric.RECORDED_MINUTES})
+        assert len(impact.derived_metrics) > 25
+        assert DerivedMetric.GOALS_PER90 in impact.derived_metrics
         assert impact.roles == frozenset(get_roles())
         assert impact.scores == frozenset(get_definitions())
 
-    def test_one_lost_metric_can_disable_several_roles(self) -> None:
-        """The reason this is computed rather than guessed: aerial duels feed
-        one score, and that score feeds several roles."""
+    def test_losing_one_minutes_field_disables_nothing(self) -> None:
+        """The fallback, stated as an outcome rather than as a mechanism."""
+        assert impact_of_absence({CanonicalMetric.MINUTES}).roles == frozenset()
+        assert impact_of_absence({CanonicalMetric.RECORDED_MINUTES}).roles == frozenset()
+
+    def test_a_role_survives_a_loss_it_documented(self) -> None:
+        """Roles that declare a `min_coverage` below 1.0 have decided, in
+        writing, which component they can do without. The impact analysis must
+        honour that or it over-reports: it once called all eleven roles touched
+        by an absent metric lost, when nine of them renormalise and carry a
+        caveat instead."""
         impact = impact_of_absence({CanonicalMetric.AERIAL_DUELS})
-        assert len(impact.roles) >= 2
+        assert "target_forward" not in impact.roles
+        assert "defensive_stopper" not in impact.roles
+
+    def test_a_role_still_fails_when_its_defining_component_goes(self) -> None:
+        """`min_coverage` is a floor, not a licence. Progressive passing is 30%
+        of a deep-lying playmaker and is what the name promises; the role stays
+        disabled rather than measuring something else."""
+        impact = impact_of_absence({CanonicalMetric.PROGRESSIVE_PASSES})
+        assert "deep_lying_playmaker" in impact.roles
+        assert "ball_playing_centre_back" in impact.roles
 
     def test_an_unused_metric_disables_nothing(self) -> None:
         impact = impact_of_absence({CanonicalMetric.STARTS})

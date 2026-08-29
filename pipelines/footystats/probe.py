@@ -235,6 +235,52 @@ def find_first_id(payload: Any, names: tuple[str, ...]) -> str | None:
 
 #: Names the probe will look for when hunting an id. Candidates, not a mapping:
 #: a miss is reported, and the stage that needed it is skipped.
+def find_recent_season_id(payload: Any) -> str | None:
+    """The most recent season of a major competition.
+
+    The first version of this probe took whichever season id appeared first,
+    which was `1` - MLS 2016. A decade-old season from one competition is a poor
+    basis for judging what an API can supply today, and worse, it left open the
+    possibility that missing fields were a property of that league rather than
+    of the API. Re-running against a current Premier League season settled that
+    question; picking one properly means nobody has to ask it again.
+
+    Falls back to the highest season year in the catalogue when none of the
+    named competitions is present, which is still a better sample than the
+    lowest id.
+    """
+    preferred = (
+        "England Premier League",
+        "Spain La Liga",
+        "Italy Serie A",
+        "Germany Bundesliga",
+        "Portugal Liga NOS",
+    )
+    leagues = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(leagues, list):
+        return None
+
+    def newest(league: dict[str, Any]) -> tuple[int, str] | None:
+        seasons = [s for s in (league.get("season") or []) if isinstance(s, dict)]
+        if not seasons:
+            return None
+        latest = max(seasons, key=lambda s: s.get("year", 0))
+        if latest.get("id") is None:
+            return None
+        return int(latest.get("year", 0)), str(latest["id"])
+
+    for name in preferred:
+        for league in leagues:
+            if isinstance(league, dict) and league.get("name") == name:
+                found = newest(league)
+                if found:
+                    return found[1]
+
+    candidates = [newest(lg) for lg in leagues if isinstance(lg, dict)]
+    best = max((c for c in candidates if c), default=None)
+    return best[1] if best else None
+
+
 ID_CANDIDATES: dict[str, tuple[str, ...]] = {
     "season_id": ("season_id", "id", "league_id", "competition_id"),
     "team_id": ("team_id", "id", "club_id"),
@@ -361,7 +407,10 @@ def main(argv: list[str] | None = None) -> int:
                 attempt.saved_as = target.name
 
                 for id_name in endpoint.get("discovers", {}) or {}:
-                    found = find_first_id(payload, ID_CANDIDATES.get(id_name, (id_name,)))
+                    if id_name == "season_id":
+                        found = find_recent_season_id(payload)
+                    else:
+                        found = find_first_id(payload, ID_CANDIDATES.get(id_name, (id_name,)))
                     if found is not None:
                         discovered[id_name] = found
 
