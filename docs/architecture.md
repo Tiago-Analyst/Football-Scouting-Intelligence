@@ -2105,6 +2105,72 @@ corrupt-progress and truncated-file cases, and that every request the provider
 makes during a load can be answered from a snapshot. If one could not, the load
 would reach for the network mid-transaction.
 
+## Real derived metrics (Phase 16)
+
+Two different questions get confused with each other here, and the whole phase
+is about keeping them apart.
+
+`pipelines.quality.coverage` probes a synthetic record with one field blanked
+and reports what stops computing. That is the **dependency graph**, and it is a
+fact about the code.
+
+`pipelines.quality.derived_coverage` runs the real engines over the real rows
+and counts what came out. That is a fact about the **data**, and the two
+disagree in the direction that matters: a metric the graph calls computable is
+still useless if the provider leaves it null, and nothing about the code would
+ever say so.
+
+### What only counting real output could find
+
+`successful_tackles` was mapped to `detailed.tackles_successful_total_overall`
+and satisfied every structural check. The mapping note said so itself: "too few
+non-zero values in the sample to verify arithmetically, but the naming pattern
+matches every other successful/attempted pair that was verified."
+
+The pattern was not evidence. Across 26,483 records, the key appears in 10,464
+and carries a value in **none** of them, while `tackles_total_overall` beside it
+is populated in 8,184. It has been moved to `rejected`, which is where a
+declared-but-never-populated field belongs - the same place
+`progressive_passes_total_overall` already was.
+
+`tackles_total_overall` is available and is **not** a substitute. Attempts and
+successes are different measurements, and swapping one for the other would
+change what every score built on it means while leaving the name alone.
+
+### The cost, measured twice
+
+Three canonical metrics are absent: `progressive_passes`, `aerial_duels`,
+`successful_tackles`. Five derived metrics follow them, and with them three of
+eight intelligence scores and six of fifteen roles.
+
+The dependency probe and the real-output count agree on exactly which six -
+which is worth more than either number alone, because they share no code.
+
+### Withheld by the provider, or withheld by the ingest
+
+The report separates these, and it is the most important thing on the page.
+
+A feature is attributed to the provider **only when the arithmetic says so**:
+when the weight surviving its absent components falls below its own
+`min_coverage`. Several roles carry a threshold set precisely so a known
+absence costs them a caveat rather than their existence, and blaming the
+provider wherever a component happened to be missing would write those off.
+
+Everything else is sample size. On the ten competitions loaded so far, only 8
+of 37 comparison cells - a position group within a competition - reach the ten
+players a percentile needs, and the median cell holds five. That is why four
+roles and most scores currently produce for a minority of players, and it
+resolves as the remaining competitions arrive. Reading it as a data quality
+verdict would write off features that work.
+
+### Coverage is judged where a metric belongs
+
+`save_percentage` is missing for three quarters of players because three
+quarters of players are not goalkeepers. Judged overall it looks broken; judged
+within goalkeepers it is complete. Restricted to player-seasons of at least 450
+minutes, 38 of the 43 derived metrics reach 100% in the position group they
+belong to, and the other five are the absent ones.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

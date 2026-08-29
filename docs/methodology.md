@@ -316,6 +316,38 @@ that has not been refreshed in over a week.
 
 ---
 
+## Scores and roles the data cannot support
+
+Three of the eight intelligence scores and six of the fifteen roles are not
+produced at all, because FootyStats does not supply an input they are defined
+on: progressive passes, aerial duels attempted, and successful tackles.
+
+| Withheld | Missing input |
+| --- | --- |
+| Ball Progression (score) | progressive passes |
+| Defensive Activity (score) | successful tackles |
+| Duel Dominance (score) | aerial duels attempted |
+| Ball-Playing Centre Back | progressive passes, aerial duels |
+| Defensive Stopper | successful tackles, aerial duels |
+| Defensive Full Back | all three |
+| Ball-Winning Midfielder | all three |
+| Deep-Lying Playmaker | progressive passes |
+| Box-to-Box Midfielder | progressive passes, successful tackles |
+
+They are withheld rather than computed from what remains. A score built from a
+subset is not comparable with one built from the whole, and publishing both
+under one name would hide that.
+
+**Nothing is substituted for them.** Tackles attempted is available and is not
+successful tackles; aerial duels won is available and does not give the win
+rate without the attempt count. Filling either gap with its neighbour would
+change what the number means while leaving its label intact, which is the one
+failure this project treats as worse than having no number.
+
+`docs/derived_metric_coverage.md` is regenerated from the loaded data and lists
+the current state, separating what the provider withholds permanently from what
+is only waiting on more data.
+
 ## Summary of stated limitations
 
 Collected here so none of them depends on a reader finding the right page.
