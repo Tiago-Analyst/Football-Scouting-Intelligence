@@ -2283,6 +2283,71 @@ That is the correct outcome. "Goal Threat" for a goalkeeper would be a number
 about nothing. It is worth stating out loud because eight empty score slots look
 like a data problem, and the product should say which it is.
 
+## Similarity on real data (Phase 18)
+
+The specification asks for the results to be validated qualitatively, and that
+is not a thing arithmetic can do. Whether two footballers resemble each other is
+a judgement; what code can do is check the claims that hold whatever the
+football says, and then lay each match out with enough working for a person to
+judge the rest.
+
+`pipelines.quality.similarity_examples` does both, and keeps them apart.
+
+### The properties
+
+A player cannot be their own match. Similarity must be symmetric, because
+cosine is. Matches must stay inside a position group, or the ranking is on
+position rather than style. And the index must spread - if everyone's closest
+match scores 99, the engine has stopped distinguishing anybody while still
+looking like it works.
+
+All four hold: 128 players checked, 580 pairs checked both ways, closest match
+ranging 51 to 98 with a median of 81 and nothing at 99.
+
+### What looking at the output found
+
+**Four in five suggestions were invented people.** The demo universe was loaded
+beside the real one. Percentiles were unaffected - those are scoped to a
+competition, and no demo player shares one with a real player - but similarity
+compares *across* leagues by design, so every loaded player is a candidate. A
+real centre back was being matched to a generated name at an index of 91.
+
+Nothing about that output looks wrong. It is well-formed, plausibly ordered and
+confidently numbered. So the rule is now a quality check that **fails** rather
+than warns: fabricated data may not share a database with real data. The demo
+universe can be retired with `--purge-only` and rebuilt whenever it is wanted;
+it is deterministic.
+
+**A list of five names implied five resemblances.** With the fabricated players
+gone, one midfielder's five closest matches ran 67.8, 22.7, 6.7, 0.0 and 0.0 -
+all presented identically. An index of 0 means the profiles point in opposing
+directions; `to_similarity_index` says so itself, and then the result was
+offered anyway, because the engine filled the requested limit regardless.
+
+Results below `MINIMUM_SIMILARITY` are now withheld, so the list gets shorter
+rather than padded. Twenty-five of the 153 players who previously had matches
+have none, which is the honest answer for a player with no comparable peer.
+
+**A profile showing sixteen percentiles said they were measured against
+nobody.** The page-level comparison population came from the first metric in a
+fixed list, whatever that metric was. With the demo universe every metric had
+values; with real data the first one is often absent, so the page inherited its
+empty population. It now reports the context of a metric that was actually
+ranked.
+
+### What the examples show
+
+Andrés Felipe Román, a Colombian full-back, comes out beside other full-backs,
+closest on crosses, key passes and interceptions - the things that separate an
+attacking full-back from a defensive one. Amin Chiakha and Noah Holm are each
+other's best match, symmetrically, on expected assists and shot quality. A
+Chinese goalkeeper matches goalkeepers in Finland, Norway, Canada and Brazil,
+which is the cross-league comparison the feature exists for.
+
+The strength flag earns its place: one goalkeeper's five matches carry ratios
+from 0.36 to 0.63, meaning the profiles point the same way but at very
+different levels. Recruiting on shape alone is the mistake that flag prevents.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

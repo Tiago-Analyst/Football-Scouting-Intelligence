@@ -65,7 +65,18 @@ It rebuilds every per-90, percentile, intelligence score and role score from
 the raw season totals without calling the engines, and exits non-zero on any
 disagreement. Unlike an absent metric, a percentile that does not reproduce is
 a fault rather than a fact about a source, so it is allowed to fail the
-pipeline. `probe`
+pipeline.
+
+And a fourth lays similarity out to be judged:
+
+```bash
+python -m pipelines.quality.similarity_examples --per-group 2
+```
+
+It checks the properties that hold whatever the football says - symmetry, one
+position group, no self-matches, an index that actually spreads - and then
+prints sample players with the features that drove each match, because whether
+two footballers resemble each other is a judgement rather than an assertion. `probe`
 records real API responses and `profile` describes them; neither interprets a
 field. An ingestion pipeline may only be written after a person has read the
 profile and filled in `config/footystats_mapping.yaml`, and both scripts refuse

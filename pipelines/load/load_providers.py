@@ -691,6 +691,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source", choices=["demo", "transfermarkt", "footystats"], default="demo")
     parser.add_argument("--replace", action="store_true", help="purge this source before loading")
     parser.add_argument(
+        "--purge-only",
+        action="store_true",
+        help=(
+            "Remove this source and load nothing. For retiring the demo universe "
+            "once real data is in: fabricated players must not share a comparison "
+            "population with real ones."
+        ),
+    )
+    parser.add_argument(
         "--verify",
         action="store_true",
         help=(
@@ -706,9 +715,14 @@ def main(argv: list[str] | None = None) -> int:
 
     session = get_session_factory()()
     try:
-        if args.replace:
+        if args.replace or args.purge_only:
             purge(session, args.source)
             session.flush()
+
+        if args.purge_only:
+            session.commit()
+            print(f"Purged source '{args.source}'. Nothing was loaded.")
+            return 0
 
         loader = build_loader(session, args.source)
         report = loader.run()

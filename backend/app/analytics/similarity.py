@@ -51,6 +51,21 @@ SIMILARITY_MEANING = (
 #: two players could agree on three metrics and differ on everything unmeasured.
 MIN_FEATURES = 5
 
+#: Below this index, a pair is not offered as similar at all.
+#:
+#: This is a judgement, not a measurement, and it is here rather than in the
+#: caller so that no caller can forget it. An index of 0 means the two profiles
+#: point in opposing directions - `to_similarity_index` says so itself - and
+#: returning that as one of five "similar players" is how a list of names
+#: implies a resemblance the number denies. Real data produced exactly that: a
+#: midfielder whose five closest matches ran 67.8, 22.7, 6.7, 0.0, 0.0, all
+#: presented alike.
+#:
+#: 50 is the point where a cosine of 0.5 puts the profiles 60 degrees apart -
+#: sharing less of their direction than they differ on. Callers who want a
+#: wider net can lower it; nobody gets it by accident.
+MINIMUM_SIMILARITY = 50.0
+
 
 class FeatureRepresentation(StrEnum):
     """How a player's profile is expressed before comparison."""
@@ -336,12 +351,17 @@ class SimilarityEngine:
         filters: SimilarityFilters | None = None,
         limit: int = 20,
         minimum_minutes: int | None = None,
+        minimum_similarity: float = MINIMUM_SIMILARITY,
         today: date | None = None,
     ) -> list[SimilarityResult]:
         """Rank players by resemblance to `target_key`.
 
         Only players in the same position group are considered: a comparison
         across positions would rank on position rather than on style.
+
+        Returns fewer than `limit` - possibly none - when fewer players actually
+        resemble the target. Filling the list to length would answer "who is
+        similar to this player" with names that are not.
         """
         target = self.candidates.get(target_key)
         if target is None:
@@ -401,7 +421,7 @@ class SimilarityEngine:
             )
 
         results.sort(key=lambda r: r.similarity, reverse=True)
-        return results[:limit]
+        return [r for r in results if r.similarity >= minimum_similarity][:limit]
 
 
 def build_candidates(
