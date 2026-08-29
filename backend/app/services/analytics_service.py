@@ -85,6 +85,11 @@ class PlayerRecord:
     sample_band: SampleBand
     stats: PlayerSeasonStats
     metrics: DerivedMetrics
+    #: The real season, used to group comparison populations. Kept on the record
+    #: because it is needed wherever a `PlayerMetrics` is built, and building it
+    #: from `stats.season_id` in one place and from here in another is how the
+    #: two silently stopped agreeing.
+    comparable_season: str = ""
 
     @property
     def slug(self) -> str:
@@ -140,7 +145,7 @@ class AnalyticsView:
             player_key=record.player_key,
             position_group=record.position_group,
             competition_id=record.competition_id,
-            season_id=record.stats.season_id,
+            season_id=record.comparable_season or record.stats.season_id,
             metrics=record.metrics,
         )
 
@@ -280,6 +285,7 @@ def build_view(settings: Settings) -> AnalyticsView:
             ),
             stats=loaded.stats,
             metrics=metrics,
+            comparable_season=loaded.comparable_season or loaded.stats.season_id,
         )
         view.players[record.player_key] = record
         view.competitions[record.competition_id] = record.competition_name
@@ -288,7 +294,10 @@ def build_view(settings: Settings) -> AnalyticsView:
             player_key=record.player_key,
             position_group=record.position_group,
             competition_id=record.competition_id,
-            season_id=loaded.stats.season_id,
+            # The real season, not the provider's identifier for it. Percentile
+            # populations are grouped by this, and grouping by the provider's id
+            # partitioned every competition into its own island.
+            season_id=record.comparable_season,
             metrics=metrics,
         )
         population.append(record_metrics)

@@ -331,6 +331,21 @@ The recomputation is deliberately naive - it counts comparisons one at a time
 where the engine bisects a sorted list - so that the two cannot share a mistake.
 `docs/analytics_validation.md` shows the working for every check.
 
+## Comparison populations pool a season, not a provider's season id
+
+A percentile compares a player with others in the same position group and the
+same season. "The same season" is the season in the real world, taken from its
+starting year - not the identifier the provider gave it.
+
+This matters because FootyStats issues a separate season id for every
+competition. Grouping on it put each league in its own population, so a
+cross-league comparison silently became a within-league one, and the
+strength-difference caveat correctly never appeared because no cross-league
+comparison was happening.
+
+Cross-league percentiles still do not account for differences in competition
+strength, and the caveat travels with every one of them.
+
 ## Fabricated data is never mixed with real data
 
 The demo universe exists so the site can be shown before any provider is

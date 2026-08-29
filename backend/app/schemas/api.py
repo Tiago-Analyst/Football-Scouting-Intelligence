@@ -211,12 +211,33 @@ class RecruitmentCandidate(BaseModel):
     coverage: float
 
 
+class UnavailableScoreOut(BaseModel):
+    """A requested score that could not be produced, and what it needed."""
+
+    key: str
+    label: str
+    #: The component metrics the provider does not supply.
+    missing: list[str]
+    reason: str
+
+
 class RecruitmentResponse(BaseModel):
     items: list[RecruitmentCandidate]
     total: int
     offset: int
     limit: int
     context_caveat: str | None = None
+    #: How many players the filters admitted, before scoring.
+    considered: int = 0
+    #: Requested scores that no candidate could be given.
+    unavailable_scores: list[UnavailableScoreOut] = Field(default_factory=list)
+    #: Plain-language account of an empty or short result.
+    #:
+    #: An empty page from "no player matched these filters" and one from "this
+    #: score cannot be computed from the data at all" look identical, and a
+    #: recruiter would reasonably narrow their filters in response to the
+    #: second - which can never help.
+    explanation: str | None = None
 
 
 class ReplacementRequest(BaseModel):

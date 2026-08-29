@@ -192,12 +192,27 @@ export interface RecruitmentCandidate {
   coverage: number;
 }
 
+export interface UnavailableScore {
+  key: string;
+  label: string;
+  missing: string[];
+  reason: string;
+}
+
 export interface RecruitmentResults {
   items: RecruitmentCandidate[];
   total: number;
   offset: number;
   limit: number;
   context_caveat: string | null;
+  considered: number;
+  unavailable_scores: UnavailableScore[];
+  /**
+   * Why the result is empty or short. An empty page from "no player matched
+   * these filters" and one from "this score cannot be computed at all" look
+   * identical, and only one of them is fixed by widening the filters.
+   */
+  explanation: string | null;
 }
 
 export interface ReplacementCandidate {

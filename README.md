@@ -86,10 +86,10 @@ Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
 12 to 21 are blocked on a FootyStats API key and cannot begin without one;
 phase 22 (pipelines) is done as far as an idle FootyStats allows, and phase 23
 is prepared up to the decisions that are the owner's — see `docs/deployment.md`.
-Phase 24 (polish) is done. Phases 12 to 18 (FootyStats validation, the
+Phase 24 (polish) is done. Phases 12 to 19 (FootyStats validation, the
 provider, real ingestion, identity resolution, real derived metrics, verified
-percentiles and scores, and similarity) are done; 19 to 21 — recruitment,
-replacement and market opportunities — remain.
+percentiles and scores, similarity, and the recruitment builder) are done;
+20 and 21 — replacement and market opportunities — remain.
 
 Two things in `docs/architecture.md` were built while phase 12 was blocked and
 are labelled as such rather than borrowing a phase number.
