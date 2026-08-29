@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.analytics.intelligence import ScoreDefinition
 from app.analytics.percentiles import PercentileScope
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
 from app.analytics.similarity import SimilarityFilters
@@ -27,6 +28,7 @@ from app.schemas.api import (
     ReplacementRequest,
     ReplacementResponse,
     ScoreComponentOut,
+    UnavailableScoreOut,
 )
 from app.services.analytics_service import (
     REFERENCE_DATE,
@@ -131,11 +133,31 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
 
     ranked: list[RecruitmentCandidate] = []
     caveat: str | None = None
+    considered = 0
+    #: How many candidates each requested score could actually be given, and
+    #: what it was missing when it could not. A score available to nobody is the
+    #: difference between "no player matched" and "this cannot be computed".
+    available: dict[str, int] = dict.fromkeys(weights, 0)
+    #: Components missing for *every* candidate that could not be given the
+    #: score - the intersection, not one player's list. A component missing for
+    #: one player is a thin comparison population; a component missing for all
+    #: of them is one the provider does not supply, and only the second is worth
+    #: telling someone they cannot fix.
+    shortfall: dict[str, set[str] | None] = dict.fromkeys(weights, None)
 
     for record in view.players.values():
         if not _passes_filters(record, request.filters):
             continue
+        considered += 1
         scores = view.scores(record.player_key, scope=scope)
+        for key in weights:
+            found = scores.get(key)
+            if found is not None and found.score is not None:
+                available[key] += 1
+            elif found is not None:
+                current = shortfall[key]
+                missing = set(found.missing)
+                shortfall[key] = missing if current is None else (current & missing)
         components = [
             ScoreComponent(
                 metric=key,
@@ -173,12 +195,88 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
 
     ranked.sort(key=lambda c: c.score, reverse=True)
     page = ranked[request.offset : request.offset + request.limit]
+
+    # Only meaningful once something was actually scored against: with no
+    # candidate admitted, every score is trivially "unavailable", and saying so
+    # would blame the data for filters that matched nobody.
+    unavailable = (
+        [
+            UnavailableScoreOut(
+                key=key,
+                label=view.intelligence.definitions[key].label,
+                missing=sorted(shortfall[key] or ()),
+                reason=_why_unavailable(
+                    view.intelligence.definitions[key], sorted(shortfall[key] or ())
+                ),
+            )
+            for key, count in available.items()
+            if count == 0
+        ]
+        if considered
+        else []
+    )
+
     return RecruitmentResponse(
         items=page,
         total=len(ranked),
         offset=request.offset,
         limit=request.limit,
         context_caveat=caveat,
+        considered=considered,
+        unavailable_scores=unavailable,
+        explanation=_explain(considered, len(ranked), unavailable, weights),
+    )
+
+
+def _why_unavailable(definition: ScoreDefinition, missing: list[str]) -> str:
+    """What stopped this score, in the words of the thing that stopped it."""
+    if not missing:
+        return f"{definition.label} could not be computed for any candidate in this search."
+    names = ", ".join(metric_label(m) for m in sorted(missing))
+    return (
+        f"{definition.label} needs {names}, which the performance provider does not "
+        f"supply. No amount of widening the filters will produce it."
+    )
+
+
+def _explain(
+    considered: int,
+    ranked: int,
+    unavailable: list[UnavailableScoreOut],
+    weights: dict[str, float],
+) -> str | None:
+    """Say why the result is empty or short, when it is.
+
+    A profile is scored only when every requested component is present, because
+    a score built from a subset is not comparable with one built from the whole.
+    That is the right rule and an invisible one: it turns "this metric does not
+    exist" into an empty page that looks exactly like filters set too narrow.
+    """
+    if ranked:
+        if unavailable:
+            return (
+                f"{len(unavailable)} of the {len(weights)} requested scores could not be "
+                "produced, so this ranking uses the rest."
+            )
+        return None
+
+    if considered == 0:
+        # Checked before the data is blamed: no candidate was admitted, so
+        # nothing was ever asked of the scores.
+        return "No player matched these filters."
+
+    if unavailable:
+        blocked = ", ".join(item.label for item in unavailable)
+        return (
+            f"No player could be ranked: {blocked} cannot be produced from the loaded "
+            "data. Every candidate needs all of the requested scores, so a profile "
+            "weighting one that does not exist matches nobody. Removing it from the "
+            "profile will help; narrowing the filters will not."
+        )
+    return (
+        f"{considered} players matched the filters, but none could be given every "
+        "requested score - usually too few comparable players in their competition "
+        "and position to rank against."
     )
 
 

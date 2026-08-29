@@ -35,6 +35,7 @@ from app.models import (
     DimClub,
     DimCompetition,
     DimPlayer,
+    DimSeason,
     FactDataQuality,
     FactPlayerSeasonStats,
 )
@@ -65,6 +66,16 @@ class LoadedPlayer:
     market_value_eur: int | None
     contract_expires: date | None
     stats: PlayerSeasonStats
+    #: The season this player-season belongs to in the real world, as opposed to
+    #: the identifier the provider gave it.
+    #:
+    #: FootyStats issues a distinct season id per competition, so 34 loaded
+    #: competitions produced 34 season ids for one actual season. Percentile
+    #: populations are grouped by season, so every group collapsed to a single
+    #: competition and the global scope could never compare across leagues -
+    #: silently, because a comparison that spans one league is still a valid
+    #: comparison. `dim_season` knew all 34 were 2026/2027 all along.
+    comparable_season: str = ""
 
 
 @dataclass(frozen=True)
@@ -142,6 +153,13 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
     }
     clubs = {row.club_id: row.name for row in session.scalars(select(DimClub)).all()}
 
+    # Keyed on the starting year rather than the season's name: two providers
+    # write the same season as "2026/27" and "2026/2027", and pooling them is
+    # the entire point.
+    seasons = {
+        row.season_id: str(row.start_year) for row in session.scalars(select(DimSeason)).all()
+    }
+
     players_by_id = {row.player_id: row for row in session.scalars(select(DimPlayer)).all()}
 
     # The provider's own identifier, which is what the rest of the system uses
@@ -195,6 +213,10 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
                 market_value_eur=player.current_market_value_eur,
                 contract_expires=player.contract_expires,
                 stats=_stats_from_row(row, player_key=player_key, club_id=club_id or ""),
+                # Falls back to the provider's id, which is what it was before:
+                # a season nothing knows about is better compared narrowly than
+                # pooled with seasons it may not belong to.
+                comparable_season=seasons.get(row.season_id, row.season_id),
             )
         )
 

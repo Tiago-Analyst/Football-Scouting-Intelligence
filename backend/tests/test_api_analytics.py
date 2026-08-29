@@ -283,15 +283,13 @@ class TestRecruitment:
         scores = [c["score"] for c in body["items"]]
         assert scores == sorted(scores, reverse=True)
 
-    def test_a_profile_built_on_a_withheld_score_returns_nobody(self, api: TestClient) -> None:
-        """Ball Progression cannot be produced from FootyStats - it needs
-        progressive passes, which the provider does not supply - so a profile
-        weighting it matches nobody.
+    def test_an_unscoreable_profile_says_which_score_and_why(self, api: TestClient) -> None:
+        """Ball Progression needs progressive passes, which the provider does
+        not supply, so weighting it matches nobody.
 
-        Returning nothing is correct. Returning nothing *without saying why* is
-        not: the page looks identical to a search whose filters were simply too
-        narrow. Connecting that explanation is Phase 19's job; this pins the
-        behaviour so the fix has something to change.
+        Returning nothing is correct. Returning nothing without saying why is
+        not: the page looked identical to a search whose filters were too
+        narrow, and widening them is the one remedy that cannot help.
         """
         body = api.post(
             "/api/v1/recruitment/search",
@@ -302,6 +300,63 @@ class TestRecruitment:
             },
         ).json()
         assert body["items"] == []
+        assert body["considered"] > 0, "candidates were admitted, so the data is to blame"
+
+        unavailable = body["unavailable_scores"]
+        assert [u["key"] for u in unavailable] == ["ball_progression"]
+        # The component missing for *every* candidate, not one player's list: a
+        # component missing for one player is a thin comparison population.
+        assert unavailable[0]["missing"] == ["progressive_passes_per90"]
+        assert "narrowing the filters will not" in body["explanation"]
+
+    def test_filters_matching_nobody_do_not_blame_the_data(self, api: TestClient) -> None:
+        """With no candidate admitted, every score is trivially unproducible.
+        Saying so would send someone to fix data that is fine."""
+        body = api.post(
+            "/api/v1/recruitment/search",
+            json={
+                "weights": {"ball_security": 100},
+                "filters": {"position_groups": ["DM"], "min_minutes": 99_000},
+                "limit": 10,
+            },
+        ).json()
+        assert body["considered"] == 0
+        assert body["unavailable_scores"] == []
+        assert body["explanation"] == "No player matched these filters."
+
+    def test_a_working_profile_explains_nothing(self, api: TestClient) -> None:
+        """An explanation on a page that worked is noise."""
+        body = api.post(
+            "/api/v1/recruitment/search",
+            json={
+                "weights": {"ball_security": 60, "chance_creation": 40},
+                "filters": {"position_groups": ["DM"], "min_minutes": 900},
+                "limit": 10,
+            },
+        ).json()
+        assert body["items"]
+        assert body["explanation"] is None
+        assert body["unavailable_scores"] == []
+
+    def test_a_cross_league_ranking_carries_its_caveat(self, api: TestClient) -> None:
+        """Recruitment ranks across competitions, and the specification forbids
+        presenting that as strength-adjusted.
+
+        Worth asserting because it silently was not happening: percentile
+        populations were grouped by the provider's season id, and FootyStats
+        issues one per competition, so every population held a single league.
+        """
+        body = api.post(
+            "/api/v1/recruitment/search",
+            json={
+                "weights": {"ball_security": 100},
+                "filters": {"position_groups": ["DM"], "min_minutes": 900},
+                "limit": 10,
+            },
+        ).json()
+        competitions = {c["player"]["competition"] for c in body["items"]}
+        if len(competitions) > 1:
+            assert body["context_caveat"]
 
     def test_every_candidate_explains_itself(self, api: TestClient) -> None:
         """Section 13: every recommendation must be explainable."""

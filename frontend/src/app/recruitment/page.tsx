@@ -213,8 +213,15 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
             />
           ) : results.items.length === 0 ? (
             <EmptyState
-              title="No players match this profile"
-              description="Try widening the filters or lowering the minimum minutes."
+              title={
+                results.unavailable_scores.length > 0
+                  ? "This profile cannot be scored"
+                  : "No players match this profile"
+              }
+              description={
+                results.explanation ??
+                "Try widening the filters or lowering the minimum minutes."
+              }
               action={
                 <ButtonLink href="/recruitment" variant="secondary" size="sm">
                   Reset
@@ -233,6 +240,15 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
                 <Badge tone="warning">Demo data</Badge>
               </div>
 
+              {results.unavailable_scores.length > 0 ? (
+                <Callout tone="warning" title="Part of this profile cannot be scored">
+                  <ul className="space-y-1">
+                    {results.unavailable_scores.map((score) => (
+                      <li key={score.key}>{score.reason}</li>
+                    ))}
+                  </ul>
+                </Callout>
+              ) : null}
               {results.context_caveat ? (
                 <Callout tone="warning" title="Cross-league comparison">
                   {results.context_caveat}

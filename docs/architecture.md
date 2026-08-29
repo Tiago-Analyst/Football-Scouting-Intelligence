@@ -2348,6 +2348,70 @@ The strength flag earns its place: one goalkeeper's five matches carry ratios
 from 0.36 to 0.63, meaning the profiles point the same way but at very
 different levels. Recruiting on shape alone is the mistake that flag prevents.
 
+## Recruitment on real data (Phase 19)
+
+Connecting the profile builder to real data mostly meant finding out what it
+had been quietly doing instead.
+
+### The cross-league ranking was not crossing any leagues
+
+Recruitment scores players under a global scope, deliberately: the point is to
+compare a Norwegian midfielder with a Brazilian one. It could not.
+
+Percentile populations are grouped by `(position group, season)`, and the
+season came straight from the provider. FootyStats issues a **distinct season
+id per competition** - 34 loaded competitions produced 34 season ids for one
+actual season - so every population held exactly one league. The global scope
+collapsed into the competition scope, and nothing looked wrong, because a
+comparison spanning one league is still a valid comparison. The cross-league
+caveat never appeared either, which was consistent and equally wrong: there
+was no cross-league comparison to warn about.
+
+`dim_season` had known all along that all 34 were 2026/2027. Populations are
+now grouped on the season's starting year, so two providers writing "2026/27"
+and "2026/2027" pool rather than partition. Measured after the change: a
+forward's competition-scoped population is 14 players in 1 league, and their
+global population is 33 across 7 - carrying the strength caveat the
+specification requires.
+
+The competition scope is unchanged, because it filters to the player's own
+competition regardless.
+
+A second copy of the same value made this worse. `PlayerMetrics` was built in
+two places - once for the population, once per lookup - and after the fix the
+two disagreed, which emptied every population. The season now lives on the
+record both are built from.
+
+### An empty page that blamed the wrong thing
+
+A profile weighting Ball Progression matched nobody, because Ball Progression
+needs progressive passes and the provider does not supply them. The page said:
+*"No players match this profile. Try widening the filters or lowering the
+minimum minutes."*
+
+Every word of that is wrong for this cause, and widening the filters is the one
+remedy that cannot possibly help. A search is now scored with three things it
+did not have before:
+
+- **how many players the filters admitted**, so "nobody matched the filters"
+  and "nobody could be scored" stop looking alike;
+- **which requested scores no candidate could be given**, along with the
+  components missing for *every* one of them - the intersection, not one
+  player's list, because a component missing for a single player is a thin
+  comparison population rather than an absent metric;
+- **a plain-language explanation**, which names the score, names what it needs,
+  and says that removing it from the profile will help while narrowing the
+  filters will not.
+
+The first version of this got two things wrong that were worth catching: it
+blamed the data when the filters had matched nobody, and it listed four missing
+components when only one was actually absent everywhere.
+
+### What was already right
+
+Per-candidate explanation needed nothing. Each result carries its component
+percentiles, weights and contributions, and the contributions sum to the score.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What
