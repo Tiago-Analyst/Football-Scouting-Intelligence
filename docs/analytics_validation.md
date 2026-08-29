@@ -8,9 +8,9 @@ Every figure below was rebuilt from the raw season totals in
 compared with what the engines produced. A check that asked the same
 code the same question would only prove the code is deterministic.
 
-**340 figures recomputed across 20 players. 0 disagreed.**
+**1089 figures recomputed across 60 players. 0 disagreed.**
 
-149 of those compared an actual number on both
+676 of those compared an actual number on both
 sides. The rest are both sides agreeing a figure cannot be computed - a
 correct result, but one that says they agree about absence rather than
 about arithmetic, so it is counted separately.
@@ -19,6 +19,24 @@ about arithmetic, so it is counted separately.
 
 | Player | Figure | Kind | Engine | Recomputed | Working |
 | --- | --- | --- | ---: | ---: | --- |
+| Andrés Felipe Román (FB_WB) | `goals_per90` | per90 | 0.0790 | 0.0790 | 2 / 2279 * 90 |
+| Andrés Felipe Román (FB_WB) | `goals_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Andrés Felipe Román (FB_WB) | `passes_per90` | per90 | 26.5380 | 26.5380 | 672 / 2279 * 90 |
+| Andrés Felipe Román (FB_WB) | `passes_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Andrés Felipe Román (FB_WB) | `duels_won_per90` | per90 | 1.9351 | 1.9351 | 49 / 2279 * 90 |
+| Andrés Felipe Román (FB_WB) | `duels_won_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Andrés Felipe Román (FB_WB) | `tackles_per90` | per90 | 0.9083 | 0.9083 | 23 / 2279 * 90 |
+| Andrés Felipe Román (FB_WB) | `tackles_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Andrés Felipe Román (FB_WB) | `dispossessed_per90` | per90 | 0.4739 | 0.4739 | 12 / 2279 * 90 |
+| Andrés Felipe Román (FB_WB) | `dispossessed_per90 percentile` | percentile | 25.0000 | 25.0000 | 7 below + 1 equal of 10, inverted |
+| Andrés Felipe Román (FB_WB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `chance_creation` | score | 31.0000 | 31.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Andrés Felipe Román (FB_WB) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `goal_threat` | score | - | - | coverage 70% below the required 100% |
+| Andrés Felipe Román (FB_WB) | `finishing` | score | - | - | coverage 85% below the required 100% |
 | Dianzuo Liu (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2160 * 90 |
 | Dianzuo Liu (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 12 equal of 12 |
 | Dianzuo Liu (GK) | `passes_per90` | per90 | 26.0833 | 26.0833 | 626 / 2160 * 90 |
@@ -35,7 +53,105 @@ about arithmetic, so it is counted separately.
 | Dianzuo Liu (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Dianzuo Liu (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Dianzuo Liu (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Dianzuo Liu (GK) | `shot_stopper` | role | 41.2500 | 41.2500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Dianzuo Liu (GK) | `shot_stopper` | role | 41.2500 | 41.2500 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `goals_per90` | per90 | 0.3850 | 0.3850 | 9 / 2104 * 90 |
+| Wellington Silva (WINGER) | `goals_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Wellington Silva (WINGER) | `passes_per90` | per90 | 30.1141 | 30.1141 | 704 / 2104 * 90 |
+| Wellington Silva (WINGER) | `passes_per90 percentile` | percentile | 55.0000 | 55.0000 | 5 below + 1 equal of 10 |
+| Wellington Silva (WINGER) | `duels_won_per90` | per90 | 4.7909 | 4.7909 | 112 / 2104 * 90 |
+| Wellington Silva (WINGER) | `duels_won_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Wellington Silva (WINGER) | `tackles_per90` | per90 | 1.1122 | 1.1122 | 26 / 2104 * 90 |
+| Wellington Silva (WINGER) | `tackles_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Wellington Silva (WINGER) | `dispossessed_per90` | per90 | 1.2405 | 1.2405 | 29 / 2104 * 90 |
+| Wellington Silva (WINGER) | `dispossessed_per90 percentile` | percentile | 45.0000 | 45.0000 | 5 below + 1 equal of 10, inverted |
+| Wellington Silva (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Wellington Silva (WINGER) | `ball_security` | score | 74.0000 | 74.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `chance_creation` | score | 61.5000 | 61.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Wellington Silva (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Wellington Silva (WINGER) | `one_v_one_threat` | score | 74.0000 | 74.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `goal_threat` | score | 58.0000 | 58.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `finishing` | score | 53.0000 | 53.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `creative_winger` | role | 64.0000 | 64.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `direct_winger` | role | 66.0000 | 66.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Wellington Silva (WINGER) | `inside_forward` | role | 61.0000 | 61.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Arthur Dias (CB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1900 * 90 |
+| Arthur Dias (CB) | `goals_per90 percentile` | percentile | 23.0769 | 23.0769 | 0 below + 6 equal of 13 |
+| Arthur Dias (CB) | `passes_per90` | per90 | 47.1316 | 47.1316 | 995 / 1900 * 90 |
+| Arthur Dias (CB) | `passes_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Arthur Dias (CB) | `duels_won_per90` | per90 | 3.0316 | 3.0316 | 64 / 1900 * 90 |
+| Arthur Dias (CB) | `duels_won_per90 percentile` | percentile | 11.5385 | 11.5385 | 1 below + 1 equal of 13 |
+| Arthur Dias (CB) | `tackles_per90` | per90 | 1.5158 | 1.5158 | 32 / 1900 * 90 |
+| Arthur Dias (CB) | `tackles_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Arthur Dias (CB) | `dispossessed_per90` | per90 | 0.0947 | 0.0947 | 2 / 1900 * 90 |
+| Arthur Dias (CB) | `dispossessed_per90 percentile` | percentile | 85.0000 | 85.0000 | 1 below + 1 equal of 10, inverted |
+| Arthur Dias (CB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Arthur Dias (CB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Arthur Dias (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Arthur Dias (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Arthur Dias (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Arthur Dias (CB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Arthur Dias (CB) | `goal_threat` | score | - | - | coverage 70% below the required 100% |
+| Arthur Dias (CB) | `finishing` | score | - | - | coverage 85% below the required 100% |
+| Sander Risan Mørk (DM) | `goals_per90` | per90 | 0.0601 | 0.0601 | 1 / 1498 * 90 |
+| Sander Risan Mørk (DM) | `goals_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Sander Risan Mørk (DM) | `passes_per90` | per90 | 67.8304 | 67.8304 | 1129 / 1498 * 90 |
+| Sander Risan Mørk (DM) | `passes_per90 percentile` | percentile | 96.1538 | 96.1538 | 12 below + 1 equal of 13 |
+| Sander Risan Mørk (DM) | `duels_won_per90` | per90 | 3.0040 | 3.0040 | 50 / 1498 * 90 |
+| Sander Risan Mørk (DM) | `duels_won_per90 percentile` | percentile | 11.5385 | 11.5385 | 1 below + 1 equal of 13 |
+| Sander Risan Mørk (DM) | `tackles_per90` | per90 | 1.6222 | 1.6222 | 27 / 1498 * 90 |
+| Sander Risan Mørk (DM) | `tackles_per90 percentile` | percentile | 26.9231 | 26.9231 | 3 below + 1 equal of 13 |
+| Sander Risan Mørk (DM) | `dispossessed_per90` | per90 | 0.5407 | 0.5407 | 9 / 1498 * 90 |
+| Sander Risan Mørk (DM) | `dispossessed_per90 percentile` | percentile | 57.6923 | 57.6923 | 5 below + 1 equal of 13, inverted |
+| Sander Risan Mørk (DM) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Sander Risan Mørk (DM) | `ball_security` | score | 64.0385 | 64.0385 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Sander Risan Mørk (DM) | `chance_creation` | score | 43.5224 | 43.5224 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Sander Risan Mørk (DM) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Sander Risan Mørk (DM) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Sander Risan Mørk (DM) | `one_v_one_threat` | score | 67.0513 | 67.0513 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Sander Risan Mørk (DM) | `goal_threat` | score | 61.2500 | 61.2500 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Sander Risan Mørk (DM) | `finishing` | score | 59.2788 | 59.2788 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `goals_per90` | per90 | 0.5652 | 0.5652 | 9 / 1433 * 90 |
+| Amin Chiakha (FORWARD) | `goals_per90 percentile` | percentile | 89.2857 | 89.2857 | 12 below + 1 equal of 14 |
+| Amin Chiakha (FORWARD) | `passes_per90` | per90 | 17.5227 | 17.5227 | 279 / 1433 * 90 |
+| Amin Chiakha (FORWARD) | `passes_per90 percentile` | percentile | 39.2857 | 39.2857 | 5 below + 1 equal of 14 |
+| Amin Chiakha (FORWARD) | `duels_won_per90` | per90 | 6.2805 | 6.2805 | 100 / 1433 * 90 |
+| Amin Chiakha (FORWARD) | `duels_won_per90 percentile` | percentile | 89.2857 | 89.2857 | 12 below + 1 equal of 14 |
+| Amin Chiakha (FORWARD) | `tackles_per90` | per90 | 1.1933 | 1.1933 | 19 / 1433 * 90 |
+| Amin Chiakha (FORWARD) | `tackles_per90 percentile` | percentile | 82.1429 | 82.1429 | 11 below + 1 equal of 14 |
+| Amin Chiakha (FORWARD) | `dispossessed_per90` | per90 | 1.9470 | 1.9470 | 31 / 1433 * 90 |
+| Amin Chiakha (FORWARD) | `dispossessed_per90 percentile` | percentile | 10.7143 | 10.7143 | 12 below + 1 equal of 14, inverted |
+| Amin Chiakha (FORWARD) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Amin Chiakha (FORWARD) | `ball_security` | score | 39.1758 | 39.1758 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `chance_creation` | score | 40.8036 | 40.8036 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Amin Chiakha (FORWARD) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Amin Chiakha (FORWARD) | `one_v_one_threat` | score | 74.3407 | 74.3407 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `goal_threat` | score | 72.1154 | 72.1154 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `finishing` | score | 78.2143 | 78.2143 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `inside_forward` | role | 76.7445 | 76.7445 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `poacher` | role | 79.6429 | 79.6429 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Amin Chiakha (FORWARD) | `complete_forward` | role | 68.6203 | 68.6203 | 8 of 9 components, weights renormalised over 90 of 100 |
+| Amin Chiakha (FORWARD) | `target_forward` | role | 67.8205 | 67.8205 | 6 of 7 components, weights renormalised over 75 of 100 |
+| Mads Bomholt (CM) | `goals_per90` | per90 | 0.0635 | 0.0635 | 1 / 1418 * 90 |
+| Mads Bomholt (CM) | `goals_per90 percentile` | percentile | 26.1905 | 26.1905 | 5 below + 1 equal of 21 |
+| Mads Bomholt (CM) | `passes_per90` | per90 | 43.5402 | 43.5402 | 686 / 1418 * 90 |
+| Mads Bomholt (CM) | `passes_per90 percentile` | percentile | 83.3333 | 83.3333 | 17 below + 1 equal of 21 |
+| Mads Bomholt (CM) | `duels_won_per90` | per90 | 5.0141 | 5.0141 | 79 / 1418 * 90 |
+| Mads Bomholt (CM) | `duels_won_per90 percentile` | percentile | 54.7619 | 54.7619 | 11 below + 1 equal of 21 |
+| Mads Bomholt (CM) | `tackles_per90` | per90 | 1.6502 | 1.6502 | 26 / 1418 * 90 |
+| Mads Bomholt (CM) | `tackles_per90 percentile` | percentile | 50.0000 | 50.0000 | 10 below + 1 equal of 21 |
+| Mads Bomholt (CM) | `dispossessed_per90` | per90 | 1.2059 | 1.2059 | 19 / 1418 * 90 |
+| Mads Bomholt (CM) | `dispossessed_per90 percentile` | percentile | 7.1429 | 7.1429 | 19 below + 1 equal of 21, inverted |
+| Mads Bomholt (CM) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Mads Bomholt (CM) | `ball_security` | score | 44.6429 | 44.6429 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Mads Bomholt (CM) | `chance_creation` | score | 69.5893 | 69.5893 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Mads Bomholt (CM) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Mads Bomholt (CM) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Mads Bomholt (CM) | `one_v_one_threat` | score | 76.6667 | 76.6667 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Mads Bomholt (CM) | `goal_threat` | score | 68.8891 | 68.8891 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Mads Bomholt (CM) | `finishing` | score | 34.7682 | 34.7682 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Mads Bomholt (CM) | `advanced_playmaker` | role | 71.6667 | 71.6667 | 5 of 6 components, weights renormalised over 85 of 100 |
 | Qinghao Xue (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2250 * 90 |
 | Qinghao Xue (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 12 equal of 12 |
 | Qinghao Xue (GK) | `passes_per90` | per90 | 22.9200 | 22.9200 | 573 / 2250 * 90 |
@@ -52,7 +168,7 @@ about arithmetic, so it is counted separately.
 | Qinghao Xue (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Qinghao Xue (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Qinghao Xue (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Qinghao Xue (GK) | `shot_stopper` | role | 31.2500 | 31.2500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Qinghao Xue (GK) | `shot_stopper` | role | 31.2500 | 31.2500 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Fábio (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2160 * 90 |
 | Fábio (GK) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 0 below + 9 equal of 10 |
 | Fábio (GK) | `passes_per90` | per90 | 17.7917 | 17.7917 | 427 / 2160 * 90 |
@@ -69,7 +185,7 @@ about arithmetic, so it is counted separately.
 | Fábio (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
 | Fábio (GK) | `goal_threat` | score | - | - | coverage 10% below the required 100% |
 | Fábio (GK) | `finishing` | score | - | - | coverage 35% below the required 100% |
-| Fábio (GK) | `shot_stopper` | role | 41.5000 | 41.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Fábio (GK) | `shot_stopper` | role | 41.5000 | 41.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Haoyang Yao (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2160 * 90 |
 | Haoyang Yao (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 12 equal of 12 |
 | Haoyang Yao (GK) | `passes_per90` | per90 | 21.7500 | 21.7500 | 522 / 2160 * 90 |
@@ -86,7 +202,67 @@ about arithmetic, so it is counted separately.
 | Haoyang Yao (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Haoyang Yao (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Haoyang Yao (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Haoyang Yao (GK) | `shot_stopper` | role | 58.7500 | 58.7500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Haoyang Yao (GK) | `shot_stopper` | role | 58.7500 | 58.7500 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Omar Bertel (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2135 * 90 |
+| Omar Bertel (FB_WB) | `goals_per90 percentile` | percentile | 30.0000 | 30.0000 | 0 below + 6 equal of 10 |
+| Omar Bertel (FB_WB) | `passes_per90` | per90 | 44.3466 | 44.3466 | 1052 / 2135 * 90 |
+| Omar Bertel (FB_WB) | `passes_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Omar Bertel (FB_WB) | `duels_won_per90` | per90 | 3.2037 | 3.2037 | 76 / 2135 * 90 |
+| Omar Bertel (FB_WB) | `duels_won_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Omar Bertel (FB_WB) | `tackles_per90` | per90 | 1.5597 | 1.5597 | 37 / 2135 * 90 |
+| Omar Bertel (FB_WB) | `tackles_per90 percentile` | percentile | 75.0000 | 75.0000 | 7 below + 1 equal of 10 |
+| Omar Bertel (FB_WB) | `dispossessed_per90` | per90 | 0.2951 | 0.2951 | 7 / 2135 * 90 |
+| Omar Bertel (FB_WB) | `dispossessed_per90 percentile` | percentile | 55.0000 | 55.0000 | 4 below + 1 equal of 10, inverted |
+| Omar Bertel (FB_WB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Omar Bertel (FB_WB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Omar Bertel (FB_WB) | `chance_creation` | score | 72.0000 | 72.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Omar Bertel (FB_WB) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Omar Bertel (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Omar Bertel (FB_WB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Omar Bertel (FB_WB) | `goal_threat` | score | - | - | coverage 70% below the required 100% |
+| Omar Bertel (FB_WB) | `finishing` | score | - | - | coverage 85% below the required 100% |
+| Shihao Wei (WINGER) | `goals_per90` | per90 | 0.4010 | 0.4010 | 9 / 2020 * 90 |
+| Shihao Wei (WINGER) | `goals_per90 percentile` | percentile | 75.0000 | 75.0000 | 7 below + 1 equal of 10 |
+| Shihao Wei (WINGER) | `passes_per90` | per90 | 28.5594 | 28.5594 | 641 / 2020 * 90 |
+| Shihao Wei (WINGER) | `passes_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Shihao Wei (WINGER) | `duels_won_per90` | per90 | 4.8564 | 4.8564 | 109 / 2020 * 90 |
+| Shihao Wei (WINGER) | `duels_won_per90 percentile` | percentile | 75.0000 | 75.0000 | 7 below + 1 equal of 10 |
+| Shihao Wei (WINGER) | `tackles_per90` | per90 | 0.9802 | 0.9802 | 22 / 2020 * 90 |
+| Shihao Wei (WINGER) | `tackles_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Shihao Wei (WINGER) | `dispossessed_per90` | per90 | 1.2030 | 1.2030 | 27 / 2020 * 90 |
+| Shihao Wei (WINGER) | `dispossessed_per90 percentile` | percentile | 55.0000 | 55.0000 | 4 below + 1 equal of 10, inverted |
+| Shihao Wei (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Shihao Wei (WINGER) | `ball_security` | score | 58.5000 | 58.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `chance_creation` | score | 73.0000 | 73.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Shihao Wei (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Shihao Wei (WINGER) | `one_v_one_threat` | score | 63.0000 | 63.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `goal_threat` | score | 83.0000 | 83.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `finishing` | score | 61.0000 | 61.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `creative_winger` | role | 74.5000 | 74.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `direct_winger` | role | 70.0000 | 70.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Shihao Wei (WINGER) | `inside_forward` | role | 75.5000 | 75.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `goals_per90` | per90 | 0.2133 | 0.2133 | 5 / 2110 * 90 |
+| Valeri Qazaishvili (WINGER) | `goals_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Valeri Qazaishvili (WINGER) | `passes_per90` | per90 | 37.4502 | 37.4502 | 878 / 2110 * 90 |
+| Valeri Qazaishvili (WINGER) | `passes_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Valeri Qazaishvili (WINGER) | `duels_won_per90` | per90 | 4.2227 | 4.2227 | 99 / 2110 * 90 |
+| Valeri Qazaishvili (WINGER) | `duels_won_per90 percentile` | percentile | 35.0000 | 35.0000 | 3 below + 1 equal of 10 |
+| Valeri Qazaishvili (WINGER) | `tackles_per90` | per90 | 1.4076 | 1.4076 | 33 / 2110 * 90 |
+| Valeri Qazaishvili (WINGER) | `tackles_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Valeri Qazaishvili (WINGER) | `dispossessed_per90` | per90 | 1.7062 | 1.7062 | 40 / 2110 * 90 |
+| Valeri Qazaishvili (WINGER) | `dispossessed_per90 percentile` | percentile | 25.0000 | 25.0000 | 7 below + 1 equal of 10, inverted |
+| Valeri Qazaishvili (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Valeri Qazaishvili (WINGER) | `ball_security` | score | 71.5000 | 71.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `chance_creation` | score | 83.5000 | 83.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Valeri Qazaishvili (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Valeri Qazaishvili (WINGER) | `one_v_one_threat` | score | 65.0000 | 65.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `goal_threat` | score | 46.0000 | 46.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `finishing` | score | 17.0000 | 17.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `creative_winger` | role | 72.5000 | 72.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `direct_winger` | role | 58.0000 | 58.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Valeri Qazaishvili (WINGER) | `inside_forward` | role | 44.0000 | 44.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
 | Aderbar Melo dos Santos Neto (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2070 * 90 |
 | Aderbar Melo dos Santos Neto (GK) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 0 below + 9 equal of 10 |
 | Aderbar Melo dos Santos Neto (GK) | `passes_per90` | per90 | 19.0435 | 19.0435 | 438 / 2070 * 90 |
@@ -103,7 +279,7 @@ about arithmetic, so it is counted separately.
 | Aderbar Melo dos Santos Neto (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
 | Aderbar Melo dos Santos Neto (GK) | `goal_threat` | score | - | - | coverage 10% below the required 100% |
 | Aderbar Melo dos Santos Neto (GK) | `finishing` | score | - | - | coverage 35% below the required 100% |
-| Aderbar Melo dos Santos Neto (GK) | `shot_stopper` | role | 63.5000 | 63.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Aderbar Melo dos Santos Neto (GK) | `shot_stopper` | role | 63.5000 | 63.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Carlos Miguel dos Santos Pereira (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2070 * 90 |
 | Carlos Miguel dos Santos Pereira (GK) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 0 below + 9 equal of 10 |
 | Carlos Miguel dos Santos Pereira (GK) | `passes_per90` | per90 | 21.9130 | 21.9130 | 504 / 2070 * 90 |
@@ -120,7 +296,7 @@ about arithmetic, so it is counted separately.
 | Carlos Miguel dos Santos Pereira (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
 | Carlos Miguel dos Santos Pereira (GK) | `goal_threat` | score | - | - | coverage 10% below the required 100% |
 | Carlos Miguel dos Santos Pereira (GK) | `finishing` | score | - | - | coverage 35% below the required 100% |
-| Carlos Miguel dos Santos Pereira (GK) | `shot_stopper` | role | 72.5000 | 72.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Carlos Miguel dos Santos Pereira (GK) | `shot_stopper` | role | 72.5000 | 72.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Everson (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2070 * 90 |
 | Everson (GK) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 0 below + 9 equal of 10 |
 | Everson (GK) | `passes_per90` | per90 | 36.0870 | 36.0870 | 830 / 2070 * 90 |
@@ -137,7 +313,7 @@ about arithmetic, so it is counted separately.
 | Everson (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
 | Everson (GK) | `goal_threat` | score | - | - | coverage 10% below the required 100% |
 | Everson (GK) | `finishing` | score | - | - | coverage 35% below the required 100% |
-| Everson (GK) | `shot_stopper` | role | 46.5000 | 46.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Everson (GK) | `shot_stopper` | role | 46.5000 | 46.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Marcelo Rangel Rosa (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2070 * 90 |
 | Marcelo Rangel Rosa (GK) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 0 below + 9 equal of 10 |
 | Marcelo Rangel Rosa (GK) | `passes_per90` | per90 | 21.5217 | 21.5217 | 495 / 2070 * 90 |
@@ -154,7 +330,7 @@ about arithmetic, so it is counted separately.
 | Marcelo Rangel Rosa (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
 | Marcelo Rangel Rosa (GK) | `goal_threat` | score | - | - | coverage 10% below the required 100% |
 | Marcelo Rangel Rosa (GK) | `finishing` | score | - | - | coverage 35% below the required 100% |
-| Marcelo Rangel Rosa (GK) | `shot_stopper` | role | 46.5000 | 46.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Marcelo Rangel Rosa (GK) | `shot_stopper` | role | 46.5000 | 46.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Wuilker Fariñez Aray (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2048 * 90 |
 | Wuilker Fariñez Aray (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 16 equal of 16 |
 | Wuilker Fariñez Aray (GK) | `passes_per90` | per90 | 22.6758 | 22.6758 | 516 / 2048 * 90 |
@@ -171,7 +347,28 @@ about arithmetic, so it is counted separately.
 | Wuilker Fariñez Aray (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Wuilker Fariñez Aray (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Wuilker Fariñez Aray (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Wuilker Fariñez Aray (GK) | `shot_stopper` | role | 46.2500 | 46.2500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Wuilker Fariñez Aray (GK) | `shot_stopper` | role | 46.2500 | 46.2500 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `goals_per90` | per90 | 0.3191 | 0.3191 | 7 / 1974 * 90 |
+| Frank Acheampong (WINGER) | `goals_per90 percentile` | percentile | 55.0000 | 55.0000 | 5 below + 1 equal of 10 |
+| Frank Acheampong (WINGER) | `passes_per90` | per90 | 19.5137 | 19.5137 | 428 / 1974 * 90 |
+| Frank Acheampong (WINGER) | `passes_per90 percentile` | percentile | 5.0000 | 5.0000 | 0 below + 1 equal of 10 |
+| Frank Acheampong (WINGER) | `duels_won_per90` | per90 | 4.6049 | 4.6049 | 101 / 1974 * 90 |
+| Frank Acheampong (WINGER) | `duels_won_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Frank Acheampong (WINGER) | `tackles_per90` | per90 | 0.5927 | 0.5927 | 13 / 1974 * 90 |
+| Frank Acheampong (WINGER) | `tackles_per90 percentile` | percentile | 5.0000 | 5.0000 | 0 below + 1 equal of 10 |
+| Frank Acheampong (WINGER) | `dispossessed_per90` | per90 | 1.8237 | 1.8237 | 40 / 1974 * 90 |
+| Frank Acheampong (WINGER) | `dispossessed_per90 percentile` | percentile | 15.0000 | 15.0000 | 8 below + 1 equal of 10, inverted |
+| Frank Acheampong (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Frank Acheampong (WINGER) | `ball_security` | score | 32.0000 | 32.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `chance_creation` | score | 49.0000 | 49.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Frank Acheampong (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Frank Acheampong (WINGER) | `one_v_one_threat` | score | 44.0000 | 44.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `goal_threat` | score | 37.0000 | 37.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `finishing` | score | 65.0000 | 65.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `creative_winger` | role | 40.5000 | 40.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `direct_winger` | role | 41.0000 | 41.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Frank Acheampong (WINGER) | `inside_forward` | role | 47.5000 | 47.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
 | Elmo Henriksson (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1890 * 90 |
 | Elmo Henriksson (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
 | Elmo Henriksson (GK) | `passes_per90` | per90 | 29.0000 | 29.0000 | 609 / 1890 * 90 |
@@ -188,7 +385,7 @@ about arithmetic, so it is counted separately.
 | Elmo Henriksson (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Elmo Henriksson (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Elmo Henriksson (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Elmo Henriksson (GK) | `shot_stopper` | role | 62.2500 | 62.2500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Elmo Henriksson (GK) | `shot_stopper` | role | 62.2500 | 62.2500 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Senne Vits (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1890 * 90 |
 | Senne Vits (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
 | Senne Vits (GK) | `passes_per90` | per90 | 32.9524 | 32.9524 | 692 / 1890 * 90 |
@@ -205,7 +402,47 @@ about arithmetic, so it is counted separately.
 | Senne Vits (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Senne Vits (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Senne Vits (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Senne Vits (GK) | `shot_stopper` | role | 26.5000 | 26.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Senne Vits (GK) | `shot_stopper` | role | 26.5000 | 26.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `goals_per90` | per90 | 0.5082 | 0.5082 | 10 / 1771 * 90 |
+| Jeffinho (WINGER) | `goals_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Jeffinho (WINGER) | `passes_per90` | per90 | 34.7092 | 34.7092 | 683 / 1771 * 90 |
+| Jeffinho (WINGER) | `passes_per90 percentile` | percentile | 75.0000 | 75.0000 | 7 below + 1 equal of 10 |
+| Jeffinho (WINGER) | `duels_won_per90` | per90 | 8.7916 | 8.7916 | 173 / 1771 * 90 |
+| Jeffinho (WINGER) | `duels_won_per90 percentile` | percentile | 95.0000 | 95.0000 | 9 below + 1 equal of 10 |
+| Jeffinho (WINGER) | `tackles_per90` | per90 | 2.0327 | 2.0327 | 40 / 1771 * 90 |
+| Jeffinho (WINGER) | `tackles_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Jeffinho (WINGER) | `dispossessed_per90` | per90 | 2.2868 | 2.2868 | 45 / 1771 * 90 |
+| Jeffinho (WINGER) | `dispossessed_per90 percentile` | percentile | 5.0000 | 5.0000 | 9 below + 1 equal of 10, inverted |
+| Jeffinho (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Jeffinho (WINGER) | `ball_security` | score | 46.0000 | 46.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `chance_creation` | score | 44.0000 | 44.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Jeffinho (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Jeffinho (WINGER) | `one_v_one_threat` | score | 92.0000 | 92.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `goal_threat` | score | 77.5000 | 77.5000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `finishing` | score | 75.0000 | 75.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `creative_winger` | role | 57.0000 | 57.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `direct_winger` | role | 79.0000 | 79.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Jeffinho (WINGER) | `inside_forward` | role | 80.5000 | 80.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1850 * 90 |
+| Renan Lodi (FB_WB) | `goals_per90 percentile` | percentile | 30.7692 | 30.7692 | 0 below + 8 equal of 13 |
+| Renan Lodi (FB_WB) | `passes_per90` | per90 | 40.6703 | 40.6703 | 836 / 1850 * 90 |
+| Renan Lodi (FB_WB) | `passes_per90 percentile` | percentile | 34.6154 | 34.6154 | 4 below + 1 equal of 13 |
+| Renan Lodi (FB_WB) | `duels_won_per90` | per90 | 4.6216 | 4.6216 | 95 / 1850 * 90 |
+| Renan Lodi (FB_WB) | `duels_won_per90 percentile` | percentile | 42.3077 | 42.3077 | 5 below + 1 equal of 13 |
+| Renan Lodi (FB_WB) | `tackles_per90` | per90 | 1.1676 | 1.1676 | 24 / 1850 * 90 |
+| Renan Lodi (FB_WB) | `tackles_per90 percentile` | percentile | 19.2308 | 19.2308 | 2 below + 1 equal of 13 |
+| Renan Lodi (FB_WB) | `dispossessed_per90` | per90 | 0.4865 | 0.4865 | 10 / 1850 * 90 |
+| Renan Lodi (FB_WB) | `dispossessed_per90 percentile` | percentile | 42.3077 | 42.3077 | 7 below + 1 equal of 13, inverted |
+| Renan Lodi (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Renan Lodi (FB_WB) | `ball_security` | score | 56.5385 | 56.5385 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `chance_creation` | score | 56.5385 | 56.5385 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Renan Lodi (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Renan Lodi (FB_WB) | `one_v_one_threat` | score | 46.1538 | 46.1538 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `goal_threat` | score | 65.3077 | 65.3077 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `finishing` | score | 36.4423 | 36.4423 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Renan Lodi (FB_WB) | `attacking_full_back` | role | 58.6538 | 58.6538 | 5 of 6 components, weights renormalised over 80 of 100 |
 | Bingliang Yan (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1756 * 90 |
 | Bingliang Yan (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 12 equal of 12 |
 | Bingliang Yan (GK) | `passes_per90` | per90 | 27.9841 | 27.9841 | 546 / 1756 * 90 |
@@ -222,7 +459,101 @@ about arithmetic, so it is counted separately.
 | Bingliang Yan (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Bingliang Yan (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Bingliang Yan (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Bingliang Yan (GK) | `shot_stopper` | role | 79.5833 | 79.5833 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Bingliang Yan (GK) | `shot_stopper` | role | 79.5833 | 79.5833 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1746 * 90 |
+| Dun Ba (WINGER) | `goals_per90 percentile` | percentile | 5.0000 | 5.0000 | 0 below + 1 equal of 10 |
+| Dun Ba (WINGER) | `passes_per90` | per90 | 27.5773 | 27.5773 | 535 / 1746 * 90 |
+| Dun Ba (WINGER) | `passes_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Dun Ba (WINGER) | `duels_won_per90` | per90 | 3.6598 | 3.6598 | 71 / 1746 * 90 |
+| Dun Ba (WINGER) | `duels_won_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Dun Ba (WINGER) | `tackles_per90` | per90 | 1.5979 | 1.5979 | 31 / 1746 * 90 |
+| Dun Ba (WINGER) | `tackles_per90 percentile` | percentile | 75.0000 | 75.0000 | 7 below + 1 equal of 10 |
+| Dun Ba (WINGER) | `dispossessed_per90` | per90 | 0.9794 | 0.9794 | 19 / 1746 * 90 |
+| Dun Ba (WINGER) | `dispossessed_per90 percentile` | percentile | 85.0000 | 85.0000 | 1 below + 1 equal of 10, inverted |
+| Dun Ba (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Dun Ba (WINGER) | `ball_security` | score | 67.5000 | 67.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `chance_creation` | score | 35.5000 | 35.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Dun Ba (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Dun Ba (WINGER) | `one_v_one_threat` | score | 31.0000 | 31.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `goal_threat` | score | 9.0000 | 9.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `finishing` | score | 5.0000 | 5.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `creative_winger` | role | 36.0000 | 36.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `direct_winger` | role | 24.0000 | 24.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Dun Ba (WINGER) | `inside_forward` | role | 10.0000 | 10.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Milton Casco (FB_WB) | `goals_per90` | per90 | 0.0980 | 0.0980 | 2 / 1837 * 90 |
+| Milton Casco (FB_WB) | `goals_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Milton Casco (FB_WB) | `passes_per90` | per90 | 36.0098 | 36.0098 | 735 / 1837 * 90 |
+| Milton Casco (FB_WB) | `passes_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Milton Casco (FB_WB) | `duels_won_per90` | per90 | 3.5275 | 3.5275 | 72 / 1837 * 90 |
+| Milton Casco (FB_WB) | `duels_won_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Milton Casco (FB_WB) | `tackles_per90` | per90 | 1.4698 | 1.4698 | 30 / 1837 * 90 |
+| Milton Casco (FB_WB) | `tackles_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Milton Casco (FB_WB) | `dispossessed_per90` | per90 | 0.0490 | 0.0490 | 1 / 1837 * 90 |
+| Milton Casco (FB_WB) | `dispossessed_per90 percentile` | percentile | 95.0000 | 95.0000 | 0 below + 1 equal of 10, inverted |
+| Milton Casco (FB_WB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Milton Casco (FB_WB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Milton Casco (FB_WB) | `chance_creation` | score | 50.5000 | 50.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Milton Casco (FB_WB) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Milton Casco (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Milton Casco (FB_WB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Milton Casco (FB_WB) | `goal_threat` | score | - | - | coverage 70% below the required 100% |
+| Milton Casco (FB_WB) | `finishing` | score | - | - | coverage 85% below the required 100% |
+| Gustavo Gómez (CB) | `goals_per90` | per90 | 0.1961 | 0.1961 | 4 / 1836 * 90 |
+| Gustavo Gómez (CB) | `goals_per90 percentile` | percentile | 88.4615 | 88.4615 | 11 below + 1 equal of 13 |
+| Gustavo Gómez (CB) | `passes_per90` | per90 | 42.4020 | 42.4020 | 865 / 1836 * 90 |
+| Gustavo Gómez (CB) | `passes_per90 percentile` | percentile | 34.6154 | 34.6154 | 4 below + 1 equal of 13 |
+| Gustavo Gómez (CB) | `duels_won_per90` | per90 | 3.5784 | 3.5784 | 73 / 1836 * 90 |
+| Gustavo Gómez (CB) | `duels_won_per90 percentile` | percentile | 50.0000 | 50.0000 | 6 below + 1 equal of 13 |
+| Gustavo Gómez (CB) | `tackles_per90` | per90 | 0.9314 | 0.9314 | 19 / 1836 * 90 |
+| Gustavo Gómez (CB) | `tackles_per90 percentile` | percentile | 19.2308 | 19.2308 | 2 below + 1 equal of 13 |
+| Gustavo Gómez (CB) | `dispossessed_per90` | per90 | 0.2451 | 0.2451 | 5 / 1836 * 90 |
+| Gustavo Gómez (CB) | `dispossessed_per90 percentile` | percentile | 25.0000 | 25.0000 | 7 below + 1 equal of 10, inverted |
+| Gustavo Gómez (CB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Gustavo Gómez (CB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Gustavo Gómez (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Gustavo Gómez (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Gustavo Gómez (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Gustavo Gómez (CB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Gustavo Gómez (CB) | `goal_threat` | score | - | - | coverage 90% below the required 100% |
+| Gustavo Gómez (CB) | `finishing` | score | 83.7675 | 83.7675 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `goals_per90` | per90 | 0.1975 | 0.1975 | 4 / 1823 * 90 |
+| Alexandro Bernabei (FB_WB) | `goals_per90 percentile` | percentile | 96.1538 | 96.1538 | 12 below + 1 equal of 13 |
+| Alexandro Bernabei (FB_WB) | `passes_per90` | per90 | 29.8683 | 29.8683 | 605 / 1823 * 90 |
+| Alexandro Bernabei (FB_WB) | `passes_per90 percentile` | percentile | 3.8462 | 3.8462 | 0 below + 1 equal of 13 |
+| Alexandro Bernabei (FB_WB) | `duels_won_per90` | per90 | 5.0357 | 5.0357 | 102 / 1823 * 90 |
+| Alexandro Bernabei (FB_WB) | `duels_won_per90 percentile` | percentile | 73.0769 | 73.0769 | 9 below + 1 equal of 13 |
+| Alexandro Bernabei (FB_WB) | `tackles_per90` | per90 | 1.7279 | 1.7279 | 35 / 1823 * 90 |
+| Alexandro Bernabei (FB_WB) | `tackles_per90 percentile` | percentile | 42.3077 | 42.3077 | 5 below + 1 equal of 13 |
+| Alexandro Bernabei (FB_WB) | `dispossessed_per90` | per90 | 1.3330 | 1.3330 | 27 / 1823 * 90 |
+| Alexandro Bernabei (FB_WB) | `dispossessed_per90 percentile` | percentile | 3.8462 | 3.8462 | 12 below + 1 equal of 13, inverted |
+| Alexandro Bernabei (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Alexandro Bernabei (FB_WB) | `ball_security` | score | 16.5385 | 16.5385 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `chance_creation` | score | 58.8462 | 58.8462 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Alexandro Bernabei (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Alexandro Bernabei (FB_WB) | `one_v_one_threat` | score | 79.2308 | 79.2308 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `goal_threat` | score | 89.7692 | 89.7692 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `finishing` | score | 86.1731 | 86.1731 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Alexandro Bernabei (FB_WB) | `attacking_full_back` | role | 67.7885 | 67.7885 | 5 of 6 components, weights renormalised over 80 of 100 |
+| Murilo (CB) | `goals_per90` | per90 | 0.0500 | 0.0500 | 1 / 1801 * 90 |
+| Murilo (CB) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 6 below + 1 equal of 13 |
+| Murilo (CB) | `passes_per90` | per90 | 51.2715 | 51.2715 | 1026 / 1801 * 90 |
+| Murilo (CB) | `passes_per90 percentile` | percentile | 80.7692 | 80.7692 | 10 below + 1 equal of 13 |
+| Murilo (CB) | `duels_won_per90` | per90 | 4.0977 | 4.0977 | 82 / 1801 * 90 |
+| Murilo (CB) | `duels_won_per90 percentile` | percentile | 73.0769 | 73.0769 | 9 below + 1 equal of 13 |
+| Murilo (CB) | `tackles_per90` | per90 | 1.1494 | 1.1494 | 23 / 1801 * 90 |
+| Murilo (CB) | `tackles_per90 percentile` | percentile | 42.3077 | 42.3077 | 5 below + 1 equal of 13 |
+| Murilo (CB) | `dispossessed_per90` | per90 | 0.2499 | 0.2499 | 5 / 1801 * 90 |
+| Murilo (CB) | `dispossessed_per90 percentile` | percentile | 15.0000 | 15.0000 | 8 below + 1 equal of 10, inverted |
+| Murilo (CB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Murilo (CB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Murilo (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Murilo (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Murilo (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Murilo (CB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Murilo (CB) | `goal_threat` | score | - | - | coverage 90% below the required 100% |
+| Murilo (CB) | `finishing` | score | 54.5542 | 54.5542 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Eetu Huuhtanen (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1800 * 90 |
 | Eetu Huuhtanen (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
 | Eetu Huuhtanen (GK) | `passes_per90` | per90 | 47.4500 | 47.4500 | 949 / 1800 * 90 |
@@ -239,7 +570,7 @@ about arithmetic, so it is counted separately.
 | Eetu Huuhtanen (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Eetu Huuhtanen (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Eetu Huuhtanen (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Eetu Huuhtanen (GK) | `shot_stopper` | role | 45.5000 | 45.5000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Eetu Huuhtanen (GK) | `shot_stopper` | role | 45.5000 | 45.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Osku Maukonen (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1800 * 90 |
 | Osku Maukonen (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
 | Osku Maukonen (GK) | `passes_per90` | per90 | 38.3500 | 38.3500 | 767 / 1800 * 90 |
@@ -256,7 +587,7 @@ about arithmetic, so it is counted separately.
 | Osku Maukonen (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Osku Maukonen (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Osku Maukonen (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Osku Maukonen (GK) | `shot_stopper` | role | 74.0000 | 74.0000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Osku Maukonen (GK) | `shot_stopper` | role | 74.0000 | 74.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Peng Peng (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1800 * 90 |
 | Peng Peng (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 12 equal of 12 |
 | Peng Peng (GK) | `passes_per90` | per90 | 25.1500 | 25.1500 | 503 / 1800 * 90 |
@@ -273,7 +604,45 @@ about arithmetic, so it is counted separately.
 | Peng Peng (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Peng Peng (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Peng Peng (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Peng Peng (GK) | `shot_stopper` | role | 71.2500 | 71.2500 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Peng Peng (GK) | `shot_stopper` | role | 71.2500 | 71.2500 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `goals_per90` | per90 | 0.0521 | 0.0521 | 1 / 1726 * 90 |
+| Bruno Melo (FB_WB) | `goals_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Bruno Melo (FB_WB) | `passes_per90` | per90 | 36.1356 | 36.1356 | 693 / 1726 * 90 |
+| Bruno Melo (FB_WB) | `passes_per90 percentile` | percentile | 26.9231 | 26.9231 | 3 below + 1 equal of 13 |
+| Bruno Melo (FB_WB) | `duels_won_per90` | per90 | 3.5458 | 3.5458 | 68 / 1726 * 90 |
+| Bruno Melo (FB_WB) | `duels_won_per90 percentile` | percentile | 19.2308 | 19.2308 | 2 below + 1 equal of 13 |
+| Bruno Melo (FB_WB) | `tackles_per90` | per90 | 1.2514 | 1.2514 | 24 / 1726 * 90 |
+| Bruno Melo (FB_WB) | `tackles_per90 percentile` | percentile | 26.9231 | 26.9231 | 3 below + 1 equal of 13 |
+| Bruno Melo (FB_WB) | `dispossessed_per90` | per90 | 0.2607 | 0.2607 | 5 / 1726 * 90 |
+| Bruno Melo (FB_WB) | `dispossessed_per90 percentile` | percentile | 96.1538 | 96.1538 | 0 below + 1 equal of 13, inverted |
+| Bruno Melo (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Bruno Melo (FB_WB) | `ball_security` | score | 47.6923 | 47.6923 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `chance_creation` | score | 15.7692 | 15.7692 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Bruno Melo (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Bruno Melo (FB_WB) | `one_v_one_threat` | score | 13.8462 | 13.8462 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `goal_threat` | score | 35.2308 | 35.2308 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `finishing` | score | 60.9423 | 60.9423 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Bruno Melo (FB_WB) | `attacking_full_back` | role | 14.4231 | 14.4231 | 5 of 6 components, weights renormalised over 80 of 100 |
+| Gastón Benavídez (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1719 * 90 |
+| Gastón Benavídez (FB_WB) | `goals_per90 percentile` | percentile | 30.7692 | 30.7692 | 0 below + 8 equal of 13 |
+| Gastón Benavídez (FB_WB) | `passes_per90` | per90 | 41.6230 | 41.6230 | 795 / 1719 * 90 |
+| Gastón Benavídez (FB_WB) | `passes_per90 percentile` | percentile | 50.0000 | 50.0000 | 6 below + 1 equal of 13 |
+| Gastón Benavídez (FB_WB) | `duels_won_per90` | per90 | 2.7225 | 2.7225 | 52 / 1719 * 90 |
+| Gastón Benavídez (FB_WB) | `duels_won_per90 percentile` | percentile | 3.8462 | 3.8462 | 0 below + 1 equal of 13 |
+| Gastón Benavídez (FB_WB) | `tackles_per90` | per90 | 0.8901 | 0.8901 | 17 / 1719 * 90 |
+| Gastón Benavídez (FB_WB) | `tackles_per90 percentile` | percentile | 3.8462 | 3.8462 | 0 below + 1 equal of 13 |
+| Gastón Benavídez (FB_WB) | `dispossessed_per90` | per90 | 0.3141 | 0.3141 | 6 / 1719 * 90 |
+| Gastón Benavídez (FB_WB) | `dispossessed_per90 percentile` | percentile | 65.3846 | 65.3846 | 4 below + 1 equal of 13, inverted |
+| Gastón Benavídez (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Gastón Benavídez (FB_WB) | `ball_security` | score | 50.7692 | 50.7692 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Gastón Benavídez (FB_WB) | `chance_creation` | score | 58.8462 | 58.8462 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Gastón Benavídez (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Gastón Benavídez (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Gastón Benavídez (FB_WB) | `one_v_one_threat` | score | 34.6154 | 34.6154 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Gastón Benavídez (FB_WB) | `goal_threat` | score | 33.9231 | 33.9231 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Gastón Benavídez (FB_WB) | `finishing` | score | 43.1154 | 43.1154 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Gastón Benavídez (FB_WB) | `attacking_full_back` | role | 38.9423 | 38.9423 | 5 of 6 components, weights renormalised over 80 of 100 |
 | Dimitry Bertaud (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1710 * 90 |
 | Dimitry Bertaud (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 11 equal of 11 |
 | Dimitry Bertaud (GK) | `passes_per90` | per90 | 22.2632 | 22.2632 | 423 / 1710 * 90 |
@@ -290,7 +659,7 @@ about arithmetic, so it is counted separately.
 | Dimitry Bertaud (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Dimitry Bertaud (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Dimitry Bertaud (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Dimitry Bertaud (GK) | `shot_stopper` | role | 56.8182 | 56.8182 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Dimitry Bertaud (GK) | `shot_stopper` | role | 56.8182 | 56.8182 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Marco Carducci (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1710 * 90 |
 | Marco Carducci (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 11 equal of 11 |
 | Marco Carducci (GK) | `passes_per90` | per90 | 28.1053 | 28.1053 | 534 / 1710 * 90 |
@@ -307,7 +676,7 @@ about arithmetic, so it is counted separately.
 | Marco Carducci (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Marco Carducci (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Marco Carducci (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Marco Carducci (GK) | `shot_stopper` | role | 45.9091 | 45.9091 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Marco Carducci (GK) | `shot_stopper` | role | 45.9091 | 45.9091 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Roope Paunio (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1708 * 90 |
 | Roope Paunio (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
 | Roope Paunio (GK) | `passes_per90` | per90 | 35.3571 | 35.3571 | 671 / 1708 * 90 |
@@ -324,7 +693,7 @@ about arithmetic, so it is counted separately.
 | Roope Paunio (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Roope Paunio (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Roope Paunio (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Roope Paunio (GK) | `shot_stopper` | role | 41.0000 | 41.0000 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Roope Paunio (GK) | `shot_stopper` | role | 41.0000 | 41.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Jean (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1620 * 90 |
 | Jean (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 16 equal of 16 |
 | Jean (GK) | `passes_per90` | per90 | 25.6111 | 25.6111 | 461 / 1620 * 90 |
@@ -341,7 +710,7 @@ about arithmetic, so it is counted separately.
 | Jean (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Jean (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Jean (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Jean (GK) | `shot_stopper` | role | 70.1562 | 70.1562 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Jean (GK) | `shot_stopper` | role | 70.1562 | 70.1562 | 4 of 4 components, weights renormalised over 100 of 100 |
 | Johan Wallens Otálvaro (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1620 * 90 |
 | Johan Wallens Otálvaro (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 16 equal of 16 |
 | Johan Wallens Otálvaro (GK) | `passes_per90` | per90 | 19.3333 | 19.3333 | 348 / 1620 * 90 |
@@ -358,4 +727,384 @@ about arithmetic, so it is counted separately.
 | Johan Wallens Otálvaro (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
 | Johan Wallens Otálvaro (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
 | Johan Wallens Otálvaro (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Johan Wallens Otálvaro (GK) | `shot_stopper` | role | 65.4688 | 65.4688 | 4 of 4 components (0 of them scores), weights renormalised over 100 of 100 |
+| Johan Wallens Otálvaro (GK) | `shot_stopper` | role | 65.4688 | 65.4688 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Juan Felipe Aguirre (CB) | `goals_per90` | per90 | 0.0559 | 0.0559 | 1 / 1611 * 90 |
+| Juan Felipe Aguirre (CB) | `goals_per90 percentile` | percentile | 57.6923 | 57.6923 | 7 below + 1 equal of 13 |
+| Juan Felipe Aguirre (CB) | `passes_per90` | per90 | 37.2626 | 37.2626 | 667 / 1611 * 90 |
+| Juan Felipe Aguirre (CB) | `passes_per90 percentile` | percentile | 19.2308 | 19.2308 | 2 below + 1 equal of 13 |
+| Juan Felipe Aguirre (CB) | `duels_won_per90` | per90 | 3.8547 | 3.8547 | 69 / 1611 * 90 |
+| Juan Felipe Aguirre (CB) | `duels_won_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Juan Felipe Aguirre (CB) | `tackles_per90` | per90 | 1.0615 | 1.0615 | 19 / 1611 * 90 |
+| Juan Felipe Aguirre (CB) | `tackles_per90 percentile` | percentile | 34.6154 | 34.6154 | 4 below + 1 equal of 13 |
+| Juan Felipe Aguirre (CB) | `dispossessed_per90` | per90 | 0.1117 | 0.1117 | 2 / 1611 * 90 |
+| Juan Felipe Aguirre (CB) | `dispossessed_per90 percentile` | percentile | 75.0000 | 75.0000 | 2 below + 1 equal of 10, inverted |
+| Juan Felipe Aguirre (CB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Juan Felipe Aguirre (CB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Juan Felipe Aguirre (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Juan Felipe Aguirre (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Juan Felipe Aguirre (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Juan Felipe Aguirre (CB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Juan Felipe Aguirre (CB) | `goal_threat` | score | - | - | coverage 90% below the required 100% |
+| Juan Felipe Aguirre (CB) | `finishing` | score | 67.8759 | 67.8759 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `goals_per90` | per90 | 0.2270 | 0.2270 | 4 / 1586 * 90 |
+| Wenneng Xie (WINGER) | `goals_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Wenneng Xie (WINGER) | `passes_per90` | per90 | 27.8625 | 27.8625 | 491 / 1586 * 90 |
+| Wenneng Xie (WINGER) | `passes_per90 percentile` | percentile | 35.0000 | 35.0000 | 3 below + 1 equal of 10 |
+| Wenneng Xie (WINGER) | `duels_won_per90` | per90 | 3.4615 | 3.4615 | 61 / 1586 * 90 |
+| Wenneng Xie (WINGER) | `duels_won_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Wenneng Xie (WINGER) | `tackles_per90` | per90 | 1.5322 | 1.5322 | 27 / 1586 * 90 |
+| Wenneng Xie (WINGER) | `tackles_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Wenneng Xie (WINGER) | `dispossessed_per90` | per90 | 1.0214 | 1.0214 | 18 / 1586 * 90 |
+| Wenneng Xie (WINGER) | `dispossessed_per90 percentile` | percentile | 75.0000 | 75.0000 | 2 below + 1 equal of 10, inverted |
+| Wenneng Xie (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Wenneng Xie (WINGER) | `ball_security` | score | 47.5000 | 47.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `chance_creation` | score | 25.5000 | 25.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Wenneng Xie (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Wenneng Xie (WINGER) | `one_v_one_threat` | score | 32.0000 | 32.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `goal_threat` | score | 20.0000 | 20.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `finishing` | score | 45.0000 | 45.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `creative_winger` | role | 26.0000 | 26.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `direct_winger` | role | 28.5000 | 28.5000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Wenneng Xie (WINGER) | `inside_forward` | role | 20.5000 | 20.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Matej Markovic (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1584 * 90 |
+| Matej Markovic (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
+| Matej Markovic (GK) | `passes_per90` | per90 | 27.7273 | 27.7273 | 488 / 1584 * 90 |
+| Matej Markovic (GK) | `passes_per90 percentile` | percentile | 5.0000 | 5.0000 | 0 below + 1 equal of 10 |
+| Matej Markovic (GK) | `duels_won_per90` | per90 | 1.0795 | 1.0795 | 19 / 1584 * 90 |
+| Matej Markovic (GK) | `duels_won_per90 percentile` | percentile | 85.0000 | 85.0000 | 8 below + 1 equal of 10 |
+| Matej Markovic (GK) | `tackles_per90` | per90 | 0.0568 | 0.0568 | 1 / 1584 * 90 |
+| Matej Markovic (GK) | `dispossessed_per90` | per90 | - | - | None / 1584 * 90 |
+| Matej Markovic (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Matej Markovic (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Matej Markovic (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Matej Markovic (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Matej Markovic (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Matej Markovic (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Matej Markovic (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Matej Markovic (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Matej Markovic (GK) | `shot_stopper` | role | 37.5000 | 37.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Yulián Gómez (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1579 * 90 |
+| Yulián Gómez (FB_WB) | `goals_per90 percentile` | percentile | 30.0000 | 30.0000 | 0 below + 6 equal of 10 |
+| Yulián Gómez (FB_WB) | `passes_per90` | per90 | 32.0329 | 32.0329 | 562 / 1579 * 90 |
+| Yulián Gómez (FB_WB) | `passes_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Yulián Gómez (FB_WB) | `duels_won_per90` | per90 | 2.1659 | 2.1659 | 38 / 1579 * 90 |
+| Yulián Gómez (FB_WB) | `duels_won_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Yulián Gómez (FB_WB) | `tackles_per90` | per90 | 0.9690 | 0.9690 | 17 / 1579 * 90 |
+| Yulián Gómez (FB_WB) | `tackles_per90 percentile` | percentile | 25.0000 | 25.0000 | 2 below + 1 equal of 10 |
+| Yulián Gómez (FB_WB) | `dispossessed_per90` | per90 | 0.2850 | 0.2850 | 5 / 1579 * 90 |
+| Yulián Gómez (FB_WB) | `dispossessed_per90 percentile` | percentile | 75.0000 | 75.0000 | 2 below + 1 equal of 10, inverted |
+| Yulián Gómez (FB_WB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Yulián Gómez (FB_WB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Yulián Gómez (FB_WB) | `chance_creation` | score | 36.5000 | 36.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Yulián Gómez (FB_WB) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Yulián Gómez (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Yulián Gómez (FB_WB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Yulián Gómez (FB_WB) | `goal_threat` | score | - | - | coverage 70% below the required 100% |
+| Yulián Gómez (FB_WB) | `finishing` | score | - | - | coverage 85% below the required 100% |
+| Alexandru Cîmpanu (WINGER) | `goals_per90` | per90 | 0.2913 | 0.2913 | 5 / 1545 * 90 |
+| Alexandru Cîmpanu (WINGER) | `goals_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Alexandru Cîmpanu (WINGER) | `passes_per90` | per90 | 38.7379 | 38.7379 | 665 / 1545 * 90 |
+| Alexandru Cîmpanu (WINGER) | `passes_per90 percentile` | percentile | 95.0000 | 95.0000 | 9 below + 1 equal of 10 |
+| Alexandru Cîmpanu (WINGER) | `duels_won_per90` | per90 | 4.6602 | 4.6602 | 80 / 1545 * 90 |
+| Alexandru Cîmpanu (WINGER) | `duels_won_per90 percentile` | percentile | 55.0000 | 55.0000 | 5 below + 1 equal of 10 |
+| Alexandru Cîmpanu (WINGER) | `tackles_per90` | per90 | 1.4563 | 1.4563 | 25 / 1545 * 90 |
+| Alexandru Cîmpanu (WINGER) | `tackles_per90 percentile` | percentile | 55.0000 | 55.0000 | 5 below + 1 equal of 10 |
+| Alexandru Cîmpanu (WINGER) | `dispossessed_per90` | per90 | 1.1650 | 1.1650 | 20 / 1545 * 90 |
+| Alexandru Cîmpanu (WINGER) | `dispossessed_per90 percentile` | percentile | 65.0000 | 65.0000 | 3 below + 1 equal of 10, inverted |
+| Alexandru Cîmpanu (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Alexandru Cîmpanu (WINGER) | `ball_security` | score | 47.5000 | 47.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `chance_creation` | score | 84.5000 | 84.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `defensive_activity` | score | - | - | coverage 50% below the required 100% |
+| Alexandru Cîmpanu (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Alexandru Cîmpanu (WINGER) | `one_v_one_threat` | score | 49.0000 | 49.0000 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `goal_threat` | score | 71.0000 | 71.0000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `finishing` | score | 42.5000 | 42.5000 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `creative_winger` | role | 71.0000 | 71.0000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `direct_winger` | role | 62.0000 | 62.0000 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Alexandru Cîmpanu (WINGER) | `inside_forward` | role | 61.5000 | 61.5000 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Juan Pablo Freytes (CB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1539 * 90 |
+| Juan Pablo Freytes (CB) | `goals_per90 percentile` | percentile | 23.0769 | 23.0769 | 0 below + 6 equal of 13 |
+| Juan Pablo Freytes (CB) | `passes_per90` | per90 | 70.5263 | 70.5263 | 1206 / 1539 * 90 |
+| Juan Pablo Freytes (CB) | `passes_per90 percentile` | percentile | 96.1538 | 96.1538 | 12 below + 1 equal of 13 |
+| Juan Pablo Freytes (CB) | `duels_won_per90` | per90 | 3.3918 | 3.3918 | 58 / 1539 * 90 |
+| Juan Pablo Freytes (CB) | `duels_won_per90 percentile` | percentile | 26.9231 | 26.9231 | 3 below + 1 equal of 13 |
+| Juan Pablo Freytes (CB) | `tackles_per90` | per90 | 0.9942 | 0.9942 | 17 / 1539 * 90 |
+| Juan Pablo Freytes (CB) | `tackles_per90 percentile` | percentile | 26.9231 | 26.9231 | 3 below + 1 equal of 13 |
+| Juan Pablo Freytes (CB) | `dispossessed_per90` | per90 | 0.1754 | 0.1754 | 3 / 1539 * 90 |
+| Juan Pablo Freytes (CB) | `dispossessed_per90 percentile` | percentile | 55.0000 | 55.0000 | 4 below + 1 equal of 10, inverted |
+| Juan Pablo Freytes (CB) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
+| Juan Pablo Freytes (CB) | `ball_security` | score | - | - | coverage 80% below the required 100% |
+| Juan Pablo Freytes (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Juan Pablo Freytes (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Juan Pablo Freytes (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Juan Pablo Freytes (CB) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Juan Pablo Freytes (CB) | `goal_threat` | score | - | - | coverage 90% below the required 100% |
+| Juan Pablo Freytes (CB) | `finishing` | score | 19.5600 | 19.5600 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Elias Hadaya (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Elias Hadaya (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 13 equal of 13 |
+| Elias Hadaya (GK) | `passes_per90` | per90 | 37.1176 | 37.1176 | 631 / 1530 * 90 |
+| Elias Hadaya (GK) | `passes_per90 percentile` | percentile | 73.0769 | 73.0769 | 9 below + 1 equal of 13 |
+| Elias Hadaya (GK) | `duels_won_per90` | per90 | 0.4706 | 0.4706 | 8 / 1530 * 90 |
+| Elias Hadaya (GK) | `duels_won_per90 percentile` | percentile | 53.8462 | 53.8462 | 6 below + 2 equal of 13 |
+| Elias Hadaya (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Elias Hadaya (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Elias Hadaya (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Elias Hadaya (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Elias Hadaya (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Elias Hadaya (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Elias Hadaya (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Elias Hadaya (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
+| Elias Hadaya (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Elias Hadaya (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Elias Hadaya (GK) | `shot_stopper` | role | 78.4615 | 78.4615 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Joakim Milli (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Joakim Milli (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 11 equal of 11 |
+| Joakim Milli (GK) | `passes_per90` | per90 | 22.8824 | 22.8824 | 389 / 1530 * 90 |
+| Joakim Milli (GK) | `passes_per90 percentile` | percentile | 40.9091 | 40.9091 | 4 below + 1 equal of 11 |
+| Joakim Milli (GK) | `duels_won_per90` | per90 | 0.5882 | 0.5882 | 10 / 1530 * 90 |
+| Joakim Milli (GK) | `duels_won_per90 percentile` | percentile | 59.0909 | 59.0909 | 6 below + 1 equal of 11 |
+| Joakim Milli (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Joakim Milli (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Joakim Milli (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Joakim Milli (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Joakim Milli (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Joakim Milli (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Joakim Milli (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Joakim Milli (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Joakim Milli (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Joakim Milli (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Joakim Milli (GK) | `shot_stopper` | role | 29.5455 | 29.5455 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Johannes Kreidl (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Johannes Kreidl (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
+| Johannes Kreidl (GK) | `passes_per90` | per90 | 51.1765 | 51.1765 | 870 / 1530 * 90 |
+| Johannes Kreidl (GK) | `passes_per90 percentile` | percentile | 95.0000 | 95.0000 | 9 below + 1 equal of 10 |
+| Johannes Kreidl (GK) | `duels_won_per90` | per90 | 0.5294 | 0.5294 | 9 / 1530 * 90 |
+| Johannes Kreidl (GK) | `duels_won_per90 percentile` | percentile | 45.0000 | 45.0000 | 4 below + 1 equal of 10 |
+| Johannes Kreidl (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Johannes Kreidl (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Johannes Kreidl (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Johannes Kreidl (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Johannes Kreidl (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Johannes Kreidl (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Johannes Kreidl (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Johannes Kreidl (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Johannes Kreidl (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Johannes Kreidl (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Johannes Kreidl (GK) | `shot_stopper` | role | 25.0000 | 25.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Leopold Wahlstedt (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Leopold Wahlstedt (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 13 equal of 13 |
+| Leopold Wahlstedt (GK) | `passes_per90` | per90 | 22.8824 | 22.8824 | 389 / 1530 * 90 |
+| Leopold Wahlstedt (GK) | `passes_per90 percentile` | percentile | 3.8462 | 3.8462 | 0 below + 1 equal of 13 |
+| Leopold Wahlstedt (GK) | `duels_won_per90` | per90 | 0.2353 | 0.2353 | 4 / 1530 * 90 |
+| Leopold Wahlstedt (GK) | `duels_won_per90 percentile` | percentile | 11.5385 | 11.5385 | 1 below + 1 equal of 13 |
+| Leopold Wahlstedt (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Leopold Wahlstedt (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Leopold Wahlstedt (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Leopold Wahlstedt (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Leopold Wahlstedt (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Leopold Wahlstedt (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Leopold Wahlstedt (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Leopold Wahlstedt (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
+| Leopold Wahlstedt (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Leopold Wahlstedt (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Leopold Wahlstedt (GK) | `shot_stopper` | role | 53.4615 | 53.4615 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Marcus Sandberg (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Marcus Sandberg (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 13 equal of 13 |
+| Marcus Sandberg (GK) | `passes_per90` | per90 | 35.5882 | 35.5882 | 605 / 1530 * 90 |
+| Marcus Sandberg (GK) | `passes_per90 percentile` | percentile | 50.0000 | 50.0000 | 6 below + 1 equal of 13 |
+| Marcus Sandberg (GK) | `duels_won_per90` | per90 | 0.4706 | 0.4706 | 8 / 1530 * 90 |
+| Marcus Sandberg (GK) | `duels_won_per90 percentile` | percentile | 53.8462 | 53.8462 | 6 below + 2 equal of 13 |
+| Marcus Sandberg (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Marcus Sandberg (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Marcus Sandberg (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Marcus Sandberg (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Marcus Sandberg (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Marcus Sandberg (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Marcus Sandberg (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Marcus Sandberg (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
+| Marcus Sandberg (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Marcus Sandberg (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Marcus Sandberg (GK) | `shot_stopper` | role | 50.0000 | 50.0000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Nathan Ingham (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Nathan Ingham (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 11 equal of 11 |
+| Nathan Ingham (GK) | `passes_per90` | per90 | 24.5882 | 24.5882 | 418 / 1530 * 90 |
+| Nathan Ingham (GK) | `passes_per90 percentile` | percentile | 59.0909 | 59.0909 | 6 below + 1 equal of 11 |
+| Nathan Ingham (GK) | `duels_won_per90` | per90 | 0.1765 | 0.1765 | 3 / 1530 * 90 |
+| Nathan Ingham (GK) | `duels_won_per90 percentile` | percentile | 4.5455 | 4.5455 | 0 below + 1 equal of 11 |
+| Nathan Ingham (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Nathan Ingham (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Nathan Ingham (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Nathan Ingham (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Nathan Ingham (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Nathan Ingham (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Nathan Ingham (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Nathan Ingham (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Nathan Ingham (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Nathan Ingham (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Nathan Ingham (GK) | `shot_stopper` | role | 67.7273 | 67.7273 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Oscar Hedvall (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1530 * 90 |
+| Oscar Hedvall (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 13 equal of 13 |
+| Oscar Hedvall (GK) | `passes_per90` | per90 | 34.5294 | 34.5294 | 587 / 1530 * 90 |
+| Oscar Hedvall (GK) | `passes_per90 percentile` | percentile | 34.6154 | 34.6154 | 4 below + 1 equal of 13 |
+| Oscar Hedvall (GK) | `duels_won_per90` | per90 | 0.6471 | 0.6471 | 11 / 1530 * 90 |
+| Oscar Hedvall (GK) | `duels_won_per90 percentile` | percentile | 96.1538 | 96.1538 | 12 below + 1 equal of 13 |
+| Oscar Hedvall (GK) | `tackles_per90` | per90 | - | - | None / 1530 * 90 |
+| Oscar Hedvall (GK) | `dispossessed_per90` | per90 | - | - | None / 1530 * 90 |
+| Oscar Hedvall (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Oscar Hedvall (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Oscar Hedvall (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Oscar Hedvall (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Oscar Hedvall (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Oscar Hedvall (GK) | `one_v_one_threat` | score | - | - | coverage 0% below the required 100% |
+| Oscar Hedvall (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Oscar Hedvall (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Oscar Hedvall (GK) | `shot_stopper` | role | 26.5385 | 26.5385 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Xander Lambrix (CB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1529 * 90 |
+| Xander Lambrix (CB) | `goals_per90 percentile` | percentile | 36.9565 | 36.9565 | 0 below + 17 equal of 23 |
+| Xander Lambrix (CB) | `passes_per90` | per90 | 69.6926 | 69.6926 | 1184 / 1529 * 90 |
+| Xander Lambrix (CB) | `passes_per90 percentile` | percentile | 76.0870 | 76.0870 | 17 below + 1 equal of 23 |
+| Xander Lambrix (CB) | `duels_won_per90` | per90 | 3.9438 | 3.9438 | 67 / 1529 * 90 |
+| Xander Lambrix (CB) | `duels_won_per90 percentile` | percentile | 45.6522 | 45.6522 | 10 below + 1 equal of 23 |
+| Xander Lambrix (CB) | `tackles_per90` | per90 | 0.8241 | 0.8241 | 14 / 1529 * 90 |
+| Xander Lambrix (CB) | `tackles_per90 percentile` | percentile | 15.2174 | 15.2174 | 3 below + 1 equal of 23 |
+| Xander Lambrix (CB) | `dispossessed_per90` | per90 | 0.0589 | 0.0589 | 1 / 1529 * 90 |
+| Xander Lambrix (CB) | `dispossessed_per90 percentile` | percentile | 97.6190 | 97.6190 | 0 below + 1 equal of 21, inverted |
+| Xander Lambrix (CB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Xander Lambrix (CB) | `ball_security` | score | 77.9772 | 77.9772 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Xander Lambrix (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Xander Lambrix (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Xander Lambrix (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Xander Lambrix (CB) | `one_v_one_threat` | score | 49.8696 | 49.8696 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Xander Lambrix (CB) | `goal_threat` | score | 30.1373 | 30.1373 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Xander Lambrix (CB) | `finishing` | score | 46.8879 | 46.8879 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `goals_per90` | per90 | 0.1192 | 0.1192 | 2 / 1510 * 90 |
+| Tom Strannegård (WINGER) | `goals_per90 percentile` | percentile | 34.2105 | 34.2105 | 6 below + 1 equal of 19 |
+| Tom Strannegård (WINGER) | `passes_per90` | per90 | 28.1921 | 28.1921 | 473 / 1510 * 90 |
+| Tom Strannegård (WINGER) | `passes_per90 percentile` | percentile | 44.7368 | 44.7368 | 8 below + 1 equal of 19 |
+| Tom Strannegård (WINGER) | `duels_won_per90` | per90 | 4.4702 | 4.4702 | 75 / 1510 * 90 |
+| Tom Strannegård (WINGER) | `duels_won_per90 percentile` | percentile | 50.0000 | 50.0000 | 9 below + 1 equal of 19 |
+| Tom Strannegård (WINGER) | `tackles_per90` | per90 | 1.7881 | 1.7881 | 30 / 1510 * 90 |
+| Tom Strannegård (WINGER) | `tackles_per90 percentile` | percentile | 71.0526 | 71.0526 | 13 below + 1 equal of 19 |
+| Tom Strannegård (WINGER) | `dispossessed_per90` | per90 | 1.1325 | 1.1325 | 19 / 1510 * 90 |
+| Tom Strannegård (WINGER) | `dispossessed_per90 percentile` | percentile | 50.0000 | 50.0000 | 9 below + 1 equal of 19, inverted |
+| Tom Strannegård (WINGER) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Tom Strannegård (WINGER) | `ball_security` | score | 36.6374 | 36.6374 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `chance_creation` | score | 80.8991 | 80.8991 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Tom Strannegård (WINGER) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Tom Strannegård (WINGER) | `one_v_one_threat` | score | 30.6140 | 30.6140 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `goal_threat` | score | 21.9737 | 21.9737 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `finishing` | score | 44.4737 | 44.4737 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `creative_winger` | role | 61.7982 | 61.7982 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `direct_winger` | role | 31.6228 | 31.6228 | 7 of 7 components, weights renormalised over 100 of 100 |
+| Tom Strannegård (WINGER) | `inside_forward` | role | 31.7763 | 31.7763 | 6 of 6 components, weights renormalised over 100 of 100 |
+| Faris Krkalic (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1509 * 90 |
+| Faris Krkalic (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 10 equal of 10 |
+| Faris Krkalic (GK) | `passes_per90` | per90 | 28.3897 | 28.3897 | 476 / 1509 * 90 |
+| Faris Krkalic (GK) | `passes_per90 percentile` | percentile | 15.0000 | 15.0000 | 1 below + 1 equal of 10 |
+| Faris Krkalic (GK) | `duels_won_per90` | per90 | 0.6561 | 0.6561 | 11 / 1509 * 90 |
+| Faris Krkalic (GK) | `duels_won_per90 percentile` | percentile | 65.0000 | 65.0000 | 6 below + 1 equal of 10 |
+| Faris Krkalic (GK) | `tackles_per90` | per90 | 0.0596 | 0.0596 | 1 / 1509 * 90 |
+| Faris Krkalic (GK) | `dispossessed_per90` | per90 | - | - | None / 1509 * 90 |
+| Faris Krkalic (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
+| Faris Krkalic (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
+| Faris Krkalic (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
+| Faris Krkalic (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
+| Faris Krkalic (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Faris Krkalic (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
+| Faris Krkalic (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
+| Faris Krkalic (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
+| Faris Krkalic (GK) | `shot_stopper` | role | 47.5000 | 47.5000 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1509 * 90 |
+| Fredrik Carson Pedersen (FB_WB) | `goals_per90 percentile` | percentile | 28.2609 | 28.2609 | 0 below + 13 equal of 23 |
+| Fredrik Carson Pedersen (FB_WB) | `passes_per90` | per90 | 38.7078 | 38.7078 | 649 / 1509 * 90 |
+| Fredrik Carson Pedersen (FB_WB) | `passes_per90 percentile` | percentile | 28.2609 | 28.2609 | 6 below + 1 equal of 23 |
+| Fredrik Carson Pedersen (FB_WB) | `duels_won_per90` | per90 | 2.9821 | 2.9821 | 50 / 1509 * 90 |
+| Fredrik Carson Pedersen (FB_WB) | `duels_won_per90 percentile` | percentile | 2.1739 | 2.1739 | 0 below + 1 equal of 23 |
+| Fredrik Carson Pedersen (FB_WB) | `tackles_per90` | per90 | 1.8489 | 1.8489 | 31 / 1509 * 90 |
+| Fredrik Carson Pedersen (FB_WB) | `tackles_per90 percentile` | percentile | 41.3043 | 41.3043 | 9 below + 1 equal of 23 |
+| Fredrik Carson Pedersen (FB_WB) | `dispossessed_per90` | per90 | 0.6561 | 0.6561 | 11 / 1509 * 90 |
+| Fredrik Carson Pedersen (FB_WB) | `dispossessed_per90 percentile` | percentile | 20.4545 | 20.4545 | 17 below + 1 equal of 22, inverted |
+| Fredrik Carson Pedersen (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Fredrik Carson Pedersen (FB_WB) | `ball_security` | score | 49.3528 | 49.3528 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `chance_creation` | score | 27.3666 | 27.3666 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Fredrik Carson Pedersen (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Fredrik Carson Pedersen (FB_WB) | `one_v_one_threat` | score | 26.0870 | 26.0870 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `goal_threat` | score | 16.5870 | 16.5870 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `finishing` | score | 25.6576 | 25.6576 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Fredrik Carson Pedersen (FB_WB) | `attacking_full_back` | role | 35.1840 | 35.1840 | 5 of 6 components, weights renormalised over 80 of 100 |
+| Vetle Walle Egeli (FB_WB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1499 * 90 |
+| Vetle Walle Egeli (FB_WB) | `goals_per90 percentile` | percentile | 28.2609 | 28.2609 | 0 below + 13 equal of 23 |
+| Vetle Walle Egeli (FB_WB) | `passes_per90` | per90 | 45.9907 | 45.9907 | 766 / 1499 * 90 |
+| Vetle Walle Egeli (FB_WB) | `passes_per90 percentile` | percentile | 54.3478 | 54.3478 | 12 below + 1 equal of 23 |
+| Vetle Walle Egeli (FB_WB) | `duels_won_per90` | per90 | 4.4430 | 4.4430 | 74 / 1499 * 90 |
+| Vetle Walle Egeli (FB_WB) | `duels_won_per90 percentile` | percentile | 58.6957 | 58.6957 | 13 below + 1 equal of 23 |
+| Vetle Walle Egeli (FB_WB) | `tackles_per90` | per90 | 1.5610 | 1.5610 | 26 / 1499 * 90 |
+| Vetle Walle Egeli (FB_WB) | `tackles_per90 percentile` | percentile | 36.9565 | 36.9565 | 8 below + 1 equal of 23 |
+| Vetle Walle Egeli (FB_WB) | `dispossessed_per90` | per90 | 0.9006 | 0.9006 | 15 / 1499 * 90 |
+| Vetle Walle Egeli (FB_WB) | `dispossessed_per90 percentile` | percentile | 6.8182 | 6.8182 | 20 below + 1 equal of 22, inverted |
+| Vetle Walle Egeli (FB_WB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Vetle Walle Egeli (FB_WB) | `ball_security` | score | 50.2915 | 50.2915 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Vetle Walle Egeli (FB_WB) | `chance_creation` | score | 58.7895 | 58.7895 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Vetle Walle Egeli (FB_WB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Vetle Walle Egeli (FB_WB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Vetle Walle Egeli (FB_WB) | `one_v_one_threat` | score | 70.4348 | 70.4348 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Vetle Walle Egeli (FB_WB) | `goal_threat` | score | 67.1522 | 67.1522 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Vetle Walle Egeli (FB_WB) | `finishing` | score | 32.2989 | 32.2989 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Vetle Walle Egeli (FB_WB) | `attacking_full_back` | role | 59.8876 | 59.8876 | 5 of 6 components, weights renormalised over 80 of 100 |
+| Daniel Schneider (CB) | `goals_per90` | per90 | 0.0603 | 0.0603 | 1 / 1493 * 90 |
+| Daniel Schneider (CB) | `goals_per90 percentile` | percentile | 76.0870 | 76.0870 | 17 below + 1 equal of 23 |
+| Daniel Schneider (CB) | `passes_per90` | per90 | 47.5017 | 47.5017 | 788 / 1493 * 90 |
+| Daniel Schneider (CB) | `passes_per90 percentile` | percentile | 15.2174 | 15.2174 | 3 below + 1 equal of 23 |
+| Daniel Schneider (CB) | `duels_won_per90` | per90 | 5.2445 | 5.2445 | 87 / 1493 * 90 |
+| Daniel Schneider (CB) | `duels_won_per90 percentile` | percentile | 58.6957 | 58.6957 | 13 below + 1 equal of 23 |
+| Daniel Schneider (CB) | `tackles_per90` | per90 | 2.1098 | 2.1098 | 35 / 1493 * 90 |
+| Daniel Schneider (CB) | `tackles_per90 percentile` | percentile | 89.1304 | 89.1304 | 20 below + 1 equal of 23 |
+| Daniel Schneider (CB) | `dispossessed_per90` | per90 | 0.3014 | 0.3014 | 5 / 1493 * 90 |
+| Daniel Schneider (CB) | `dispossessed_per90 percentile` | percentile | 21.4286 | 21.4286 | 16 below + 1 equal of 21, inverted |
+| Daniel Schneider (CB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Daniel Schneider (CB) | `ball_security` | score | 32.5383 | 32.5383 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Daniel Schneider (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Daniel Schneider (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Daniel Schneider (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Daniel Schneider (CB) | `one_v_one_threat` | score | 75.3913 | 75.3913 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Daniel Schneider (CB) | `goal_threat` | score | 39.9611 | 39.9611 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Daniel Schneider (CB) | `finishing` | score | 65.8181 | 65.8181 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wilfred George Igor (DM) | `goals_per90` | per90 | 0.0607 | 0.0607 | 1 / 1483 * 90 |
+| Wilfred George Igor (DM) | `goals_per90 percentile` | percentile | 73.0769 | 73.0769 | 9 below + 1 equal of 13 |
+| Wilfred George Igor (DM) | `passes_per90` | per90 | 36.5341 | 36.5341 | 602 / 1483 * 90 |
+| Wilfred George Igor (DM) | `passes_per90 percentile` | percentile | 11.5385 | 11.5385 | 1 below + 1 equal of 13 |
+| Wilfred George Igor (DM) | `duels_won_per90` | per90 | 5.9474 | 5.9474 | 98 / 1483 * 90 |
+| Wilfred George Igor (DM) | `duels_won_per90 percentile` | percentile | 88.4615 | 88.4615 | 11 below + 1 equal of 13 |
+| Wilfred George Igor (DM) | `tackles_per90` | per90 | 1.8206 | 1.8206 | 30 / 1483 * 90 |
+| Wilfred George Igor (DM) | `tackles_per90 percentile` | percentile | 65.3846 | 65.3846 | 8 below + 1 equal of 13 |
+| Wilfred George Igor (DM) | `dispossessed_per90` | per90 | 1.3351 | 1.3351 | 22 / 1483 * 90 |
+| Wilfred George Igor (DM) | `dispossessed_per90 percentile` | percentile | 3.8462 | 3.8462 | 12 below + 1 equal of 13, inverted |
+| Wilfred George Igor (DM) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Wilfred George Igor (DM) | `ball_security` | score | 51.4744 | 51.4744 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Wilfred George Igor (DM) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Wilfred George Igor (DM) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Wilfred George Igor (DM) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Wilfred George Igor (DM) | `one_v_one_threat` | score | 91.2821 | 91.2821 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Wilfred George Igor (DM) | `goal_threat` | score | 61.0577 | 61.0577 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Wilfred George Igor (DM) | `finishing` | score | 69.7596 | 69.7596 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Sivert Sira Hansen (CB) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 1467 * 90 |
+| Sivert Sira Hansen (CB) | `goals_per90 percentile` | percentile | 36.9565 | 36.9565 | 0 below + 17 equal of 23 |
+| Sivert Sira Hansen (CB) | `passes_per90` | per90 | 78.5276 | 78.5276 | 1280 / 1467 * 90 |
+| Sivert Sira Hansen (CB) | `passes_per90 percentile` | percentile | 93.4783 | 93.4783 | 21 below + 1 equal of 23 |
+| Sivert Sira Hansen (CB) | `duels_won_per90` | per90 | 7.4233 | 7.4233 | 121 / 1467 * 90 |
+| Sivert Sira Hansen (CB) | `duels_won_per90 percentile` | percentile | 93.4783 | 93.4783 | 21 below + 1 equal of 23 |
+| Sivert Sira Hansen (CB) | `tackles_per90` | per90 | 1.8405 | 1.8405 | 30 / 1467 * 90 |
+| Sivert Sira Hansen (CB) | `tackles_per90 percentile` | percentile | 71.7391 | 71.7391 | 16 below + 1 equal of 23 |
+| Sivert Sira Hansen (CB) | `dispossessed_per90` | per90 | 0.0613 | 0.0613 | 1 / 1467 * 90 |
+| Sivert Sira Hansen (CB) | `dispossessed_per90 percentile` | percentile | 92.8571 | 92.8571 | 1 below + 1 equal of 21, inverted |
+| Sivert Sira Hansen (CB) | `ball_progression` | score | - | - | coverage 55% below the required 100% |
+| Sivert Sira Hansen (CB) | `ball_security` | score | 77.5983 | 77.5983 | 4 of 4 components, weights renormalised over 100 of 100 |
+| Sivert Sira Hansen (CB) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
+| Sivert Sira Hansen (CB) | `defensive_activity` | score | - | - | coverage 65% below the required 100% |
+| Sivert Sira Hansen (CB) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
+| Sivert Sira Hansen (CB) | `one_v_one_threat` | score | 80.2899 | 80.2899 | 3 of 3 components, weights renormalised over 100 of 100 |
+| Sivert Sira Hansen (CB) | `goal_threat` | score | 54.2456 | 54.2456 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Sivert Sira Hansen (CB) | `finishing` | score | 31.3730 | 31.3730 | 5 of 5 components, weights renormalised over 100 of 100 |
