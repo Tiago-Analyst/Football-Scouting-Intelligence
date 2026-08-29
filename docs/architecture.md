@@ -2137,6 +2137,17 @@ declared-but-never-populated field belongs - the same place
 successes are different measurements, and swapping one for the other would
 change what every score built on it means while leaving the name alone.
 
+### The decision that followed
+
+Withholding everything that depended on successful tackles cost three scores and
+six roles. Tackles attempted is supplied and complete, and the project owner
+chose to use it - which is an adaptation, not a substitution, because it is
+declared in `docs/methodology.md`, commented in both configuration files, and
+carried as a caveat on every figure it touches, all the way to the page.
+
+Four features remain withheld: nothing available stands in for progressive
+passes, and aerial duels *won* without an attempt count gives no win rate.
+
 ### The cost, measured twice
 
 Three canonical metrics are absent: `progressive_passes`, `aerial_duels`,

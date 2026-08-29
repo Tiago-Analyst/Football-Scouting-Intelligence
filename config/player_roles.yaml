@@ -85,7 +85,7 @@ roles:
     components:
       metrics:
         interceptions_per90: 25
-        successful_tackles_per90: 20
+        tackles_per90: 20
         blocks_per90: 15
         clearances_per90: 15
         duel_win_percentage: 15
@@ -97,6 +97,9 @@ roles:
       Computed without aerial duel win percentage, which the performance
       provider does not supply - it reports aerial duels won but not
       attempted. That component carried 10% of this role.
+      Tackle volume here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who tackles
+      often and fails often reads the same as one who succeeds.
 
   defensive_full_back:
     label: Defensive Full-Back
@@ -106,7 +109,7 @@ roles:
       inverted automatically.
     components:
       metrics:
-        successful_tackles_per90: 25
+        tackles_per90: 25
         interceptions_per90: 20
         dribbled_past_per90: 20
         duel_win_percentage: 15
@@ -117,6 +120,9 @@ roles:
       Computed without progressive passes or aerial duel win percentage,
       neither of which the performance provider supplies. They carried 10%
       each; the defensive core of the role is intact.
+      Tackle volume here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who tackles
+      often and fails often reads the same as one who succeeds.
 
   attacking_full_back:
     label: Attacking Full-Back
@@ -149,7 +155,7 @@ roles:
       after winning it is part of the role.
     components:
       metrics:
-        successful_tackles_per90: 25
+        tackles_per90: 25
         interceptions_per90: 25
         duel_win_percentage: 20
         aerial_duel_win_percentage: 10
@@ -162,6 +168,9 @@ roles:
       the ball security score, none of which the performance provider
       supports. They carried 30% between them; tackling, interceptions and
       duels won, which carry 70%, are intact.
+      Tackle volume here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who tackles
+      often and fails often reads the same as one who succeeds.
 
   deep_lying_playmaker:
     label: Deep-Lying Playmaker
@@ -189,7 +198,7 @@ roles:
     components:
       metrics:
         progressive_passes_per90: 15
-        successful_tackles_per90: 15
+        tackles_per90: 15
         interceptions_per90: 15
         duel_win_percentage: 15
         successful_dribbles_per90: 10
@@ -204,6 +213,9 @@ roles:
       does not supply. That component carried 15% of this role; the
       defensive and attacking contributions that define a box-to-box
       midfielder are intact.
+      Tackle volume here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who tackles
+      often and fails often reads the same as one who succeeds.
 
   advanced_playmaker:
     label: Advanced Playmaker

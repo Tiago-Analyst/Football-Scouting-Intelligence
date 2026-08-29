@@ -331,23 +331,57 @@ The recomputation is deliberately naive - it counts comparisons one at a time
 where the engine bisects a sorted list - so that the two cannot share a mistake.
 `docs/analytics_validation.md` shows the working for every check.
 
+## Where this departs from the specification: tackles
+
+The specification defines Defensive Activity as `Successful Tackles /90 35%,
+Interceptions /90 35%, Blocks /90 15%, Duels Won /90 15%`, and four roles weight
+successful tackles directly.
+
+FootyStats declares a successful-tackles field and never populates it - non-null
+in none of the 10,464 sampled records that carry the key. Tackles **attempted**
+is supplied and complete.
+
+Withholding everything that depended on it cost three intelligence scores and
+six roles. Using attempts instead costs two scores and two roles. The project
+owner chose attempts, and the deviation is declared rather than absorbed:
+
+- **What changed.** `successful_tackles_per90` is replaced by `tackles_per90` in
+  the Defensive Activity score and in Defensive Stopper, Defensive Full Back,
+  Ball-Winning Midfielder and Box-to-Box Midfielder.
+- **What it costs.** Attempts are not successes. A player who tackles often and
+  fails often now reads the same as one who succeeds. That is defensible for a
+  score whose own definition is "volume of defensive actions"; it is a weaker
+  proxy inside the roles, where the component stands for winning the ball back.
+- **Where it is visible.** Every affected score and role carries a caveat saying
+  so, and the caveat travels with the number through the API to the page. It
+  cannot be read without it.
+
+This is the one place the platform measures something other than what the
+specification names. It is recorded here, in the two configuration files, and on
+every figure it touches - which is the difference between a documented
+adaptation and the silent substitution the project forbids.
+
+**Still withheld, because nothing honest replaces them:** Ball Progression and
+Ball-Playing Centre Back and Deep-Lying Playmaker (progressive passes), and Duel
+Dominance (aerial duels attempted). Aerial duels *won* is supplied, but a win
+count without an attempt count gives no win rate, and passes attempted is not
+progressive passing.
+
 ## Scores and roles the data cannot support
 
-Three of the eight intelligence scores and six of the fifteen roles are not
+Two of the eight intelligence scores and two of the fifteen roles are not
 produced at all, because FootyStats does not supply an input they are defined
-on: progressive passes, aerial duels attempted, and successful tackles.
+on and no honest replacement exists.
 
 | Withheld | Missing input |
 | --- | --- |
 | Ball Progression (score) | progressive passes |
-| Defensive Activity (score) | successful tackles |
 | Duel Dominance (score) | aerial duels attempted |
-| Ball-Playing Centre Back | progressive passes, aerial duels |
-| Defensive Stopper | successful tackles, aerial duels |
-| Defensive Full Back | all three |
-| Ball-Winning Midfielder | all three |
+| Ball-Playing Centre Back | progressive passes, aerial duels attempted |
 | Deep-Lying Playmaker | progressive passes |
-| Box-to-Box Midfielder | progressive passes, successful tackles |
+
+Five further features depended on successful tackles and are produced from
+tackles attempted instead, under the declared deviation above.
 
 They are withheld rather than computed from what remains. A score built from a
 subset is not comparable with one built from the whole, and publishing both

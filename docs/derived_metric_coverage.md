@@ -69,14 +69,14 @@ player for a score, and only the compatible position groups for a role.
 | Feature | Kind | Produced for | Status | Why |
 | --- | --- | ---: | --- | --- |
 | `ball_playing_centre_back` | role | 0% of 99 | withheld | provider: aerial_duel_win_percentage, progressive_passes_per90 (60% of weight survives, needs 100%) |
-| `ball_winning_midfielder` | role | 0% of 100 | withheld | provider: aerial_duel_win_percentage, progressive_passes_per90, successful_tackles_per90 (55% of weight survives, needs 69%) |
-| `box_to_box_midfielder` | role | 0% of 129 | withheld | provider: progressive_passes_per90, successful_tackles_per90 (70% of weight survives, needs 84%) |
 | `deep_lying_playmaker` | role | 0% of 100 | withheld | provider: progressive_passes_per90 (70% of weight survives, needs 100%) |
-| `defensive_full_back` | role | 0% of 76 | withheld | provider: aerial_duel_win_percentage, progressive_passes_per90, successful_tackles_per90 (55% of weight survives, needs 79%) |
-| `defensive_stopper` | role | 0% of 99 | withheld | provider: aerial_duel_win_percentage, successful_tackles_per90 (70% of weight survives, needs 89%) |
 | `advanced_playmaker` | role | 24% of 79 | caveated | sample: most comparison populations are below the minimum |
 | `attacking_full_back` | role | 46% of 76 | caveated | sample: most comparison populations are below the minimum |
+| `ball_winning_midfielder` | role | 35% of 100 | caveated | sample: most comparison populations are below the minimum |
+| `box_to_box_midfielder` | role | 26% of 129 | caveated | sample: most comparison populations are below the minimum |
 | `complete_forward` | role | 38% of 34 | caveated | sample: most comparison populations are below the minimum |
+| `defensive_full_back` | role | 61% of 76 | caveated | partial: computed without aerial_duel_win_percentage, progressive_passes_per90, on renormalised weights |
+| `defensive_stopper` | role | 35% of 99 | caveated | sample: most comparison populations are below the minimum |
 | `direct_winger` | role | 30% of 91 | caveated | sample: most comparison populations are below the minimum |
 | `shot_stopper` | role | 63% of 115 | caveated | - |
 | `target_forward` | role | 38% of 34 | caveated | sample: most comparison populations are below the minimum |
@@ -84,8 +84,8 @@ player for a score, and only the compatible position groups for a role.
 | `inside_forward` | role | 42% of 96 | available | sample: most comparison populations are below the minimum |
 | `poacher` | role | 41% of 34 | available | sample: most comparison populations are below the minimum |
 | `ball_progression` | score | 0% of 515 | withheld | provider: progressive_passes_per90 (55% of weight survives, needs 100%) |
-| `defensive_activity` | score | 0% of 515 | withheld | provider: successful_tackles_per90 (65% of weight survives, needs 100%) |
 | `duel_dominance` | score | 0% of 515 | withheld | provider: aerial_duel_win_percentage (70% of weight survives, needs 100%) |
+| `defensive_activity` | score | 22% of 515 | caveated | sample: most comparison populations are below the minimum |
 | `finishing` | score | 26% of 515 | caveated | sample: most comparison populations are below the minimum |
 | `ball_security` | score | 23% of 515 | available | sample: most comparison populations are below the minimum |
 | `chance_creation` | score | 23% of 515 | available | sample: most comparison populations are below the minimum |
@@ -122,12 +122,7 @@ amount of further loading changes that, and substituting another
 metric would change what the feature means while keeping its name.
 
 - `ball_progression` (score) - needs `progressive_passes_per90`
-- `defensive_activity` (score) - needs `successful_tackles_per90`
 - `duel_dominance` (score) - needs `aerial_duel_win_percentage`
 - `ball_playing_centre_back` (role) - needs `aerial_duel_win_percentage`, `progressive_passes_per90`
-- `defensive_stopper` (role) - needs `aerial_duel_win_percentage`, `successful_tackles_per90`
-- `defensive_full_back` (role) - needs `aerial_duel_win_percentage`, `progressive_passes_per90`, `successful_tackles_per90`
-- `ball_winning_midfielder` (role) - needs `aerial_duel_win_percentage`, `progressive_passes_per90`, `successful_tackles_per90`
 - `deep_lying_playmaker` (role) - needs `progressive_passes_per90`
-- `box_to_box_midfielder` (role) - needs `progressive_passes_per90`, `successful_tackles_per90`
 
