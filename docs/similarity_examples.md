@@ -12,12 +12,12 @@ person to judge the rest.
 
 | Property | Checked | Result |
 | --- | ---: | --- |
-| matches stay within the position group | 128 | holds |
-| a player is not their own match | 128 | holds |
-| similarity is symmetric | 580 | holds |
-| the index distinguishes players | 128 | holds |
+| matches stay within the position group | 506 | holds |
+| a player is not their own match | 506 | holds |
+| similarity is symmetric | 3418 | holds |
+| the index distinguishes players | 506 | holds |
 
-*the index distinguishes players*: closest match: min 51.0, median 80.7, max 98.1; 0 of 128 at or above 99
+*the index distinguishes players*: closest match: min 51.7, median 83.0, max 99.7; 6 of 506 at or above 99
 
 ## Examples
 
@@ -26,43 +26,95 @@ they resemble. `strength` is how comparable the two are in level rather
 than shape - cosine measures direction, so a very good player and a
 middling one with the same profile point the same way.
 
-### Gustavo Gómez — CB, Brazil Serie A
+### Xadas — AM, China Chinese Super League
 
-1836 minutes.
-
-| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
-| --- | --- | ---: | ---: | ---: | --- | --- |
-| Aaron Kiil Olsen | Norway Eliteserien | 80.0 | 8 | 0.89 | interceptions_per90, completed_passes_per90, duel_win_percentage | tackles_per90, clearances_per90 |
-| Tiago Cóser | Brazil Serie A | 70.1 | 8 | 0.65 | tackles_per90, interceptions_per90, pass_completion | clearances_per90, dribbled_past_per90 |
-| Gianni Stensness | Norway Eliteserien | 61.0 | 8 | 0.66 | pass_completion, tackles_per90, dribbled_past_per90 | duel_win_percentage, blocks_per90 |
-| Fredrik Sjølstad | Norway Eliteserien | 53.4 | 8 | 0.86 | clearances_per90, dribbled_past_per90, interceptions_per90 | completed_passes_per90, pass_completion |
-| Ivan Näsberg | Norway Eliteserien | 52.6 | 8 | 0.82 | tackles_per90, blocks_per90, duel_win_percentage | interceptions_per90, pass_completion |
-
-### Murilo — CB, Brazil Serie A
-
-1801 minutes.
+2139 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Birk Risa | Norway Eliteserien | 79.5 | 8 | 0.55 ⚠ | blocks_per90, clearances_per90, dribbled_past_per90 | pass_completion, interceptions_per90 |
-| Thore Pedersen | Norway Eliteserien | 62.6 | 8 | 0.68 | interceptions_per90, completed_passes_per90, tackles_per90 | pass_completion, blocks_per90 |
-| Júnior Alonso | Brazil Serie A | 51.1 | 7 | 0.73 | clearances_per90, duel_win_percentage, completed_passes_per90 | blocks_per90, tackles_per90 |
+| Roman Eremenko | Finland Veikkausliiga | 64.6 | 9 | 0.86 | xa_per90, key_passes_per90, interceptions_per90 | dispossessed_per90, tackles_per90 |
+| Gerardo Valenzuela | USA MLS | 58.5 | 9 | 0.68 | key_passes_per90, duel_win_percentage, xa_per90 | dispossessed_per90, pass_completion |
+| Edwin Cardona | Colombia Categoria Primera A | 50.4 | 9 | 0.67 | dispossessed_per90, xa_per90, successful_dribbles_per90 | tackles_per90, pass_completion |
 
-### Mads Bomholt — CM, Norway Eliteserien
+### Nicolae Stanciu — AM, China Chinese Super League
 
-1418 minutes.
-
-| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
-| --- | --- | ---: | ---: | ---: | --- | --- |
-| Sondre Granaas | Norway Eliteserien | 67.8 | 9 | 0.72 | xa_per90, dispossessed_per90, completed_passes_per90 | duel_win_percentage, pass_completion |
-
-### Kristoffer Askildsen — CM, Norway Eliteserien
-
-1332 minutes.
+1854 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Simen Hestnes | Norway Eliteserien | 53.7 | 9 | 0.91 | pass_completion, tackles_per90, xa_per90 | interceptions_per90, duel_win_percentage |
+| Jackson Hopkins | USA MLS | 65.2 | 9 | 0.94 | dispossessed_per90, successful_dribbles_per90, pass_completion | interceptions_per90, key_passes_per90 |
+| Fabián Sambueza | Colombia Categoria Primera A | 59.3 | 9 | 0.88 | pass_completion, xa_per90, completed_passes_per90 | successful_dribbles_per90, dispossessed_per90 |
+| Cavan Sullivan | USA MLS | 54.9 | 9 | 0.86 | pass_completion, key_passes_per90, dispossessed_per90 | tackles_per90, interceptions_per90 |
+
+### Sung-wook Hong — CB, South Korea K League 1
+
+2250 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Min-ha Shin | South Korea K League 1 | 97.1 | 7 | 1.00 | completed_passes_per90, tackles_per90, clearances_per90 | blocks_per90, pass_completion |
+| Dong-gyu Baek | South Korea K League 1 | 93.1 | 7 | 0.88 | completed_passes_per90, blocks_per90, tackles_per90 | interceptions_per90, duel_win_percentage |
+| Marko Tuci | South Korea K League 1 | 92.4 | 7 | 0.89 | pass_completion, completed_passes_per90, clearances_per90 | blocks_per90, duel_win_percentage |
+| Julien Célestine | South Korea K League 1 | 91.6 | 7 | 0.98 | clearances_per90, completed_passes_per90, interceptions_per90 | blocks_per90, pass_completion |
+| Gun-hee Kim | South Korea K League 1 | 89.4 | 7 | 0.99 | clearances_per90, tackles_per90, interceptions_per90 | blocks_per90, pass_completion |
+
+### Chenjie Zhu — CB, China Chinese Super League
+
+2225 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Tobias Anker | Sweden Allsvenskan | 78.4 | 8 | 0.97 | dribbled_past_per90, blocks_per90, tackles_per90 | interceptions_per90, completed_passes_per90 |
+| Jae-woo Kim | South Korea K League 1 | 70.2 | 5 | 0.45 ⚠ | pass_completion, duel_win_percentage, blocks_per90 | completed_passes_per90, clearances_per90 |
+| Young-bin Kim | South Korea K League 1 | 67.6 | 7 | 0.56 ⚠ | duel_win_percentage, interceptions_per90, pass_completion | tackles_per90, clearances_per90 |
+| Pengfei Han | China Chinese Super League | 66.8 | 8 | 0.44 ⚠ | tackles_per90, clearances_per90, duel_win_percentage | interceptions_per90, pass_completion |
+| José Ortiz | Colombia Categoria Primera A | 63.1 | 8 | 0.95 | interceptions_per90, dribbled_past_per90, blocks_per90 | pass_completion, clearances_per90 |
+
+### Rafael Carrascal — CM, Colombia Categoria Primera A
+
+2195 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Otto Rosengren | Sweden Allsvenskan | 74.0 | 9 | 0.83 | successful_dribbles_per90, completed_passes_per90, pass_completion | duel_win_percentage, interceptions_per90 |
+| Dino Besirovic | Sweden Allsvenskan | 68.6 | 9 | 0.57 ⚠ | pass_completion, dispossessed_per90, tackles_per90 | completed_passes_per90, interceptions_per90 |
+| Sebastian Berhalter | USA MLS | 67.8 | 9 | 0.88 | completed_passes_per90, xa_per90, dispossessed_per90 | interceptions_per90, pass_completion |
+| Melker Hallberg | Sweden Allsvenskan | 60.0 | 9 | 0.95 | interceptions_per90, pass_completion, completed_passes_per90 | successful_dribbles_per90, duel_win_percentage |
+| Owen Parker-Price | Sweden Allsvenskan | 56.6 | 9 | 0.72 | key_passes_per90, xa_per90, completed_passes_per90 | dispossessed_per90, interceptions_per90 |
+
+### Jae-min Seo — CM, South Korea K League 1
+
+2130 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Se-jong Ju | South Korea K League 1 | 93.5 | 8 | 0.94 | completed_passes_per90, interceptions_per90, key_passes_per90 | dispossessed_per90, duel_win_percentage |
+| Seo-woong Hwang | South Korea K League 1 | 93.1 | 9 | 0.94 | tackles_per90, xa_per90, dispossessed_per90 | pass_completion, interceptions_per90 |
+| Min-seo Moon | South Korea K League 1 | 91.2 | 9 | 0.82 | tackles_per90, pass_completion, dispossessed_per90 | interceptions_per90, successful_dribbles_per90 |
+| Darijan Bojanic | South Korea K League 1 | 91.2 | 9 | 0.86 | xa_per90, completed_passes_per90, dispossessed_per90 | successful_dribbles_per90, interceptions_per90 |
+| Je-ho Yu | South Korea K League 1 | 91.0 | 8 | 0.82 | completed_passes_per90, key_passes_per90, tackles_per90 | pass_completion, interceptions_per90 |
+
+### Hrvoje Babec — DM, South Korea K League 1
+
+1973 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Kento Nishiya | South Korea K League 1 | 84.9 | 8 | 0.93 | interceptions_per90, dispossessed_per90, tackles_per90 | duel_win_percentage, xa_per90 |
+| Sang-jun Kim | South Korea K League 1 | 70.3 | 8 | 0.86 | dispossessed_per90, tackles_per90, interceptions_per90 | xa_per90, pass_completion |
+| Dánnovi Quiñónes | Colombia Categoria Primera A | 65.3 | 8 | 0.63 | completed_passes_per90, duel_win_percentage, key_passes_per90 | pass_completion, tackles_per90 |
+| Min-woo Seo | South Korea K League 1 | 54.1 | 8 | 0.99 | tackles_per90, completed_passes_per90, interceptions_per90 | pass_completion, duel_win_percentage |
+
+### Marlon Freitas — DM, Brazil Serie A
+
+1964 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Sung-yueng Ki | South Korea K League 1 | 83.1 | 9 | 0.97 | dispossessed_per90, successful_dribbles_per90, duel_win_percentage | interceptions_per90, completed_passes_per90 |
+| Ashley Westwood | USA MLS | 64.2 | 9 | 0.90 | key_passes_per90, tackles_per90, completed_passes_per90 | pass_completion, duel_win_percentage |
+| Robin Rasch | Norway Eliteserien | 57.6 | 9 | 0.76 | key_passes_per90, xa_per90, completed_passes_per90 | duel_win_percentage, pass_completion |
+| Áron Csongvai | Sweden Allsvenskan | 54.9 | 9 | 0.70 | key_passes_per90, xa_per90, completed_passes_per90 | tackles_per90, duel_win_percentage |
 
 ### Andrés Felipe Román — FB_WB, Colombia Categoria Primera A
 
@@ -70,61 +122,80 @@ middling one with the same profile point the same way.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Eber Moreno | Colombia Categoria Primera A | 59.0 | 9 | 0.84 | crosses_per90, interceptions_per90, duel_win_percentage | pass_completion, tackles_per90 |
-| Bruno Melo | Brazil Serie A | 57.6 | 9 | 0.87 | crosses_per90, key_passes_per90, interceptions_per90 | dribbled_past_per90, duel_win_percentage |
-| Erlend Dahl Reitan | Norway Eliteserien | 53.4 | 9 | 1.00 | key_passes_per90, completed_passes_per90, tackles_per90 | dribbled_past_per90, duel_win_percentage |
+| Tae-hyun An | South Korea K League 1 | 88.6 | 9 | 0.68 | duel_win_percentage, interceptions_per90, crosses_per90 | xa_per90, key_passes_per90 |
+| Joon-hyuck Kang | South Korea K League 1 | 87.0 | 8 | 0.77 | interceptions_per90, crosses_per90, pass_completion | duel_win_percentage, key_passes_per90 |
+| Cheol-woo Park | South Korea K League 1 | 77.8 | 9 | 0.90 | xa_per90, tackles_per90, crosses_per90 | duel_win_percentage, pass_completion |
+| Jeong-won Eo | South Korea K League 1 | 72.7 | 9 | 0.76 | crosses_per90, successful_dribbles_per90, completed_passes_per90 | key_passes_per90, duel_win_percentage |
+| Eber Moreno | Colombia Categoria Primera A | 72.4 | 9 | 0.79 | interceptions_per90, crosses_per90, tackles_per90 | xa_per90, key_passes_per90 |
 
-### Omar Bertel — FB_WB, Colombia Categoria Primera A
+### Hetao Hu — FB_WB, China Chinese Super League
 
-2135 minutes.
-
-| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
-| --- | --- | ---: | ---: | ---: | --- | --- |
-| Lucas Esquivel | Brazil Serie A | 81.8 | 9 | 0.84 | key_passes_per90, dribbled_past_per90, pass_completion | completed_passes_per90, xa_per90 |
-| Guga | Brazil Serie A | 66.7 | 9 | 0.74 | duel_win_percentage, crosses_per90, completed_passes_per90 | interceptions_per90, dribbled_past_per90 |
-| Denzel De Roeve | Norway Eliteserien | 65.2 | 9 | 0.89 | key_passes_per90, interceptions_per90, duel_win_percentage | dribbled_past_per90, pass_completion |
-| Kolbeinn Finnsson | Norway Eliteserien | 62.6 | 9 | 0.94 | tackles_per90, pass_completion, dribbled_past_per90 | duel_win_percentage, completed_passes_per90 |
-
-### Amin Chiakha — FORWARD, Norway Eliteserien
-
-1433 minutes.
+2181 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Noah Holm | Norway Eliteserien | 80.3 | 10 | 0.85 | xa_per90, shot_quality, key_passes_per90 | duel_win_percentage, successful_dribbles_per90 |
+| Matthew Dos Santos | USA MLS | 66.6 | 10 | 0.58 ⚠ | interceptions_per90, pass_completion, successful_dribbles_per90 | key_passes_per90, duel_win_percentage |
+| Keisuke Kurokawa | USA MLS | 64.1 | 10 | 0.68 | interceptions_per90, duel_win_percentage, dribbled_past_per90 | crosses_per90, xa_per90 |
+| Samba Diatara | Sweden Allsvenskan | 61.1 | 10 | 0.58 ⚠ | crosses_per90, successful_dribbles_per90, duel_win_percentage | pass_completion, tackles_per90 |
+| Nathan Harriel | USA MLS | 59.0 | 10 | 0.59 ⚠ | tackles_per90, dribbled_past_per90, completed_passes_per90 | duel_win_percentage, crosses_per90 |
+| Tinga | Brazil Serie A | 57.7 | 10 | 0.61 | interceptions_per90, successful_dribbles_per90, dribbled_past_per90 | xa_per90, pass_completion |
 
-### Noah Holm — FORWARD, Norway Eliteserien
+### Rafael Ratão — FORWARD, China Chinese Super League
 
-1296 minutes.
+2174 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Amin Chiakha | Norway Eliteserien | 80.3 | 10 | 0.85 | xa_per90, shot_quality, key_passes_per90 | duel_win_percentage, successful_dribbles_per90 |
-| Mathias Grundetjern | Norway Eliteserien | 58.7 | 10 | 0.74 | duel_win_percentage, shot_quality, aerial_duels_won_per90 | shots_per90, non_penalty_goals_per90 |
+| Rodrigo Contreras | Colombia Categoria Primera A | 90.6 | 10 | 0.84 | npxg_per90, shots_per90, key_passes_per90 | aerial_duels_won_per90, successful_dribbles_per90 |
+| Robbie Ure | Sweden Allsvenskan | 84.7 | 10 | 0.86 | aerial_duels_won_per90, shots_per90, npxg_per90 | xa_per90, shot_quality |
+| John Kennedy | Brazil Serie A | 79.1 | 10 | 0.85 | xa_per90, aerial_duels_won_per90, shots_on_target_per90 | shot_quality, duel_win_percentage |
+| Kenji Mboma Dem | USA MLS | 67.0 | 10 | 0.66 | shot_quality, duel_win_percentage, successful_dribbles_per90 | key_passes_per90, shots_on_target_per90 |
+| Amin Chiakha | Norway Eliteserien | 60.9 | 10 | 0.76 | shot_quality, successful_dribbles_per90, non_penalty_goals_per90 | aerial_duels_won_per90, key_passes_per90 |
 
-### Dianzuo Liu — GK, China Chinese Super League
+### Luciano Pons — FORWARD, Colombia Categoria Primera A
+
+1869 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Nikolaj Möller | Norway Eliteserien | 54.1 | 10 | 0.66 | successful_dribbles_per90, shots_per90, duel_win_percentage | shots_on_target_per90, key_passes_per90 |
+| Bruno Mota | South Korea K League 1 | 51.1 | 9 | 0.47 ⚠ | duel_win_percentage, shot_quality, xa_per90 | npxg_per90, key_passes_per90 |
+
+### Hyun-Woo Cho — GK, South Korea K League 1
+
+2340 minutes.
+
+| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Kyung-Min Kim | South Korea K League 1 | 95.4 | 7 | 0.96 | save_percentage, inside_box_saves_per90, saves_per90 | clean_sheet_percentage, goals_conceded_per90 |
+| Luis Vásquez | Colombia Categoria Primera A | 95.4 | 7 | 0.84 | inside_box_saves_per90, goals_conceded_per90, passes_per90 | clean_sheet_percentage, pass_completion |
+| Salvador Ichazo Fernández | Colombia Categoria Primera A | 94.0 | 7 | 0.92 | inside_box_saves_per90, clean_sheet_percentage, save_percentage | passes_per90, pass_completion |
+| Jong-Bum Baek | South Korea K League 1 | 92.1 | 7 | 0.94 | saves_per90, save_percentage, passes_per90 | clean_sheet_percentage, pass_completion |
+| Joakim Milli | Canada Canadian Premier League | 91.4 | 7 | 0.74 | pass_completion, goals_conceded_per90, save_percentage | clean_sheet_percentage, passes_per90 |
+
+### Jong-Bum Baek — GK, South Korea K League 1
 
 2250 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Eetu Huuhtanen | Finland Veikkausliiga | 95.2 | 7 | 0.76 | saves_per90, pass_completion, save_percentage | goals_conceded_per90, clean_sheet_percentage |
-| Albert Posiadala | Norway Eliteserien | 85.9 | 7 | 0.88 | pass_completion, passes_per90, inside_box_saves_per90 | save_percentage, clean_sheet_percentage |
-| Johannes Kreidl | Finland Veikkausliiga | 74.1 | 7 | 0.97 | inside_box_saves_per90, saves_per90, pass_completion | clean_sheet_percentage, save_percentage |
-| Nathan Ingham | Canada Canadian Premier League | 72.4 | 7 | 0.84 | pass_completion, passes_per90, clean_sheet_percentage | saves_per90, save_percentage |
-| Sergio Rochet Álvarez | Brazil Serie A | 71.0 | 7 | 0.94 | saves_per90, clean_sheet_percentage, passes_per90 | save_percentage, pass_completion |
+| Dong-heon Kim | South Korea K League 1 | 97.7 | 7 | 0.88 | passes_per90, goals_conceded_per90, saves_per90 | inside_box_saves_per90, pass_completion |
+| In-jae Hwang | South Korea K League 1 | 96.7 | 7 | 0.90 | saves_per90, inside_box_saves_per90, save_percentage | goals_conceded_per90, clean_sheet_percentage |
+| Hyun-Woo Cho | South Korea K League 1 | 92.1 | 7 | 0.94 | saves_per90, save_percentage, passes_per90 | clean_sheet_percentage, pass_completion |
+| Dianzuo Liu | China Chinese Super League | 91.8 | 7 | 0.44 ⚠ | clean_sheet_percentage, goals_conceded_per90, pass_completion | inside_box_saves_per90, passes_per90 |
+| Kyung-Min Kim | South Korea K League 1 | 89.6 | 7 | 0.90 | passes_per90, save_percentage, saves_per90 | pass_completion, goals_conceded_per90 |
 
-### Qinghao Xue — GK, China Chinese Super League
+### Wellington Silva — WINGER, China Chinese Super League
 
-2250 minutes.
+2193 minutes.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Salvador Ichazo Fernández | Colombia Categoria Primera A | 82.6 | 7 | 0.37 ⚠ | pass_completion, goals_conceded_per90, save_percentage | inside_box_saves_per90, saves_per90 |
-| Luis Vásquez | Colombia Categoria Primera A | 80.8 | 7 | 0.46 ⚠ | goals_conceded_per90, save_percentage, pass_completion | passes_per90, saves_per90 |
-| Oscar Hedvall | Norway Eliteserien | 80.6 | 7 | 0.63 | passes_per90, saves_per90, pass_completion | inside_box_saves_per90, goals_conceded_per90 |
-| Jacob Pryts Larsen | Norway Eliteserien | 76.5 | 7 | 0.36 ⚠ | save_percentage, passes_per90, inside_box_saves_per90 | saves_per90, pass_completion |
-| Sergio Rochet Álvarez | Brazil Serie A | 60.6 | 7 | 0.51 ⚠ | pass_completion, save_percentage, clean_sheet_percentage | inside_box_saves_per90, saves_per90 |
+| Shihao Wei | China Chinese Super League | 94.0 | 10 | 0.95 | successful_dribbles_per90, non_penalty_goals_per90, dispossessed_per90 | dribble_success_percentage, shots_per90 |
+| Alexandru Cîmpanu | China Chinese Super League | 84.0 | 10 | 0.98 | fouls_drawn_per90, npxg_per90, dispossessed_per90 | dribble_success_percentage, key_passes_per90 |
+| Miguel Almirón | USA MLS | 81.9 | 10 | 0.77 | crosses_per90, npxg_per90, successful_dribbles_per90 | non_penalty_goals_per90, key_passes_per90 |
+| Jeffinho | China Chinese Super League | 77.9 | 10 | 0.72 | dribble_success_percentage, key_passes_per90, non_penalty_goals_per90 | dispossessed_per90, crosses_per90 |
+| Tomás Cuello | Brazil Serie A | 70.7 | 10 | 0.90 | successful_dribbles_per90, npxg_per90, shots_per90 | xa_per90, dribble_success_percentage |
 
 ### Shihao Wei — WINGER, China Chinese Super League
 
@@ -132,16 +203,11 @@ middling one with the same profile point the same way.
 
 | Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| Evangelos Patoulidis | Norway Eliteserien | 80.5 | 10 | 0.90 | dribble_success_percentage, fouls_drawn_per90, successful_dribbles_per90 | shots_per90, xa_per90 |
-| Alexandru Cîmpanu | China Chinese Super League | 78.4 | 10 | 0.97 | crosses_per90, key_passes_per90, shots_per90 | xa_per90, non_penalty_goals_per90 |
-
-### Valeri Qazaishvili — WINGER, China Chinese Super League
-
-2110 minutes.
-
-| Similar to | Competition | Index | Shared | Strength | Closest on | Furthest on |
-| --- | --- | ---: | ---: | ---: | --- | --- |
-| Sander Kilen | Norway Eliteserien | 67.0 | 10 | 0.71 | dispossessed_per90, npxg_per90, successful_dribbles_per90 | xa_per90, fouls_drawn_per90 |
+| Wellington Silva | China Chinese Super League | 94.0 | 10 | 0.95 | successful_dribbles_per90, non_penalty_goals_per90, dispossessed_per90 | dribble_success_percentage, shots_per90 |
+| Alexandru Cîmpanu | China Chinese Super League | 90.1 | 10 | 0.97 | npxg_per90, shots_per90, dispossessed_per90 | non_penalty_goals_per90, xa_per90 |
+| Zavier Gozo | USA MLS | 80.2 | 10 | 1.00 | dispossessed_per90, shots_per90, non_penalty_goals_per90 | fouls_drawn_per90, crosses_per90 |
+| Miguel Almirón | USA MLS | 77.5 | 10 | 0.82 | successful_dribbles_per90, shots_per90, crosses_per90 | key_passes_per90, non_penalty_goals_per90 |
+| Tomás Cuello | Brazil Serie A | 76.8 | 10 | 0.86 | successful_dribbles_per90, npxg_per90, shots_per90 | dribble_success_percentage, crosses_per90 |
 
 ⚠ marks a pair that matches in shape but not in level: the profiles
 point the same way, one is simply further along it. Recruiting on shape

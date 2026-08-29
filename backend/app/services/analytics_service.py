@@ -247,6 +247,10 @@ def build_view(settings: Settings) -> AnalyticsView:
     player_metrics: dict[str, PlayerMetrics] = {}
 
     skipped_no_position = 0
+    #: Player-seasons belonging to a player who has more than one. Every one of
+    #: them still shapes the comparison populations; only the row the site shows
+    #: is chosen between.
+    superseded = 0
 
     for loaded in universe.players:
         if loaded.position_group is None:
@@ -287,6 +291,34 @@ def build_view(settings: Settings) -> AnalyticsView:
             metrics=metrics,
             comparable_season=loaded.comparable_season or loaded.stats.season_id,
         )
+        # A player can hold several player-seasons at once - a domestic league
+        # and a cup, or a league and a continental competition. The view shows
+        # one row per player, so one has to be chosen, and until now it was
+        # whichever happened to be read last: 133 of 8,701 player-seasons were
+        # discarded by insertion order, and a player with 184 league minutes
+        # could be represented by their 9 minutes in the Champions League.
+        #
+        # The season with the most minutes played is the one that describes the
+        # player. Ties break on competition id so the choice is stable across
+        # runs rather than merely deterministic within one.
+        existing = view.players.get(record.player_key)
+        if existing is not None:
+            superseded += 1
+            incumbent = (existing.minutes or 0, existing.competition_id)
+            challenger = (record.minutes or 0, record.competition_id)
+            if challenger <= incumbent:
+                view.competitions[record.competition_id] = record.competition_name
+                population.append(
+                    PlayerMetrics(
+                        player_key=record.player_key,
+                        position_group=record.position_group,
+                        competition_id=record.competition_id,
+                        season_id=record.comparable_season,
+                        metrics=metrics,
+                    )
+                )
+                continue
+
         view.players[record.player_key] = record
         view.competitions[record.competition_id] = record.competition_name
 
@@ -312,6 +344,13 @@ def build_view(settings: Settings) -> AnalyticsView:
             market_value_eur=record.market_value_eur,
             contract_expires=record.contract_expires,
             nationality=record.nationality,
+        )
+
+    if superseded:
+        log.info(
+            "player_seasons_superseded",
+            count=superseded,
+            note="players with more than one competition; the most-played season is shown",
         )
 
     view.players_without_position = skipped_no_position
