@@ -245,16 +245,42 @@ def engine_for(population: list[PlayerMetrics]) -> RoleEngine:
     return RoleEngine(IntelligenceScoreEngine(percentiles, get_definitions()))
 
 
+#: Metrics the specification names that the provider does not supply, and what
+#: stands in for them. Every entry is a declared deviation carrying a caveat on
+#: the role itself - see docs/methodology.md.
+DECLARED_SUBSTITUTIONS = {"successful_tackles_per90": "tackles_per90"}
+
+
 class TestConfiguration:
     def test_all_fifteen_roles_are_defined(self) -> None:
         assert len(get_roles()) == 15
 
     def test_configured_metric_weights_match_the_specification(self) -> None:
+        """One deviation is allowed and named: the specification weights
+        `successful_tackles_per90`, which FootyStats declares and never
+        populates. Listing it here rather than editing `SPEC_ROLES` keeps the
+        transcription faithful to the specification, so any *other* divergence
+        still fails this test."""
         roles = get_roles()
         for key, (_, expected) in SPEC_ROLES.items():
             assert key in roles, f"missing role: {key}"
             actual = {m.value: w for m, w in roles[key].metric_weights.items()}
-            assert actual == expected, key
+            assert actual == {
+                DECLARED_SUBSTITUTIONS.get(metric, metric): weight
+                for metric, weight in expected.items()
+            }, key
+
+    def test_every_substituted_role_says_so_on_its_own_figure(self) -> None:
+        """A role built on a stand-in must carry the caveat, or the deviation is
+        invisible to the person reading the number."""
+        for key, role in get_roles().items():
+            uses_stand_in = any(
+                m.value in DECLARED_SUBSTITUTIONS.values() for m in role.metric_weights
+            )
+            if not uses_stand_in:
+                continue
+            assert role.caveat, key
+            assert "not tackles won" in role.caveat.lower(), key
 
     def test_score_components_match_the_specification(self) -> None:
         """Only the Ball-Winning Midfielder is built partly from an

@@ -76,6 +76,13 @@ SPEC_WEIGHTS: dict[str, dict[str, float]] = {
 }
 
 
+#: Metrics the specification names that the provider does not supply, and what
+#: is used in their place. Every entry is a declared deviation carrying a caveat
+#: on the score itself - see docs/methodology.md. Adding one here without the
+#: caveat is caught by the test below.
+DECLARED_SUBSTITUTIONS = {"successful_tackles_per90": "tackles_per90"}
+
+
 def player(key: str, *, minutes: int = 2000, **metrics: float) -> PlayerMetrics:
     return PlayerMetrics(
         player_key=key,
@@ -93,12 +100,31 @@ def spread(metric: str, count: int = 20) -> list[PlayerMetrics]:
 
 class TestConfiguration:
     def test_the_configured_weights_match_the_specification(self) -> None:
-        """Transcribed from the spec separately; a typo in the YAML shows here."""
+        """Transcribed from the spec separately; a typo in the YAML shows here.
+
+        One deviation is allowed and named: the specification weights
+        `successful_tackles_per90`, which FootyStats declares and never
+        populates, so Defensive Activity could be produced for nobody. The
+        substitution is listed here rather than written into `SPEC_WEIGHTS`, so
+        the transcription still says what the specification says and any *other*
+        divergence still fails.
+        """
         definitions = get_definitions()
         for key, expected in SPEC_WEIGHTS.items():
             assert key in definitions, f"missing score: {key}"
             actual = {m.value: w for m, w in definitions[key].components.items()}
-            assert actual == expected, key
+            assert actual == {
+                DECLARED_SUBSTITUTIONS.get(metric, metric): weight
+                for metric, weight in expected.items()
+            }, key
+
+    def test_the_substituted_score_says_so_on_every_figure(self) -> None:
+        """A deviation nobody is told about is the substitution the project
+        forbids. The caveat travels with the score to the page."""
+        caveat = get_definitions()["defensive_activity"].caveat
+        assert caveat
+        assert "attempted" in caveat.lower()
+        assert "not tackles won" in caveat.lower()
 
     def test_every_configured_score_is_one_the_spec_defines(self) -> None:
         """Guards against a score being added to config without a definition

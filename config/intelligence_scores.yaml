@@ -68,11 +68,19 @@ scores:
     description: >-
       Volume of defensive actions. Measures how much a player does out of
       possession, not how well their team defends.
+    # The specification names Successful Tackles /90 here. FootyStats declares
+    # that field and leaves it null in every one of the 10,464 sampled records
+    # that carry it, so the score could not be produced for anyone. Tackles
+    # attempted is supplied and complete, and this score is explicitly about
+    # volume - but attempts are not successes, and the caveat says so wherever
+    # the number appears.
     components:
-      successful_tackles_per90: 35
+      tackles_per90: 35
       interceptions_per90: 35
       blocks_per90: 15
       duels_won_per90: 15
+    caveat: >-
+      Uses tackles attempted, not tackles won: FootyStats declares a successful-tackles field and never populates it. Volume of attempts is not the same as winning the ball - a player who tackles often and fails often reads the same here as one who succeeds.
 
   duel_dominance:
     label: Duel Dominance
