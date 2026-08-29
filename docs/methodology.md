@@ -316,6 +316,21 @@ that has not been refreshed in over a week.
 
 ---
 
+## How the published numbers are checked
+
+Every percentile, intelligence score and role score is recomputed from the raw
+season totals by code that does not call the analytics engines, and the two
+answers are compared. A disagreement fails the scheduled pipeline.
+
+This matters more than an ordinary test because the failure it guards against is
+silent. A percentile computed against the wrong comparison population, or a
+per-90 divided by the wrong minutes, produces a number that looks exactly like a
+correct one. Nothing downstream can tell, and neither can a reader.
+
+The recomputation is deliberately naive - it counts comparisons one at a time
+where the engine bisects a sorted list - so that the two cannot share a mistake.
+`docs/analytics_validation.md` shows the working for every check.
+
 ## Scores and roles the data cannot support
 
 Three of the eight intelligence scores and six of the fifteen roles are not
