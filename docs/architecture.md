@@ -2156,12 +2156,13 @@ when the weight surviving its absent components falls below its own
 absence costs them a caveat rather than their existence, and blaming the
 provider wherever a component happened to be missing would write those off.
 
-Everything else is sample size. On the ten competitions loaded so far, only 8
-of 37 comparison cells - a position group within a competition - reach the ten
-players a percentile needs, and the median cell holds five. That is why four
-roles and most scores currently produce for a minority of players, and it
-resolves as the remaining competitions arrive. Reading it as a data quality
-verdict would write off features that work.
+Everything else is sample size. A percentile needs ten comparable
+player-seasons within one competition and position group, and a partly-loaded
+ingest does not fill one: on the first ten competitions, only 8 of 37 such
+cells reached ten players and the median held five. Four roles were withheld
+for that reason alone - and all four came back once 37 competitions were
+loaded, while every provider-attributed one stayed withheld. Reading the two as
+the same thing would have written off features that work.
 
 ### Coverage is judged where a metric belongs
 
@@ -2219,6 +2220,46 @@ close to a hundred per cent agreement while comparing almost no numbers at all,
 because the outfield metrics and every intelligence score are rightly empty for
 them. Reporting that as validation would be flattering the engine with its own
 silence.
+
+### What it found
+
+Measured over 60 real players drawn across all eight position groups: **1,089
+figures recomputed, 676 of them comparing an actual number on both sides, and
+every one agreeing** - 253 per-90 rates, 242 percentiles, 114 intelligence
+scores and 67 role scores.
+
+The first run did not agree. Five percentiles for one midfielder came out two
+or three points apart, and every one of the five had the same shape: the
+engine had ranked him against thirteen players, the recomputation against
+fourteen.
+
+The extra player was one whose statistics cover fewer minutes than he spent on
+the pitch. The engine decides who shapes a distribution on **the minutes the
+statistics cover**; the recomputation had used minutes played. The engine was
+right, and the check was wrong.
+
+That is worth keeping rather than quietly fixing. Two defensible readings of
+"minutes" exist in this data - it is the same ambiguity that produced the
+`recorded_minutes` field in the first place - and a check that reaches for the
+obvious one will disagree with a correct engine and look like a bug in it. The
+recomputation now states which reading governs, in a comment that says why.
+
+### The Phase 16 classification, tested by more data
+
+Phase 16 split withheld features into two kinds and predicted which would
+recover: those missing an input the provider does not supply, and those merely
+short of comparable players.
+
+Loading 37 competitions instead of 10 settled it. Every feature the report
+attributed to sample size now produces - `advanced_playmaker`, `poacher`,
+`complete_forward`, `target_forward` - and every feature attributed to the
+provider is still withheld, with the same arithmetic behind it. The prediction
+was made before the data arrived to test it.
+
+Scores still reach only about a quarter of players, because a percentile needs
+ten comparable player-seasons within one competition and position group, and
+only 515 player-seasons currently clear 450 covered minutes. That number grows
+with every competition the ingest finishes.
 
 ### Goalkeepers get no intelligence scores, and should not
 

@@ -123,6 +123,23 @@ def independent_per90(
     return total / denominator * 90.0
 
 
+def eligible_minutes(recorded: int | None, minutes: int | None) -> int | None:
+    """The minutes that decide whether a player-season shapes a distribution.
+
+    The minutes the statistics cover, not time on the pitch. The sample-size
+    rule exists to stop a ranking resting on too little evidence, and the
+    evidence is those minutes - a player who was on the pitch for 600 but whose
+    detailed statistics cover 300 has 300 minutes of evidence.
+
+    This check originally used minutes played and disagreed with the engine on
+    exactly one player in a fourteen-player population, which moved five of his
+    percentiles by two or three points. The engine was right. Two defensible
+    readings of "minutes" exist and the model states which one governs, so the
+    recomputation has to state it too rather than pick the obvious one.
+    """
+    return recorded if recorded is not None else minutes
+
+
 def independent_percentile(value: float, population: list[float]) -> float:
     """Mid-rank percentile, counted rather than bisected.
 
@@ -251,7 +268,8 @@ def main(argv: list[str] | None = None) -> int:
 
     populations: dict[tuple, list[float]] = {}
     for stats, player in rows:
-        if stats.minutes is None or stats.minutes < LOW_SAMPLE_MINUTES:
+        evidence = eligible_minutes(stats.recorded_minutes, stats.minutes)
+        if evidence is None or evidence < LOW_SAMPLE_MINUTES:
             continue
         for metric in metrics_to_check:
             value = independent_per90(
@@ -267,8 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     candidates = [
         (stats, player)
         for stats, player in rows
-        if stats.minutes
-        and stats.minutes >= LOW_SAMPLE_MINUTES
+        if (eligible_minutes(stats.recorded_minutes, stats.minutes) or 0) >= LOW_SAMPLE_MINUTES
         and len(
             populations.get(
                 (metrics_to_check[0], player.position_group, stats.season_id, stats.competition_id),
