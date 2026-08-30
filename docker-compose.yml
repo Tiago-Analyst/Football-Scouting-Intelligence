@@ -32,8 +32,10 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # The repository root: the image copies `config/`, which is not inside
+      # `backend/`, and Docker cannot reach outside its build context.
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: fri-backend
     restart: unless-stopped
     depends_on:

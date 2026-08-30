@@ -28,11 +28,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.core import paths
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 SNAPSHOT_DIR = REPO_ROOT / "data" / "raw" / "footystats" / "snapshots"
 
 

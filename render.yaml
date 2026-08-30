@@ -27,7 +27,9 @@ services:
     name: fri-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    # The repository root, not `backend/`: the image needs `config/`, which sits
+    # beside it, and Docker cannot copy from outside its context.
+    dockerContext: .
     plan: free
     region: frankfurt
     branch: main

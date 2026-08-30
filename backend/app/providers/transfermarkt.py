@@ -31,6 +31,7 @@ from typing import Any
 
 import yaml
 
+from app.core import paths
 from app.core.logging import get_logger
 from app.providers.market_base import (
     DataQualityIssue,
@@ -51,7 +52,7 @@ from app.schemas.market import (
 
 log = get_logger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 DEFAULT_TABLES_DIR = REPO_ROOT / "data" / "raw" / "transfermarkt" / "tables"
 DEFAULT_MANIFEST = (
     REPO_ROOT / "data" / "raw" / "transfermarkt" / "transfermarkt-datasets.manifest.json"

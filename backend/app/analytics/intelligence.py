@@ -36,8 +36,9 @@ from app.analytics.percentiles import (
     PlayerMetrics,
 )
 from app.analytics.scoring import ScoreComponent, ScoreResult, weighted_score
+from app.core import paths
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "intelligence_scores.yaml"
 
 
