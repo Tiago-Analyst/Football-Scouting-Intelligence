@@ -9,12 +9,12 @@ Nothing here has been deployed. This is the preparation, tested locally.
 
 ## Before anything: two decisions that are not mine to make
 
-**1. The licence.** `LICENSE` is a placeholder reading "all rights reserved, no
-permission granted". Deploying a public site under it is a contradiction — you
-would be publishing something nobody, including you, has been granted permission
-to use. Choose one before the site is public. Specification section 29 also
-requires provider licensing to be reviewed before any commercial use, and both
-FootyStats and the Transfermarkt dataset carry terms.
+**1. The licence.** Decided: source available, not open source. The repository
+is public so the work can be read, and no permission to use it is granted. See
+`LICENSE`, which also states plainly that it governs this project's code and
+grants nothing over provider data. Specification section 29 still requires
+FootyStats and Transfermarkt licensing to be reviewed before any commercial
+use; that is separate and remains open.
 
 **2. The hosting target.** Chosen: **Vercel** for the frontend, **Render** for
 the backend container, **Neon** for PostgreSQL - the arrangement the
@@ -173,9 +173,9 @@ repository is the sane default.
 **The branch is `main`,** which is what `render.yaml` deploys from and what
 GitHub will expect.
 
-**The licence is still a placeholder.** `LICENSE` reads "all rights reserved, no
-permission granted". That is a coherent position for a private deployment and an
-odd one to publish under; it is worth replacing with something you mean.
+**The licence says what it means.** Source available, not open source: public
+to be read, no permission to use. The provider terms are a separate question
+and still unreviewed.
 
 ### 1. Neon
 
