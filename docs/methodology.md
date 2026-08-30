@@ -331,6 +331,16 @@ The recomputation is deliberately naive - it counts comparisons one at a time
 where the engine bisects a sorted list - so that the two cannot share a mistake.
 `docs/analytics_validation.md` shows the working for every check.
 
+## Market history comes from the load, not from a second source
+
+Valuation history and transfers are read from the same database as every other
+figure. They used to be fetched from the Transfermarkt snapshot at request
+time, which meant the page could disagree with the data it was loaded from.
+
+Market fit is affordability against a stated budget, not value for money: a
+cheaper player fits a fixed budget better, and that says nothing about whether
+they are worth it.
+
 ## Comparison populations pool a season, not a provider's season id
 
 A percentile compares a player with others in the same position group and the
