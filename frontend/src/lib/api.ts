@@ -13,7 +13,20 @@ import "server-only";
 
 import type { ApiErrorBody } from "@/types/api";
 
-const DEFAULT_TIMEOUT_MS = 8_000;
+/**
+ * How long to wait for the API.
+ *
+ * Eight seconds was too short for the deployment this actually runs on. The
+ * backend sits on a free tier that sleeps after fifteen minutes idle and takes
+ * roughly fifty to wake, so the first request after a quiet spell timed out -
+ * and every caller turned that into "there is nothing here". A visitor was
+ * told a real footballer did not exist because the server was asleep.
+ *
+ * Thirty seconds covers a warm backend comfortably and most of a cold start.
+ * What it cannot cover now fails honestly rather than quietly: see
+ * `nullIfMissing` in `players.ts`.
+ */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   constructor(
