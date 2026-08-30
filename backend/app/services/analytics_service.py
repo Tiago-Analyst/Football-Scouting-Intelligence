@@ -49,8 +49,6 @@ from app.analytics.similarity import (
 from app.core.config import AppMode, Settings, get_settings
 from app.core.database import get_session_factory
 from app.core.logging import get_logger
-from app.providers.market_base import MarketDataProvider
-from app.providers.registry import build_market_provider
 from app.repositories.analytics_repository import (
     UniverseFingerprint,
     fingerprint,
@@ -112,7 +110,6 @@ class AnalyticsView:
     intelligence: IntelligenceScoreEngine | None = None
     roles: RoleEngine | None = None
     similarity: SimilarityEngine | None = None
-    market: MarketDataProvider | None = None
     #: Best role per player, precomputed because player search shows it in a
     #: column and computing it per row would make the list quadratic.
     best_roles: dict[str, RoleFit] = field(default_factory=dict)
@@ -219,17 +216,11 @@ def build_view(settings: Settings) -> AnalyticsView:
     started = time.perf_counter()
     today = reference_date()
 
-    # The market provider stays: valuation history and transfers are served per
-    # player rather than held in the view. Everything the *view* needs now comes
-    # from the database.
-    market = build_market_provider(settings)
-
     with get_session_factory()() as session:
         loaded_fingerprint = fingerprint(session)
         universe = load_universe(session)
 
     view = AnalyticsView(
-        market=market,
         is_mock=settings.app_mode is AppMode.DEMO,
         sources=universe.sources,
         fingerprint=loaded_fingerprint,
