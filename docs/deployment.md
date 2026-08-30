@@ -222,7 +222,19 @@ python -m pipelines.load.load_providers --source transfermarkt --replace --verif
 python -m pipelines.footystats.ingest --resume        # hours; resumable
 python -m pipelines.load.load_providers --source footystats --replace --verify
 python -m pipelines.identity_resolution.resolve --apply
+python -m pipelines.load.prune --apply
 ```
+
+The prune is last for a reason. It deletes the valuation history and transfers
+of players who appear in no covered competition - four fifths of what the
+Transfermarkt dataset carries, and nothing any page can reach. Run before
+identity resolution it would find *everything* unused, because the two sources
+are still separate rows until then; it refuses rather than letting that happen.
+
+It takes the database from 247 MB to 75 MB, which is the difference between
+half of a free tier's storage and a fifth of it. The 45,000 players themselves
+stay: they are the pool every future ingest matches against, and a smaller pool
+is a lower match rate.
 
 Skipping the load is not a silent failure: `/health` reports
 `analytics: unavailable` and answers 503 until one has run.
