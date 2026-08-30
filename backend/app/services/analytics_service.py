@@ -38,7 +38,7 @@ from app.analytics.percentiles import (
     PlayerMetrics,
 )
 from app.analytics.roles import RoleEngine, RoleFit
-from app.analytics.sample import SampleBand, classify_minutes
+from app.analytics.sample import LOW_SAMPLE_MINUTES, SampleBand, classify_minutes
 from app.analytics.similarity import (
     MINIMUM_SIMILARITY,
     SimilarityCandidate,
@@ -187,7 +187,9 @@ class AnalyticsView:
         *,
         filters: SimilarityFilters | None = None,
         limit: int = 20,
-        minimum_minutes: int | None = 900,
+        # The rankability floor, not a stricter one invented here. Callers
+        # that want a different bar pass it; nobody inherits 900 by accident.
+        minimum_minutes: int | None = LOW_SAMPLE_MINUTES,
         minimum_similarity: float = MINIMUM_SIMILARITY,
     ) -> list[SimilarityResult]:
         if self.similarity is None:

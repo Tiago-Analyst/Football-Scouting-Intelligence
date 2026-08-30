@@ -15,7 +15,7 @@ from app.analytics.intelligence import IntelligenceScore
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
 from app.analytics.roles import RoleScore
-from app.analytics.sample import SAMPLE_BAND_COPY
+from app.analytics.sample import LOW_SAMPLE_MINUTES, SAMPLE_BAND_COPY
 from app.analytics.similarity import SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
@@ -360,7 +360,11 @@ def get_similar_players(
     exclude_same_club: bool = False,
     younger_only: bool = False,
     contract_within_months: int | None = Query(default=None, ge=0, le=120),
-    minutes_min: int = Query(default=900, ge=0),
+    # The rankability floor the rest of the system uses, not a stricter one
+    # invented here. Similarity asserts a resemblance, so it keeps a floor -
+    # a profile built on 90 minutes is noise with a number beside it - but 900
+    # excluded every competition whose season had just started.
+    minutes_min: int = Query(default=LOW_SAMPLE_MINUTES, ge=0),
 ) -> SimilarPlayersResponse:
     from app.analytics.similarity import SIMILARITY_MEANING
 

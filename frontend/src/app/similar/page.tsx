@@ -23,7 +23,10 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
   const search = first(params.search);
 
   if (!playerId) {
-    const results = search ? await searchPlayers({ search, minutes_min: 900, limit: 15 }) : null;
+    // No minutes floor: this is a name lookup, not a ranking. Filtering it
+    // hid players the search page had just shown - Victor Froholdt was
+    // findable in one place and not the other, with nothing to explain why.
+    const results = search ? await searchPlayers({ search, limit: 15 }) : null;
     return (
       <div className="max-w-2xl space-y-8">
         <PageHeader

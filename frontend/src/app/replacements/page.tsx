@@ -26,7 +26,7 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
   if (!playerId) {
     const results =
       search || club
-        ? await searchPlayers({ search, club, minutes_min: 900, limit: 20 })
+        ? await searchPlayers({ search, club, limit: 20 })
         : null;
     const competitions = await getCompetitions();
 
