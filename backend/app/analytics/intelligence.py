@@ -154,6 +154,25 @@ def get_definitions() -> dict[str, ScoreDefinition]:
     return load_definitions()
 
 
+def widest_context(results):  # type: ignore[no-untyped-def]
+    """The comparison population a composite was actually measured against.
+
+    Taking the first component's context was near enough while every component
+    shared one. It stopped being true when a percentile with too few peers in
+    its own competition began widening to every loaded league instead of
+    refusing: a score can now rest on a mix, and reporting only the narrowest
+    of them would describe a comparison that did not happen.
+
+    So the widest wins. A composite that leant on a cross-league population
+    anywhere reports that scope, and carries the caveat that goes with it -
+    understating the reach of a comparison is the direction that misleads.
+    """
+    contexts = [r.context for r in results if r is not None and r.percentile is not None]
+    if not contexts:
+        return None
+    return max(contexts, key=lambda c: (len(c.competition_ids), c.population_size))
+
+
 class IntelligenceScoreEngine:
     """Computes intelligence scores for players against a percentile engine."""
 
@@ -197,7 +216,7 @@ class IntelligenceScoreEngine:
 
         # Every component shares a context by construction: they were ranked in
         # one call with one scope and one position group.
-        context = ranked[metrics[0]].context
+        context = widest_context(ranked.values()) or ranked[metrics[0]].context
 
         return IntelligenceScore(
             key=definition.key,
