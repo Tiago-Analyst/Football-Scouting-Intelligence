@@ -237,7 +237,7 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
                   </span>{" "}
                   players match · showing the top {results.items.length}
                 </p>
-                <Badge tone="warning">Demo data</Badge>
+                {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
               </div>
 
               {results.unavailable_scores.length > 0 ? (

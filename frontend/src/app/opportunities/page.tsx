@@ -138,7 +138,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                 </span>{" "}
                 players meet these criteria
               </p>
-              <Badge tone="warning">Demo data</Badge>
+              {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
             </div>
 
             <Callout tone="warning" title="Not a valuation model">

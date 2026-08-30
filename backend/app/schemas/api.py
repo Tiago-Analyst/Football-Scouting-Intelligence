@@ -117,6 +117,15 @@ class PlayerListResponse(BaseModel):
     total: int
     offset: int
     limit: int
+    #: Whether these results are fabricated.
+    #:
+    #: A deployment serves one or the other - fabricated data may not share a
+    #: database with real data - so this is a property of the response rather
+    #: than of each row. Three pages hardcoded a "Demo data" badge instead, and
+    #: went on showing it once the data was real: a warning that is always on is
+    #: a warning nobody reads, and this one was telling a recruiter that real
+    #: footballers were invented.
+    is_mock: bool = False
 
 
 class PlayerStatsResponse(BaseModel):
@@ -238,6 +247,15 @@ class RecruitmentResponse(BaseModel):
     #: recruiter would reasonably narrow their filters in response to the
     #: second - which can never help.
     explanation: str | None = None
+    #: Whether these results are fabricated.
+    #:
+    #: A deployment serves one or the other - fabricated data may not share a
+    #: database with real data - so this is a property of the response rather
+    #: than of each row. Three pages hardcoded a "Demo data" badge instead, and
+    #: went on showing it once the data was real: a warning that is always on is
+    #: a warning nobody reads, and this one was telling a recruiter that real
+    #: footballers were invented.
+    is_mock: bool = False
 
 
 class ReplacementRequest(BaseModel):
@@ -291,6 +309,15 @@ class OpportunitiesResponse(BaseModel):
     funnel: list[ScreenStepOut] = Field(default_factory=list)
     #: Present when the result is small enough to need accounting for.
     explanation: str | None = None
+    #: Whether these results are fabricated.
+    #:
+    #: A deployment serves one or the other - fabricated data may not share a
+    #: database with real data - so this is a property of the response rather
+    #: than of each row. Three pages hardcoded a "Demo data" badge instead, and
+    #: went on showing it once the data was real: a warning that is always on is
+    #: a warning nobody reads, and this one was telling a recruiter that real
+    #: footballers were invented.
+    is_mock: bool = False
 
 
 # ---------------------------------------------------------------------------
