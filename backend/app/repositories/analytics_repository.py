@@ -160,7 +160,28 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
         row.season_id: str(row.start_year) for row in session.scalars(select(DimSeason)).all()
     }
 
-    players_by_id = {row.player_id: row for row in session.scalars(select(DimPlayer)).all()}
+    statement = select(FactPlayerSeasonStats)
+    if source is not None:
+        statement = statement.where(FactPlayerSeasonStats.source == source)
+
+    # Only the players who actually have statistics.
+    #
+    # This used to read every row of `dim_player` and `bridge_player_source` -
+    # 53,591 and 58,724 of them - to use the 8,568 that carry a player-season.
+    # The other 45,000 are the pool identity resolution matches against, and
+    # they belong in the database rather than in the process serving the site.
+    #
+    # It was merely wasteful until the percentile population stopped excluding
+    # short seasons, which grew everything else; together they took the build
+    # peak past what a 512 MB container will bear, and the process was killed
+    # partway through - visible only as the API returning 502 to every request
+    # while its liveness probe, which builds nothing, went on answering.
+    with_stats = statement.with_only_columns(FactPlayerSeasonStats.player_id).distinct()
+
+    players_by_id = {
+        row.player_id: row
+        for row in session.scalars(select(DimPlayer).where(DimPlayer.player_id.in_(with_stats)))
+    }
 
     # The provider's own identifier, which is what the rest of the system uses
     # as a player key. Not the database's integer id: that is an implementation
@@ -168,12 +189,10 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
     # shortlist entry saved against the old key.
     source_keys = {
         (row.source, row.player_id): row.source_player_id
-        for row in session.scalars(select(BridgePlayerSource)).all()
+        for row in session.scalars(
+            select(BridgePlayerSource).where(BridgePlayerSource.player_id.in_(with_stats))
+        )
     }
-
-    statement = select(FactPlayerSeasonStats)
-    if source is not None:
-        statement = statement.where(FactPlayerSeasonStats.source == source)
 
     loaded: list[LoadedPlayer] = []
     sources: set[str] = set()
