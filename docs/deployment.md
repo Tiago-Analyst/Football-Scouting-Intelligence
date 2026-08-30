@@ -170,8 +170,8 @@ GitHub. That is a decision as much as a step - it puts the FootyStats mapping,
 the analytical definitions and this documentation somewhere else - so a private
 repository is the sane default.
 
-**The branch is `master`.** `render.yaml` says `branch: master` to match. If you
-rename it to `main`, change it there too.
+**The branch is `main`,** which is what `render.yaml` deploys from and what
+GitHub will expect.
 
 **The licence is still a placeholder.** `LICENSE` reads "all rights reserved, no
 permission granted". That is a coherent position for a private deployment and an
