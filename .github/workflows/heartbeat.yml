@@ -1,0 +1,74 @@
+# Keeps the API awake, and notices when it is not well.
+#
+# The backend runs on a free tier that sleeps after fifteen minutes idle and
+# takes roughly fifty seconds to wake. A visitor arriving after a quiet spell
+# waits through that, and until recently was told the player they clicked did
+# not exist. Ten-minute intervals keep it inside the window.
+#
+# It checks `/health` rather than `/health/live`. Render already probes the
+# liveness endpoint, which deliberately never touches the database - so
+# repeating it here would tell us only what the platform already knows.
+# `/health` answers 503 when Postgres is unreachable or no data has been
+# loaded, which is what someone would actually want waking them.
+#
+# Two things worth knowing about GitHub's schedules:
+#
+#   - they are not punctual. Runs are queued at low priority and can arrive
+#     several minutes late, so treat ten minutes as approximate;
+#   - GitHub disables scheduled workflows after 60 days without a commit to
+#     the repository. If this stops firing, that is the first thing to check.
+#
+# Free and unmetered only because this repository is public. On a private one
+# this cadence would cost roughly 4,300 Actions minutes a month against a
+# 2,000-minute allowance - more than paying for a backend that never sleeps.
+
+name: Heartbeat
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  # So a person can ask the question immediately rather than waiting for the
+  # next tick.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A slow answer must not queue up behind the next tick. Skip rather than
+  # pile up: a heartbeat that stampedes is worse than one that misses a beat.
+  group: heartbeat
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the API how it is
+        run: |
+          set -o pipefail
+
+          # Generous, and deliberately so: a cold start takes about fifty
+          # seconds, and timing out during one would report the wake-up as an
+          # outage. The retries cover a wake that runs long rather than a
+          # service that is actually down - three attempts, two minutes total.
+          body=$(curl --silent --show-error --location \
+                      --max-time 90 --retry 2 --retry-delay 15 --retry-all-errors \
+                      --write-out '\n%{http_code}' \
+                      https://fri-backend.onrender.com/health) || {
+            echo "::error::The API did not answer at all."
+            exit 1
+          }
+
+          status=$(echo "$body" | tail -n 1)
+          payload=$(echo "$body" | sed '$d')
+
+          echo "HTTP $status"
+          echo "$payload"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::/health answered $status. The service is up but not well - \
+          the payload above says which dependency is unhappy."
+            exit 1
+          fi
