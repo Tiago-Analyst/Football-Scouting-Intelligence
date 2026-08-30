@@ -31,9 +31,18 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Emits a self-contained server bundle, so the container does not ship
-  // node_modules. Ignored by platforms that build Next themselves.
-  output: "standalone",
+  // Emits a self-contained server bundle so the container does not ship
+  // node_modules, and `frontend/Dockerfile` can run `node server.js`.
+  //
+  // Off on Vercel, which builds Next itself. The comment here used to claim
+  // such platforms ignore this setting; they do not. Standalone moves the file
+  // tracing output, and Vercel's final step then fails on a missing
+  // `.next/next-server.js.nft.json` - a build error that says nothing about
+  // the option that caused it.
+  //
+  // `VERCEL` is set in their build environment, so the container keeps the
+  // bundle it needs and Vercel gets the layout it expects.
+  output: process.env.VERCEL ? undefined : "standalone",
 
   // The build must fail on a type error rather than ship past one. It is the
   // default; stated so that switching it off would be a visible decision.
