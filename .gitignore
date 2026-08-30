@@ -64,3 +64,11 @@ desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.neon
+
+# Agent skills are installed into .agents/ as real files, which are committed:
+# a checkout should carry the same guidance this one used. What lives in
+# .claude/skills/ are symlinks *to* them, holding this machine's absolute path -
+# and with core.symlinks off on Windows, git would store that path as a text
+# file pretending to be a skill directory.
+.claude/skills/
