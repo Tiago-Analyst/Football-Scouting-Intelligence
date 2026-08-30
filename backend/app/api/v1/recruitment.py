@@ -10,8 +10,11 @@ underlying definitions do either (spec section 28).
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from fastapi import APIRouter, HTTPException, Query
 
+from app.analytics.contracts import expires_within
 from app.analytics.intelligence import ScoreDefinition
 from app.analytics.percentiles import PercentileScope
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
@@ -28,10 +31,10 @@ from app.schemas.api import (
     ReplacementRequest,
     ReplacementResponse,
     ScoreComponentOut,
+    ScreenStepOut,
     UnavailableScoreOut,
 )
 from app.services.analytics_service import (
-    REFERENCE_DATE,
     AnalyticsView,
     PlayerRecord,
     get_analytics_view,
@@ -94,15 +97,9 @@ def _passes_filters(record: PlayerRecord, filters: RecruitmentFilters) -> bool:
         return False
     if filters.min_minutes is not None and (record.minutes or 0) < filters.min_minutes:
         return False
-    if filters.contract_expiring_within_months is not None:
-        if record.contract_expires is None:
-            return False
-        months = (record.contract_expires.year - REFERENCE_DATE.year) * 12 + (
-            record.contract_expires.month - REFERENCE_DATE.month
-        )
-        if months > filters.contract_expiring_within_months:
-            return False
-    return True
+    return filters.contract_expiring_within_months is None or expires_within(
+        record.contract_expires, filters.contract_expiring_within_months
+    )
 
 
 @router.post("/recruitment/search", response_model=RecruitmentResponse)
@@ -377,28 +374,57 @@ def market_opportunities(
     does claim and shows why each player appeared.
     """
     view = get_analytics_view()
-    criteria = [
-        f"Age at most {max_age}",
-        f"Best role score at least {min_role_score:.0f}",
-        f"At least {min_minutes} minutes",
-        f"Market value at most €{max_market_value_eur / 1_000_000:.1f}m",
+    # Each criterion carries its own test. Holding the wording in one list and
+    # the tests in another let them drift apart, and a funnel that labels the
+    # minutes filter "Best role score at least 80" is worse than no funnel: it
+    # is a confident account of the wrong thing.
+    steps: list[tuple[str, Callable[[PlayerRecord], bool]]] = [
+        (
+            f"Age at most {max_age}",
+            lambda r: r.age is not None and r.age <= max_age,
+        ),
+        (
+            f"Best role score at least {min_role_score:.0f}",
+            lambda r: _best_role_score(view, r) >= min_role_score,
+        ),
+        (
+            f"At least {min_minutes} minutes",
+            lambda r: (r.minutes or 0) >= min_minutes,
+        ),
+        (
+            f"Market value at most €{max_market_value_eur / 1_000_000:.1f}m",
+            lambda r: r.market_value_eur is not None and r.market_value_eur <= max_market_value_eur,
+        ),
     ]
     if contract_within_months is not None:
-        criteria.append(f"Contract expiring within {contract_within_months} months")
+        steps.append(
+            (
+                f"Contract expiring within {contract_within_months} months",
+                lambda r: expires_within(r.contract_expires, contract_within_months),
+            )
+        )
+    criteria = [label for label, _ in steps]
+
+    surviving = list(view.players.values())
+    funnel: list[ScreenStepOut] = []
+    for label, passes in steps:
+        before = len(surviving)
+        surviving = [r for r in surviving if passes(r)]
+        funnel.append(
+            ScreenStepOut(
+                criterion=label, remaining=len(surviving), removed=before - len(surviving)
+            )
+        )
 
     found: list[OpportunityOut] = []
-    for record in view.players.values():
-        if record.age is None or record.age > max_age:
-            continue
-        if (record.minutes or 0) < min_minutes:
-            continue
-        if record.market_value_eur is None or record.market_value_eur > max_market_value_eur:
-            continue
-
+    for record in surviving:
         fit = view.best_roles.get(record.player_key)
         best = fit.best if fit else None
-        if best is None or best.score is None or best.score < min_role_score:
-            continue
+        # The screen above already required all three; restated here because a
+        # filter in a lambda is not narrowing a type checker can follow, and
+        # asserting it would turn a data condition into a crash.
+        if best is None or best.score is None or record.market_value_eur is None:
+            continue  # pragma: no cover - the screen guarantees these
 
         reasons = [
             f"{best.label} fit {best.score:.0f}/100",
@@ -406,14 +432,7 @@ def market_opportunities(
             f"{record.minutes:,} minutes played",
             f"Valued at €{record.market_value_eur / 1_000_000:.1f}m",
         ]
-        if contract_within_months is not None:
-            if record.contract_expires is None:
-                continue
-            months = (record.contract_expires.year - REFERENCE_DATE.year) * 12 + (
-                record.contract_expires.month - REFERENCE_DATE.month
-            )
-            if months > contract_within_months:
-                continue
+        if contract_within_months is not None and record.contract_expires is not None:
             reasons.append(f"Contract expires {record.contract_expires:%b %Y}")
 
         found.append(
@@ -430,6 +449,41 @@ def market_opportunities(
         total=len(found),
         criteria=criteria,
         disclaimer=OPPORTUNITY_DISCLAIMER,
+        funnel=funnel,
+        explanation=_explain_screen(funnel, len(found)),
+    )
+
+
+def _best_role_score(view: AnalyticsView, record: PlayerRecord) -> float:
+    """The player's best role score, or below any threshold when there is none.
+
+    A player with no role score has not scored badly - most often there were
+    too few comparable players in their competition to rank them at all. The
+    screen still has to exclude them, and the funnel is where that shows.
+    """
+    fit = view.best_roles.get(record.player_key)
+    if fit is None or fit.best is None or fit.best.score is None:
+        return -1.0
+    return fit.best.score
+
+
+def _explain_screen(funnel: list[ScreenStepOut], found: int) -> str | None:
+    """Name the criterion that did the most narrowing, when the result is thin.
+
+    Five criteria and one survivor is either a strict screen or a broken one,
+    and the list cannot tell them apart. The binding constraint usually can.
+    """
+    if found > 10 or not funnel:
+        return None
+
+    strictest = max(funnel, key=lambda step: step.removed)
+    if strictest.removed == 0:
+        return None
+    started = funnel[0].remaining + funnel[0].removed
+    return (
+        f"{found} of {started:,} players cleared every criterion. "
+        f'Most were removed by "{strictest.criterion}" ({strictest.removed:,} players); '
+        f"{funnel[-1].remaining:,} survived the full screen."
     )
 
 

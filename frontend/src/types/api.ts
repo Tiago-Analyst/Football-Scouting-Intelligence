@@ -236,12 +236,25 @@ export interface Opportunity {
   reasons: string[];
 }
 
+export interface ScreenStep {
+  criterion: string;
+  remaining: number;
+  removed: number;
+}
+
 export interface Opportunities {
   items: Opportunity[];
   total: number;
   criteria: string[];
   /** States what the list claims — and, crucially, what it does not. */
   disclaimer: string;
+  /**
+   * Where the screen narrowed, criterion by criterion. Five criteria and one
+   * survivor is either a strict screen or a broken one, and the list alone
+   * cannot tell you which.
+   */
+  funnel: ScreenStep[];
+  explanation: string | null;
 }
 
 // ---------------------------------------------------------------------------

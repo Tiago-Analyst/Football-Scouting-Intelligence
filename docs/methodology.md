@@ -331,6 +331,17 @@ The recomputation is deliberately naive - it counts comparisons one at a time
 where the engine bisects a sorted list - so that the two cannot share a mistake.
 `docs/analytics_validation.md` shows the working for every check.
 
+## Ages and contract windows are measured from today
+
+Not from a fixed reference date. That was pinned to 1 January 2027 so demo data
+produced stable ages, and against real data it displayed 28% of players a year
+older than they were.
+
+A contract recorded as already expired is not treated as "expiring soon". The
+record says the player's deal ran out before today, which means either they
+re-signed and the dataset has not caught up or they left the club - and neither
+is a statement about a contract about to end.
+
 ## Market history comes from the load, not from a second source
 
 Valuation history and transfers are read from the same database as every other

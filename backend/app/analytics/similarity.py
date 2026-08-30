@@ -33,6 +33,7 @@ from pathlib import Path
 
 import yaml
 
+from app.analytics.contracts import expires_within
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import PercentileEngine, PercentileScope, PlayerMetrics
 from app.schemas.canonical import PositionGroup
@@ -154,16 +155,9 @@ class SimilarityFilters:
             and candidate.age >= target.age
         ):
             return False
-        if self.contract_expiring_within_months is not None:
-            if candidate.contract_expires is None:
-                return False
-            reference = today or date.today()
-            months = (candidate.contract_expires.year - reference.year) * 12 + (
-                candidate.contract_expires.month - reference.month
-            )
-            if months > self.contract_expiring_within_months:
-                return False
-        return True
+        return self.contract_expiring_within_months is None or expires_within(
+            candidate.contract_expires, self.contract_expiring_within_months, today=today
+        )
 
 
 @dataclass(frozen=True)
