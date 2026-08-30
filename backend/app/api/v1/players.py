@@ -270,6 +270,7 @@ def list_players(
         total=len(found),
         offset=offset,
         limit=limit,
+        is_mock=view.is_mock,
     )
 
 

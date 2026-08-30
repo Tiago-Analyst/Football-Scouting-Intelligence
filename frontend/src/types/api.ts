@@ -146,6 +146,8 @@ export interface PlayerList {
   total: number;
   offset: number;
   limit: number;
+  /** Whether these results are fabricated. A deployment serves one or the other. */
+  is_mock: boolean;
 }
 
 export interface PlayerStats {
@@ -213,6 +215,8 @@ export interface RecruitmentResults {
    * identical, and only one of them is fixed by widening the filters.
    */
   explanation: string | null;
+  /** Whether these results are fabricated. A deployment serves one or the other. */
+  is_mock: boolean;
 }
 
 export interface ReplacementCandidate {
@@ -255,6 +259,8 @@ export interface Opportunities {
    */
   funnel: ScreenStep[];
   explanation: string | null;
+  /** Whether these results are fabricated. A deployment serves one or the other. */
+  is_mock: boolean;
 }
 
 // ---------------------------------------------------------------------------

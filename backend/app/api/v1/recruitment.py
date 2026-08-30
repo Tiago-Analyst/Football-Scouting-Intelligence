@@ -222,6 +222,7 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
         considered=considered,
         unavailable_scores=unavailable,
         explanation=_explain(considered, len(ranked), unavailable, weights),
+        is_mock=view.is_mock,
     )
 
 
@@ -451,6 +452,7 @@ def market_opportunities(
         disclaimer=OPPORTUNITY_DISCLAIMER,
         funnel=funnel,
         explanation=_explain_screen(funnel, len(found)),
+        is_mock=view.is_mock,
     )
 
 

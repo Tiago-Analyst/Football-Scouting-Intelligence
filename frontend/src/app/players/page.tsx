@@ -234,7 +234,7 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                   </>
                 ) : null}
               </p>
-              <Badge tone="warning">Demo data</Badge>
+              {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
             </div>
 
             {results.items.length === 0 ? (
