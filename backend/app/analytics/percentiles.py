@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric, DerivedMetrics
-from app.analytics.sample import LOW_SAMPLE_MINUTES, is_rankable
+from app.analytics.sample import is_rankable
 from app.schemas.canonical import PositionGroup
 
 #: Fewer comparable players than this and a percentile is noise dressed as
@@ -156,7 +156,18 @@ class PercentileEngine:
         self,
         population: list[PlayerMetrics],
         *,
-        minimum_minutes: int = LOW_SAMPLE_MINUTES,
+        # Having played at all - no more than that. This was
+        # LOW_SAMPLE_MINUTES, which emptied every competition whose season had
+        # just begun: no population, no percentile, and a working engine
+        # reporting nothing.
+        #
+        # One rather than nought, because a player with no minutes has no
+        # per-90 to contribute. They would never affect a distribution, only
+        # inflate the population size reported beside it - and that number is
+        # shown to a reader as the answer to "compared against how many?".
+        #
+        # A caller that wants a real floor still passes one.
+        minimum_minutes: int = 1,
         min_population: int = MIN_POPULATION,
     ) -> None:
         self.minimum_minutes = minimum_minutes

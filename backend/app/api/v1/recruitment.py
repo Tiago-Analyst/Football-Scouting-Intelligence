@@ -17,7 +17,6 @@ from fastapi import APIRouter, HTTPException, Query
 from app.analytics.contracts import expires_within
 from app.analytics.intelligence import ScoreDefinition
 from app.analytics.percentiles import PercentileScope
-from app.analytics.sample import LOW_SAMPLE_MINUTES
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
 from app.analytics.similarity import SimilarityFilters
 from app.api.v1.players import metric_label, require_player, to_summary
@@ -306,7 +305,7 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
         request.player_id,
         filters=similarity_filters,
         limit=request.limit * 4,
-        minimum_minutes=filters.min_minutes or LOW_SAMPLE_MINUTES,
+        minimum_minutes=filters.min_minutes or 0,
     )
 
     budget = filters.max_market_value_eur

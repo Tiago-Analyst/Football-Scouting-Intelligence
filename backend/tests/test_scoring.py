@@ -173,8 +173,8 @@ class TestSampleBands:
             (FULL_SAMPLE_MINUTES, SampleBand.FULL),
             (FULL_SAMPLE_MINUTES - 1, SampleBand.LOW),
             (LOW_SAMPLE_MINUTES, SampleBand.LOW),
-            (LOW_SAMPLE_MINUTES - 1, SampleBand.INSUFFICIENT),
-            (0, SampleBand.INSUFFICIENT),
+            (LOW_SAMPLE_MINUTES - 1, SampleBand.THIN),
+            (0, SampleBand.THIN),
         ],
     )
     def test_bands_are_correct_at_the_boundaries(self, minutes: int, expected: SampleBand) -> None:
@@ -183,7 +183,7 @@ class TestSampleBands:
     def test_unknown_minutes_are_treated_as_insufficient(self) -> None:
         """Without knowing the sample, keeping the player out of rankings is the
         safe assumption."""
-        assert classify_minutes(None) is SampleBand.INSUFFICIENT
+        assert classify_minutes(None) is SampleBand.THIN
 
     def test_every_band_has_an_explanation(self) -> None:
         for band in SampleBand:
