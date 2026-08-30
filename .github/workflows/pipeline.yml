@@ -197,6 +197,24 @@ jobs:
             --replace \
             --verify 2>&1 | tee pipeline-load.log
 
+      - name: Drop market history nothing can reach
+        if: steps.preflight.outputs.database == 'true' && success()
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        # Four fifths of the Transfermarkt valuations belong to players in no
+        # covered competition. This refuses to run when nothing looks used,
+        # which is what a database that has not been resolved yet looks like,
+        # so a refresh that stops early cannot empty the table.
+        run: |
+          set -o pipefail
+          python -m pipelines.load.prune --apply 2>&1 | tee pipeline-prune.log
+
       - name: Record the quality report
         if: steps.preflight.outputs.database == 'true' && success()
         env:
