@@ -284,6 +284,35 @@ class PercentileEngine:
 
         if value is None:
             return unavailable("metric not available for this player")
+
+        if len(values) < self.min_population and selected is not None:
+            # Too few comparable players in this competition - widen rather
+            # than refuse.
+            #
+            # A rank against four players is noise wearing a number, so the
+            # floor below stays. But refusing was answering "we cannot compare
+            # him" when the truthful answer is "not against his own league,
+            # yet". Four matches into a season a Portuguese midfielder has
+            # fifteen league peers and nearly six hundred across every loaded
+            # competition, and the second comparison is a real one.
+            #
+            # It is a weaker comparison, and the context says so: the scope
+            # comes back as GLOBAL, the competitions it covered are listed, and
+            # the cross-league caveat travels with it - the same caveat that
+            # governs every deliberate cross-league percentile, because the
+            # specification forbids inventing a league-strength coefficient
+            # rather than admitting the difference.
+            wider = self._sorted_values(metric, player.position_group, player.season_id, None)
+            if len(wider) >= self.min_population:
+                values = wider
+                context = self._context(
+                    PercentileScope.GLOBAL,
+                    player.position_group,
+                    player.season_id,
+                    None,
+                    len(wider),
+                )
+
         if len(values) < self.min_population:
             # Better to show nothing than a rank derived from a handful of
             # players, which would look equally precise and be far less true.

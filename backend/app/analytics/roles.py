@@ -28,6 +28,7 @@ import yaml
 from app.analytics.intelligence import (
     IntelligenceScoreEngine,
     ScoreConfigError,
+    widest_context,
 )
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileScope, PlayerMetrics
@@ -246,7 +247,7 @@ class RoleEngine:
             ranked = self.percentiles.rank_all(
                 player, metrics, scope=scope, competition_ids=competition_ids
             )
-            context = ranked[metrics[0]].context
+            context = widest_context(ranked.values()) or ranked[metrics[0]].context
             components.extend(
                 ScoreComponent(
                     metric=metric.value,
@@ -266,7 +267,12 @@ class RoleEngine:
                 )
             except ScoreConfigError as exc:
                 raise RoleConfigError(str(exc)) from exc
-            context = context or inner.context
+            # An inner score may itself have leant on a wider population than
+            # this role's own metrics did.
+            context = max(
+                [c for c in (context, inner.context) if c is not None],
+                key=lambda c: (len(c.competition_ids), c.population_size),
+            )
             components.append(
                 ScoreComponent(metric=f"score:{score_key}", weight=weight, value=inner.score)
             )

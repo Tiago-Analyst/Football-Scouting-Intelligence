@@ -125,10 +125,12 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
 
       {stats?.sample && stats.sample.band !== "full" ? (
         <Callout
-          tone={stats.sample.band === "low" ? "warning" : "caution"}
-          title={
-            stats.sample.band === "low" ? "Low sample size" : "Insufficient sample size"
-          }
+          // A note, not an alarm. Nothing is withheld for a short sample any
+          // more, so the red caution tone was warning about a consequence that
+          // no longer follows - and four matches into a season it was on every
+          // player in half the competitions.
+          tone="note"
+          title={stats.sample.band === "low" ? "Low sample size" : "Thin sample size"}
         >
           {stats.sample.explanation}
         </Callout>
