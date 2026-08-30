@@ -1,17 +1,46 @@
-Copyright (c) 2026. All rights reserved.
+Copyright (c) 2026 Tiago (github.com/Tiago-Analyst). All rights reserved.
 
-PLACEHOLDER - THIS IS A DECISION THE PROJECT OWNER STILL NEEDS TO MAKE.
+SOURCE AVAILABLE, NOT OPEN SOURCE
 
-No licence has been chosen yet. Until one is, no permission is granted to use,
-copy, modify or distribute this software.
+This repository is public so the work can be read. That is the whole of the
+permission being granted.
 
-A deliberately restrictive placeholder was chosen because this project is
-intended to possibly become a commercial product, and because the backend may
-later be split into a private repository. Applying a permissive open-source
-licence (MIT, Apache-2.0) is effectively irreversible for any version already
-published under it, so that choice should be made explicitly rather than by
-default.
+No licence is granted to use, copy, modify, merge, publish, distribute,
+sublicense, or sell this software or any part of it, and no right is granted
+to create derivative works from it. Publishing source code does not place it
+in the public domain, and a repository being visible is not a grant.
 
-Note that this licence governs only this project's own source code. It does not
-and cannot grant any rights over data obtained from third-party providers,
-whose terms apply independently.
+WHAT YOU MAY DO
+
+Read it. Learn from it. Quote it in a review, an article or a conversation
+with attribution, as fair dealing or fair use allows where you live.
+
+WHAT REQUIRES PERMISSION
+
+Everything else, including running it, deploying it, or reusing parts of it in
+another project - whether or not that project is commercial.
+
+Ask. Permission may well be given; it simply has not been given in advance.
+
+WHY THIS RATHER THAN A PERMISSIVE LICENCE
+
+A permissive licence (MIT, Apache-2.0) cannot be taken back from a version
+already published under it. This project may become a commercial product, and
+that choice is easier to make later than to unmake. Choosing restriction now
+leaves the decision open; choosing permission now closes it.
+
+THIRD-PARTY DATA IS NOT COVERED BY THIS
+
+This licence governs this project's own source code and nothing else.
+
+The repository contains no provider data. It contains the code that fetches
+and interprets data from FootyStats and from the dcaribou/transfermarkt-datasets
+snapshot, and each carries its own terms, which apply independently and are not
+affected by anything written here. Neither the presence of that code nor this
+licence grants any right over their data. Anyone running this against those
+sources is subject to their terms directly.
+
+NOT LEGAL ADVICE
+
+This file states an intention plainly. It has not been reviewed by a lawyer,
+and if the intention ever needs to be enforced, it should be.

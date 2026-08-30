@@ -341,6 +341,15 @@ email still costs one Argon2 verification, so the form cannot enumerate accounts
 Reading is public by design: browsing, search, profiles, similarity and
 recruitment need no account. An account exists only to own personal data.
 
+## Licence
+
+Source available, not open source. This repository is public so the work can be
+read; no permission is granted to use, copy, modify or distribute it. See
+[LICENSE](LICENSE).
+
+That covers this project's own code. Data from FootyStats and from the
+Transfermarkt dataset carries its own terms, which apply independently.
+
 ## Data licensing
 
 Performance and market data belong to their providers. This project does not
