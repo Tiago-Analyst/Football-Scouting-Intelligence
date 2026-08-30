@@ -1,17 +1,16 @@
 import type { MetadataRoute } from "next";
 
-import { DISALLOWED, IS_PUBLIC_ORIGIN, SITE_URL } from "@/lib/site";
+import { DISALLOWED, IS_INDEXABLE, SITE_URL } from "@/lib/site";
 
 /**
  * What a crawler may look at.
  *
- * Until the site has a real origin, everything is disallowed. A preview
- * deployment that gets indexed is hard to undo, and this one would put 1,728
- * fabricated footballers into search results under a name that looks
- * authoritative.
+ * Disallowed unless `SITE_INDEXABLE` is set, whatever the origin. An indexed
+ * deployment is far easier to create than to undo, and this one publishes
+ * profiles of named footballers built from datasets with terms attached.
  */
 export default function robots(): MetadataRoute.Robots {
-  if (!IS_PUBLIC_ORIGIN) {
+  if (!IS_INDEXABLE) {
     return { rules: { userAgent: "*", disallow: "/" } };
   }
 

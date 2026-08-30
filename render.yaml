@@ -1,0 +1,85 @@
+# Render blueprint for the backend.
+#
+# Render builds and runs `backend/Dockerfile` as it is. The frontend is not
+# here: it goes to Vercel, which builds Next itself and ignores
+# `frontend/Dockerfile`. The database is not here either - it is a managed
+# Neon instance, so that backups and point-in-time recovery are somebody's job
+# rather than nobody's.
+#
+# Every secret below is marked `sync: false`, which means Render prompts for it
+# rather than reading it from this file. That is the point: this file is
+# committed, and a repository is exactly where a database password and an API
+# key must never be. `scripts/check_production.py` fails the deployment if it
+# finds one committed.
+#
+#   1. Create the Neon database and an application role - not the superuser.
+#   2. In Render: New > Blueprint, point it at this repository.
+#   3. Fill in the prompted secrets.
+#   4. Run the migrations and the first load (see docs/deployment.md).
+#
+# The free plan sleeps after 15 minutes idle and takes roughly 50 seconds to
+# wake, during which the site shows its error state rather than data. That is
+# survivable for a site people visit deliberately and wrong for one anybody
+# depends on; `plan: starter` removes it.
+
+services:
+  - type: web
+    name: fri-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: frankfurt
+    # This repository's branch is `master`. Change both if you rename it.
+    branch: master
+    # Only rebuild when the backend or its pipelines change. A frontend commit
+    # redeploying the API is a needless restart, and a restart drops the
+    # analytical view that takes seconds to rebuild.
+    buildFilter:
+      paths:
+        - backend/**
+        - pipelines/**
+        - config/**
+        - render.yaml
+
+    # The liveness probe answers without touching the database, so a database
+    # outage does not make Render kill and restart a healthy process - which
+    # would turn a recoverable outage into a restart loop. Readiness is what
+    # `/health` reports, and it is checked by a person or a monitor, not by the
+    # thing with the power to restart the service.
+    healthCheckPath: /health/live
+
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_MODE
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_FORMAT
+        value: json
+
+      # Neon hands out a single connection string, and the settings accept one
+      # directly - normalising `postgres://` or `postgresql://` onto the psycopg
+      # driver this depends on. Use the pooled endpoint, and the application
+      # role rather than the database owner.
+      #
+      # The individual POSTGRES_HOST/PORT/DB/USER/PASSWORD variables still work
+      # and take second place; set one or the other, not both.
+      - key: DATABASE_URL
+        sync: false
+
+      # Exact origins, never "*". The settings validator refuses a wildcard,
+      # because the API answers with a signed-in user's shortlists.
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+
+      # No session-signing secret appears here because there is none to set.
+      # A session token is 32 random bytes and only its SHA-256 hash is stored,
+      # so there is no key whose loss would forge a session - and adding a
+      # plausible-looking SECRET_KEY would be inventing configuration.
+
+      # Only if a FootyStats subscription is in use. Never in the frontend,
+      # never in a browser request, never in this file.
+      - key: FOOTYSTATS_API_KEY
+        sync: false

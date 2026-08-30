@@ -118,13 +118,42 @@ def check_cors(settings: object) -> list[Finding]:
     return findings
 
 
+def _connection_details(settings: object) -> tuple[str, str, str]:
+    """The host, user and password actually used to connect.
+
+    A managed database hands out one connection string, and the settings accept
+    it as `DATABASE_URL` - at which point `POSTGRES_HOST`, `POSTGRES_USER` and
+    `POSTGRES_PASSWORD` are ignored entirely.
+
+    Reading those fields anyway made this check both useless and harmful. It
+    refused a correctly configured Neon deployment with "No database password is
+    set" while the password sat in the URL, and it would have waved through a
+    connection string carrying the superuser and a well-known password, because
+    it was inspecting three variables nothing was using.
+    """
+    from urllib.parse import unquote, urlsplit
+
+    url = getattr(settings, "database_url", None)
+    if url:
+        parsed = urlsplit(str(url))
+        return (
+            (parsed.hostname or "").lower(),
+            unquote(parsed.username or ""),
+            unquote(parsed.password or ""),
+        )
+
+    return (
+        str(getattr(settings, "postgres_host", "")).lower(),
+        str(getattr(settings, "postgres_user", "")),
+        settings.postgres_password.get_secret_value(),  # type: ignore[attr-defined]
+    )
+
+
 def check_database(settings: object) -> list[Finding]:
     """Credentials and host. Never prints the password."""
     findings: list[Finding] = []
 
-    password = settings.postgres_password.get_secret_value()  # type: ignore[attr-defined]
-    host = str(getattr(settings, "postgres_host", "")).lower()
-    user = str(getattr(settings, "postgres_user", ""))
+    host, user, password = _connection_details(settings)
 
     if not password:
         findings.append(Finding("database", "fail", "No database password is set."))

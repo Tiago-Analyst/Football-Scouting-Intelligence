@@ -16,11 +16,12 @@ to use. Choose one before the site is public. Specification section 29 also
 requires provider licensing to be reviewed before any commercial use, and both
 FootyStats and the Transfermarkt dataset carry terms.
 
-**2. The hosting target.** The specification suggests Vercel for the frontend,
-Railway or Render for the backend, and a managed PostgreSQL such as Neon,
-Supabase or Railway. Everything below works for any of them, but the final wiring
-differs: Vercel builds Next itself and ignores `frontend/Dockerfile`, while a
-container platform uses it.
+**2. The hosting target.** Chosen: **Vercel** for the frontend, **Render** for
+the backend container, **Neon** for PostgreSQL - the arrangement the
+specification suggests. `render.yaml` and `frontend/vercel.json` are committed
+and the walkthrough is below. Everything else here still works for another
+target, but the wiring differs: Vercel builds Next itself and ignores
+`frontend/Dockerfile`, while a container platform uses it.
 
 ---
 
@@ -152,9 +153,130 @@ transaction and rolls back on any failure.
 
 ---
 
+## The chosen target: Vercel, Render, Neon
+
+Decided rather than assumed: the frontend on Vercel, the backend container on
+Render, PostgreSQL on Neon, and the site **public but not indexed**.
+
+`render.yaml` and `frontend/vercel.json` are committed. Neither holds a secret,
+and neither can: every secret is marked `sync: false`, which makes Render prompt
+for it instead of reading it from a file in the repository.
+
+### What has to happen before any of it
+
+**The repository has no git remote.** Render and Vercel both deploy from a
+repository they can read, so nothing can be connected until this is pushed to
+GitHub. That is a decision as much as a step - it puts the FootyStats mapping,
+the analytical definitions and this documentation somewhere else - so a private
+repository is the sane default.
+
+**The branch is `master`.** `render.yaml` says `branch: master` to match. If you
+rename it to `main`, change it there too.
+
+**The licence is still a placeholder.** `LICENSE` reads "all rights reserved, no
+permission granted". That is a coherent position for a private deployment and an
+odd one to publish under; it is worth replacing with something you mean.
+
+### 1. Neon
+
+Create a project in a region near Frankfurt, then:
+
+- create a database and an **application role that does not own it**. The
+  application should not be able to drop its own tables;
+- copy the **pooled** connection string. Neon's pooler handles the connection
+  churn a container platform produces;
+- keep the branch/point-in-time retention Neon gives you. This is the only
+  backup in the system, and it is the reason for using a managed database at
+  all rather than a container.
+
+### 2. Render
+
+New > Blueprint, pointed at the repository. Render reads `render.yaml` and
+prompts for:
+
+| Prompt | Value |
+| --- | --- |
+| `DATABASE_URL` | the Neon pooled connection string |
+| `CORS_ALLOW_ORIGINS` | the Vercel origin, exactly, no trailing slash |
+| `FOOTYSTATS_API_KEY` | only if a subscription is in use |
+
+`CORS_ALLOW_ORIGINS` is a chicken-and-egg: Vercel has to exist first to have an
+origin. Deploy the frontend, then come back and set it. A wildcard is not an
+option - the settings validator refuses `*`, because the API answers with a
+signed-in user's shortlists.
+
+The free plan sleeps after 15 minutes idle and takes roughly 50 seconds to
+wake. During that window the site shows its error state rather than data.
+
+### 3. Migrate and load, before the frontend expects anything
+
+From a machine that can reach Neon, with the same `DATABASE_URL`:
+
+```bash
+cd backend
+python -m scripts.check_production      # fix whatever it refuses
+alembic upgrade head
+cd ..
+python -m pipelines.transfermarkt.download
+python -m pipelines.load.load_providers --source transfermarkt --replace --verify
+python -m pipelines.footystats.ingest --resume        # hours; resumable
+python -m pipelines.load.load_providers --source footystats --replace --verify
+python -m pipelines.identity_resolution.resolve --apply
+```
+
+Skipping the load is not a silent failure: `/health` reports
+`analytics: unavailable` and answers 503 until one has run.
+
+Identity resolution is the slow step - roughly an hour for a full dataset,
+because it is CPU-bound in the matching rather than in the database.
+
+### 4. Vercel
+
+Import the repository, and set **Root Directory to `frontend`** - the Next app
+is not at the repository root, and this is the one setting `vercel.json` cannot
+carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
+
+| Variable | Value |
+| --- | --- |
+| `API_BASE_URL` | the Render service's https URL |
+| `SITE_URL` | the site's own https origin |
+| `SITE_INDEXABLE` | leave unset |
+
+`API_BASE_URL` is deliberately not `NEXT_PUBLIC_`. The browser never talks to
+the API; Next reads it server-side. Renaming it would put the API's address in
+the page source and break the boundary the architecture rests on.
+
+Leaving `SITE_INDEXABLE` unset is what makes the site public but not indexed:
+`robots.txt` disallows everything and the sitemap is empty. Both are default
+closed on purpose - an indexed deployment is far easier to create than to undo,
+and this one publishes profiles of named footballers built from datasets with
+terms attached.
+
+### 5. Close the loop
+
+- Set `CORS_ALLOW_ORIGINS` on Render to the Vercel origin, and redeploy.
+- Confirm `/health` returns 200 with `analytics: ok`.
+- Fetch `https://<site>/robots.txt` and check it disallows everything.
+- Sign in, save a shortlist, and reload - that exercises the database write
+  path, which nothing else on the site does.
+
+### What is still not done after all this
+
+- **Nothing watches `/health`.** A free uptime monitor pointed at it is ten
+  minutes of work and the difference between knowing and being told.
+- **No error tracking.** Structured logs go to the platform's log viewer and
+  nowhere else.
+- **No Content-Security-Policy.** A CSP worth having needs nonces threaded
+  through Next's inline scripts; the other security headers are set.
+- **Restores are untested.** Neon can restore; nobody has tried it here, and an
+  untested backup is a belief rather than a plan.
+
+---
+
 ## What is not done
 
-- Nothing is deployed. No platform account, no domain, no TLS certificate.
+- Nothing is deployed. No platform account, no domain, no TLS certificate, and
+  no git remote to deploy from.
 - No backup or restore procedure. A managed database usually provides one;
   it has not been chosen, configured or tested.
 - No error tracking or uptime monitoring. `/health` is the only signal, and
