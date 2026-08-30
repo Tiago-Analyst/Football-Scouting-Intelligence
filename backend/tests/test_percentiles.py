@@ -232,19 +232,30 @@ class TestOrientation:
 
 
 class TestSampleSizeHandling:
-    def test_small_sample_players_do_not_define_the_distribution(self) -> None:
-        """A per-90 rate from 200 minutes is noise; letting it into the
-        population would distort what everyone else is measured against."""
-        real = cohort([1.0] * 20, minutes=2000)
-        noisy = cohort([50.0] * 20, competition="c1", minutes=100)
-        engine = PercentileEngine(real + noisy)
-        assert engine.eligible_count == 20
+    def test_everyone_with_minutes_defines_the_distribution(self) -> None:
+        """The floor this used to assert is gone, deliberately.
 
-        result = engine.rank(
-            player("t", progressive_passes_per90=1.0), DerivedMetric.PROGRESSIVE_PASSES_PER90
-        )
-        assert result.context.population_size == 20
-        assert result.percentile == pytest.approx(50.0)
+        A 450-minute floor kept short seasons out of the population, which is
+        right in March and ruinous in August: four matches into 2026/27 nobody
+        in the Portuguese league cleared it, the population was empty, and no
+        percentile could be computed for anyone there. A working engine
+        reported nothing because its own guard had excluded everybody.
+
+        What the floor protected against is real - a ninety-minute cameo can
+        pull a distribution built from full seasons - and it is now carried by
+        saying so rather than by hiding people: every figure travels with the
+        minutes behind it and the size of the population it was measured
+        against.
+
+        A caller who wants the old behaviour passes `minimum_minutes`.
+        """
+        established = cohort([1.0] * 20, minutes=2000)
+        brief = cohort([50.0] * 20, competition="c1", minutes=100)
+        engine = PercentileEngine(established + brief)
+        assert engine.eligible_count == 40
+
+        guarded = PercentileEngine(established + brief, minimum_minutes=450)
+        assert guarded.eligible_count == 20
 
     def test_a_small_sample_player_can_still_be_ranked(self) -> None:
         """Their figures are shown with a warning, not withheld."""

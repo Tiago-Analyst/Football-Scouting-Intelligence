@@ -10,7 +10,7 @@
  * rankings, which is worse than showing nothing. Once the API returns a
  * classification, this file becomes a display-only mapping.
  */
-export type SampleBand = "full" | "low" | "insufficient";
+export type SampleBand = "full" | "low" | "thin";
 
 export const FULL_SAMPLE_MINUTES = 900;
 export const LOW_SAMPLE_MINUTES = 450;
@@ -18,20 +18,20 @@ export const LOW_SAMPLE_MINUTES = 450;
 export function sampleBand(minutes: number): SampleBand {
   if (minutes >= FULL_SAMPLE_MINUTES) return "full";
   if (minutes >= LOW_SAMPLE_MINUTES) return "low";
-  return "insufficient";
+  return "thin";
 }
 
 export const SAMPLE_COPY: Record<SampleBand, { label: string; explanation: string }> = {
   full: {
     label: "Full sample",
-    explanation: `At least ${FULL_SAMPLE_MINUTES} minutes played. Included in rankings, similarity and recruitment results.`,
+    explanation: `At least ${FULL_SAMPLE_MINUTES} minutes played - a full season's worth of evidence behind every figure.`,
   },
   low: {
     label: "Low sample",
-    explanation: `Between ${LOW_SAMPLE_MINUTES} and ${FULL_SAMPLE_MINUTES - 1} minutes played. Per-90 figures are volatile at this sample size and should be read with caution.`,
+    explanation: `Between ${LOW_SAMPLE_MINUTES} and ${FULL_SAMPLE_MINUTES - 1} minutes played. Per-90 figures move around at this sample size; read them as a direction rather than a measurement.`,
   },
-  insufficient: {
-    label: "Insufficient sample",
-    explanation: `Under ${LOW_SAMPLE_MINUTES} minutes played. Excluded by default from rankings, similarity and recruitment recommendations; you can lower the minutes filter to include these players.`,
+  thin: {
+    label: "Thin sample",
+    explanation: `Under ${LOW_SAMPLE_MINUTES} minutes played. Everyone is ranked whatever their minutes, so these figures sit alongside players with far more football behind them - early in a season that is everybody, and the comparison is still like for like.`,
   },
 };

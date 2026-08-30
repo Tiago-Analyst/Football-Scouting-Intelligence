@@ -176,10 +176,14 @@ class TestTheViewBuiltFromTheDatabase:
         """Choosing which row to *show* must not narrow what players are
         *ranked against*. Both seasons are real observations."""
 
-        # Eligibility is decided on the minutes the statistics cover, not on
+        # Everyone with a position group and any minutes at all. There used to
+        # be a 450-minute floor here, matching one in the engine; both are gone,
+        # because four matches into a season the floor excluded whole
+        # competitions and left them with no comparison population at all.
+        #
+        # Eligibility still reads the minutes the statistics cover rather than
         # time on the pitch. Reaching for the obvious one is how this check
-        # disagreed with a correct engine the first time it was written - the
-        # same ambiguity that produced `recorded_minutes` in the first place.
+        # disagreed with a correct engine the first time it was written.
         def evidence(player) -> int:  # type: ignore[no-untyped-def]
             recorded = player.stats.recorded_minutes
             return (recorded if recorded is not None else player.stats.minutes) or 0
@@ -187,7 +191,7 @@ class TestTheViewBuiltFromTheDatabase:
         rankable = [
             player
             for player in universe.players
-            if player.position_group is not None and evidence(player) >= 450
+            if player.position_group is not None and evidence(player) > 0
         ]
         assert view.percentiles is not None
         assert view.percentiles.eligible_count == len(rankable)

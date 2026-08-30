@@ -38,7 +38,7 @@ from app.analytics.percentiles import (
     PlayerMetrics,
 )
 from app.analytics.roles import RoleEngine, RoleFit
-from app.analytics.sample import LOW_SAMPLE_MINUTES, SampleBand, classify_minutes
+from app.analytics.sample import SampleBand, classify_minutes
 from app.analytics.similarity import (
     MINIMUM_SIMILARITY,
     SimilarityCandidate,
@@ -187,9 +187,11 @@ class AnalyticsView:
         *,
         filters: SimilarityFilters | None = None,
         limit: int = 20,
-        # The rankability floor, not a stricter one invented here. Callers
-        # that want a different bar pass it; nobody inherits 900 by accident.
-        minimum_minutes: int | None = LOW_SAMPLE_MINUTES,
+        # No floor. Similarity across a young season compares players who are
+        # all equally short of minutes, and excluding them leaves nobody to
+        # compare. The profile strength ratio and the minutes are reported with
+        # every match, which is the honest way to carry the same warning.
+        minimum_minutes: int | None = 0,
         minimum_similarity: float = MINIMUM_SIMILARITY,
     ) -> list[SimilarityResult]:
         if self.similarity is None:
