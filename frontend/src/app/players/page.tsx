@@ -40,7 +40,16 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
     role: first(params.role),
     age_min: first(params.age_min),
     age_max: first(params.age_max),
-    minutes_min: first(params.minutes_min) ?? "900",
+    // No default. A 900-minute floor hid entire competitions: on 30 August
+    // 2026 the European leagues were four matches old, so the most-played
+    // player in Portugal had 360 covered minutes and the filter emptied the
+    // page - indistinguishable from having no data at all.
+    //
+    // Short samples are still short, and still labelled: every row carries its
+    // sample band, and a player under 450 covered minutes shows as
+    // insufficient. Showing them with the warning beats hiding them without
+    // one.
+    minutes_min: first(params.minutes_min),
     market_value_max: first(params.market_value_max),
     contract_within_months: first(params.contract_within_months),
     sort: first(params.sort) ?? "minutes",
@@ -158,8 +167,11 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                 <>
                   Minimum minutes
                   <Tooltip label="Why does minutes played matter?">
-                    Per-90 figures are volatile over short spells. Players under 450 minutes are
-                    excluded from rankings by default; lower this to include them.
+                    Per-90 figures are volatile over short spells. Every player is listed
+                    whatever their minutes, and each row says how much evidence is behind it -
+                    under 450 covered minutes reads as an insufficient sample. Those players
+                    are still ranked, but they do not shape the population everyone else is
+                    ranked against. Set a floor here to leave them out entirely.
                   </Tooltip>
                 </>
               }
@@ -172,7 +184,7 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                 min={0}
                 step={90}
                 className="tabular"
-                defaultValue={filters.minutes_min}
+                defaultValue={filters.minutes_min ?? ""}
               />
             </Field>
 
