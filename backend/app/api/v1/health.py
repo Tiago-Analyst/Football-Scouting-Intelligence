@@ -124,10 +124,16 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
                 "API response. Run the profiling pipeline."
             ),
         )
+    # Reported without calling FootyStats. A health check that spent a request
+    # on every probe would burn a rate limit measured in requests per hour, and
+    # the ingest is what actually exercises the API.
     return DependencyStatus(
         name="footystats",
-        status="degraded",
-        detail=f"{verified} field(s) verified, but no provider is written against them yet.",
+        status="ok",
+        detail=(
+            f"{verified} metric(s) mapped and verified against real responses. "
+            "Not contacted by this check."
+        ),
     )
 
 
