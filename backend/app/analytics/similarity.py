@@ -36,9 +36,10 @@ import yaml
 from app.analytics.contracts import expires_within
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import PercentileEngine, PercentileScope, PlayerMetrics
+from app.core import paths
 from app.schemas.canonical import PositionGroup
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 DEFAULT_FEATURES_PATH = REPO_ROOT / "config" / "similarity_features.yaml"
 
 SIMILARITY_MEANING = (

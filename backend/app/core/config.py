@@ -10,14 +10,15 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
-from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from app.core import paths
+
 # backend/app/core/config.py -> backend/app/core -> backend/app -> backend -> repo root
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 
 
 class AppMode(StrEnum):

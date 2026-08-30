@@ -32,9 +32,10 @@ from app.analytics.intelligence import (
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileScope, PlayerMetrics
 from app.analytics.scoring import ScoreComponent, ScoreResult, weighted_score
+from app.core import paths
 from app.schemas.canonical import PositionGroup
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 DEFAULT_ROLES_PATH = REPO_ROOT / "config" / "player_roles.yaml"
 
 ROLE_SCORE_MEANING = (

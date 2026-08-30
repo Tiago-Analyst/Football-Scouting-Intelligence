@@ -42,6 +42,7 @@ from typing import Any
 
 import yaml
 
+from app.core import paths
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.providers.base import PerformanceDataProvider, ProviderError, UnknownEntityError
@@ -59,7 +60,7 @@ from app.schemas.canonical import (
 
 log = get_logger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 COMPETITIONS_PATH = REPO_ROOT / "config" / "competitions.yaml"
 POSITION_MAPPING_PATH = REPO_ROOT / "config" / "position_mapping.yaml"
 

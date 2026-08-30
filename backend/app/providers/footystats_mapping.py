@@ -26,10 +26,11 @@ from typing import Any
 
 import yaml
 
+from app.core import paths
 from app.core.errors import DataNotValidatedError
 from app.schemas.canonical import CanonicalMetric
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = paths.REPO_ROOT
 MAPPING_PATH = REPO_ROOT / "config" / "footystats_mapping.yaml"
 
 #: Every key an entry must carry. `verified_on` and `note` are not bureaucracy:
