@@ -2448,6 +2448,59 @@ with 900 minutes or more, 90% carry a market value and 77% a contract expiry,
 all of it arriving through identity resolution. Replacement with a budget now
 returns similarity, role fit and market fit together, against real valuations.
 
+## Market opportunities on real data (Phase 21)
+
+The screen worked. What it could not do was account for itself, and two of the
+things it was screening on were wrong.
+
+### Everyone was four months too old
+
+`REFERENCE_DATE` was pinned to 1 January 2027 - a fixed point chosen so the
+demo universe produced stable ages. Against real data, and with today being
+August 2026, it showed **1,541 of 5,456 players at an age they had not
+reached**: 28% of the site.
+
+Ages and contract windows are now measured from today. A test that needs a
+stable answer passes its own date rather than freezing everyone's birthday.
+
+### A contract that ended in 2024 counted as expiring soon
+
+The same arithmetic - months between now and an expiry - was written out
+longhand in four places, and carried the same defect in all four: it asked
+whether the expiry was *at most* N months away and never whether it was in the
+future at all.
+
+June 2024 is -31 months away, and -31 clears any threshold. **900 loaded
+players with lapsed contracts passed a filter for "expiring within 18
+months"**, and were offered as opportunities with "Contract expires Jun 2024"
+printed underneath as a reason to sign them.
+
+A lapsed record is not a free agent: either the player re-signed and the
+dataset has not caught up, or they left the club. Either way it says nothing
+about their situation now, and presenting it as an opportunity claims knowledge
+nobody has. `app/analytics/contracts.py` now holds the rule once, and the
+"has it passed" half compares dates rather than months - a contract that ended
+on the 15th is nought months away on the 30th and would otherwise slip back in
+through the same door.
+
+### A screen that says where it narrowed
+
+With the defaults, one player out of 5,462 clears every criterion. That is
+either a strict screen or a broken one, and a list of one cannot tell you
+which.
+
+The response now carries the funnel: each criterion, how many players were
+still standing after it, and how many it removed. On the current data the age
+limit removes 3,639 and the role-score threshold another 1,803 - the latter
+mostly players with no role score at all, because too few comparable players in
+their competition exist to rank them.
+
+Building it exposed a defect of its own. The wording lived in one list and the
+tests in another, in different orders, so the funnel reported the minutes
+filter as "Best role score at least 80". A confident account of the wrong thing
+is worse than no account, so each criterion now carries its own test and the
+wording is derived from them - they cannot drift apart again.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

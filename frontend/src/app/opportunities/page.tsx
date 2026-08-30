@@ -145,10 +145,35 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
               {results.disclaimer}
             </Callout>
 
+            {results.funnel.length > 0 ? (
+              <details className="rounded-md border border-subtle px-4 py-3">
+                <summary className="cursor-pointer text-xs font-semibold text-muted">
+                  Where the screen narrowed
+                </summary>
+                <ul className="mt-3 space-y-1 text-xs text-muted">
+                  {results.funnel.map((step) => (
+                    <li key={step.criterion} className="flex justify-between gap-4">
+                      <span>{step.criterion}</span>
+                      <span className="tabular whitespace-nowrap">
+                        {formatCount(step.remaining)} left
+                        {step.removed > 0 ? ` (−${formatCount(step.removed)})` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {results.explanation ? (
+                  <p className="mt-3 text-xs text-muted">{results.explanation}</p>
+                ) : null}
+              </details>
+            ) : null}
+
             {results.items.length === 0 ? (
               <EmptyState
                 title="No players meet these criteria"
-                description="Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling."
+                description={
+                  results.explanation ??
+                  "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling."
+                }
                 action={
                   <ButtonLink href="/opportunities" variant="secondary" size="sm">
                     Reset criteria

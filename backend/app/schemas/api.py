@@ -268,6 +268,14 @@ class OpportunityOut(BaseModel):
     reasons: list[str]
 
 
+class ScreenStepOut(BaseModel):
+    """One criterion, and how many players were still standing after it."""
+
+    criterion: str
+    remaining: int
+    removed: int
+
+
 class OpportunitiesResponse(BaseModel):
     items: list[OpportunityOut]
     total: int
@@ -275,6 +283,14 @@ class OpportunitiesResponse(BaseModel):
     #: Section 16 forbids calling a player undervalued without a validated
     #: valuation model. This states what the list does claim.
     disclaimer: str
+    #: Where the screen narrowed, criterion by criterion.
+    #:
+    #: A screen over five criteria that returns one player is either strict or
+    #: broken, and the list alone cannot tell you which. Showing the funnel
+    #: turns "why is this empty" from a guess into a reading.
+    funnel: list[ScreenStepOut] = Field(default_factory=list)
+    #: Present when the result is small enough to need accounting for.
+    explanation: str | None = None
 
 
 # ---------------------------------------------------------------------------

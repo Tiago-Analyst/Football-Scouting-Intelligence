@@ -8,6 +8,9 @@ the sample-size band, and the statements about what a score is not.
 
 from __future__ import annotations
 
+from datetime import date
+from itertools import pairwise
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -444,6 +447,56 @@ class TestReplacement:
 
 
 class TestOpportunities:
+    def test_the_funnel_labels_the_criterion_it_actually_applied(self, api: TestClient) -> None:
+        """Regression. The wording lived in one list and the tests in another,
+        and they drifted: the minutes filter was reported as "Best role score at
+        least 80". A funnel that confidently accounts for the wrong thing is
+        worse than no funnel.
+
+        Checked by moving one threshold at a time and seeing which line moves.
+        """
+        base = api.get("/api/v1/opportunities", params={"min_role_score": 50}).json()
+        stricter = api.get("/api/v1/opportunities", params={"min_role_score": 95}).json()
+
+        def removed_by(body: dict, needle: str) -> int:
+            step = next(s for s in body["funnel"] if needle in s["criterion"])
+            return step["removed"]
+
+        assert removed_by(stricter, "role score") > removed_by(base, "role score")
+        # Nothing before it in the screen should have moved.
+        assert removed_by(stricter, "Age at most") == removed_by(base, "Age at most")
+
+    def test_the_funnel_accounts_for_everyone(self, api: TestClient) -> None:
+        """Each step starts where the previous one finished, so the numbers can
+        be read straight down without a gap to wonder about."""
+        body = api.get("/api/v1/opportunities").json()
+        funnel = body["funnel"]
+        assert funnel
+        for earlier, later in pairwise(funnel):
+            assert later["remaining"] + later["removed"] == earlier["remaining"]
+        assert funnel[-1]["remaining"] == body["total"]
+
+    def test_a_thin_result_names_the_binding_constraint(self, api: TestClient) -> None:
+        """One survivor out of five thousand is either a strict screen or a
+        broken one, and the list alone cannot tell them apart."""
+        body = api.get("/api/v1/opportunities").json()
+        if body["total"] > 10:
+            pytest.skip("the screen is not thin enough to need explaining")
+        assert body["explanation"]
+        strictest = max(body["funnel"], key=lambda s: s["removed"])
+        assert strictest["criterion"] in body["explanation"]
+
+    def test_a_lapsed_contract_is_not_offered_as_expiring(self, api: TestClient) -> None:
+        """900 players with contracts recorded as ending years ago passed the
+        "expiring within 18 months" filter, because -31 months is under any
+        threshold."""
+        body = api.get("/api/v1/opportunities", params={"contract_within_months": 18}).json()
+        today = date.today()
+        for item in body["items"]:
+            expires = item["player"].get("contract_expires")
+            if expires:
+                assert date.fromisoformat(expires) >= today, item["player"]["name"]
+
     def test_returns_players_meeting_the_criteria(self, api: TestClient) -> None:
         body = api.get(
             "/api/v1/opportunities", params={"max_age": 23, "min_role_score": 70, "limit": 10}

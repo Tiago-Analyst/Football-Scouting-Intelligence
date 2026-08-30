@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.analytics.contracts import expires_within
 from app.analytics.intelligence import IntelligenceScore
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
@@ -237,16 +238,10 @@ def list_players(
             and record.market_value_eur > market_value_max
         ):
             return False
-        if contract_within_months is not None:
-            if record.contract_expires is None:
-                return False
-            from app.services.analytics_service import REFERENCE_DATE
-
-            months = (record.contract_expires.year - REFERENCE_DATE.year) * 12 + (
-                record.contract_expires.month - REFERENCE_DATE.month
-            )
-            if months > contract_within_months:
-                return False
+        if contract_within_months is not None and not expires_within(
+            record.contract_expires, contract_within_months
+        ):
+            return False
         if role:
             fit = view.best_roles.get(record.player_key)
             if not fit or not fit.best or fit.best.key != role:

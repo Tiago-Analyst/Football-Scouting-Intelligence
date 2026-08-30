@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from functools import lru_cache
 
+from app.analytics.contracts import reference_date
 from app.analytics.intelligence import IntelligenceScore, IntelligenceScoreEngine
 from app.analytics.metrics import DerivedMetric, DerivedMetrics, compute_derived
 from app.analytics.percentiles import (
@@ -59,7 +60,11 @@ from app.schemas.canonical import PlayerSeasonStats, PositionGroup, PreferredFoo
 
 log = get_logger(__name__)
 
-REFERENCE_DATE = date(2027, 1, 1)
+#: Kept as a name so callers read `reference_date()` rather than `date.today()`
+#: scattered about, and so a test can pass its own date instead.
+#:
+#: This was a fixed 1 January 2027, chosen so the demo universe produced stable
+#: ages. Against real data it put 28% of players at an age they had not reached.
 
 
 @dataclass(frozen=True)
@@ -197,7 +202,7 @@ class AnalyticsView:
                 limit=limit,
                 minimum_minutes=minimum_minutes,
                 minimum_similarity=minimum_similarity,
-                today=REFERENCE_DATE,
+                today=reference_date(),
             )
         except KeyError:
             return []
@@ -212,6 +217,7 @@ def _age_at(born: date | None, reference: date) -> int | None:
 def build_view(settings: Settings) -> AnalyticsView:
     """Assemble the analytical universe from what the pipeline loaded."""
     started = time.perf_counter()
+    today = reference_date()
 
     # The market provider stays: valuation history and transfers are served per
     # player rather than held in the view. Everything the *view* needs now comes
@@ -275,7 +281,7 @@ def build_view(settings: Settings) -> AnalyticsView:
             preferred_foot=loaded.preferred_foot,
             height_cm=loaded.height_cm,
             date_of_birth=loaded.date_of_birth,
-            age=_age_at(loaded.date_of_birth, REFERENCE_DATE),
+            age=_age_at(loaded.date_of_birth, today),
             market_value_eur=loaded.market_value_eur,
             contract_expires=loaded.contract_expires,
             minutes=loaded.stats.minutes,

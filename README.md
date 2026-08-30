@@ -86,10 +86,10 @@ Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
 12 to 21 are blocked on a FootyStats API key and cannot begin without one;
 phase 22 (pipelines) is done as far as an idle FootyStats allows, and phase 23
 is prepared up to the decisions that are the owner's — see `docs/deployment.md`.
-Phase 24 (polish) is done. Phases 12 to 20 (FootyStats validation, the
-provider, real ingestion, identity resolution, real derived metrics, verified
-percentiles and scores, similarity, recruitment and replacement) are done;
-21 — market opportunities — remains, and 23 is a deployment decision.
+Phase 24 (polish) is done. Every phase that is code is done: 0 to 22 and 24.
+Phase 23 — production deployment — is a decision about hosting, domain and
+secrets rather than something to build; `docs/deployment.md` describes it and
+`backend/scripts/check_production.py` refuses an unsafe configuration.
 
 Two things in `docs/architecture.md` were built while phase 12 was blocked and
 are labelled as such rather than borrowing a phase number.
