@@ -115,6 +115,60 @@ class TestTheCheckerDiscriminates:
         assert findings and not any(f.failed for f in findings)
 
 
+class TestAManagedDatabaseUrl:
+    """A managed provider hands out one connection string, and the settings
+    accept it as `DATABASE_URL` - at which point POSTGRES_HOST, POSTGRES_USER
+    and POSTGRES_PASSWORD are ignored entirely.
+
+    Checking those three anyway made this gate both useless and harmful: it
+    refused a correctly configured Neon deployment for having no password while
+    the password sat in the URL, and it would have waved through a superuser
+    connection with a well-known password.
+    """
+
+    def managed(self, url: str):  # type: ignore[no-untyped-def]
+        return sound(database_url=url, postgres_password="", postgres_host="", postgres_user="")
+
+    def test_a_sound_connection_string_passes(self) -> None:
+        findings = check_database(
+            self.managed(
+                "postgresql://app_role:a-long-random-production-secret"
+                "@ep-x.eu-central-1.aws.neon.tech/fri?sslmode=require"
+            )
+        )
+        assert [f for f in findings if f.severity == "fail"] == []
+
+    def test_a_superuser_in_the_url_is_still_caught(self) -> None:
+        findings = check_database(
+            self.managed("postgresql://postgres:a-long-random-production-secret@db.example.com/fri")
+        )
+        assert any(f.severity == "fail" and "superuser" in f.detail for f in findings)
+
+    def test_a_well_known_password_in_the_url_is_still_caught(self) -> None:
+        findings = check_database(self.managed("postgresql://app_role:postgres@db.example.com/fri"))
+        assert any(f.severity == "fail" for f in findings)
+
+    def test_localhost_in_the_url_is_still_noticed(self) -> None:
+        findings = check_database(
+            self.managed("postgresql://app_role:a-long-random-production-secret@localhost/fri")
+        )
+        assert any("localhost" in f.detail for f in findings)
+
+    def test_a_percent_encoded_password_is_read_as_written(self) -> None:
+        """Connection strings escape reserved characters, and a password read
+        with the escapes still in it is a different string - long enough to pass
+        a length check it might not deserve, and unequal to a weak password it
+        might actually be."""
+        findings = check_database(
+            self.managed("postgresql://app_role:p%40ssword@db.example.com/fri")
+        )
+        assert any(f.severity == "warn" for f in findings), "p@ssword is 8 characters"
+
+    def test_the_individual_variables_still_work_without_a_url(self) -> None:
+        """Nobody using the documented POSTGRES_* variables should be affected."""
+        assert [f for f in check_database(sound()) if f.severity == "fail"] == []
+
+
 class TestTheApplicationHonoursIt:
     """The checks above are worthless if production does not actually differ."""
 
