@@ -2412,6 +2412,42 @@ components when only one was actually absent everywhere.
 Per-candidate explanation needed nothing. Each result carries its component
 percentiles, weights and contributions, and the contributions sum to the score.
 
+## Replacement on real data (Phase 20)
+
+Most of the replacement finder needed nothing: over 120 real targets, 118 got
+candidates, role fit computed for 103 of them, and the ranking combines
+similarity, role fit and market fit in the proportions the specification sets
+out. Market fit stayed empty for all of them, which turned out to be the thread
+worth pulling.
+
+### The last endpoints that were not reading the database
+
+Valuation history and transfers were served by asking a *provider* rather than
+by reading what the pipeline had loaded. That was a deliberate decision once -
+the history is per player and does not belong in the analytical view - and it
+left two sources of truth.
+
+The consequences were quiet in both directions. In demo mode the provider is
+the mock one, which knows only invented player ids, so a real player's history
+came back **empty rather than wrong** - the better failure, and still the wrong
+answer, because 4,768 of the loaded players have valuation history sitting in
+`fact_market_value`. In production the provider reads the Transfermarkt
+snapshot directly, so the page could disagree with the database the rest of it
+comes from, and a load that had never been run would still appear to work.
+
+Both now read the database, like every other figure on the page. Measured
+afterwards: a striker who previously showed nothing has 14 valuations and 10
+transfers, and 56 of 60 sampled players have a history.
+
+The provider stays where it belongs - it is how the pipeline ingests.
+
+### What the merge bought
+
+Market values reached the players who needed them: of the 511 player-seasons
+with 900 minutes or more, 90% carry a market value and 77% a contract expiry,
+all of it arriving through identity resolution. Replacement with a budget now
+returns similarity, role fit and market fit together, against real valuations.
+
 ## Planned, not yet built
 
 The provider abstraction and the mock implementation exist (Phase 1A). What

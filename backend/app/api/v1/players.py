@@ -16,6 +16,8 @@ from app.analytics.percentiles import ComparisonContext, PercentileResult, Perce
 from app.analytics.roles import RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY
 from app.analytics.similarity import SimilarityFilters, SimilarityResult
+from app.core.database import get_session_factory
+from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
     ComparisonContextOut,
     MarketValuePointOut,
@@ -390,30 +392,35 @@ def get_similar_players(
 
 @router.get("/players/{player_id}/market-value", response_model=list[MarketValuePointOut])
 def get_market_value_history(player_id: str) -> list[MarketValuePointOut]:
+    """Valuation history, read from what the pipeline loaded.
+
+    Not from the market provider: in demo mode that is the mock one, which knows
+    only invented ids and returned nothing for real players, and in production
+    it reads the Transfermarkt snapshot directly, so the page could disagree
+    with the database the rest of it comes from.
+    """
     view = get_analytics_view()
     require_player(view, player_id)
-    if view.market is None:
-        return []
-    return [
-        MarketValuePointOut(valued_on=p.valued_on, market_value_eur=p.market_value_eur)
-        for p in view.market.get_market_value_history(player_id)
-    ]
+    with get_session_factory()() as session:
+        return [
+            MarketValuePointOut(valued_on=p.valued_on, market_value_eur=p.market_value_eur)
+            for p in market_value_history(session, player_id)
+        ]
 
 
 @router.get("/players/{player_id}/transfers", response_model=list[TransferOut])
 def get_transfers(player_id: str) -> list[TransferOut]:
     view = get_analytics_view()
     require_player(view, player_id)
-    if view.market is None:
-        return []
-    return [
-        TransferOut(
-            transfer_date=t.transfer_date,
-            season=t.season,
-            from_club=t.from_club_name,
-            to_club=t.to_club_name,
-            fee_eur=t.fee_eur,
-            transfer_type=t.transfer_type.value,
-        )
-        for t in view.market.get_transfers(player_id)
-    ]
+    with get_session_factory()() as session:
+        return [
+            TransferOut(
+                transfer_date=t.transfer_date,
+                season=t.season,
+                from_club=t.from_club,
+                to_club=t.to_club,
+                fee_eur=t.fee_eur,
+                transfer_type=t.transfer_type,
+            )
+            for t in transfers(session, player_id)
+        ]
