@@ -30,8 +30,7 @@ services:
     dockerContext: ./backend
     plan: free
     region: frankfurt
-    # This repository's branch is `master`. Change both if you rename it.
-    branch: master
+    branch: main
     # Only rebuild when the backend or its pipelines change. A frontend commit
     # redeploying the API is a needless restart, and a restart drops the
     # analytical view that takes seconds to rebuild.
