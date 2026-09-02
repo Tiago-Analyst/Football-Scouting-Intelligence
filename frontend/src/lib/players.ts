@@ -55,6 +55,20 @@ function query(params: Record<string, string | number | boolean | undefined | nu
  */
 const ANALYSIS_TTL = 3600;
 
+/**
+ * One tag over every analytical read.
+ *
+ * The hour above is the fallback, not the mechanism. When a data load finishes
+ * and is verified, the pipeline calls `/api/revalidate` and everything carrying
+ * this tag is marked stale at once - so a load is visible in minutes rather
+ * than whenever each cached entry happens to expire.
+ *
+ * Marking is not rebuilding: Next revalidates a page when it is next requested,
+ * so five thousand profiles do not rebuild simultaneously. Readers are served
+ * the previous answer while the new one is fetched behind them.
+ */
+export const ANALYTICS_TAG = "analytics";
+
 export type PlayerSearchParams = Record<
   string,
   string | number | boolean | undefined | null
@@ -92,6 +106,7 @@ export async function searchPlayers(
   try {
     return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`, {
       revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
       buildAccess: options.buildAccess,
     });
   } catch (error) {
@@ -103,6 +118,7 @@ export async function getPlayer(playerId: string): Promise<PlayerDetail | null> 
   try {
     return await apiFetch<PlayerDetail>(`/api/v1/players/${encodeURIComponent(playerId)}`, {
       revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
     });
   } catch (error) {
     return nullIfMissing(error);
@@ -116,7 +132,7 @@ export async function getPlayerStats(
   try {
     return await apiFetch<PlayerStats>(
       `/api/v1/players/${encodeURIComponent(playerId)}/stats${query({ scope })}`,
-      { revalidate: ANALYSIS_TTL },
+      { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] },
     );
   } catch (error) {
     return nullIfMissing(error);
@@ -127,6 +143,7 @@ export async function getPlayerRoles(playerId: string): Promise<RoleFit | null> 
   try {
     return await apiFetch<RoleFit>(`/api/v1/players/${encodeURIComponent(playerId)}/roles`, {
       revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
     });
   } catch (error) {
     return nullIfMissing(error);
@@ -140,7 +157,7 @@ export async function getSimilarPlayers(
   try {
     return await apiFetch<SimilarPlayers>(
       `/api/v1/players/${encodeURIComponent(playerId)}/similar${query(params)}`,
-      { revalidate: ANALYSIS_TTL },
+      { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] },
     );
   } catch (error) {
     return nullIfMissing(error);
@@ -183,7 +200,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
       `/api/v1/players/${encodeURIComponent(playerId)}/profile`,
       // Prerendering calls this 5,462 times; serving a reader calls it once.
       // The flag says "this may be the build", and only the build is believed.
-      { revalidate: ANALYSIS_TTL, buildAccess: true },
+      { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG], buildAccess: true },
     );
   } catch (error) {
     return nullIfMissing(error);
@@ -201,7 +218,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
  */
 export async function getCompetitions(): Promise<Competition[]> {
   try {
-    return await apiFetch<Competition[]>("/api/v1/competitions", { revalidate: ANALYSIS_TTL });
+    return await apiFetch<Competition[]>("/api/v1/competitions", { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] });
   } catch {
     return [];
   }
@@ -209,7 +226,7 @@ export async function getCompetitions(): Promise<Competition[]> {
 
 export async function getRoles(): Promise<Role[]> {
   try {
-    return await apiFetch<Role[]>("/api/v1/roles", { revalidate: ANALYSIS_TTL });
+    return await apiFetch<Role[]>("/api/v1/roles", { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] });
   } catch {
     return [];
   }
@@ -221,6 +238,7 @@ export async function getOpportunities(
   try {
     return await apiFetch<Opportunities>(`/api/v1/opportunities${query(params)}`, {
       revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
     });
   } catch (error) {
     return nullIfMissing(error);

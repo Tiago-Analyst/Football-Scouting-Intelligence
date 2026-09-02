@@ -68,3 +68,20 @@ class MetaResponse(BaseModel):
     #: other. False for everybody else, which tells them nothing they could not
     #: work out by making a request.
     build_access: bool = False
+
+
+class ReloadAnalyticsResponse(BaseModel):
+    """What a pipeline learns from asking the API to reload.
+
+    `changed` is the useful one: it separates "the load reached the API" from
+    "the load changed nothing", which look identical from the outside and mean
+    very different things about the run that just finished.
+    """
+
+    changed: bool
+    players: int
+    competitions: int
+    build_seconds: float
+    #: Always false immediately after a reload. Returned so a caller can assert
+    #: on it rather than infer it.
+    is_stale: bool = False

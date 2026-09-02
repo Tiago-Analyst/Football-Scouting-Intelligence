@@ -200,6 +200,7 @@ prompts for:
 | `CORS_ALLOW_ORIGINS` | the Vercel origin, exactly, no trailing slash |
 | `FOOTYSTATS_API_KEY` | only if a subscription is in use |
 | `BUILD_TOKEN` | any long random string; the same value goes to Vercel |
+| `INTERNAL_TOKEN` | a different long random string; also to Vercel and GitHub |
 
 `CORS_ALLOW_ORIGINS` is a chicken-and-egg: Vercel has to exist first to have an
 origin. Deploy the frontend, then come back and set it. A wildcard is not an
@@ -212,6 +213,22 @@ request per page in about a minute - a rate the public limit refuses, and
 should, since from the outside it looks like someone draining the database.
 It is not a credential: presenting it grants no access a public caller lacks.
 Leave it unset and the exemption does not exist.
+
+`INTERNAL_TOKEN` closes the last step of a data refresh. The analytical view is
+held in memory for the life of the process, so a verified load reached
+PostgreSQL and stopped there until the service happened to restart; the pipeline
+now calls `/api/v1/internal/reload-analytics` and then the site's
+`/api/revalidate`, in that order. Revalidating the site first would have it
+re-fetch and cache the old answers.
+
+Keep it different from `BUILD_TOKEN`. That one lifts a rate limit and grants no
+access a public caller lacks; this one makes the service rebuild. A secret that
+leaks from a build log must not also be able to drive the API. Both are unset by
+default and both refuse everybody when unset.
+
+The same value goes in the repository's Actions secrets, alongside
+`API_ORIGIN` and `SITE_ORIGIN`. Without them the pipeline warns and carries on -
+the data is loaded and correct, it simply is not being served yet.
 
 The free plan sleeps after 15 minutes idle and takes roughly 50 seconds to
 wake. Readers no longer meet that, because the pages they read were built at
@@ -266,6 +283,7 @@ carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
 | `SITE_URL` | the site's own https origin |
 | `SITE_INDEXABLE` | leave unset; set to `false` to close indexing again |
 | `BUILD_TOKEN` | the same value set on Render |
+| `INTERNAL_TOKEN` | the same value set on Render |
 
 `API_BASE_URL` is deliberately not `NEXT_PUBLIC_`. The browser never talks to
 the API; Next reads it server-side. Renaming it would put the API's address in

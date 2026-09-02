@@ -71,6 +71,11 @@ interface ApiFetchOptions {
   /** Statuses to treat as a parseable answer rather than an error. */
   acceptStatuses?: number[];
   /**
+   * Cache tags, so a successful data load can invalidate everything that came
+   * from it in one call rather than waiting out each entry's hour.
+   */
+  tags?: string[];
+  /**
    * Whether this call may identify itself as the deploy.
    *
    * Opt-in, and only honoured during `next build`. Set it on calls that static
@@ -127,7 +132,7 @@ export async function apiFetchWithHeaders<T>(
       // signed-in person, so it must never enter a shared cache either.
       ...(revalidate === undefined || method !== "GET" || options.cookie
         ? { cache: "no-store" }
-        : { next: { revalidate } }),
+        : { next: { revalidate, ...(options.tags ? { tags: options.tags } : {}) } }),
     });
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : "unknown error";
