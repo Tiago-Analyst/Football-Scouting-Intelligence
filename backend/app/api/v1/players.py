@@ -185,6 +185,10 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         player=to_summary(record, view),
         similarity=result.similarity,
         shared_features=result.shared_features,
+        expected_features=result.expected_features,
+        feature_coverage_pct=result.feature_coverage * 100.0,
+        coverage_band=result.coverage_band.value,
+        coverage_label=result.coverage_label,
         profile_strength_ratio=result.profile_strength_ratio,
         comparable_strength=result.comparable_strength,
     )

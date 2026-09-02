@@ -179,6 +179,16 @@ class SimilarPlayerOut(BaseModel):
     player: PlayerSummary
     similarity: float
     shared_features: int
+    #: How many the position's vector defines. Six of eleven is much weaker
+    #: evidence than eleven of eleven, and the index alone cannot tell them
+    #: apart - both can read 92.
+    expected_features: int = 0
+    #: shared / expected, as a percentage.
+    feature_coverage_pct: float = 0.0
+    #: high | good | limited | very_limited, with its label. Reported beside
+    #: the index, never mixed into it.
+    coverage_band: str = "high"
+    coverage_label: str = ""
     #: How comparable the two profiles are in strength, 0-1. A high similarity
     #: with a low ratio means the shapes match but the levels do not.
     profile_strength_ratio: float
