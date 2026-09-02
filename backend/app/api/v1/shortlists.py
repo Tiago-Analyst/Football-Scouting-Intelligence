@@ -26,15 +26,20 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from app.analytics.percentiles import PercentileScope
-from app.analytics.sample import SAMPLE_BAND_COPY
 from app.api.deps import SessionDep
 from app.api.v1.auth import CurrentUser
-from app.api.v1.players import PROFILE_METRICS, to_context, to_metric, to_score, to_summary
+from app.api.v1.players import (
+    PROFILE_METRICS,
+    to_context,
+    to_metric,
+    to_sample,
+    to_score,
+    to_summary,
+)
 from app.core.errors import NotFoundError
 from app.schemas.api import (
     ComparedPlayer,
     ComparisonResponse,
-    SampleOut,
     ShortlistDetail,
     ShortlistEntryOut,
     ShortlistOut,
@@ -312,11 +317,7 @@ def compare(
         columns.append(
             ComparedPlayer(
                 player=to_summary(record, view),
-                sample=SampleOut(
-                    minutes=record.minutes,
-                    band=record.sample_band.value,
-                    explanation=SAMPLE_BAND_COPY[record.sample_band],
-                ),
+                sample=to_sample(record),
                 note=entries[key].note,
                 metrics=metrics,
                 scores=[to_score(s) for s in view.scores(key).values()],

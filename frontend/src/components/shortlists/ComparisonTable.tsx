@@ -79,7 +79,11 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
                   <span className="inline-flex items-center gap-1.5">
                     {column.sample.minutes !== null ? formatCount(column.sample.minutes) : "—"}
                     {column.sample.minutes !== null ? (
-                      <SampleSizeBadge minutes={column.sample.minutes} showTooltip={false} />
+                      <SampleSizeBadge
+                        band={column.sample.band}
+                        minutes={column.sample.minutes}
+                        showTooltip={false}
+                      />
                     ) : null}
                   </span>
                 </TD>

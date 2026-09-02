@@ -73,8 +73,28 @@ class RoleFitOut(BaseModel):
 
 
 class SampleOut(BaseModel):
+    """What a figure rests on: how much football, and how much of it was recorded.
+
+    None of this filters anybody. Every player is scored and ranked whatever
+    their minutes; these fields let a reader see how much weight to put on the
+    result, which is a different question and theirs to answer.
+    """
+
+    #: Time on the pitch.
     minutes: int | None
+    #: The minutes the provider's detailed counts actually describe - the
+    #: denominator of every per-90 here. Absent when the provider said nothing,
+    #: which is not the same as nought.
+    recorded_minutes: int | None = None
+    #: recorded / played, as a percentage. `None` when it cannot be computed.
+    detailed_coverage_pct: float | None = None
+    #: excellent | good | partial | limited, or absent with the percentage.
+    coverage_band: str | None = None
+    coverage_label: str | None = None
+    coverage_explanation: str | None = None
+    #: very_low | low | developing | established.
     band: str
+    band_label: str
     explanation: str
 
 

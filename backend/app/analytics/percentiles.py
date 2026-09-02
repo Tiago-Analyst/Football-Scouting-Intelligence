@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric, DerivedMetrics
-from app.analytics.sample import is_rankable
+from app.analytics.sample import can_rate
 from app.schemas.canonical import PositionGroup
 
 #: Fewer comparable players than this and a percentile is noise dressed as
@@ -145,38 +145,39 @@ def percentile_of(value: float, sorted_values: list[float]) -> float:
 class PercentileEngine:
     """Ranks players against position-scoped populations.
 
-    The population is drawn from players who meet the minutes threshold, because
-    a per-90 rate from 200 minutes is noise and would distort the distribution
-    everyone else is measured against. Any player can still be *scored* against
-    it, including one below the threshold — their figures are then shown with a
-    sample-size warning rather than hidden.
+    Everyone whose figure exists is in the population. There is no minutes
+    threshold: minutes band a figure for the reader, they do not decide who is
+    compared. The one rule is arithmetic - a per-90 needs a denominator - and
+    it is `can_rate`, not an editorial judgement about who has played enough.
+
+    A caller may still pass `minimum_minutes` deliberately; nothing does by
+    default.
     """
 
     def __init__(
         self,
         population: list[PlayerMetrics],
         *,
-        # Having played at all - no more than that. This was
-        # LOW_SAMPLE_MINUTES, which emptied every competition whose season had
-        # just begun: no population, no percentile, and a working engine
-        # reporting nothing.
+        # No floor. `can_rate` admits anyone with a positive denominator, which
+        # is everyone who has a per-90 at all.
         #
-        # One rather than nought, because a player with no minutes has no
-        # per-90 to contribute. They would never affect a distribution, only
-        # inflate the population size reported beside it - and that number is
-        # shown to a reader as the answer to "compared against how many?".
-        #
-        # A caller that wants a real floor still passes one.
-        minimum_minutes: int = 1,
+        # This used to default to LOW_SAMPLE_MINUTES, which emptied every
+        # competition whose season had just begun: no population, no
+        # percentile, and a working engine reporting nothing. A player with no
+        # recorded minutes is still excluded, because they have no rate to
+        # contribute - counting them would only inflate the population size
+        # reported beside the percentile, and that number answers a reader's
+        # question "compared against how many?".
+        minimum_minutes: int | None = None,
         min_population: int = MIN_POPULATION,
     ) -> None:
         self.minimum_minutes = minimum_minutes
         self.min_population = min_population
-        # Only players with enough minutes define the distribution.
+        # `record.minutes` here is the per-90 denominator, not time on the
+        # pitch: `compute_derived` puts `recorded_minutes` there. So this asks
+        # "does this player have a rate at all", and nothing else.
         self._eligible = [
-            record
-            for record in population
-            if is_rankable(record.minutes, minimum_minutes=minimum_minutes)
+            record for record in population if can_rate(record.minutes, at_least=minimum_minutes)
         ]
         self._by_group: dict[tuple[PositionGroup, str], list[PlayerMetrics]] = defaultdict(list)
         for record in self._eligible:
@@ -238,7 +239,10 @@ class PercentileEngine:
             season_id=season_id,
             competition_ids=tuple(covered),
             population_size=population_size,
-            minimum_minutes=self.minimum_minutes,
+            # Nought where no floor was applied, which is the default. The
+            # field reports the bar a reader had to clear to be in this
+            # population; "none" and "zero" are the same bar.
+            minimum_minutes=self.minimum_minutes or 0,
         )
 
     def rank(

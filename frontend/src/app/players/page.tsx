@@ -295,7 +295,7 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                                 {player.raw_position ?? player.position_group}
                               </span>
                               {player.minutes !== null ? (
-                                <SampleSizeBadge minutes={player.minutes} showTooltip={false} />
+                                <SampleSizeBadge band={player.sample_band} minutes={player.minutes} showTooltip={false} />
                               ) : null}
                             </span>
                           </TD>
