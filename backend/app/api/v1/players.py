@@ -75,6 +75,14 @@ PROFILE_METRICS: list[DerivedMetric] = [
 ]
 
 _LABEL_OVERRIDES = {
+    # Tackle *attempts*. The provider declares a successful-tackles field and
+    # never populates it, so what we have is how often a player engages, not
+    # how often they win the ball. "Tackles /90" reads as the second to most
+    # people, and a label that implies a measurement we do not have is worse
+    # than a longer one.
+    "tackles_per90": "Tackles attempted /90",
+    "successful_tackles_per90": "Tackles won /90",
+    "tackle_success_percentage": "Tackle success %",
     "npxg_per90": "npxG /90",
     "xa_per90": "xA /90",
     "xg_per90": "xG /90",
