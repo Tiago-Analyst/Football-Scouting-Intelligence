@@ -102,6 +102,7 @@ def classify_feature_coverage(coverage: float) -> FeatureCoverage:
         return FeatureCoverage.LIMITED
     return FeatureCoverage.VERY_LIMITED
 
+
 #: Below this index, a pair is not offered as similar at all.
 #:
 #: This is a judgement, not a measurement, and it is here rather than in the
