@@ -5,7 +5,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Callout } from "@/components/ui/States";
 
-export const metadata: Metadata = { title: "Methodology" };
+export const metadata: Metadata = {
+  title: "Methodology",
+  description:
+    "How the numbers are made: per-90 metrics, position-scoped percentiles, role fits and similarity - and what each of them does not claim.",
+};
 
 /**
  * Methodology.

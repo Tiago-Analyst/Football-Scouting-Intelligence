@@ -10,7 +10,11 @@ import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { formatCount, formatEuro } from "@/lib/format";
 import { getOpportunities } from "@/lib/players";
 
-export const metadata: Metadata = { title: "Market opportunities" };
+export const metadata: Metadata = {
+  title: "Market opportunities",
+  description:
+    "Players matching a screen over age, role fit, playing time and market value. A filter, not a valuation model: nobody here is labelled undervalued.",
+};
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;

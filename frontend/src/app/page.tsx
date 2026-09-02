@@ -1,7 +1,19 @@
+import type { Metadata } from "next";
+
 import { ButtonLink } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { Callout } from "@/components/ui/States";
 import { PRIMARY_NAV } from "@/lib/nav";
+
+/**
+ * No `title`: the layout's default is already this page's name, and setting one
+ * would run it through the template and produce the name twice.
+ */
+export const metadata: Metadata = {
+  description:
+    "Recruitment intelligence for football. Contextual percentiles measured against a " +
+    "stated peer group, role fits, statistical similarity and ranked shortlists - with the " +
+    "reasoning behind every result kept visible.",
+};
 
 /**
  * Landing page.
@@ -24,8 +36,15 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="pt-6 sm:pt-12">
-      <Badge tone="accent">Demo build · mock data</Badge>
+      {/* No "mock data" badge. It was hardcoded here and went on asserting that
+          the data was invented long after it stopped being - the backend
+          reports `production`, and the first thing a visitor read said
+          otherwise. The same badge was removed from three other pages for the
+          same reason; this one was missed.
 
+          Where a deployment really is serving demo data, the backend says so in
+          `/api/v1/meta` and the layout shows a banner sitewide. One source of
+          truth, and it is the one that knows. */}
       <h1 className="mt-5 max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-5xl">
         Recruitment decisions need context, not just statistics.
       </h1>

@@ -10,7 +10,11 @@ import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Tabl
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import { getSimilarPlayers, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = { title: "Similar players" };
+export const metadata: Metadata = {
+  title: "Similar players",
+  description:
+    "Find players whose statistical profile resembles a selected player, within a compatible position group. A similarity index, not a probability.",
+};
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;

@@ -12,7 +12,11 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = { title: "Player search" };
+export const metadata: Metadata = {
+  title: "Player search",
+  description:
+    "Search players by position, competition, age, playing time and market value. Every player is ranked against their own position group, and each result shows the sample it rests on.",
+};
 
 const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
 const PAGE_SIZE = 25;

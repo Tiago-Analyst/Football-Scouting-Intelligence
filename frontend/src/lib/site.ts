@@ -17,17 +17,24 @@ export const IS_PUBLIC_ORIGIN = !SITE_URL.includes("localhost");
 /**
  * Whether search engines may index this deployment.
  *
- * Default closed, and deliberately a separate switch from `SITE_URL`. Deciding
- * it by whether an origin looks real means the day someone sets the domain,
- * indexing turns itself on — a decision nobody made, and one that is far easier
- * to make than to undo. Set `SITE_INDEXABLE=true` to opt in.
+ * This was default closed, waiting for somebody to decide. The switch existed
+ * so that indexing could never turn itself on the day a domain was set - a
+ * decision nobody made is the one worth guarding against, and an indexed site
+ * is far easier to create than to undo.
  *
- * There is a second reason to leave it closed here. The data comes from
- * FootyStats and the Transfermarkt dataset, and both carry terms about
- * redistribution. Being reachable by someone you sent a link to is a different
- * proposition from being republished by a search engine.
+ * The decision has now been made deliberately: the public product pages are to
+ * be crawlable. So the default flips, and the switch stays - `SITE_INDEXABLE`
+ * set to anything but "true" closes it again, and localhost is never
+ * indexable whatever it says.
+ *
+ * What has not changed is which pages. `DISALLOWED` below still holds back the
+ * personal areas and the individual player profiles, and the reason for the
+ * profiles is unchanged: they are pages about named people built from datasets
+ * whose terms are still unreviewed. They remain openly readable to anyone who
+ * has the URL - nothing about them is behind a login - they are simply not
+ * offered to a search engine to keep thousands of copies of.
  */
-export const IS_INDEXABLE = IS_PUBLIC_ORIGIN && process.env.SITE_INDEXABLE === "true";
+export const IS_INDEXABLE = IS_PUBLIC_ORIGIN && process.env.SITE_INDEXABLE !== "false";
 
 /**
  * Routes worth putting in front of a search engine.
