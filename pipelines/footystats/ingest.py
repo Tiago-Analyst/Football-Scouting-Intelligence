@@ -51,6 +51,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -66,6 +67,41 @@ SNAPSHOT_DIR = REPO_ROOT / "data" / "raw" / "footystats" / "snapshots"
 CHECKPOINT_EVERY = 25
 
 
+class Deadline:
+    """When to stop of our own accord.
+
+    A full refresh is roughly fourteen hours at the account's rate limit, and
+    the GitHub job that drives it is capped at sixty minutes. Being killed at
+    the cap is survivable but wasteful: the process dies mid-write, the
+    progress file is as old as the last checkpoint, and - worse - a job killed
+    by timeout is not guaranteed to persist a cache it created, so the work of
+    the whole hour can be lost rather than merely truncated.
+
+    So the run stops itself with time in hand, flushes, records where it got
+    to, and exits successfully. The next run continues.
+    """
+
+    def __init__(self, minutes: float | None) -> None:
+        # `None` means no limit; nought means already out of time. Written as
+        # an explicit None check because `if minutes` treats the two the same,
+        # and a caller passing 0 means the opposite of unlimited.
+        self.limit_seconds = None if minutes is None else minutes * 60
+        self.started = time.monotonic()
+
+    @property
+    def elapsed(self) -> float:
+        return time.monotonic() - self.started
+
+    def expired(self) -> bool:
+        return self.limit_seconds is not None and self.elapsed >= self.limit_seconds
+
+    @property
+    def remaining(self) -> float | None:
+        if self.limit_seconds is None:
+            return None
+        return max(0.0, self.limit_seconds - self.elapsed)
+
+
 @dataclass
 class CompetitionResult:
     season_id: str
@@ -76,10 +112,25 @@ class CompetitionResult:
     failed: int = 0
     seconds: float = 0.0
     error: str | None = None
+    #: True when the run stopped here because it was running out of time,
+    #: rather than because there was nothing left to fetch.
+    stopped_early: bool = False
+    #: Roster players still unfetched when this competition was left.
+    pending: int = 0
 
     @property
     def ok(self) -> bool:
         return self.error is None and self.failed == 0
+
+    @property
+    def complete(self) -> bool:
+        """Every player in the roster is in the snapshot.
+
+        Separate from `ok`. A competition can finish cleanly with work left -
+        that is what a graceful stop looks like - and it can be complete while
+        having failed, which is a different problem and reported separately.
+        """
+        return self.error is None and self.pending == 0
 
 
 @dataclass
@@ -88,10 +139,31 @@ class RunReport:
     finished_at: str | None = None
     requests: int = 0
     competitions: list[CompetitionResult] = field(default_factory=list)
+    #: Competitions this run never reached, because it ran out of time first.
+    unvisited: int = 0
+    stopped_early: bool = False
 
     @property
     def failed(self) -> bool:
         return any(not c.ok for c in self.competitions)
+
+    @property
+    def complete(self) -> bool:
+        """Whether the whole requested refresh is now on disk.
+
+        Conservative on purpose. A competition this run never reached is not
+        known to be complete, whatever a previous run may have done, so it
+        counts against completeness until a run actually looks at it. The cost
+        of being wrong here is publishing a partial universe as if it were the
+        season.
+        """
+        if self.unvisited:
+            return False
+        return bool(self.competitions) and all(c.complete for c in self.competitions)
+
+    @property
+    def pending(self) -> int:
+        return sum(c.pending for c in self.competitions)
 
 
 def snapshot_path(season_id: str) -> Path:
@@ -137,6 +209,7 @@ def ingest_competition(
     *,
     resume: bool,
     limit: int | None = None,
+    deadline: Deadline | None = None,
 ) -> CompetitionResult:
     """Fetch one competition's roster and every player's detail."""
     from app.core.logging import get_logger
@@ -178,6 +251,13 @@ def ingest_competition(
             if player_id in done:
                 result.skipped += 1
                 continue
+            # Checked before the request, not after: stopping with the write
+            # already made and the progress file not yet updated would re-fetch
+            # that player next time, which costs a request from a budget the
+            # whole design exists to husband.
+            if deadline is not None and deadline.expired():
+                result.stopped_early = True
+                break
             try:
                 body = provider._get("/player-stats", player_id=player_id)
             except Exception as exc:
@@ -206,6 +286,7 @@ def ingest_competition(
                 )
 
     _save_progress(season_id, done)
+    result.pending = len([p for p in player_ids if p not in done])
     result.seconds = time.monotonic() - started
     log.info(
         "footystats_competition_ingested",
@@ -213,9 +294,29 @@ def ingest_competition(
         fetched=result.fetched,
         skipped=result.skipped,
         failed=result.failed,
+        pending=result.pending,
+        stopped_early=result.stopped_early,
         seconds=round(result.seconds, 1),
     )
     return result
+
+
+def emit_completion(complete: bool) -> None:
+    """Tell the caller whether the whole refresh is now on disk.
+
+    Printed for a person, and appended to `$GITHUB_OUTPUT` for the workflow,
+    which gates loading and publishing on it. Nothing downstream may run from a
+    partial universe: the previous production data stays live until a complete
+    one is ready, which is the whole reason fetching is separate from loading.
+    """
+    value = "true" if complete else "false"
+    print(f"complete={value}")
+
+    output = os.environ.get("GITHUB_OUTPUT")
+    if not output:
+        return
+    with open(output, "a", encoding="utf-8") as handle:
+        handle.write(f"complete={value}\n")
 
 
 def write_manifest(report: RunReport) -> Path:
@@ -263,6 +364,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Report what would be fetched and stop."
+    )
+    parser.add_argument(
+        "--max-runtime-minutes",
+        type=float,
+        default=None,
+        metavar="MINUTES",
+        help=(
+            "Stop cleanly after this long and exit 0, recording what is left. "
+            "Set it below the job's own timeout: a killed process cannot flush, "
+            "and a job killed by timeout is not guaranteed to persist its cache."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -315,7 +427,22 @@ def main(argv: list[str] | None = None) -> int:
     log.info("footystats_ingest_started", competitions=len(competitions), resume=args.resume)
     print(f"Fetching {len(competitions)} competitions. Ctrl-C is safe: --resume continues.\n")
 
+    deadline = Deadline(args.max_runtime_minutes)
+    if deadline.limit_seconds:
+        print(f"Stopping cleanly after {args.max_runtime_minutes:.0f} minutes.\n")
+
     for position, competition in enumerate(competitions, start=1):
+        if deadline.expired():
+            # Everything from here is unvisited, and unvisited is not complete
+            # however much a previous run may have fetched.
+            report.unvisited = len(competitions) - position + 1
+            report.stopped_early = True
+            print(
+                f"\nOut of time with {report.unvisited} competition(s) unvisited. "
+                "Progress is saved; the next run continues."
+            )
+            break
+
         print(f"[{position}/{len(competitions)}] {competition.name} ({competition.competition_id})")
         result = ingest_competition(
             provider,
@@ -323,12 +450,15 @@ def main(argv: list[str] | None = None) -> int:
             competition.name,
             resume=args.resume,
             limit=args.limit,
+            deadline=deadline,
         )
         report.competitions.append(result)
+        report.stopped_early = report.stopped_early or result.stopped_early
         marker = "ok" if result.ok else "FAILED"
+        pending = f", {result.pending} pending" if result.pending else ""
         print(
             f"    {marker}: {result.fetched} fetched, {result.skipped} already had, "
-            f"{result.failed} failed, {result.seconds / 60:.1f} min"
+            f"{result.failed} failed{pending}, {result.seconds / 60:.1f} min"
         )
 
     report.finished_at = datetime.now(UTC).isoformat()
@@ -336,11 +466,38 @@ def main(argv: list[str] | None = None) -> int:
 
     fetched = sum(c.fetched for c in report.competitions)
     failed = sum(c.failed for c in report.competitions)
-    print(f"\n{fetched:,} players fetched, {failed} failed.")
-    print(f"Manifest: {manifest.relative_to(REPO_ROOT)}")
-    print("\nNext: python -m pipelines.load.load_providers --source footystats --replace --verify")
+    complete = report.complete
 
-    log.info("footystats_ingest_finished", fetched=fetched, failed=failed)
+    print(f"\n{fetched:,} players fetched, {failed} failed.")
+    if complete:
+        print("The requested refresh is COMPLETE.")
+        print(
+            "\nNext: python -m pipelines.load.load_providers --source footystats --replace --verify"
+        )
+    else:
+        incomplete = sum(1 for c in report.competitions if not c.complete)
+        print(
+            f"The refresh is INCOMPLETE: {report.pending:,} player(s) pending across "
+            f"{incomplete} competition(s), {report.unvisited} competition(s) unvisited."
+        )
+        print("Nothing should be loaded from a partial universe. Run again to continue.")
+    print(f"Manifest: {manifest.relative_to(REPO_ROOT)}")
+
+    emit_completion(complete)
+
+    log.info(
+        "footystats_ingest_finished",
+        fetched=fetched,
+        failed=failed,
+        complete=complete,
+        pending=report.pending,
+        stopped_early=report.stopped_early,
+    )
+
+    # A graceful stop is a success. The distinction a caller needs is not "did
+    # it finish" but "is the universe complete", and that is `complete`, not
+    # the exit code. Conflating them would make every partial run look broken
+    # and hide the runs that really are.
     return 1 if report.failed else 0
 
 
