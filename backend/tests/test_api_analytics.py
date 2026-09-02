@@ -160,9 +160,7 @@ class TestTheWholeProfileAtOnce:
     apart, so these compare them rather than checking the shape.
     """
 
-    def test_it_matches_the_individual_endpoints(
-        self, api: TestClient, a_midfielder: dict
-    ) -> None:
+    def test_it_matches_the_individual_endpoints(self, api: TestClient, a_midfielder: dict) -> None:
         player_id = a_midfielder["player_id"]
         composite = api.get(f"/api/v1/players/{player_id}/profile").json()
 

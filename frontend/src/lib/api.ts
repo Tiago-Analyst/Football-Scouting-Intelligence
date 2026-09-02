@@ -11,6 +11,7 @@
  */
 import "server-only";
 
+import { buildTokenHeader } from "@/lib/build-access";
 import type { ApiErrorBody } from "@/types/api";
 
 /**
@@ -69,24 +70,14 @@ interface ApiFetchOptions {
   cookie?: string;
   /** Statuses to treat as a parseable answer rather than an error. */
   acceptStatuses?: number[];
-}
-
-/**
- * Identify this process as the deploy, when it is one.
- *
- * Rendering every profile ahead of time is thousands of requests in a few
- * minutes, which the API's rate limit refuses - correctly, since from the
- * outside it is indistinguishable from someone extracting the database. This
- * header says otherwise, and the backend only believes it when the same secret
- * is configured on both sides.
- *
- * Absent everywhere else, including at runtime on Vercel: a page rendered for
- * a reader has no reason to claim it, and this module is `server-only`, so the
- * value cannot reach a browser either way.
- */
-function buildHeader(): Record<string, string> {
-  const token = process.env.BUILD_TOKEN;
-  return token ? { "x-build-token": token } : {};
+  /**
+   * Whether this call may identify itself as the deploy.
+   *
+   * Opt-in, and only honoured during `next build`. Set it on calls that static
+   * generation makes; leave it off everywhere else. See
+   * `buildTokenHeader` in `build-access.ts` for why asking is not enough.
+   */
+  buildAccess?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -126,7 +117,7 @@ export async function apiFetchWithHeaders<T>(
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(options.cookie ? { Cookie: options.cookie } : {}),
-        ...buildHeader(),
+        ...buildTokenHeader(options.buildAccess),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(signalTimeoutMs),

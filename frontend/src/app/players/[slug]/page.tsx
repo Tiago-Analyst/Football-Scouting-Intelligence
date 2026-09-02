@@ -45,7 +45,9 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const params: { slug: string }[] = [];
 
   for (let offset = 0; ; offset += PAGE) {
-    const page = await searchPlayers({ offset, limit: PAGE, sort: "minutes" });
+    const page = await searchPlayers({ offset, limit: PAGE, sort: "minutes" }, {
+      buildAccess: true,
+    });
     if (!page || page.items.length === 0) break;
     params.push(...page.items.map((player) => ({ slug: player.player_id })));
     if (params.length >= page.total) break;
