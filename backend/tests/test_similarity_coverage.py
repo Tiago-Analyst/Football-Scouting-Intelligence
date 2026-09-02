@@ -121,9 +121,7 @@ class TestTheFloor:
 
     def test_the_bar_is_the_same_share_for_every_long_vector(self) -> None:
         for size in (10, 11, 12, 16, 20):
-            assert self.required(size) / size == pytest.approx(
-                MINIMUM_FEATURE_COVERAGE, abs=0.05
-            )
+            assert self.required(size) / size == pytest.approx(MINIMUM_FEATURE_COVERAGE, abs=0.05)
 
     def test_this_is_about_metrics_not_minutes(self) -> None:
         """The distinction the product decision turns on.
