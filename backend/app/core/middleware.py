@@ -28,6 +28,30 @@ RequestHandler = Callable[[Request], Awaitable[Response]]
 BUILD_TOKEN_HEADER = "x-build-token"  # noqa: S105 - a header name, not a secret
 
 
+def has_build_access(request: Request, build_token: str | None) -> bool:
+    """Whether this request is our own deploy rendering the site.
+
+    The rate limit protects the database from being drawn out through the
+    public API, and the build is not the public: it runs once per deploy, from
+    our own pipeline, to render pages readers then get without waking this
+    service at all.
+
+    Compared in constant time, and only when a token is configured - so a
+    deployment that sets none cannot have the exemption claimed against it by
+    an empty or absent header.
+
+    Lives here rather than on the middleware because `/api/v1/meta` reports the
+    answer, so a deploy can find out whether prerendering is possible before it
+    starts rather than by failing partway through.
+    """
+    if not build_token:
+        return False
+    offered = request.headers.get(BUILD_TOKEN_HEADER)
+    if not offered:
+        return False
+    return secrets.compare_digest(offered, build_token)
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """Assign a request id, bind it to the log context, and time the request."""
 
@@ -102,23 +126,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return request.client.host if request.client else "unknown"
 
     def _is_build(self, request: Request) -> bool:
-        """Whether this is our own deploy rendering the site.
-
-        The limit protects the database from being drawn out through the public
-        API, and the build is not the public: it runs once per deploy, from our
-        own pipeline, to render pages that readers then get without waking this
-        service at all.
-
-        Compared in constant time, and only when a token is configured - so a
-        deployment that sets none cannot have the exemption claimed against it
-        by an empty or absent header.
-        """
-        if not self.build_token:
-            return False
-        offered = request.headers.get(BUILD_TOKEN_HEADER)
-        if not offered:
-            return False
-        return secrets.compare_digest(offered, self.build_token)
+        return has_build_access(request, self.build_token)
 
     async def dispatch(self, request: Request, call_next: RequestHandler) -> Response:
         # Health and docs must stay reachable for probes even under limiting.

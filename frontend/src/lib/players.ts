@@ -137,6 +137,26 @@ export async function getSimilarPlayers(
 }
 
 /**
+ * Whether this process may render every profile ahead of time.
+ *
+ * Prerendering 5,462 pages is 5,462 requests in about a minute, and the API's
+ * rate limit refuses that from anyone who has not identified themselves as the
+ * deploy. Asking first turns "the token is set on Vercel but not on Render"
+ * into a build that quietly prerenders nothing, rather than one that fails
+ * two-thirds of the way through with a 429 that names neither side.
+ */
+export async function canPrerenderEverything(): Promise<boolean> {
+  if (!process.env.BUILD_TOKEN) return false;
+  try {
+    const meta = await apiFetch<{ build_access?: boolean }>("/api/v1/meta");
+    return meta.build_access === true;
+  } catch {
+    // No answer is not a licence to make thousands of requests.
+    return false;
+  }
+}
+
+/**
  * A whole profile in one request.
  *
  * The page needs four things. Asked separately that is four round trips, which

@@ -14,7 +14,7 @@ import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
-import { getPlayerProfile, searchPlayers } from "@/lib/players";
+import { canPrerenderEverything, getPlayerProfile, searchPlayers } from "@/lib/players";
 import type { Score } from "@/types/api";
 
 /**
@@ -35,6 +35,12 @@ import type { Score } from "@/types/api";
  * without a deploy, and nobody waits for it.
  */
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  // Nothing, rather than a build that dies partway through against the rate
+  // limit. An empty list is a working deployment: every profile is then built
+  // when it is first asked for and cached for everyone after - slower for one
+  // reader, and never wrong.
+  if (!(await canPrerenderEverything())) return [];
+
   const PAGE = 100;
   const params: { slug: string }[] = [];
 

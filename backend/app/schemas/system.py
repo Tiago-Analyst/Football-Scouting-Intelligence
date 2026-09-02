@@ -59,3 +59,12 @@ class MetaResponse(BaseModel):
         description="Populated in demo mode so the UI can display a persistent banner.",
     )
     data_sources: list[DataSourceStatus]
+    #: Whether this caller's build token was accepted.
+    #:
+    #: Asked by the deploy before it commits to rendering every profile ahead
+    #: of time. Without the exemption that is thousands of requests against a
+    #: limit of 120 a minute, and the build fails partway through with a 429 -
+    #: an unhelpful way to discover that a token is set on one side and not the
+    #: other. False for everybody else, which tells them nothing they could not
+    #: work out by making a request.
+    build_access: bool = False

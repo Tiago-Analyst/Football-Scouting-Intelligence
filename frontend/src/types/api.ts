@@ -47,6 +47,8 @@ export interface MetaResponse {
   /** Present in demo mode so the UI can show a persistent banner. */
   demo_data_notice: string | null;
   data_sources: DataSourceStatus[];
+  /** Whether the caller's build token was accepted. False for everyone else. */
+  build_access: boolean;
 }
 
 /** Error envelope shared by every backend failure response. */
