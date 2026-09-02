@@ -101,12 +101,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Fixed-window-free sliding rate limit, per client IP.
+    """Sliding-window rate limit, keyed on the connecting address.
+
+    WHAT IT CAN SEE, WHICH IS LESS THAN IT LOOKS
+    --------------------------------------------
+
+    "Per client IP" is what this reads like and not what it is in production.
+    Uvicorn runs without `--proxy-headers` and nothing here reads
+    `X-Forwarded-For`, so the key is the peer of the TCP connection - the
+    platform's proxy. And the browser never talks to this service anyway: a
+    page render is Vercel making one request on behalf of a reader, so even a
+    correct address would name Vercel rather than a person.
+
+    So this is **one bucket for the whole frontend**. It is an abuse brake
+    against callers who find the API directly and start paging through it, not
+    a fairness mechanism between users, and it cannot be made into one from
+    here. End-user limiting belongs at Next.js, which is the only layer that
+    sees end users. See `docs/rate_limiting.md`.
 
     LIMITATION: state is in-process, so the effective limit multiplies by the
-    number of worker processes and resets on deploy. That is acceptable as a
-    basic abuse brake; a shared Redis counter is required before this can be
-    treated as a real quota across multiple instances.
+    number of worker processes and resets on deploy. A shared counter is
+    required before this can be treated as a real quota.
     """
 
     def __init__(

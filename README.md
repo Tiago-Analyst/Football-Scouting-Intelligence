@@ -109,6 +109,16 @@ A person then reads the profile and records what they are satisfied about in
 `config/footystats_mapping.yaml`, which remains the only thing that can grant
 the provider a metric. Both scripts refuse and write nothing without a key.
 
+### Design notes worth reading before changing things
+
+| | |
+| --- | --- |
+| [`docs/footystats_provider_status.md`](docs/footystats_provider_status.md) | What the provider supplies. Generated; CI checks it |
+| [`docs/config_availability.md`](docs/config_availability.md) | What the configuration asks for against that. Generated |
+| [`docs/rate_limiting.md`](docs/rate_limiting.md) | Why the backend limiter cannot see end users |
+| [`docs/multi_competition.md`](docs/multi_competition.md) | One player, several competitions: what is shown and what is not |
+| [`docs/product_ip_strategy.md`](docs/product_ip_strategy.md) | Where the proprietary parts should live if this becomes a product |
+
 ## The specification
 
 `docs/specification.md` is the authoritative brief: what was asked for, the

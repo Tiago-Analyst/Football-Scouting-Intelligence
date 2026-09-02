@@ -144,6 +144,9 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
     return ScoreOut(
         key=score.key,
         label=score.label,
+        # Roles carry no description of their own; the role's caveat and its
+        # components do that work. `getattr` keeps one serialiser for both.
+        description=getattr(score, "description", None),
         score=score.score,
         coverage=score.coverage,
         components=[

@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import { getSimilarPlayers, searchPlayers } from "@/lib/players";
 
@@ -211,8 +212,27 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                       <TH>Club</TH>
                       <TH>Competition</TH>
                       <TH>Best role</TH>
-                      <TH numeric>Similarity</TH>
-                      <TH numeric>Feature coverage</TH>
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">
+                          Similarity
+                          <Tooltip label="What is the Statistical Similarity Index?">
+                            Similarity in the shape of the statistical profile, on a 0&ndash;100
+                            scale. It is not a probability that two players are equivalent, and
+                            it says nothing about quality, tactical fit or temperament.
+                          </Tooltip>
+                        </span>
+                      </TH>
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">
+                          Feature coverage
+                          <Tooltip label="Why does coverage matter?">
+                            How much of the intended comparison actually happened. An index of
+                            92 over six of eleven features is a confident answer to a narrower
+                            question than the same index over eleven, and the index alone cannot
+                            tell them apart. Reported beside it, never folded into it.
+                          </Tooltip>
+                        </span>
+                      </TH>
                       <TH numeric>Value</TH>
                       <TH numeric>Contract</TH>
                     </TR>
