@@ -57,6 +57,11 @@ class ScoreOut(BaseModel):
 
     key: str
     label: str
+    #: What the score is measuring, in a sentence. Shown as a tooltip, because
+    #: a label like "Ball Progression" tells a reader the topic and not the
+    #: claim - and a number nobody can interpret is a number nobody should act
+    #: on.
+    description: str | None = None
     #: The weighted profile score, 0-100. For a role this is the Raw Role Fit:
     #: explainable, decomposable, and not quite comparable across roles.
     score: float | None

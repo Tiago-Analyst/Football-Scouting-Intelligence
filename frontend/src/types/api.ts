@@ -119,6 +119,12 @@ export interface Score {
   key: string;
   label: string;
   /**
+   * What the score measures, in a sentence. A label like "Ball Progression"
+   * gives a reader the topic and not the claim, and a number nobody can
+   * interpret is a number nobody should act on.
+   */
+  description?: string | null;
+  /**
    * The weighted profile score, 0-100. For a role this is the Raw Role Fit:
    * explainable and decomposable, and not quite comparable across roles.
    */

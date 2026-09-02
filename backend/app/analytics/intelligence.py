@@ -79,6 +79,9 @@ class IntelligenceScore:
     components: list[ScoreComponent]
     missing: list[str]
     caveat: str | None = None
+    #: What the score measures, carried with it so the interface cannot show
+    #: the number without being able to say what it means.
+    description: str = ""
 
     @property
     def is_available(self) -> bool:
@@ -227,6 +230,7 @@ class IntelligenceScoreEngine:
             components=result.components,
             missing=result.missing,
             caveat=definition.caveat,
+            description=definition.description,
         )
 
     def score_all(

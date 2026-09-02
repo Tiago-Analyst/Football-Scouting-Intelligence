@@ -209,8 +209,12 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               <div key={score.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
                 <span className="flex items-center gap-1 text-xs text-muted">
                   {score.label}
-                  {score.caveat ? (
-                    <Tooltip label={`About ${score.label}`}>{score.caveat}</Tooltip>
+                  {score.description || score.caveat ? (
+                    <Tooltip label={`What is ${score.label}?`}>
+                      {score.description ? <>{score.description} </> : null}
+                      Expressed relative to comparable players, not as a measure of quality.
+                      {score.caveat ? <> {score.caveat}</> : null}
+                    </Tooltip>
                   ) : null}
                 </span>
                 {score.score !== null ? (
