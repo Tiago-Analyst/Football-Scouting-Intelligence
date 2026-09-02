@@ -26,6 +26,34 @@ function query(params: Record<string, string | number | boolean | undefined | nu
   return rendered ? `?${rendered}` : "";
 }
 
+/**
+ * How long an analytical answer may be reused.
+ *
+ * These numbers do not drift. A percentile, a role fit and a similarity index
+ * change when the pipeline loads new data - a deliberate, occasional act - and
+ * are otherwise identical from one request to the next. Recomputing them for
+ * every reader bought nothing and cost everything: with the backend on a tier
+ * that sleeps after fifteen minutes idle, every visit after a quiet spell paid
+ * for a wake-up before it could show a page that had not changed.
+ *
+ * An hour is the bound on how stale an answer may be, and the revalidation is
+ * a background one: once a page has been fetched, later readers are served the
+ * stored copy immediately and the refresh happens behind them. A sleeping
+ * backend therefore delays the *next* reader's data by nothing - it only
+ * delays the refresh, and the request that triggers it is what wakes the
+ * service. Each read is its own heartbeat.
+ *
+ * The cost is honest and bounded: for up to an hour after a pipeline load the
+ * site can still show the previous load's numbers. `/api/v1/meta` carries the
+ * load timestamp on a sixty-second cache, so what the page reports about its
+ * own freshness stays close to true.
+ *
+ * The state of the system is deliberately not cached at all - `/health` and
+ * the data-quality report exist to say what is true right now, and a cached
+ * answer to that question is worse than a slow one.
+ */
+const ANALYSIS_TTL = 3600;
+
 export type PlayerSearchParams = Record<
   string,
   string | number | boolean | undefined | null
@@ -53,7 +81,7 @@ function nullIfMissing(error: unknown): null {
 
 export async function searchPlayers(params: PlayerSearchParams): Promise<PlayerList | null> {
   try {
-    return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`);
+    return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`, { revalidate: ANALYSIS_TTL });
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -61,7 +89,9 @@ export async function searchPlayers(params: PlayerSearchParams): Promise<PlayerL
 
 export async function getPlayer(playerId: string): Promise<PlayerDetail | null> {
   try {
-    return await apiFetch<PlayerDetail>(`/api/v1/players/${encodeURIComponent(playerId)}`);
+    return await apiFetch<PlayerDetail>(`/api/v1/players/${encodeURIComponent(playerId)}`, {
+      revalidate: ANALYSIS_TTL,
+    });
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -74,6 +104,7 @@ export async function getPlayerStats(
   try {
     return await apiFetch<PlayerStats>(
       `/api/v1/players/${encodeURIComponent(playerId)}/stats${query({ scope })}`,
+      { revalidate: ANALYSIS_TTL },
     );
   } catch (error) {
     return nullIfMissing(error);
@@ -82,7 +113,9 @@ export async function getPlayerStats(
 
 export async function getPlayerRoles(playerId: string): Promise<RoleFit | null> {
   try {
-    return await apiFetch<RoleFit>(`/api/v1/players/${encodeURIComponent(playerId)}/roles`);
+    return await apiFetch<RoleFit>(`/api/v1/players/${encodeURIComponent(playerId)}/roles`, {
+      revalidate: ANALYSIS_TTL,
+    });
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -95,6 +128,7 @@ export async function getSimilarPlayers(
   try {
     return await apiFetch<SimilarPlayers>(
       `/api/v1/players/${encodeURIComponent(playerId)}/similar${query(params)}`,
+      { revalidate: ANALYSIS_TTL },
     );
   } catch (error) {
     return nullIfMissing(error);
@@ -130,7 +164,9 @@ export async function getOpportunities(
   params: PlayerSearchParams = {},
 ): Promise<Opportunities | null> {
   try {
-    return await apiFetch<Opportunities>(`/api/v1/opportunities${query(params)}`);
+    return await apiFetch<Opportunities>(`/api/v1/opportunities${query(params)}`, {
+      revalidate: ANALYSIS_TTL,
+    });
   } catch (error) {
     return nullIfMissing(error);
   }

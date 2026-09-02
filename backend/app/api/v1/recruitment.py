@@ -364,7 +364,11 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
 def market_opportunities(
     max_age: int = Query(default=23, ge=14, le=50),
     min_role_score: float = Query(default=80.0, ge=0, le=100),
-    min_minutes: int = Query(default=900, ge=0),
+    # Not 900. A default nobody asked for that excludes anyone with fewer
+    # than ten full matches is a filter disguised as a sensible baseline;
+    # four matches into a season it screens out the entire population. The
+    # funnel below reports the floor that was actually applied.
+    min_minutes: int = Query(default=0, ge=0),
     max_market_value_eur: int = Query(default=5_000_000, ge=0),
     contract_within_months: int | None = Query(default=18, ge=0, le=120),
     limit: int = Query(default=25, ge=1, le=100),
