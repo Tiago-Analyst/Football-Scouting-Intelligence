@@ -153,6 +153,32 @@ jobs:
         run: python -m pipelines.transfermarkt.profile
 
       - name: Restore the snapshot cache
+        # IS A CACHE THE RIGHT PLACE FOR THIS?
+        #
+        # It is a cache holding the only copy of something expensive: thirteen
+        # hours of rate-limited fetching. GitHub evicts entries not read for
+        # seven days and enforces a 10 GB repository budget, so in principle
+        # this can vanish - and if it does, the next run starts from nothing
+        # and takes several weeks of scheduled runs to converge again.
+        #
+        # Three things make it acceptable for now. The snapshots compress to a
+        # few hundred megabytes, well inside the budget. The schedule reads
+        # them more often than weekly, so eviction by age does not arise while
+        # the pipeline is running at all. And losing them costs time rather
+        # than correctness: nothing is published from a partial universe, so a
+        # lost cache delays a refresh, it does not corrupt one.
+        #
+        # What made it genuinely unsafe was the previous fetch step relying on
+        # the job timeout to stop it, since a job killed that way is not
+        # guaranteed to persist a cache it created. `--max-runtime-minutes`
+        # removed that: the run now ends normally and the cache is written.
+        #
+        # If this ever needs to be durable rather than merely reliable, the
+        # move is object storage - Cloudflare R2 or Neon's own bucket storage -
+        # with the manifest's checksums verifying each file on restore. That is
+        # paid infrastructure for a problem this project does not yet have, and
+        # introducing it now would be buying insurance against an outcome whose
+        # worst case is waiting.
         if: steps.preflight.outputs.footystats == 'true'
         uses: actions/cache@v4
         with:
@@ -161,21 +187,62 @@ jobs:
           restore-keys: footystats-snapshots-
 
       - name: Retrieve FootyStats data
+        id: fetch
         if: steps.preflight.outputs.footystats == 'true'
         # A full fetch is one request per player - roughly 23,500 across the 47
         # configured competitions, or thirteen hours at the account's rate
         # limit. It cannot finish inside a job, and it does not need to:
         # `--resume` means each run continues where the last one stopped, so
-        # three runs a week converge and then keep the snapshots current.
+        # several runs converge and then keep the snapshots current.
         #
-        # `timeout-minutes` on the job bounds it; an interrupted fetch loses at
-        # most twenty-five players' work.
+        # `--max-runtime-minutes` is what makes that safe rather than merely
+        # intended. Relying on the job's own timeout to stop the fetch had two
+        # problems: the process is killed mid-write, and a job killed by
+        # timeout is not guaranteed to persist a cache it created - so the
+        # hour's work could be lost rather than truncated. Stopping ourselves
+        # with time in hand flushes the snapshot, saves progress, writes the
+        # manifest, and exits 0.
+        #
+        # Forty-five against the job's sixty leaves room for the steps after
+        # this one and for the cache to be written.
         env:
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
-        run: python -m pipelines.footystats.ingest --resume
+        run: python -m pipelines.footystats.ingest --resume --max-runtime-minutes 45
+
+      - name: Report that the refresh is not finished yet
+        if: steps.preflight.outputs.footystats == 'true' && steps.fetch.outputs.complete == 'false'
+        # Not a failure. The snapshots are further along than they were, the
+        # cache keeps them, and the next run continues - which is the design
+        # working, not breaking.
+        run: |
+          {
+            echo "### FootyStats refresh in progress"
+            echo
+            echo "This run fetched what it could inside its time budget and stopped"
+            echo "cleanly. **Nothing was loaded**: a partial universe must not be"
+            echo "published, so the data currently live is untouched and stays live."
+            echo
+            echo "The next scheduled run continues from where this one stopped."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Load and verify
-        if: steps.preflight.outputs.database == 'true'
+        # Gated on the fetch being finished, when the fetch is what feeds it.
+        #
+        # A partial universe must never be published. Loading 30 of 47
+        # competitions would not fail anything - it would quietly replace the
+        # season with a subset of itself, and every percentile would be
+        # measured against a population missing whole leagues. The previously
+        # published data stays live instead, which is the right answer while
+        # the snapshots are still being assembled.
+        #
+        # A Transfermarkt-sourced run does not read the snapshots, so it is not
+        # gated on them.
+        if: >-
+          steps.preflight.outputs.database == 'true' &&
+          (
+            (inputs.source || 'transfermarkt') != 'footystats' ||
+            steps.fetch.outputs.complete == 'true'
+          )
         id: load
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
@@ -198,7 +265,7 @@ jobs:
             --verify 2>&1 | tee pipeline-load.log
 
       - name: Drop market history nothing can reach
-        if: steps.preflight.outputs.database == 'true' && success()
+        if: steps.load.outcome == 'success'
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -216,7 +283,7 @@ jobs:
           python -m pipelines.load.prune --apply 2>&1 | tee pipeline-prune.log
 
       - name: Record the quality report
-        if: steps.preflight.outputs.database == 'true' && success()
+        if: steps.load.outcome == 'success'
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -233,7 +300,7 @@ jobs:
           python -m pipelines.quality.report --persist 2>&1 | tee pipeline-quality.log
 
       - name: Measure what the loaded data can produce
-        if: steps.preflight.outputs.database == 'true' && success()
+        if: steps.load.outcome == 'success'
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -251,7 +318,7 @@ jobs:
           python -m pipelines.quality.derived_coverage             --source "${{ inputs.source || 'transfermarkt' }}" 2>&1 | tee pipeline-derived.log
 
       - name: Recompute sample players independently
-        if: steps.preflight.outputs.database == 'true' && success()
+        if: steps.load.outcome == 'success'
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -281,7 +348,7 @@ jobs:
         # Both are told, in that order. `success()` matters: a run whose
         # validation failed must leave the previous data live rather than
         # publish something that did not reproduce.
-        if: steps.preflight.outputs.database == 'true' && success()
+        if: steps.load.outcome == 'success'
         env:
           API_ORIGIN: ${{ secrets.API_ORIGIN }}
           SITE_ORIGIN: ${{ secrets.SITE_ORIGIN }}
