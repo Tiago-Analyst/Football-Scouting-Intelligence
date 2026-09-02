@@ -279,8 +279,50 @@ class TestQualityEndpoint:
 
     def test_it_returns_what_the_page_needs(self, client: TestClient) -> None:
         body = client.get("/api/v1/data-quality").json()
-        assert set(body) == {"meaning", "notice", "volumes", "sources", "checks"}
+        assert set(body) == {
+            "meaning",
+            "notice",
+            "volumes",
+            "sources",
+            "checks",
+            "identity",
+            "average_detailed_coverage_pct",
+            "unavailable_metrics",
+            "analytics",
+        }
         assert body["volumes"]["players"] > 0
+
+    def test_it_reports_reconciliation_without_implying_completeness(
+        self, client: TestClient
+    ) -> None:
+        """Unmatched players are counted, not hidden.
+
+        A player one source knows and the other does not is a player we know
+        less about. Reporting only the matches would let the total read as a
+        completeness nobody achieved.
+        """
+        identity = client.get("/api/v1/data-quality").json()["identity"]
+        assert identity["players"] == identity["matched"] + identity["unmatched"]
+        assert 0.0 <= identity["matched_share"] <= 1.0
+
+    def test_it_says_whether_the_api_is_serving_current_data(
+        self, client: TestClient
+    ) -> None:
+        """The question the page exists to answer, and nothing else could.
+
+        A load can succeed and the running API still serve the view it built at
+        start-up, so "is_stale" is a fact about this process rather than about
+        the data.
+        """
+        analytics = client.get("/api/v1/data-quality").json()["analytics"]
+        assert isinstance(analytics["is_stale"], bool)
+        assert analytics["players"] >= 0
+
+    def test_it_exposes_no_credentials_or_internals(self, client: TestClient) -> None:
+        """Operational, not privileged. A public page must not leak the estate."""
+        raw = client.get("/api/v1/data-quality").text.lower()
+        for forbidden in ("password", "postgres://", "postgresql://", "api_key", "token", "@"):
+            assert forbidden not in raw, forbidden
 
     def test_the_caveat_travels_with_the_ticks(self, client: TestClient) -> None:
         """A wall of green could easily be read as "the analysis is correct"."""

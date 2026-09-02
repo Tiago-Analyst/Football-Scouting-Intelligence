@@ -11,7 +11,11 @@ from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import SettingsDep
 from app.core.config import Settings
-from app.core.database import check_database_connection, get_schema_revision
+from app.core.database import (
+    check_database_connection,
+    get_schema_revision,
+    get_session_factory,
+)
 from app.core.errors import AppError
 from app.core.logging import get_logger
 from app.core.middleware import has_build_access
@@ -23,8 +27,10 @@ from app.schemas.system import (
     HealthResponse,
     LivenessResponse,
     MetaResponse,
+    SourceLoadOut,
 )
 from app.services.analytics_service import get_analytics_view, view_is_stale
+from app.services.quality_service import last_loads
 
 log = get_logger(__name__)
 
@@ -252,6 +258,28 @@ def _market_source(settings: Settings) -> DataSourceStatus:
     )
 
 
+def _data_freshness() -> list[SourceLoadOut]:
+    """When each source was last loaded, for the shell to show unobtrusively.
+
+    Never inferred from when the checks last ran: that is a different fact, and
+    a check against a fortnight-old load happens routinely. A source with no
+    recorded load is simply absent.
+
+    A database that cannot be reached returns nothing rather than failing the
+    endpoint. This is a footer line; the health check is where an unreachable
+    database is supposed to be reported.
+    """
+    try:
+        with get_session_factory()() as session:
+            return [
+                SourceLoadOut(source=source, last_loaded_at=loaded_at, rows_loaded=rows)
+                for source, (loaded_at, rows) in sorted(last_loads(session).items())
+            ]
+    except Exception as exc:
+        log.warning("data_freshness_unavailable", error=type(exc).__name__)
+        return []
+
+
 @router.get("/api/v1/meta", response_model=MetaResponse)
 def meta(settings: SettingsDep, request: Request) -> MetaResponse:
     """Application metadata for the frontend shell (mode banner, provenance)."""
@@ -268,5 +296,6 @@ def meta(settings: SettingsDep, request: Request) -> MetaResponse:
         version=APP_VERSION,
         demo_data_notice=DEMO_NOTICE if is_demo else None,
         data_sources=data_sources,
+        data_freshness=_data_freshness(),
         build_access=has_build_access(request, settings.build_token),
     )

@@ -14,14 +14,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, SettingsDep
 from app.schemas.api import (
+    AnalyticsFreshnessOut,
     DataQualityResponse,
+    IdentityCoverageOut,
     QualityCheckOut,
     SourceFreshnessOut,
     VolumesOut,
 )
 from app.services import quality_service as svc
+from app.services.analytics_service import get_analytics_view, view_is_stale
 
 router = APIRouter(prefix="/api/v1", tags=["quality"])
 
@@ -44,13 +47,36 @@ NO_CHECKS_YET = (
 
 
 @router.get("/data-quality", response_model=DataQualityResponse)
-def get_data_quality(db: SessionDep) -> DataQualityResponse:
-    """Freshness, volumes and the most recent automated checks per source."""
+def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityResponse:
+    """Freshness, volumes, reconciliation and the most recent checks per source.
+
+    Operational rather than analytical: how much is loaded, how current it is,
+    how much of it two sources agreed on, and what the provider cannot supply
+    at all. Nothing here exposes a connection string, a credential or a log.
+    """
     checks = svc.latest_checks(db)
     sources = svc.freshness(db)
     counts = svc.volumes(db)
+    identity = svc.identity_coverage(db)
+    view = get_analytics_view()
 
     return DataQualityResponse(
+        identity=IdentityCoverageOut(
+            players=identity.players,
+            matched=identity.matched,
+            unmatched=identity.unmatched,
+            matched_share=identity.matched_share,
+            manual_overrides=identity.manual_overrides,
+            ambiguous=identity.ambiguous,
+        ),
+        average_detailed_coverage_pct=svc.average_detailed_coverage(db),
+        unavailable_metrics=svc.unavailable_metrics(settings),
+        analytics=AnalyticsFreshnessOut(
+            players=len(view.players),
+            competitions=len(view.competitions),
+            built_at=view.built_at,
+            is_stale=view_is_stale(),
+        ),
         meaning=QUALITY_MEANING,
         notice=None if checks else NO_CHECKS_YET,
         volumes=VolumesOut(
@@ -67,6 +93,9 @@ def get_data_quality(db: SessionDep) -> DataQualityResponse:
                 checks_run=item.checks_run,
                 failures=item.failures,
                 warnings=item.warnings,
+                last_loaded_at=item.last_loaded_at,
+                data_age_days=item.data_age_days,
+                rows_loaded=item.rows_loaded,
             )
             for item in sources
         ],
