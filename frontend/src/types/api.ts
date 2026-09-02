@@ -41,6 +41,13 @@ export interface DataSourceStatus {
   notes: string | null;
 }
 
+export interface SourceLoad {
+  /** The loader's own source name: `footystats`, `transfermarkt`, `demo`. */
+  source: string;
+  last_loaded_at: string;
+  rows_loaded: number;
+}
+
 export interface MetaResponse {
   app_name: string;
   app_mode: AppMode;
@@ -48,6 +55,17 @@ export interface MetaResponse {
   /** Present in demo mode so the UI can show a persistent banner. */
   demo_data_notice: string | null;
   data_sources: DataSourceStatus[];
+  /**
+   * When each source's data was last loaded, per source and never summed.
+   * The performance and market pipelines run on different schedules, so one
+   * "updated today" label would be wrong whenever only one of them refreshed —
+   * which is the normal case.
+   *
+   * Empty when nothing has been loaded since load times began to be recorded,
+   * or when the database could not be reached. Never inferred from when the
+   * checks last ran: that is a different fact and a fresher-sounding one.
+   */
+  data_freshness: SourceLoad[];
   /** Whether the caller's build token was accepted. False for everyone else. */
   build_access: boolean;
 }
@@ -402,11 +420,20 @@ export interface QualityCheck {
 
 export interface SourceFreshness {
   source: string;
+  /** When the checks last ran. */
   last_checked_at: string;
   age_days: number;
   checks_run: number;
   failures: number;
   warnings: number;
+  /**
+   * When this source's data was last loaded — a different fact from the check
+   * time, and the one a reader means by "how current is this?".
+   * Null for a source loaded before the two were recorded separately.
+   */
+  last_loaded_at: string | null;
+  data_age_days: number | null;
+  rows_loaded: number | null;
 }
 
 export interface Volumes {
@@ -414,6 +441,25 @@ export interface Volumes {
   competitions: number;
   clubs: number;
   player_seasons: number;
+}
+
+export interface IdentityCoverage {
+  players: number;
+  matched: number;
+  /** Not a failure: a player one source knows and the other does not. */
+  unmatched: number;
+  matched_share: number;
+  manual_overrides: number;
+  /** Matched on weaker evidence — plausible rather than settled. */
+  ambiguous: number;
+}
+
+export interface AnalyticsFreshness {
+  players: number;
+  competitions: number;
+  built_at: string | null;
+  /** True when the database has moved since this view was built. */
+  is_stale: boolean;
 }
 
 export interface DataQualityResponse {
@@ -424,4 +470,9 @@ export interface DataQualityResponse {
   volumes: Volumes;
   sources: SourceFreshness[];
   checks: QualityCheck[];
+  identity: IdentityCoverage | null;
+  average_detailed_coverage_pct: number | null;
+  /** What the provider cannot supply at all. Empty in demo mode. */
+  unavailable_metrics: string[];
+  analytics: AnalyticsFreshness | null;
 }

@@ -286,3 +286,44 @@ class FactDataQuality(Base):
         CheckConstraint("record_count >= 0", name="data_quality_count_non_negative"),
         Index("ix_data_quality_executed", "executed_at"),
     )
+
+
+class FactSourceLoad(Base):
+    """When a source's data was last successfully loaded, and how much of it.
+
+    WHY THIS IS NOT `fact_data_quality.executed_at`
+    -----------------------------------------------
+
+    That records when a *check* ran, which is a different fact. Checks can run
+    against data nobody reloaded, and a load that rolled back still leaves the
+    previous run's checks sitting there looking recent. Reading one as the
+    other would let the site say "performance data updated today" about data
+    that arrived a fortnight ago.
+
+    A row is written inside the load transaction, so it commits with the data
+    and rolls back with it. A load that failed its checks cannot claim to have
+    refreshed anything, because the claim is discarded along with the rows it
+    was about.
+
+    History rather than one row per source: "when did this last change" and
+    "how often does it change" are both worth answering, and the second needs
+    the previous answers kept.
+    """
+
+    __tablename__ = "fact_source_load"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    loaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    #: Rows written across every entity in this load.
+    rows_loaded: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    #: Whatever identifies the run that did it - a GitHub run id, a person's
+    #: name, or nothing. Traceability, not identity.
+    pipeline_run: Mapped[str | None] = mapped_column(String(128))
+
+    __table_args__ = (
+        CheckConstraint("rows_loaded >= 0", name="source_load_rows_non_negative"),
+        Index("ix_source_load_source_time", "source", "loaded_at"),
+    )

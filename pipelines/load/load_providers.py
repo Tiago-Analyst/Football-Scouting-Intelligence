@@ -26,6 +26,7 @@ sources cannot collide on an identifier that happens to be reused.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -45,6 +46,7 @@ from app.models import (
     FactDataQuality,
     FactMarketValue,
     FactPlayerSeasonStats,
+    FactSourceLoad,
     FactTransfer,
 )
 from app.providers.base import PerformanceDataProvider
@@ -546,6 +548,32 @@ class ProviderLoader:
             ],
         )
 
+    def record_load(self) -> None:
+        """Note that this source's data was refreshed, and when.
+
+        Written inside the load transaction on purpose. A load that fails its
+        checks is rolled back, and this row goes with it - so a failed run
+        cannot leave behind a claim to have refreshed anything, which is
+        exactly the claim the site reads to tell people how current the data
+        is.
+
+        `fact_data_quality.executed_at` is not a substitute: it records when a
+        check ran, and checks run against data nobody reloaded.
+        """
+        _bulk_insert(
+            self.session,
+            FactSourceLoad,
+            [
+                {
+                    "source": self.source,
+                    "rows_loaded": sum(self.report.counts.values()),
+                    # Whatever identifies the run. Absent when a person ran it
+                    # by hand, which is a fine answer.
+                    "pipeline_run": os.environ.get("GITHUB_RUN_ID"),
+                }
+            ],
+        )
+
     def run(self) -> LoadReport:
         self.load_competitions()
         self.load_seasons()
@@ -556,6 +584,7 @@ class ProviderLoader:
         self.load_transfers()
         self.run_quality_checks()
         self.persist_checks()
+        self.record_load()
         return self.report
 
 

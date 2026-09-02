@@ -81,7 +81,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </main>
 
-        <SiteFooter />
+        <SiteFooter freshness={meta?.data_freshness ?? []} />
       </body>
     </html>
   );

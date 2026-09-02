@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -48,6 +49,24 @@ class DataSourceStatus(BaseModel):
     notes: str | None = None
 
 
+class SourceLoadOut(BaseModel):
+    """When one source's data was last loaded.
+
+    Keyed by the loader's own source name rather than by a provider class, so
+    nothing has to be inferred: this is a record of what was written, under the
+    name it was written as.
+
+    Reported per source and never summed into one date. The performance and
+    market pipelines run on different schedules, so a single "updated today"
+    would be wrong whenever one refreshed and the other did not - which is the
+    normal case, not the exception.
+    """
+
+    source: str
+    last_loaded_at: datetime
+    rows_loaded: int
+
+
 class MetaResponse(BaseModel):
     """Public application metadata, consumed by the frontend shell."""
 
@@ -59,6 +78,11 @@ class MetaResponse(BaseModel):
         description="Populated in demo mode so the UI can display a persistent banner.",
     )
     data_sources: list[DataSourceStatus]
+    #: Empty when nothing has been loaded since load times began to be
+    #: recorded, or when the database could not be reached. Absent rather
+    #: than guessed from when the checks last ran, which is a different
+    #: fact and would read as a fresher claim than the data supports.
+    data_freshness: list[SourceLoadOut] = Field(default_factory=list)
     #: Whether this caller's build token was accepted.
     #:
     #: Asked by the deploy before it commits to rendering every profile ahead

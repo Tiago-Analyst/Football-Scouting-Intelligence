@@ -469,12 +469,25 @@ class QualityCheckOut(BaseModel):
 
 
 class SourceFreshnessOut(BaseModel):
+    """How current one source is, and how its last checks went.
+
+    Two timestamps, and they answer different questions. `last_checked_at` is
+    when the automated checks last ran; `last_loaded_at` is when this source's
+    data was last replaced. A check running against a fortnight-old load is a
+    perfectly ordinary event, and reading the first as the second would let the
+    site announce that the data was updated today.
+    """
+
     source: str
     last_checked_at: datetime
     age_days: int
     checks_run: int
     failures: int
     warnings: int
+    #: `None` for a source loaded before the two were recorded separately.
+    last_loaded_at: datetime | None = None
+    data_age_days: int | None = None
+    rows_loaded: int | None = None
 
 
 class VolumesOut(BaseModel):
@@ -482,6 +495,36 @@ class VolumesOut(BaseModel):
     competitions: int
     clubs: int
     player_seasons: int
+
+
+class IdentityCoverageOut(BaseModel):
+    """How much of the two sources has been reconciled into one identity.
+
+    `unmatched` is not a failure. A player one source knows and the other does
+    not is a player we know less about, and counting them stops the total
+    implying a completeness nobody achieved.
+    """
+
+    players: int
+    matched: int
+    unmatched: int
+    matched_share: float
+    manual_overrides: int
+    #: Matched on weaker evidence: plausible rather than settled, and where a
+    #: wrong join would be if there is one.
+    ambiguous: int
+
+
+class AnalyticsFreshnessOut(BaseModel):
+    """Whether the API is serving what the database currently holds."""
+
+    players: int
+    competitions: int
+    built_at: datetime | None
+    #: True when the database has moved since this view was built. Reporting it
+    #: rather than rebuilding on a timer: a view that changes under a reader
+    #: mid-session is worse than one that is briefly behind and says so.
+    is_stale: bool
 
 
 class DataQualityResponse(BaseModel):
@@ -496,3 +539,11 @@ class DataQualityResponse(BaseModel):
     volumes: VolumesOut
     sources: list[SourceFreshnessOut]
     checks: list[QualityCheckOut]
+    identity: IdentityCoverageOut | None = None
+    #: Mean share of played minutes carrying detailed statistics, across every
+    #: loaded player-season that has both figures. `None` when unmeasurable.
+    average_detailed_coverage_pct: float | None = None
+    #: Canonical metrics the configured provider cannot supply at all. Empty in
+    #: demo mode, where everything is fabricated.
+    unavailable_metrics: list[str] = Field(default_factory=list)
+    analytics: AnalyticsFreshnessOut | None = None

@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { DataFreshness } from "@/components/shell/DataFreshness";
 import { SECONDARY_NAV } from "@/lib/nav";
+import type { SourceLoad } from "@/types/api";
 
-export function SiteFooter() {
+export function SiteFooter({ freshness = [] }: { freshness?: SourceLoad[] }) {
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -31,6 +33,13 @@ export function SiteFooter() {
               ))}
             </ul>
           </nav>
+        </div>
+
+        {/* Unobtrusive on purpose: a reader who wants to know how current a
+            number is should be able to find out without being told on every
+            page that they should be worrying about it. */}
+        <div className="mt-6">
+          <DataFreshness sources={freshness} />
         </div>
 
         {/* Attribution is a licensing obligation, not decoration. */}
