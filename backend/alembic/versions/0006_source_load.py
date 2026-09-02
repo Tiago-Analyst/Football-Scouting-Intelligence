@@ -16,6 +16,7 @@ Revises: 0005_recorded_minutes
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0006_source_load"
@@ -40,9 +41,7 @@ def upgrade() -> None:
         sa.CheckConstraint("rows_loaded >= 0", name="source_load_rows_non_negative"),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_fact_source_load")),
     )
-    op.create_index(
-        "ix_source_load_source_time", "fact_source_load", ["source", "loaded_at"]
-    )
+    op.create_index("ix_source_load_source_time", "fact_source_load", ["source", "loaded_at"])
 
 
 def downgrade() -> None:

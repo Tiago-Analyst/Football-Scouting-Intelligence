@@ -65,9 +65,7 @@ class TestTheLoadTimestamp:
         loads = last_loads(db_session)
         assert loads["source_recent"][0] != loads["source_stale"][0]
 
-    def test_a_source_never_loaded_is_absent_rather_than_guessed(
-        self, db_session: Session
-    ) -> None:
+    def test_a_source_never_loaded_is_absent_rather_than_guessed(self, db_session: Session) -> None:
         assert "never_loaded_source" not in last_loads(db_session)
 
 
@@ -103,9 +101,7 @@ class TestFreshnessKeepsTheTwoApart:
 
 
 class TestTheLoaderRecordsIt:
-    def test_a_load_is_recorded_inside_its_own_transaction(
-        self, db_session: Session
-    ) -> None:
+    def test_a_load_is_recorded_inside_its_own_transaction(self, db_session: Session) -> None:
         """Which is what makes a rolled-back load unable to claim a refresh.
 
         The row is written by `ProviderLoader.record_load` before the commit,

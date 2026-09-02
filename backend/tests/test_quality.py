@@ -305,9 +305,7 @@ class TestQualityEndpoint:
         assert identity["players"] == identity["matched"] + identity["unmatched"]
         assert 0.0 <= identity["matched_share"] <= 1.0
 
-    def test_it_says_whether_the_api_is_serving_current_data(
-        self, client: TestClient
-    ) -> None:
+    def test_it_says_whether_the_api_is_serving_current_data(self, client: TestClient) -> None:
         """The question the page exists to answer, and nothing else could.
 
         A load can succeed and the running API still serve the view it built at
