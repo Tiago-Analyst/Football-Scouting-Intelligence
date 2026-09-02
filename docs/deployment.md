@@ -264,18 +264,28 @@ carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
 | --- | --- |
 | `API_BASE_URL` | the Render service's https URL |
 | `SITE_URL` | the site's own https origin |
-| `SITE_INDEXABLE` | leave unset |
+| `SITE_INDEXABLE` | leave unset; set to `false` to close indexing again |
 | `BUILD_TOKEN` | the same value set on Render |
 
 `API_BASE_URL` is deliberately not `NEXT_PUBLIC_`. The browser never talks to
 the API; Next reads it server-side. Renaming it would put the API's address in
 the page source and break the boundary the architecture rests on.
 
-Leaving `SITE_INDEXABLE` unset is what makes the site public but not indexed:
-`robots.txt` disallows everything and the sitemap is empty. Both are default
-closed on purpose - an indexed deployment is far easier to create than to undo,
-and this one publishes profiles of named footballers built from datasets with
-terms attached.
+`SITE_INDEXABLE` used to be default closed, and was flipped deliberately once
+the public product pages were meant to be found: `robots.txt` now allows
+crawling and the sitemap lists the nine public routes. Setting it to `false`
+closes it again.
+
+What stayed closed is the individual player profiles. `robots.txt` disallows
+`/players/`, so a search engine is not offered five and a half thousand pages
+about named people built from datasets whose terms are still unreviewed. They
+are not hidden - anyone with the URL reads them, and no login is involved -
+they are simply not indexed. The list lives in `DISALLOWED` in
+`frontend/src/lib/site.ts`, one line to change.
+
+That exclusion also protects the API. A crawler sweeping every profile would
+render each one through Next to FastAPI, and 5,462 requests would meet the
+120-a-minute rate limit as 429s. The nine allowed routes do not come close.
 
 ### 5. Close the loop
 

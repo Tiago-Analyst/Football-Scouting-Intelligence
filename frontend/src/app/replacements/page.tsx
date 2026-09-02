@@ -10,7 +10,11 @@ import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Tabl
 import { formatDate, formatEuro } from "@/lib/format";
 import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = { title: "Replacement finder" };
+export const metadata: Metadata = {
+  title: "Replacement finder",
+  description:
+    "Select a player and find candidates who could replace that profile, combining statistical similarity, role fit and what a budget can reach.",
+};
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;

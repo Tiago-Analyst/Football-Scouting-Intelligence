@@ -5,7 +5,11 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Callout } from "@/components/ui/States";
 
-export const metadata: Metadata = { title: "About" };
+export const metadata: Metadata = {
+  title: "About",
+  description:
+    "What this platform is for, how it is built, where its data comes from, and what it currently does and does not do.",
+};
 
 export default function AboutPage() {
   return (

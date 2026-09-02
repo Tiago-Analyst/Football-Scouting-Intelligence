@@ -11,7 +11,11 @@ import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { formatCount, formatEuro } from "@/lib/format";
 import { getCompetitions, runRecruitmentSearch } from "@/lib/players";
 
-export const metadata: Metadata = { title: "Recruitment builder" };
+export const metadata: Metadata = {
+  title: "Recruitment builder",
+  description:
+    "Build a ranked shortlist by weighting the qualities that matter to you, then read why each candidate placed where it did. Every score arrives with the percentiles behind it.",
+};
 
 const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
 
