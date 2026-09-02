@@ -7,13 +7,14 @@ otherwise healthy container. `/health` is the readiness check.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import SettingsDep
 from app.core.config import Settings
 from app.core.database import check_database_connection, get_schema_revision
 from app.core.errors import AppError
 from app.core.logging import get_logger
+from app.core.middleware import has_build_access
 from app.providers.footystats_mapping import get_mapping
 from app.providers.registry import build_market_provider, build_performance_provider
 from app.schemas.system import (
@@ -252,7 +253,7 @@ def _market_source(settings: Settings) -> DataSourceStatus:
 
 
 @router.get("/api/v1/meta", response_model=MetaResponse)
-def meta(settings: SettingsDep) -> MetaResponse:
+def meta(settings: SettingsDep, request: Request) -> MetaResponse:
     """Application metadata for the frontend shell (mode banner, provenance)."""
     is_demo = settings.app_mode.value == "demo"
 
@@ -267,4 +268,5 @@ def meta(settings: SettingsDep) -> MetaResponse:
         version=APP_VERSION,
         demo_data_notice=DEMO_NOTICE if is_demo else None,
         data_sources=data_sources,
+        build_access=has_build_access(request, settings.build_token),
     )
