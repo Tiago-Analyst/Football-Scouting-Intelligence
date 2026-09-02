@@ -242,12 +242,30 @@ export interface SimilarPlayers {
 }
 
 /** Everything a profile page shows, in one response. */
+export interface MarketValuePoint {
+  valued_on: string;
+  market_value_eur: number;
+}
+
+export interface Transfer {
+  transfer_date: string | null;
+  season: string | null;
+  from_club: string | null;
+  to_club: string | null;
+  /** Null when the source does not report one, which is not the same as free. */
+  fee_eur: number | null;
+  transfer_type: string;
+}
+
 export interface PlayerProfile {
   player: PlayerDetail;
   stats: PlayerStats;
   /** Null when no role could be fitted; the rest of the profile still stands. */
   roles: RoleFit | null;
   similar: SimilarPlayers;
+  /** Both empty for a player the market source does not cover. */
+  market_value_history: MarketValuePoint[];
+  transfers: Transfer[];
 }
 
 export interface Competition {

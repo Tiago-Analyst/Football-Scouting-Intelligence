@@ -183,6 +183,24 @@ class TestTheWholeProfileAtOnce:
         # the profile - the composite reports it as an absence and carries on.
         assert composite["roles"] == (roles.json() if roles.status_code == 200 else None)
 
+        assert (
+            composite["market_value_history"]
+            == api.get(f"/api/v1/players/{player_id}/market-value").json()
+        )
+        assert composite["transfers"] == api.get(f"/api/v1/players/{player_id}/transfers").json()
+
+    def test_market_history_absent_is_empty_rather_than_missing(
+        self, api: TestClient, a_midfielder: dict
+    ) -> None:
+        """A player the market source does not cover is ordinary, not broken.
+
+        The page renders an absence; it must not have to distinguish "no
+        history" from "the field was not sent".
+        """
+        body = api.get(f"/api/v1/players/{a_midfielder['player_id']}/profile").json()
+        assert isinstance(body["market_value_history"], list)
+        assert isinstance(body["transfers"], list)
+
     def test_defaults_are_stated_rather_than_inherited(
         self, api: TestClient, a_midfielder: dict
     ) -> None:

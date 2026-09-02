@@ -221,6 +221,10 @@ class PlayerProfileResponse(BaseModel):
     #: reports as a 404. Not an error here: the rest of the profile stands.
     roles: RoleFitOut | None
     similar: SimilarPlayersResponse
+    #: Both empty for a player the market source does not cover, which is an
+    #: ordinary state rather than a failure.
+    market_value_history: list[MarketValuePointOut] = Field(default_factory=list)
+    transfers: list[TransferOut] = Field(default_factory=list)
 
 
 class MarketValuePointOut(BaseModel):

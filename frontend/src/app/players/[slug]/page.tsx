@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DataConfidence } from "@/components/player/DataConfidence";
+import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
+import { MarketValueChart } from "@/components/player/MarketValueChart";
+import { TransferHistory } from "@/components/player/TransferHistory";
 import { SaveToShortlist } from "@/components/shortlists/SaveToShortlist";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -284,6 +287,20 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
       </div>
 
       {roles?.best ? <WhyBestRole role={roles.best} /> : null}
+
+      {/* The shape answers "what kind of player is this"; the bars above answer
+          "how much of each". Neither replaces the other, and the radar is the
+          one that shows a lopsided profile at a glance. */}
+      {stats?.scores && stats.scores.length > 0 ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
+          <IntelligenceRadar scores={stats.scores} />
+          <MarketValueChart points={profile.market_value_history} />
+        </div>
+      ) : (
+        <MarketValueChart points={profile.market_value_history} />
+      )}
+
+      <TransferHistory transfers={profile.transfers} />
 
       <Card>
         <CardHeader
