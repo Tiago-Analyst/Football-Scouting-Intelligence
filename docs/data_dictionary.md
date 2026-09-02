@@ -125,13 +125,14 @@ Applied through Alembic migrations; never created by hand.
 | `fact_data_quality` | 8 | 3 | 1 |
 | `fact_market_value` | 6 | 5 | 1 |
 | `fact_player_season_stats` | 45 | 52 | 3 |
+| `fact_source_load` | 5 | 2 | 1 |
 | `fact_transfer` | 12 | 6 | 1 |
 | `shortlist` | 6 | 4 | 1 |
 | `shortlist_entry` | 7 | 4 | 1 |
 | `user_account` | 7 | 4 | 0 |
 | `user_session` | 7 | 4 | 2 |
 
-13 tables, 97 constraints in total.
+14 tables, 99 constraints in total.
 
 The constraint count is high on purpose: section 24 requires that impossible
 values must not be *storable*, not merely that they are not written. A negative
