@@ -152,6 +152,28 @@ class SimilarPlayersResponse(BaseModel):
     meaning: str
 
 
+class PlayerProfileResponse(BaseModel):
+    """Everything one profile page shows, in a single answer.
+
+    The page needs four things and used to ask for them separately. That is
+    fine for one reader and not fine for a deploy that renders every profile
+    ahead of time: four requests a page against five and a half thousand pages
+    is twenty-two thousand round trips, and the API's rate limit - rightly -
+    refuses to serve them.
+
+    Composed from the same functions the individual endpoints use, so the two
+    routes cannot answer differently. Those endpoints stay; this is an addition
+    for callers that want the whole page at once.
+    """
+
+    player: PlayerDetail
+    stats: PlayerStatsResponse
+    #: Absent when no role could be fitted, which the individual endpoint
+    #: reports as a 404. Not an error here: the rest of the profile stands.
+    roles: RoleFitOut | None
+    similar: SimilarPlayersResponse
+
+
 class MarketValuePointOut(BaseModel):
     valued_on: date
     market_value_eur: int

@@ -135,3 +135,31 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* The account control, chosen in the browser rather than on the server.
+
+   Every page ships both versions so the HTML can be identical for everybody
+   and therefore cacheable at the edge; `SessionScript` sets `data-session` on
+   the root before the first paint and this decides which one is seen. The
+   wrappers are `display: contents`, so the chosen version lays out exactly as
+   if the wrapper were not there.
+
+   No attribute at all means no JavaScript ran, and the signed-out version is
+   the right thing to show. */
+[data-session-anon],
+[data-session-user] {
+  display: none;
+}
+
+html:not([data-session="user"]) [data-session-anon],
+html[data-session="user"] [data-session-user] {
+  display: contents;
+}
+
+/* The signed-in name, printed from a custom property rather than written into
+   the markup. It has to come from somewhere the server cannot know and React
+   does not own; a custom property is both. The link carries its own
+   `aria-label`, so this text is decoration over an already-named control. */
+[data-session-name]::after {
+  content: var(--session-name, "");
+}

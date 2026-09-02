@@ -69,6 +69,19 @@ class Settings(BaseSettings):
     )
     rate_limit_per_minute: int = 120
 
+    #: A shared secret that lifts the rate limit for the deploy that renders
+    #: the site.
+    #:
+    #: The limit exists to stop anyone drawing the database out through the
+    #: public API, and it should stay where it is for every public caller. The
+    #: build is not one: it is our own infrastructure, it runs once per deploy,
+    #: and rendering every profile ahead of time is precisely how readers stop
+    #: waiting for this service to wake up.
+    #:
+    #: Unset means no caller can claim the exemption, which is the right
+    #: default for any deployment that does not prerender.
+    build_token: str | None = None
+
     # -- FootyStats -----------------------------------------------------------
     # PENDING VALIDATION. Empty until a real key is supplied. Never logged,
     # never serialised into a response - SecretStr guards accidental printing.

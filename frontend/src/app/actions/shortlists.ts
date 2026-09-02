@@ -40,6 +40,31 @@ function refresh(shortlistId?: number): void {
   if (shortlistId !== undefined) revalidatePath(`/shortlists/${shortlistId}`);
 }
 
+/**
+ * The signed-in user's shortlists, fetched on demand.
+ *
+ * The player profile used to load these while rendering, which meant reading
+ * the session cookie there - and that made the page dynamic for everybody,
+ * including the vast majority of readers who are not signed in and will never
+ * open this control. It is now fetched when the control is opened, so a
+ * profile costs nothing until somebody actually wants to save a player.
+ *
+ * An action rather than a route handler: the session relay and the ownership
+ * rules are already here, and adding a second path to the same data would mean
+ * maintaining both.
+ */
+export async function listShortlistsAction(): Promise<Shortlist[]> {
+  const cookie = await sessionHeader();
+  if (!cookie) return [];
+  try {
+    return await apiFetch<Shortlist[]>("/api/v1/shortlists", { cookie });
+  } catch {
+    // The control offers "create a shortlist" when the list is empty, which is
+    // a reasonable thing to show when we could not read it either.
+    return [];
+  }
+}
+
 export async function createShortlistAction(
   _previous: FormState,
   data: FormData,

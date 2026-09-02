@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { signOutAction } from "@/app/actions/auth";
+import { readIdentity } from "@/lib/session-identity";
 import { cn } from "@/lib/cn";
 import { PRIMARY_NAV, SECONDARY_NAV } from "@/lib/nav";
 
@@ -42,12 +43,19 @@ export function DesktopNav() {
 }
 
 /**
- * `signedInAs` arrives as a prop rather than being read here: session state is
- * resolved on the server, so the menu cannot briefly render the wrong answer
- * while the client works out who is signed in.
+ * The session is read here rather than passed in from the server.
+ *
+ * There is no flicker to avoid: this menu renders nothing until someone opens
+ * it, by which time the client has long since hydrated. Reading it on the
+ * server, on the other hand, cost the entire site its cacheability - see
+ * `session-identity.ts`.
  */
-export function MobileNav({ signedInAs }: { signedInAs: string | null }) {
+export function MobileNav() {
   const pathname = usePathname();
+  // Read when the menu is opened rather than while rendering: the server has
+  // no idea who this is, so reading it during render would make the first
+  // client render disagree with the HTML it is hydrating.
+  const [signedInAs, setSignedInAs] = useState<string | null>(null);
 
   // Openness is stored as "the route the menu was opened on" and compared with
   // the current route. Navigating therefore closes the menu automatically -
@@ -72,7 +80,10 @@ export function MobileNav({ signedInAs }: { signedInAs: string | null }) {
         type="button"
         aria-expanded={open}
         aria-controls="mobile-nav"
-        onClick={() => setOpenedAt(open ? null : pathname)}
+        onClick={() => {
+          setSignedInAs(readIdentity());
+          setOpenedAt(open ? null : pathname);
+        }}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted transition-colors hover:text-text"
       >
         <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import time
 import uuid
 from collections import defaultdict, deque
@@ -21,6 +22,10 @@ from app.core.logging import get_logger
 log = get_logger(__name__)
 
 RequestHandler = Callable[[Request], Awaitable[Response]]
+
+#: Header the deploy identifies itself with. Not a credential for anything else
+#: - it lifts a rate limit and grants no access that a public caller lacks.
+BUILD_TOKEN_HEADER = "x-build-token"  # noqa: S105 - a header name, not a secret
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -80,18 +85,47 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     treated as a real quota across multiple instances.
     """
 
-    def __init__(self, app: ASGIApp, *, requests_per_minute: int) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        requests_per_minute: int,
+        build_token: str | None = None,
+    ) -> None:
         super().__init__(app)
         self.limit = requests_per_minute
         self.window_seconds = 60.0
         self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self.build_token = build_token or None
 
     def _client_key(self, request: Request) -> str:
         return request.client.host if request.client else "unknown"
 
+    def _is_build(self, request: Request) -> bool:
+        """Whether this is our own deploy rendering the site.
+
+        The limit protects the database from being drawn out through the public
+        API, and the build is not the public: it runs once per deploy, from our
+        own pipeline, to render pages that readers then get without waking this
+        service at all.
+
+        Compared in constant time, and only when a token is configured - so a
+        deployment that sets none cannot have the exemption claimed against it
+        by an empty or absent header.
+        """
+        if not self.build_token:
+            return False
+        offered = request.headers.get(BUILD_TOKEN_HEADER)
+        if not offered:
+            return False
+        return secrets.compare_digest(offered, self.build_token)
+
     async def dispatch(self, request: Request, call_next: RequestHandler) -> Response:
         # Health and docs must stay reachable for probes even under limiting.
         if request.url.path in {"/health", "/health/live", "/docs", "/openapi.json"}:
+            return await call_next(request)
+
+        if self._is_build(request):
             return await call_next(request)
 
         key = self._client_key(request)
@@ -137,5 +171,9 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
         max_age=600,
     )
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
-    app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.rate_limit_per_minute)
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.rate_limit_per_minute,
+        build_token=settings.build_token,
+    )
     app.add_middleware(RequestContextMiddleware)

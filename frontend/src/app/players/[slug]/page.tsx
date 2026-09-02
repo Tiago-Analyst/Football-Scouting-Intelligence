@@ -14,36 +14,63 @@ import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
-import {
-  getPlayer,
-  getPlayerRoles,
-  getPlayerStats,
-  getSimilarPlayers,
-} from "@/lib/players";
-import { getCurrentUser } from "@/lib/auth";
-import { getShortlists } from "@/lib/shortlists";
+import { getPlayerProfile, searchPlayers } from "@/lib/players";
 import type { Score } from "@/types/api";
+
+/**
+ * Every profile, built once at deploy rather than per visit.
+ *
+ * The backend sleeps after fifteen minutes idle and takes roughly fifty
+ * seconds to wake, so the first reader of any profile used to pay for that
+ * wake-up. Caching the responses fixed the second reader and did nothing for
+ * the first, and with a quiet site almost every visit is a first. The only
+ * thing that removes the wait is having the page already made.
+ *
+ * The ids are read by paging the search endpoint, which is what it is for.
+ * There is deliberately no endpoint that returns the whole database at once -
+ * see the note on `list_players` in the backend.
+ *
+ * `revalidate` below keeps them current: each page is rebuilt in the
+ * background an hour after it is served, so a pipeline load reaches the site
+ * without a deploy, and nobody waits for it.
+ */
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const PAGE = 100;
+  const params: { slug: string }[] = [];
+
+  for (let offset = 0; ; offset += PAGE) {
+    const page = await searchPlayers({ offset, limit: PAGE, sort: "minutes" });
+    if (!page || page.items.length === 0) break;
+    params.push(...page.items.map((player) => ({ slug: player.player_id })));
+    if (params.length >= page.total) break;
+  }
+
+  return params;
+}
+
+/**
+ * An hour, then rebuilt behind whoever asks next. Not shorter: the numbers
+ * change when the pipeline runs, which is days apart, and every rebuild is a
+ * request to a backend that would rather be asleep.
+ */
+export const revalidate = 3600;
 
 export async function generateMetadata(props: PageProps<"/players/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
-  const player = await getPlayer(slug);
-  return { title: player ? player.name : "Player" };
+  // The same request the page makes, so the fetch cache serves both from one
+  // round trip rather than doubling the work of rendering every profile.
+  const profile = await getPlayerProfile(slug);
+  return { title: profile ? profile.player.name : "Player" };
 }
 
 export default async function PlayerProfilePage(props: PageProps<"/players/[slug]">) {
   const { slug } = await props.params;
-  const player = await getPlayer(slug);
-  if (!player) notFound();
+  // One request rather than four. At five and a half thousand profiles the
+  // difference decides whether the deploy can render them all.
+  const profile = await getPlayerProfile(slug);
+  if (!profile) notFound();
 
-  const [stats, roles, similar, user, shortlists] = await Promise.all([
-    getPlayerStats(slug),
-    getPlayerRoles(slug),
-    getSimilarPlayers(slug, { limit: 6 }),
-    getCurrentUser(),
-    // Returns an empty list for a signed-out visitor without calling the API,
-    // so a public profile costs nothing extra to render.
-    getShortlists(),
-  ]);
+  const { player, stats, roles, similar } = profile;
 
   return (
     <div className="space-y-8">
@@ -87,12 +114,7 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
           <>
             {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
             {player.minutes !== null ? <SampleSizeBadge minutes={player.minutes} /> : null}
-            <SaveToShortlist
-              playerId={player.player_id}
-              playerName={player.name}
-              shortlists={shortlists}
-              signedIn={user !== null}
-            />
+            <SaveToShortlist playerId={player.player_id} playerName={player.name} />
           </>
         }
       />

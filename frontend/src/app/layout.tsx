@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { DemoDataBanner } from "@/components/shell/DemoDataBanner";
 import { SiteFooter } from "@/components/shell/SiteFooter";
+import { SessionScript } from "@/components/shell/SessionScript";
+import { SessionSync } from "@/components/shell/SessionSync";
 import { SiteHeader } from "@/components/shell/SiteHeader";
 import { ThemeScript } from "@/components/shell/ThemeScript";
 import { IS_PUBLIC_ORIGIN, SITE_URL } from "@/lib/site";
@@ -61,6 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <ThemeScript />
+        <SessionScript />
       </head>
       <body className="flex min-h-full flex-col font-sans">
         <a
@@ -70,6 +73,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
 
+        <SessionSync />
         {meta?.demo_data_notice ? <DemoDataBanner notice={meta.demo_data_notice} /> : null}
         <SiteHeader />
 

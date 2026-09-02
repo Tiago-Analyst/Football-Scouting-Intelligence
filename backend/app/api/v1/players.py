@@ -25,6 +25,7 @@ from app.schemas.api import (
     MetricOut,
     PlayerDetail,
     PlayerListResponse,
+    PlayerProfileResponse,
     PlayerStatsResponse,
     PlayerSummary,
     RoleFitOut,
@@ -384,6 +385,56 @@ def get_similar_players(
         target=to_summary(record, view),
         results=mapped,
         meaning=SIMILARITY_MEANING,
+    )
+
+
+@router.get("/players/{player_id}/profile", response_model=PlayerProfileResponse)
+def get_player_profile(
+    player_id: str,
+    similar_limit: int = Query(default=6, ge=1, le=50),
+) -> PlayerProfileResponse:
+    """The whole profile page in one request.
+
+    Exists for the deploy that renders every profile ahead of time. Four
+    requests a page across five and a half thousand players is twenty-two
+    thousand round trips, which the rate limit refuses and should refuse; one a
+    page is four minutes of work.
+
+    It calls the same functions the four endpoints are, with every default
+    stated rather than inherited - a `Query(...)` default is a marker object,
+    not a value, and reaches the body as itself when a handler is called
+    directly. `test_profile_matches_the_individual_endpoints` holds the two
+    paths to the same answers.
+    """
+    view = get_analytics_view()
+    require_player(view, player_id)
+
+    try:
+        roles: RoleFitOut | None = get_player_roles(player_id)
+    except HTTPException as exc:
+        # A player with no fitted role still has a profile worth showing. The
+        # single-purpose endpoint answers 404 because there is nothing else for
+        # it to say; here there is.
+        if exc.status_code != 404:
+            raise
+        roles = None
+
+    return PlayerProfileResponse(
+        player=get_player(player_id),
+        stats=get_player_stats(player_id, scope=PercentileScope.COMPETITION.value),
+        roles=roles,
+        similar=get_similar_players(
+            player_id,
+            limit=similar_limit,
+            age_max=None,
+            age_min=None,
+            market_value_max=None,
+            different_competition=False,
+            exclude_same_club=False,
+            younger_only=False,
+            contract_within_months=None,
+            minutes_min=0,
+        ),
     )
 
 

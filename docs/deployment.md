@@ -199,14 +199,26 @@ prompts for:
 | `DATABASE_URL` | the Neon pooled connection string |
 | `CORS_ALLOW_ORIGINS` | the Vercel origin, exactly, no trailing slash |
 | `FOOTYSTATS_API_KEY` | only if a subscription is in use |
+| `BUILD_TOKEN` | any long random string; the same value goes to Vercel |
 
 `CORS_ALLOW_ORIGINS` is a chicken-and-egg: Vercel has to exist first to have an
 origin. Deploy the frontend, then come back and set it. A wildcard is not an
 option - the settings validator refuses `*`, because the API answers with a
 signed-in user's shortlists.
 
+`BUILD_TOKEN` lifts the API rate limit for the Vercel build and for nothing
+else. The frontend renders all 5,462 profiles at deploy time, which is one
+request per page in about a minute - a rate the public limit refuses, and
+should, since from the outside it looks like someone draining the database.
+It is not a credential: presenting it grants no access a public caller lacks.
+Leave it unset and the exemption does not exist.
+
 The free plan sleeps after 15 minutes idle and takes roughly 50 seconds to
-wake. During that window the site shows its error state rather than data.
+wake. Readers no longer meet that, because the pages they read were built at
+deploy time and are served from Vercel's edge without touching this service at
+all. What still meets it is a background revalidation an hour after a page was
+last served, and the pages that take live filters: `/players`, `/similar`,
+`/replacements`, `/recruitment` and `/opportunities`.
 
 ### 3. Migrate and load, before the frontend expects anything
 
@@ -253,6 +265,7 @@ carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
 | `API_BASE_URL` | the Render service's https URL |
 | `SITE_URL` | the site's own https origin |
 | `SITE_INDEXABLE` | leave unset |
+| `BUILD_TOKEN` | the same value set on Render |
 
 `API_BASE_URL` is deliberately not `NEXT_PUBLIC_`. The browser never talks to
 the API; Next reads it server-side. Renaming it would put the API's address in
@@ -274,8 +287,13 @@ terms attached.
 
 ### What is still not done after all this
 
-- **Nothing watches `/health`.** A free uptime monitor pointed at it is ten
-  minutes of work and the difference between knowing and being told.
+- **Nothing reliably watches `/health`.** The Actions workflow checks it, but
+  GitHub delivers a fraction of what it asks for - sixteen runs in three days
+  against a ten-minute schedule. A free external uptime monitor is ten minutes
+  of work and the difference between knowing and being told.
+- **A deploy is now how new data reaches the site.** Profiles are built at
+  deploy time, so a pipeline load shows up as pages expire (an hour) or on the
+  next deploy, whichever comes first.
 - **No error tracking.** Structured logs go to the platform's log viewer and
   nowhere else.
 - **No Content-Security-Policy.** A CSP worth having needs nonces threaded
