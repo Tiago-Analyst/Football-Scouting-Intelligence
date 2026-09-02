@@ -57,11 +57,26 @@ class ScoreOut(BaseModel):
 
     key: str
     label: str
+    #: The weighted profile score, 0-100. For a role this is the Raw Role Fit:
+    #: explainable, decomposable, and not quite comparable across roles.
     score: float | None
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
     caveat: str | None = None
+    #: Roles only. Where the raw score sits among every player evaluated for
+    #: this same role.
+    #:
+    #: Raw role scores do not share a scale: a role whose weight sits mostly on
+    #: one component inherits that component's spread, while a role averaging
+    #: six evenly weighted components is pulled towards the middle. Comparing
+    #: 72 against 78 across two such roles compares distributions rather than
+    #: players. This number is measured within one distribution, so it can be
+    #: compared - and it is what the best role is chosen by.
+    role_fit_percentile: float | None = None
+    #: How many players that standing was measured against. Absent standing
+    #: with a small population means the role had too few to rank within.
+    role_population: int = 0
 
 
 class RoleFitOut(BaseModel):
@@ -114,7 +129,11 @@ class PlayerSummary(BaseModel):
     market_value_eur: int | None
     contract_expires: date | None
     best_role: str | None
+    #: Raw Role Fit for the best role: the weighted profile score.
     best_role_score: float | None
+    #: Where that raw score stands among players evaluated for the same role.
+    #: The comparable figure, and the one the best role was chosen by.
+    best_role_percentile: float | None = None
 
 
 class PlayerDetail(PlayerSummary):
