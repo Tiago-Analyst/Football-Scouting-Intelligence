@@ -134,6 +134,14 @@ jobs:
         working-directory: backend
         run: python -m scripts.generate_data_dictionary --check
 
+      - name: Provider status document is current
+        # Generated from config/footystats_mapping.yaml. Hand-maintained
+        # provider documentation drifts silently, and it did: the README once
+        # announced the mapping was done a few lines above a paragraph saying
+        # it was empty. Both were true when written, months apart.
+        working-directory: backend
+        run: python -m pipelines.footystats.status --check
+
       - name: FootyStats validation gate
         # Asserts the gate is still shut: no field mapping may exist without a
         # recorded response behind it. Runs with no API key, which is exactly
@@ -174,6 +182,16 @@ jobs:
         run: npm run build
         env:
           API_BASE_URL: http://127.0.0.1:8000
+
+      - name: Test
+        # Runs after the build on purpose: one of these reads the client bundle
+        # to assert the build token never reached it.
+        run: npm test
+        env:
+          # Present so the "an ordinary request sends no build header" case is
+          # tested under the condition that used to break it - the runtime
+          # server on Vercel has the build's environment.
+          BUILD_TOKEN: ci-build-token-not-a-real-secret
 
   secret-scan:
     name: Secret scan

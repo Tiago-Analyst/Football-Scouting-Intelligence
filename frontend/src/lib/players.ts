@@ -80,9 +80,20 @@ function nullIfMissing(error: unknown): null {
   throw error;
 }
 
-export async function searchPlayers(params: PlayerSearchParams): Promise<PlayerList | null> {
+/**
+ * `buildAccess` is passed by the callers that static generation runs - listing
+ * every player id, and rendering each profile. It is inert at runtime: see
+ * `buildTokenHeader` in `build-access.ts`.
+ */
+export async function searchPlayers(
+  params: PlayerSearchParams,
+  options: { buildAccess?: boolean } = {},
+): Promise<PlayerList | null> {
   try {
-    return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`, { revalidate: ANALYSIS_TTL });
+    return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`, {
+      revalidate: ANALYSIS_TTL,
+      buildAccess: options.buildAccess,
+    });
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -148,7 +159,9 @@ export async function getSimilarPlayers(
 export async function canPrerenderEverything(): Promise<boolean> {
   if (!process.env.BUILD_TOKEN) return false;
   try {
-    const meta = await apiFetch<{ build_access?: boolean }>("/api/v1/meta");
+    const meta = await apiFetch<{ build_access?: boolean }>("/api/v1/meta", {
+      buildAccess: true,
+    });
     return meta.build_access === true;
   } catch {
     // No answer is not a licence to make thousands of requests.
@@ -168,7 +181,9 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
   try {
     return await apiFetch<PlayerProfile>(
       `/api/v1/players/${encodeURIComponent(playerId)}/profile`,
-      { revalidate: ANALYSIS_TTL },
+      // Prerendering calls this 5,462 times; serving a reader calls it once.
+      // The flag says "this may be the build", and only the build is believed.
+      { revalidate: ANALYSIS_TTL, buildAccess: true },
     );
   } catch (error) {
     return nullIfMissing(error);

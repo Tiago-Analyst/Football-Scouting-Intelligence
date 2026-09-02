@@ -39,42 +39,75 @@ market analysis, built on top of performance and market data.
 | Shortlists (save, note, compare, export) | Working — owner-scoped, tested |
 | Data quality reporting | Working — measured feature impact, published |
 | FootyStats validation apparatus | Working — probe, profiler, mapping gate |
-| FootyStats field validation | Done — 35 of 39 metrics mapped, each with evidence |
+| FootyStats field validation | Done — 36 metrics mapped, each with recorded evidence |
 | `FootyStatsProvider` | Working — reads the verified mapping, 47 competitions |
 | FootyStats ingestion | Working — resumable snapshots, load reads from disk |
 
 ### About FootyStats
 
-The API has been profiled and the field mapping written against recorded
-responses. `config/footystats_mapping.yaml` carries, for every metric, the field
-it came from, the response it was seen in, and what established it — 23 of them
-verified arithmetically rather than by name.
+A real API key has been used. The API was profiled from recorded responses and
+the field mapping written against them, on 2026-08-29, from `league-players`
+and `player-stats`.
 
-What it cannot supply is recorded just as explicitly:
+`config/footystats_mapping.yaml` is the authoritative record: for every metric
+it carries the field it came from, the response it was seen in, and what
+established it. **24 were confirmed arithmetically** rather than by name — for
+each, `total / recorded_minutes * 90` reproduced the provider's own per-90
+field in every sampled record, which is the only thing that settles whether a
+field named `_total_overall` is a season total or a rate.
+
+The generated summary lives in one place and is not maintained by hand:
+
+```bash
+python -m pipelines.footystats.status   # -> docs/footystats_provider_status.md
+```
+
+| | |
+| --- | ---: |
+| `VERIFIED` — mapped and arithmetically confirmed | 24 |
+| `AVAILABLE` — mapped and observed, no per-90 to check against | 10 |
+| `DERIVABLE` — computed from fields that are supplied | 2 |
+| `UNAVAILABLE` — declared and never populated, or absent | 8 |
+
+CI runs `--check` against it, so the document cannot drift from the mapping the
+way this section once did: it announced the mapping was done a few lines above
+a paragraph saying the mapping was empty. Both were written truthfully, months
+apart, and only the first was ever revisited.
+
+**The denominator that matters.** `minutes_played_overall` and
+`detailed_minutes_played_recorded_overall` are different quantities. FootyStats
+records detailed statistics for only some matches and its counts describe those
+matches alone, so dividing them by all minutes played understates every rate —
+by 73% in the worst sampled case. `recorded_minutes` is the per-90 denominator;
+`minutes` is time on the pitch. The product shows both, and the share between
+them as detailed-stat coverage.
+
+**What it cannot supply**, recorded just as explicitly:
 
 - **Progressive passes** and **aerial duel attempts** have fields that are never
-  populated. Nothing else in the API measures ball progression, so the three
-  scores and two roles depending on them stay switched off.
+  populated. Nothing else in the API measures ball progression, so the scores
+  and roles depending on them stay switched off rather than being computed from
+  a substitute.
+- **Successful tackles** is declared and null in all 10,464 sampled records
+  carrying the key. `tackles_total_overall` is supplied and is not a substitute:
+  attempts and successes are different measurements. Tackle figures in this
+  product are therefore **activity**, not success.
 - **Position group** is unavailable for outfield players: the provider reports
   four positions where the model has eight groups. Identity resolution supplies
   it from Transfermarkt.
-- Demo mode still uses clearly-labelled fabricated data and never calls
-  FootyStats.
+- Demo mode uses clearly-labelled fabricated data and never calls FootyStats.
 
-The tooling for that validation is built and tested — it simply has nothing to
-observe yet. When a key arrives:
+Re-running the validation, when a newer probe is worth taking:
 
 ```bash
 python -m pipelines.footystats.probe     # record real responses
-python -m pipelines.footystats.profile   # write the field-availability report
+python -m pipelines.footystats.profile   # field-availability from those responses
+python -m pipelines.footystats.status    # regenerate the provider status document
 ```
 
-Then a person reads `docs/footystats_field_availability.md` and records what
-they are satisfied about in `config/footystats_mapping.yaml`, which is the only
-thing that can grant the provider a metric. It is empty today, and the provider
-therefore offers nothing. Both scripts refuse and write nothing without a key.
-Replacing `MockPerformanceProvider` with `FootyStatsProvider` is intended to be
-a provider-layer change only.
+A person then reads the profile and records what they are satisfied about in
+`config/footystats_mapping.yaml`, which remains the only thing that can grant
+the provider a metric. Both scripts refuse and write nothing without a key.
 
 ## The specification
 
