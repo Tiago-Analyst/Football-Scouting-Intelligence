@@ -196,10 +196,22 @@ export interface PlayerStats {
   scores: Score[];
 }
 
+export type FeatureCoverageBand = "high" | "good" | "limited" | "very_limited";
+
 export interface SimilarPlayer {
   player: PlayerSummary;
+  /** Resemblance on the features the two players share, 0-100. */
   similarity: number;
   shared_features: number;
+  /**
+   * How many the position's vector defines. Six of eleven is much weaker
+   * evidence than eleven of eleven, and the index alone cannot tell them apart
+   * — both can read 92. Reported beside it, never mixed into it.
+   */
+  expected_features: number;
+  feature_coverage_pct: number;
+  coverage_band: FeatureCoverageBand;
+  coverage_label: string;
   /** Low values mean the profiles match in shape but not in strength. */
   profile_strength_ratio: number;
   comparable_strength: boolean;

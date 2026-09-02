@@ -212,6 +212,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                       <TH>Competition</TH>
                       <TH>Best role</TH>
                       <TH numeric>Similarity</TH>
+                      <TH numeric>Feature coverage</TH>
                       <TH numeric>Value</TH>
                       <TH numeric>Contract</TH>
                     </TR>
@@ -240,6 +241,23 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                         <TD className="whitespace-nowrap">{entry.player.best_role ?? "–"}</TD>
                         <TD numeric className="font-medium">
                           {Math.round(entry.similarity)}
+                        </TD>
+                        {/* How much of the intended comparison actually
+                            happened. Deliberately its own column rather than
+                            folded into the index: mixing them would change what
+                            the index means while leaving its name and scale
+                            unchanged. */}
+                        <TD numeric className="whitespace-nowrap">
+                          <span className="tabular">
+                            {Math.round(entry.feature_coverage_pct)}%
+                          </span>
+                          <span className="mt-0.5 block text-[11px] text-subtle">
+                            {entry.shared_features} / {entry.expected_features}
+                            {entry.coverage_band === "limited" ||
+                            entry.coverage_band === "very_limited" ? (
+                              <span className="ml-1 text-warning">{entry.coverage_label}</span>
+                            ) : null}
+                          </span>
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null

@@ -44,14 +44,63 @@ DEFAULT_FEATURES_PATH = REPO_ROOT / "config" / "similarity_features.yaml"
 
 SIMILARITY_MEANING = (
     "The Statistical Similarity Index describes how closely two players' "
-    "statistical profiles resemble each other on the features used, on a 0-100 "
-    "scale. It is not a probability, and says nothing about quality, tactical "
-    "fit or temperament."
+    "statistical profiles resemble each other on the features they share, on a "
+    "0-100 scale. It is not a probability, and says nothing about quality, "
+    "tactical fit or temperament. Feature Coverage is reported beside it and is "
+    "not folded into it: an index of 92 over six of eleven features is a "
+    "confident answer to a narrower question than the same index over eleven."
 )
 
 #: A profile needs enough present features to be worth comparing. Below this,
 #: two players could agree on three metrics and differ on everything unmeasured.
+#:
+#: An absolute floor, kept as a backstop against a vector so short that a
+#: proportion of it would still be almost nothing.
 MIN_FEATURES = 5
+
+#: And a proportional one, which is the better rule across differently sized
+#: vectors.
+#:
+#: The outfield vectors carry eleven features and the goalkeeping one carries
+#: eight. A flat floor of five therefore asked outfielders for 45% of their
+#: vector and goalkeepers for 63% - the same number meaning two different
+#: things, for no reason anyone chose. Requiring half of whatever the vector
+#: holds asks the same question of everybody.
+#:
+#: The two are combined with `max`, so neither can be undercut.
+MINIMUM_FEATURE_COVERAGE = 0.5
+
+
+class FeatureCoverage(StrEnum):
+    """How much of the intended comparison actually happened."""
+
+    HIGH = "high"
+    GOOD = "good"
+    LIMITED = "limited"
+    VERY_LIMITED = "very_limited"
+
+
+FEATURE_COVERAGE_LABEL: dict[FeatureCoverage, str] = {
+    FeatureCoverage.HIGH: "High coverage",
+    FeatureCoverage.GOOD: "Good coverage",
+    FeatureCoverage.LIMITED: "Limited coverage",
+    FeatureCoverage.VERY_LIMITED: "Very limited coverage",
+}
+
+#: Floors, as a share of the vector the two players actually shared.
+HIGH_FEATURE_COVERAGE = 0.85
+GOOD_FEATURE_COVERAGE = 0.65
+LIMITED_FEATURE_COVERAGE = 0.5
+
+
+def classify_feature_coverage(coverage: float) -> FeatureCoverage:
+    if coverage >= HIGH_FEATURE_COVERAGE:
+        return FeatureCoverage.HIGH
+    if coverage >= GOOD_FEATURE_COVERAGE:
+        return FeatureCoverage.GOOD
+    if coverage >= LIMITED_FEATURE_COVERAGE:
+        return FeatureCoverage.LIMITED
+    return FeatureCoverage.VERY_LIMITED
 
 #: Below this index, a pair is not offered as similar at all.
 #:
@@ -168,6 +217,9 @@ class SimilarityResult:
     candidate: SimilarityCandidate
     similarity: float
     shared_features: int
+    #: How many features the position group's vector defines. `shared_features`
+    #: out of this is how much of the intended comparison actually happened.
+    expected_features: int = 0
     #: How comparable the two profiles are in *strength*, 0-1.
     #:
     #: Cosine measures direction, not magnitude: a player in the 90th
@@ -185,6 +237,27 @@ class SimilarityResult:
     def comparable_strength(self) -> bool:
         """False when the profiles match in shape but not in level."""
         return self.profile_strength_ratio >= 0.6
+
+    @property
+    def feature_coverage(self) -> float:
+        """Share of the intended vector the two players actually shared, 0-1.
+
+        Six of eleven is much weaker evidence than eleven of eleven, and the
+        similarity index alone cannot tell them apart: both can read 92. This
+        is reported alongside rather than folded in, because mixing them would
+        change what the index means while leaving its name and scale unchanged.
+        """
+        if self.expected_features <= 0:
+            return 0.0
+        return self.shared_features / self.expected_features
+
+    @property
+    def coverage_band(self) -> FeatureCoverage:
+        return classify_feature_coverage(self.feature_coverage)
+
+    @property
+    def coverage_label(self) -> str:
+        return FEATURE_COVERAGE_LABEL[self.coverage_band]
 
     @property
     def meaning(self) -> str:
@@ -366,6 +439,13 @@ class SimilarityEngine:
         if len(target_vector) < MIN_FEATURES:
             return []
 
+        # How much of the position's intended vector a pair must share. The
+        # proportion asks the same question of an eleven-feature outfield vector
+        # and an eight-feature goalkeeping one; the absolute floor stops a very
+        # short vector qualifying on almost nothing. Neither undercuts the other.
+        expected = len(self.feature_sets.get(target.position_group, ()))
+        required = max(MIN_FEATURES, math.ceil(expected * MINIMUM_FEATURE_COVERAGE))
+
         active = filters or SimilarityFilters()
         results: list[SimilarityResult] = []
 
@@ -384,7 +464,7 @@ class SimilarityEngine:
 
             candidate_vector = self._vector(key)
             shared = [m for m in target_vector if m in candidate_vector]
-            if len(shared) < MIN_FEATURES:
+            if len(shared) < required:
                 # Too little overlap to claim resemblance: the pair might agree
                 # on what is measured and differ on everything that is not.
                 continue
@@ -410,6 +490,7 @@ class SimilarityEngine:
                     candidate=candidate,
                     similarity=index,
                     shared_features=len(shared),
+                    expected_features=expected,
                     profile_strength_ratio=strength_ratio,
                     feature_gaps=gaps,
                 )
