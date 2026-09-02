@@ -139,7 +139,9 @@ jobs:
         # provider documentation drifts silently, and it did: the README once
         # announced the mapping was done a few lines above a paragraph saying
         # it was empty. Both were true when written, months apart.
-        working-directory: backend
+        # The repository root, like the data quality report: `pipelines` is a
+        # top-level package. Only `scripts` lives under backend/.
+        working-directory: .
         run: python -m pipelines.footystats.status --check
 
       - name: Configuration matches provider availability
@@ -147,7 +149,7 @@ jobs:
         # mapping. Fails when a role still produces a score from fewer
         # components than it declares without saying so - the quiet degradation
         # a provider change causes behind an unchanged label.
-        working-directory: backend
+        working-directory: .
         run: python -m pipelines.quality.config_availability --check
 
       - name: FootyStats validation gate
