@@ -1,17 +1,20 @@
 import Link from "next/link";
 
-import { getCurrentUser } from "@/lib/auth";
-
 import { AccountMenu } from "./AccountMenu";
 import { Logo } from "./Logo";
 import { DesktopNav, MobileNav } from "./SiteNav";
 import { ThemeToggle } from "./ThemeToggle";
 
-export async function SiteHeader() {
-  // Resolved once here and handed to both navs, so the header makes exactly
-  // one /auth/me call per render rather than one per component that needs it.
-  const user = await getCurrentUser();
-
+/**
+ * The site header, identical for every reader.
+ *
+ * It used to resolve the session here and hand the result down. That made it
+ * an `async` component reading a cookie in the root layout, which forced every
+ * route in the site to be rendered per request - `/about` and `/methodology`
+ * included, which are static text. Who is signed in is now settled in the
+ * browser instead; see `session-identity.ts`.
+ */
+export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur">
       <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
@@ -25,9 +28,9 @@ export async function SiteHeader() {
         <DesktopNav />
 
         <div className="flex items-center gap-2">
-          <AccountMenu user={user} />
+          <AccountMenu />
           <ThemeToggle />
-          <MobileNav signedInAs={user ? (user.display_name ?? user.email) : null} />
+          <MobileNav />
         </div>
       </div>
     </header>

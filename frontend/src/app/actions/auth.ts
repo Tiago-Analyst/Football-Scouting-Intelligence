@@ -57,11 +57,11 @@ export async function signInAction(_previous: FormState, data: FormData): Promis
   }
 
   try {
-    const { setCookie } = await apiFetchWithHeaders<AuthUser>("/api/v1/auth/login", {
+    const { setCookie, data } = await apiFetchWithHeaders<AuthUser>("/api/v1/auth/login", {
       method: "POST",
       body: { email, password },
     });
-    await adoptSession(setCookie, SESSION_MAX_AGE);
+    await adoptSession(setCookie, SESSION_MAX_AGE, data);
   } catch (error) {
     return { error: messageFor(error) };
   }
@@ -85,11 +85,11 @@ export async function registerAction(_previous: FormState, data: FormData): Prom
   }
 
   try {
-    const { setCookie } = await apiFetchWithHeaders<AuthUser>("/api/v1/auth/register", {
+    const { setCookie, data } = await apiFetchWithHeaders<AuthUser>("/api/v1/auth/register", {
       method: "POST",
       body: { email, password, display_name: displayName || null },
     });
-    await adoptSession(setCookie, SESSION_MAX_AGE);
+    await adoptSession(setCookie, SESSION_MAX_AGE, data);
   } catch (error) {
     return { error: messageFor(error) };
   }

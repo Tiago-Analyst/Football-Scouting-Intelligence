@@ -84,3 +84,16 @@ services:
       # never in a browser request, never in this file.
       - key: FOOTYSTATS_API_KEY
         sync: false
+
+      # Lifts the rate limit for the Vercel build, and for nothing else.
+      #
+      # The frontend renders all 5,462 profiles at deploy time so that readers
+      # never wait for this service to wake. That is one request per page in a
+      # few minutes, which the public limit refuses - correctly, since from the
+      # outside it is indistinguishable from someone draining the database.
+      #
+      # Set the same value here and as BUILD_TOKEN in the Vercel project. It
+      # grants no access a public caller lacks; it only says "this is our
+      # deploy". Leave it unset and the exemption cannot be claimed at all.
+      - key: BUILD_TOKEN
+        sync: false

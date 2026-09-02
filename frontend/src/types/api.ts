@@ -173,6 +173,15 @@ export interface SimilarPlayers {
   meaning: string;
 }
 
+/** Everything a profile page shows, in one response. */
+export interface PlayerProfile {
+  player: PlayerDetail;
+  stats: PlayerStats;
+  /** Null when no role could be fitted; the rest of the profile still stands. */
+  roles: RoleFit | null;
+  similar: SimilarPlayers;
+}
+
 export interface Competition {
   competition_id: string;
   name: string;

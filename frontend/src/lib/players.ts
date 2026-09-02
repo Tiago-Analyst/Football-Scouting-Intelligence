@@ -7,6 +7,7 @@ import type {
   Opportunities,
   PlayerDetail,
   PlayerList,
+  PlayerProfile,
   PlayerStats,
   RecruitmentResults,
   ReplacementResults,
@@ -136,6 +137,25 @@ export async function getSimilarPlayers(
 }
 
 /**
+ * A whole profile in one request.
+ *
+ * The page needs four things. Asked separately that is four round trips, which
+ * matters little for one reader and decides whether the deploy can render five
+ * and a half thousand profiles at all - see `PlayerProfileResponse` in the
+ * backend.
+ */
+export async function getPlayerProfile(playerId: string): Promise<PlayerProfile | null> {
+  try {
+    return await apiFetch<PlayerProfile>(
+      `/api/v1/players/${encodeURIComponent(playerId)}/profile`,
+      { revalidate: ANALYSIS_TTL },
+    );
+  } catch (error) {
+    return nullIfMissing(error);
+  }
+}
+
+/**
  * The filter dropdowns, and the two calls that deliberately keep swallowing.
  *
  * These populate a select box beside the results. If the API is unreachable
@@ -146,7 +166,7 @@ export async function getSimilarPlayers(
  */
 export async function getCompetitions(): Promise<Competition[]> {
   try {
-    return await apiFetch<Competition[]>("/api/v1/competitions", { revalidate: 300 });
+    return await apiFetch<Competition[]>("/api/v1/competitions", { revalidate: ANALYSIS_TTL });
   } catch {
     return [];
   }
@@ -154,7 +174,7 @@ export async function getCompetitions(): Promise<Competition[]> {
 
 export async function getRoles(): Promise<Role[]> {
   try {
-    return await apiFetch<Role[]>("/api/v1/roles", { revalidate: 300 });
+    return await apiFetch<Role[]>("/api/v1/roles", { revalidate: ANALYSIS_TTL });
   } catch {
     return [];
   }

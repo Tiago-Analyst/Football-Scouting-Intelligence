@@ -22,7 +22,12 @@ export async function getHealth(): Promise<HealthResponse | null> {
 /** Application metadata: mode banner and data provenance. */
 export async function getMeta(): Promise<MetaResponse | null> {
   try {
-    return await apiFetch<MetaResponse>("/api/v1/meta", { revalidate: 60 });
+    // An hour, matching the analytical reads. Not a minute: this is fetched in
+    // the root layout, and the lowest revalidate on any fetch in a route sets
+    // how often the whole route is rebuilt. Sixty seconds here would have
+    // meant every prerendered profile in the site expiring every minute -
+    // waking the backend to rebuild pages whose numbers had not moved.
+    return await apiFetch<MetaResponse>("/api/v1/meta", { revalidate: 3600 });
   } catch {
     return null;
   }

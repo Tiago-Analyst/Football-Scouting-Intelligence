@@ -71,6 +71,24 @@ interface ApiFetchOptions {
   acceptStatuses?: number[];
 }
 
+/**
+ * Identify this process as the deploy, when it is one.
+ *
+ * Rendering every profile ahead of time is thousands of requests in a few
+ * minutes, which the API's rate limit refuses - correctly, since from the
+ * outside it is indistinguishable from someone extracting the database. This
+ * header says otherwise, and the backend only believes it when the same secret
+ * is configured on both sides.
+ *
+ * Absent everywhere else, including at runtime on Vercel: a page rendered for
+ * a reader has no reason to claim it, and this module is `server-only`, so the
+ * value cannot reach a browser either way.
+ */
+function buildHeader(): Record<string, string> {
+  const token = process.env.BUILD_TOKEN;
+  return token ? { "x-build-token": token } : {};
+}
+
 export interface ApiResponse<T> {
   data: T;
   status: number;
@@ -108,6 +126,7 @@ export async function apiFetchWithHeaders<T>(
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(options.cookie ? { Cookie: options.cookie } : {}),
+        ...buildHeader(),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(signalTimeoutMs),

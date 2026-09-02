@@ -56,6 +56,64 @@ class TestRateLimiting:
         assert statuses == [200] * 5
 
 
+class TestTheBuildExemption:
+    """The deploy that prerenders the site is not a public caller.
+
+    Rendering every profile ahead of time is thousands of requests in a few
+    minutes - which is exactly what the limit is there to stop, and exactly
+    what makes readers stop waiting for a sleeping backend. So the build says
+    who it is, and nothing else can.
+    """
+
+    TOKEN = "a-build-token"
+
+    def test_the_build_is_not_limited(self) -> None:
+        with build_client(
+            build_settings(rate_limit_per_minute=2, build_token=self.TOKEN)
+        ) as client:
+            statuses = [
+                client.get("/api/v1/meta", headers={"x-build-token": self.TOKEN}).status_code
+                for _ in range(5)
+            ]
+        assert statuses == [200] * 5
+
+    def test_exempt_requests_do_not_consume_anyone_else_s_allowance(self) -> None:
+        """The counter must not tick for a request that skipped the check."""
+        with build_client(
+            build_settings(rate_limit_per_minute=2, build_token=self.TOKEN)
+        ) as client:
+            for _ in range(5):
+                client.get("/api/v1/meta", headers={"x-build-token": self.TOKEN})
+            assert client.get("/api/v1/meta").status_code == 200
+
+    def test_a_wrong_token_buys_nothing(self) -> None:
+        with build_client(
+            build_settings(rate_limit_per_minute=2, build_token=self.TOKEN)
+        ) as client:
+            statuses = [
+                client.get("/api/v1/meta", headers={"x-build-token": "guess"}).status_code
+                for _ in range(4)
+            ]
+        assert statuses == [200, 200, 429, 429]
+
+    def test_no_token_configured_means_no_exemption_exists(self) -> None:
+        """A deployment that does not prerender cannot have this used against it."""
+        with build_client(build_settings(rate_limit_per_minute=2, build_token=None)) as client:
+            statuses = [
+                client.get("/api/v1/meta", headers={"x-build-token": ""}).status_code
+                for _ in range(4)
+            ]
+        assert statuses == [200, 200, 429, 429]
+
+    def test_an_empty_header_is_not_an_empty_token(self) -> None:
+        with build_client(build_settings(rate_limit_per_minute=2, build_token="")) as client:
+            statuses = [
+                client.get("/api/v1/meta", headers={"x-build-token": ""}).status_code
+                for _ in range(4)
+            ]
+        assert statuses == [200, 200, 429, 429]
+
+
 class TestErrorDisclosure:
     @staticmethod
     def _app_with_failing_route(**settings_overrides: object):

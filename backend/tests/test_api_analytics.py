@@ -151,6 +151,52 @@ class TestPlayerProfile:
         assert body["is_mock"] is True
 
 
+class TestTheWholeProfileAtOnce:
+    """One request that answers what four used to.
+
+    It exists so the deploy can render every profile ahead of time - four calls
+    across five and a half thousand pages is twenty-two thousand round trips,
+    which the rate limit refuses. The risk that buys is two routes drifting
+    apart, so these compare them rather than checking the shape.
+    """
+
+    def test_it_matches_the_individual_endpoints(
+        self, api: TestClient, a_midfielder: dict
+    ) -> None:
+        player_id = a_midfielder["player_id"]
+        composite = api.get(f"/api/v1/players/{player_id}/profile").json()
+
+        assert composite["player"] == api.get(f"/api/v1/players/{player_id}").json()
+        assert composite["stats"] == api.get(f"/api/v1/players/{player_id}/stats").json()
+        assert (
+            composite["similar"]
+            == api.get(f"/api/v1/players/{player_id}/similar", params={"limit": 6}).json()
+        )
+
+        roles = api.get(f"/api/v1/players/{player_id}/roles")
+        # 404 there means "no role could be fitted", which is not a failure of
+        # the profile - the composite reports it as an absence and carries on.
+        assert composite["roles"] == (roles.json() if roles.status_code == 200 else None)
+
+    def test_defaults_are_stated_rather_than_inherited(
+        self, api: TestClient, a_midfielder: dict
+    ) -> None:
+        """Calling a handler directly hands it `Query(...)` objects, not values.
+
+        A default that arrives as its own marker object is the quiet way this
+        breaks, so the count is checked against the number asked for.
+        """
+        player_id = a_midfielder["player_id"]
+        body = api.get(f"/api/v1/players/{player_id}/profile", params={"similar_limit": 3}).json()
+        assert len(body["similar"]["results"]) <= 3
+        assert body["stats"]["context"] is None or isinstance(
+            body["stats"]["context"]["population_size"], int
+        )
+
+    def test_an_unknown_player_is_not_found(self, api: TestClient) -> None:
+        assert api.get("/api/v1/players/no-such-player/profile").status_code == 404
+
+
 class TestPlayerStats:
     def test_returns_metrics_with_percentiles(self, stats: dict) -> None:
         assert stats["metrics"]
