@@ -98,7 +98,10 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
     max_market_value_eur: budget ? Number(budget) : null,
     max_age: first(params.max_age) ? Number(first(params.max_age)) : null,
     competitions: first(params.competition) ? [first(params.competition)!] : null,
-    min_minutes: Number(first(params.min_minutes) ?? 900),
+    // No default floor - see the note on the recruitment page. A replacement
+    // search that silently excludes everyone who has played fewer than ten
+    // matches finds nobody in an season this young.
+    min_minutes: Number(first(params.min_minutes) ?? 0),
     contract_expiring_within_months: first(params.contract_within)
       ? Number(first(params.contract_within))
       : null,

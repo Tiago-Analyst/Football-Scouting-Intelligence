@@ -3,7 +3,7 @@
 # The backend runs on a free tier that sleeps after fifteen minutes idle and
 # takes roughly fifty seconds to wake. A visitor arriving after a quiet spell
 # waits through that, and until recently was told the player they clicked did
-# not exist. Ten-minute intervals keep it inside the window.
+# not exist.
 #
 # It checks `/health` rather than `/health/live`. Render already probes the
 # liveness endpoint, which deliberately never touches the database - so
@@ -11,12 +11,23 @@
 # `/health` answers 503 when Postgres is unreachable or no data has been
 # loaded, which is what someone would actually want waking them.
 #
-# Two things worth knowing about GitHub's schedules:
+# WHAT THIS DOES NOT DO, measured rather than assumed:
 #
-#   - they are not punctual. Runs are queued at low priority and can arrive
-#     several minutes late, so treat ten minutes as approximate;
-#   - GitHub disables scheduled workflows after 60 days without a commit to
-#     the repository. If this stops firing, that is the first thing to check.
+# It does not keep the service awake. Asked for a beat every ten minutes over
+# three days - about 430 of them - GitHub delivered 16, spaced between 116 and
+# 410 minutes apart. Scheduled runs on free tiers are queued at low priority
+# and short intervals are mostly dropped, so the backend sleeps through the
+# gaps whatever this file asks for. Keeping it awake needs something GitHub
+# does not offer: a paid Render instance, or an external uptime pinger.
+#
+# What it does do is notice when the API is unwell, which is worth having on
+# its own. The site's own defence against the sleeping is elsewhere - the
+# frontend serves stored answers immediately and refreshes them behind the
+# reader, so a wake-up delays a background refresh rather than a person.
+#
+# Also worth knowing: GitHub disables scheduled workflows after 60 days
+# without a commit to the repository. If this stops firing entirely, that is
+# the first thing to check.
 #
 # Free and unmetered only because this repository is public. On a private one
 # this cadence would cost roughly 4,300 Actions minutes a month against a
@@ -26,7 +37,8 @@ name: Heartbeat
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Asking for more than this is asking for runs that get dropped.
+    - cron: "*/15 * * * *"
   # So a person can ask the question immediately rather than waiting for the
   # next tick.
   workflow_dispatch:

@@ -22,7 +22,8 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
   const criteria = {
     max_age: first(params.max_age) ?? "23",
     min_role_score: first(params.min_role_score) ?? "80",
-    min_minutes: first(params.min_minutes) ?? "900",
+    // No default floor - see the note on the recruitment page.
+    min_minutes: first(params.min_minutes) ?? "0",
     max_market_value_eur: first(params.max_market_value_eur) ?? "5000000",
     contract_within_months: first(params.contract_within_months) ?? "18",
     limit: 30,

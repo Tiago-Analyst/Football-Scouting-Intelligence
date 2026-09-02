@@ -49,7 +49,10 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
     min_age: first(params.min_age) ? Number(first(params.min_age)) : null,
     max_market_value_eur: first(params.max_value) ? Number(first(params.max_value)) : null,
     competitions: first(params.competition) ? [first(params.competition)!] : null,
-    min_minutes: Number(first(params.min_minutes) ?? 900),
+    // No default floor. 900 minutes is ten full matches, and the loaded
+    // season is four matches old - as a default it emptied this page rather
+    // than focusing it. The field below still accepts one.
+    min_minutes: Number(first(params.min_minutes) ?? 0),
     contract_expiring_within_months: first(params.contract_within)
       ? Number(first(params.contract_within))
       : null,
@@ -187,7 +190,7 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
                 min={0}
                 step={90}
                 className="tabular"
-                defaultValue={first(params.min_minutes) ?? "900"}
+                defaultValue={first(params.min_minutes) ?? ""}
               />
             </Field>
           </fieldset>
