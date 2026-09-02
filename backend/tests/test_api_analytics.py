@@ -363,12 +363,25 @@ class TestRecruitment:
         assert scores == sorted(scores, reverse=True)
 
     def test_an_unscoreable_profile_says_which_score_and_why(self, api: TestClient) -> None:
-        """Ball Progression needs progressive passes, which the provider does
-        not supply, so weighting it matches nobody.
+        """The account a search gives of itself must match what happened.
 
-        Returning nothing is correct. Returning nothing without saying why is
-        not: the page looked identical to a search whose filters were too
-        narrow, and widening them is the one remedy that cannot help.
+        Ball Progression needs progressive passes. FootyStats declares the field
+        and never populates it, so against real data this search matches nobody
+        and has to say why - returning nothing is correct, returning nothing
+        without a reason is not, because the page then looks identical to a
+        search whose filters were too narrow, and widening them is the one
+        remedy that cannot help.
+
+        The demo provider fabricates progressive passes, so against demo data
+        the same search matches plenty. Both are correct behaviour for their
+        data, and the invariant that spans them is that the explanation agrees
+        with the outcome.
+
+        This test used to assert the empty case unconditionally, and passed in
+        CI against demo data - not because the metric was absent, but because
+        the 450-minute floor left the comparison population too small to rank
+        anybody. Removing that floor revealed a green test that had been
+        checking something other than what it claimed.
         """
         body = api.post(
             "/api/v1/recruitment/search",
@@ -378,10 +391,16 @@ class TestRecruitment:
                 "limit": 10,
             },
         ).json()
-        assert body["items"] == []
-        assert body["considered"] > 0, "candidates were admitted, so the data is to blame"
+        assert body["considered"] > 0, "no candidate was admitted, so this proves nothing"
 
         unavailable = body["unavailable_scores"]
+        if body["items"]:
+            # The data supported the score. Nothing may claim otherwise.
+            assert unavailable == []
+            assert "narrowing the filters will not" not in (body["explanation"] or "")
+            return
+
+        # Nothing came back, and the reason must be named.
         assert [u["key"] for u in unavailable] == ["ball_progression"]
         # The component missing for *every* candidate, not one player's list: a
         # component missing for one player is a thin comparison population.
