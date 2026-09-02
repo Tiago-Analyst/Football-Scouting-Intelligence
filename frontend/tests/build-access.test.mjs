@@ -48,7 +48,7 @@ test("an empty token is not a token", () => {
   assert.deepEqual(buildTokenHeader(true, { NEXT_PHASE: BUILD_PHASE, BUILD_TOKEN: "" }), {});
 });
 
-test("the build secret is absent from the client bundle", (t) => {
+test("no server secret reaches the client bundle", (t) => {
   const root = ".next/static";
   let files;
   try {
@@ -63,11 +63,14 @@ test("the build secret is absent from the client bundle", (t) => {
   for (const file of files) {
     if (!/\.(js|mjs|css|map|json)$/.test(file)) continue;
     const text = readFileSync(file, "utf8");
-    if (text.includes("BUILD_TOKEN") || text.includes(BUILD_TOKEN_HEADER)) {
-      offenders.push(file);
+    // Both secrets, and both header names. Neither is a NEXT_PUBLIC_ variable
+    // and neither is read in a client component, but the property worth
+    // asserting is the outcome rather than the intent.
+    for (const secret of ["BUILD_TOKEN", BUILD_TOKEN_HEADER, "INTERNAL_TOKEN", "x-internal-token"]) {
+      if (text.includes(secret)) offenders.push(`${file}: ${secret}`);
     }
   }
-  assert.deepEqual(offenders, [], "the build token must never reach a browser");
+  assert.deepEqual(offenders, [], "no server secret may reach a browser");
 });
 
 function walk(dir) {

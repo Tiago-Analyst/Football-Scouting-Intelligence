@@ -268,6 +268,46 @@ jobs:
           set -o pipefail
           python -m pipelines.quality.validate_analytics --players 12 2>&1             | tee pipeline-validation.log
 
+      - name: Publish the refreshed data to the live site
+        # The last step of a data refresh, and the one that was missing.
+        #
+        # Everything above put verified rows in PostgreSQL. Nothing told the
+        # running API, which holds its analytical view in memory for the life
+        # of the process - so a successful load reached the database and
+        # stopped there until somebody restarted the service. Then the frontend
+        # holds its own copy for an hour, so even a reloaded API was invisible
+        # until each cached page happened to expire.
+        #
+        # Both are told, in that order. `success()` matters: a run whose
+        # validation failed must leave the previous data live rather than
+        # publish something that did not reproduce.
+        if: steps.preflight.outputs.database == 'true' && success()
+        env:
+          API_ORIGIN: ${{ secrets.API_ORIGIN }}
+          SITE_ORIGIN: ${{ secrets.SITE_ORIGIN }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          set -o pipefail
+
+          if [ -z "$INTERNAL_TOKEN" ] || [ -z "$API_ORIGIN" ]; then
+            echo "::warning::INTERNAL_TOKEN or API_ORIGIN is not set, so the           new data is in the database but not yet being served. Set both to           close the loop; until then the API picks it up on its next restart."
+            exit 0
+          fi
+
+          # The API first. Revalidating the frontend before the API has
+          # reloaded would have it re-fetch, and cache, the old answers.
+          echo "Reloading the analytical view..."
+          reload=$(curl --silent --show-error --fail-with-body                         --max-time 180 --retry 2 --retry-delay 20                         -X POST                         -H "x-internal-token: $INTERNAL_TOKEN"                         "$API_ORIGIN/api/v1/internal/reload-analytics")
+          echo "$reload"
+
+          # Then the site, if it is configured. A frontend that never
+          # revalidates is slow to update, not wrong, so this does not fail the
+          # run on its own.
+          if [ -n "$SITE_ORIGIN" ]; then
+            echo "Revalidating the site..."
+            curl --silent --show-error --max-time 60                  -X POST                  -H "x-internal-token: $INTERNAL_TOKEN"                  "$SITE_ORIGIN/api/revalidate"               || echo "::warning::The site did not accept the revalidation.           Pages will refresh as their own cache expires."
+          fi
+
       - name: Summarise the run
         if: always() && steps.preflight.outputs.database == 'true'
         run: |

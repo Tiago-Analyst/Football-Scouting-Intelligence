@@ -97,3 +97,19 @@ services:
       # deploy". Leave it unset and the exemption cannot be claimed at all.
       - key: BUILD_TOKEN
         sync: false
+
+      # Lets the data pipeline tell this service to rebuild its analytical
+      # view, and nothing else reach in.
+      #
+      # The view is held in memory for the life of the process, so without this
+      # a successful load reaches PostgreSQL and stops there until the service
+      # restarts. The pipeline calls /api/v1/internal/reload-analytics after a
+      # load it has verified.
+      #
+      # A different secret from BUILD_TOKEN on purpose: that one only lifts a
+      # rate limit and lives in a build's environment elsewhere, while this one
+      # drives the service. Set the same value as INTERNAL_TOKEN in the GitHub
+      # Actions secrets and in the Vercel project. Unset, the endpoint answers
+      # 404 to everybody.
+      - key: INTERNAL_TOKEN
+        sync: false

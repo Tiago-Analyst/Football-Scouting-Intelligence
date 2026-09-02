@@ -82,9 +82,24 @@ class Settings(BaseSettings):
     #: default for any deployment that does not prerender.
     build_token: str | None = None
 
+    #: A shared secret for the endpoints that change this service's state.
+    #:
+    #: Deliberately not `build_token`. That one only lifts a rate limit, grants
+    #: no access a public caller lacks, and is handed to a build running on
+    #: someone else's infrastructure. This one makes the API rebuild its
+    #: analytical view, and the two should not be able to stand in for each
+    #: other - a secret that leaks from a build log must not also be able to
+    #: drive the service.
+    #:
+    #: Unset means the endpoints refuse everybody, including a caller offering
+    #: an empty token, which is the right default anywhere nothing is meant to
+    #: reach in.
+    internal_token: str | None = None
+
     # -- FootyStats -----------------------------------------------------------
-    # PENDING VALIDATION. Empty until a real key is supplied. Never logged,
-    # never serialised into a response - SecretStr guards accidental printing.
+    # A real key has been used and the mapping validated against real responses;
+    # see docs/footystats_provider_status.md. Never logged, never serialised
+    # into a response - SecretStr guards accidental printing.
     footystats_api_key: SecretStr = SecretStr("")
     footystats_base_url: str = "https://api.football-data-api.com"
 
