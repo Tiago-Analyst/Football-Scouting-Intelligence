@@ -19,7 +19,8 @@ ambiguous.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -31,7 +32,12 @@ from app.analytics.intelligence import (
     widest_context,
 )
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
-from app.analytics.percentiles import ComparisonContext, PercentileScope, PlayerMetrics
+from app.analytics.percentiles import (
+    ComparisonContext,
+    PercentileScope,
+    PlayerMetrics,
+    percentile_of,
+)
 from app.analytics.scoring import ScoreComponent, ScoreResult, weighted_score
 from app.core import paths
 from app.schemas.canonical import PositionGroup
@@ -39,10 +45,18 @@ from app.schemas.canonical import PositionGroup
 REPO_ROOT = paths.REPO_ROOT
 DEFAULT_ROLES_PATH = REPO_ROOT / "config" / "player_roles.yaml"
 
+#: Below this, a role has too few players evaluated for a standing within it to
+#: mean anything. Matches MIN_POPULATION in the percentile engine: the argument
+#: is the same one - a rank against four players is noise wearing a number.
+MIN_ROLE_POPULATION = 10
+
 ROLE_SCORE_MEANING = (
-    "A role score is the statistical resemblance between a player's profile and "
-    "a role definition, on a 0-100 scale. It is not player quality, not a "
-    "probability, and not a scouting grade."
+    "Raw Role Fit is the statistical resemblance between a player's profile and "
+    "a role definition, on a 0-100 scale, built from the components shown. Role "
+    "Fit Percentile is where that score stands among every player evaluated for "
+    "the same role, and it is the comparable one: raw scores from differently "
+    "weighted roles do not share a scale. Neither is player quality, a "
+    "probability, or a scouting grade."
 )
 
 
@@ -88,10 +102,27 @@ class RoleScore:
     components: list[ScoreComponent]
     missing: list[str]
     caveat: str | None = None
+    #: Where this raw score sits among every player evaluated for this same
+    #: role. `None` when no distribution was available - see `normalise_fits`.
+    role_fit_percentile: float | None = None
+    #: How many players that standing was measured against.
+    role_population: int = 0
 
     @property
     def is_available(self) -> bool:
         return self.score is not None
+
+    @property
+    def standing(self) -> float:
+        """What to rank this role by when choosing a player's best.
+
+        The percentile where there is one, the raw score otherwise. Comparing
+        raw scores across roles is not quite fair - see `normalise_fits` - but
+        it is better than refusing to name a best role at all.
+        """
+        if self.role_fit_percentile is not None:
+            return self.role_fit_percentile
+        return self.score or 0.0
 
     def contributions(self) -> list[tuple[str, float]]:
         result = ScoreResult(
@@ -119,6 +150,68 @@ class RoleFit:
         """What the number does and does not claim. Returned with the fit so it
         cannot be separated from it."""
         return ROLE_SCORE_MEANING
+
+
+def normalise_fits(fits: dict[str, RoleFit]) -> dict[str, RoleFit]:
+    """Place every raw role score within its own role's distribution.
+
+    WHY THIS EXISTS
+    ---------------
+
+    Raw role scores are weighted averages of percentiles, and they do not share
+    a scale. How much they diverge depends on how the weight is spread. A role
+    with one dominant component inherits that component's spread almost intact,
+    so its scores run high and low freely. A role with six evenly weighted
+    components averages six percentiles together, and averaging pulls results
+    towards the middle - so its very best players score lower than the very
+    best of the concentrated role, while being no less suited to it.
+
+    Measured on the loaded data: Shot Stopper, with a large top weight, reaches
+    much further up the scale than Box-to-Box, whose weights are spread evenly.
+    Comparing 72 against 78 across those two roles is comparing distributions,
+    not players.
+
+    So a second number is computed here: where a player's raw score sits among
+    everybody evaluated for that same role. That comparison is within one
+    distribution and is therefore fair, and it is what `best` is chosen by.
+
+    The raw score is kept and shown. It is the explainable one - it decomposes
+    into the components that produced it - and replacing it would trade an
+    interpretable number for a relative one. Neither is player quality.
+
+    Roles with too few players to rank against keep a `None` percentile and
+    fall back to their raw score, which is stated rather than hidden.
+    """
+    by_role: dict[str, list[float]] = defaultdict(list)
+    for fit in fits.values():
+        for score in fit.all_scores:
+            if score.score is not None:
+                by_role[score.key].append(score.score)
+    for values in by_role.values():
+        values.sort()
+
+    def placed(score: RoleScore) -> RoleScore:
+        values = by_role.get(score.key, [])
+        if score.score is None or len(values) < MIN_ROLE_POPULATION:
+            return replace(score, role_fit_percentile=None, role_population=len(values))
+        return replace(
+            score,
+            role_fit_percentile=percentile_of(score.score, values),
+            role_population=len(values),
+        )
+
+    normalised: dict[str, RoleFit] = {}
+    for key, fit in fits.items():
+        scores = sorted(
+            (placed(s) for s in fit.all_scores),
+            key=lambda s: s.standing,
+            reverse=True,
+        )
+        normalised[key] = RoleFit(
+            best=scores[0] if scores else None,
+            alternatives=scores[1:],
+        )
+    return normalised
 
 
 def load_roles(

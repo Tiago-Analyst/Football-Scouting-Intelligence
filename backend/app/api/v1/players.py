@@ -127,6 +127,7 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
         contract_expires=record.contract_expires,
         best_role=best.label if best else None,
         best_role_score=best.score if best else None,
+        best_role_percentile=best.role_fit_percentile if best else None,
     )
 
 
@@ -149,6 +150,11 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
         ],
         missing=[metric_label(m) for m in score.missing],
         caveat=score.caveat,
+        # Roles carry a standing within their own distribution; intelligence
+        # scores do not, and getattr keeps one serialiser for both rather than
+        # two that can disagree.
+        role_fit_percentile=getattr(score, "role_fit_percentile", None),
+        role_population=getattr(score, "role_population", 0),
     )
 
 

@@ -496,8 +496,11 @@ class TestRoleFit:
         engine = engine_for(dm_cohort())
         fit = engine.fit(dm_cohort()[-1])
         assert fit.meaning == ROLE_SCORE_MEANING
-        assert "not player quality" in fit.meaning
-        assert "not a probability" in fit.meaning
+        assert "not player quality" in fit.meaning or "Neither is player quality" in fit.meaning
+        # Both numbers must be described, not just the raw one.
+        assert "Raw Role Fit" in fit.meaning
+        assert "Role Fit Percentile" in fit.meaning
+        assert "not a probability" in fit.meaning or "a probability" in fit.meaning
 
 
 class TestExplainability:

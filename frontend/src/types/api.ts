@@ -100,11 +100,24 @@ export interface ScoreComponent {
 export interface Score {
   key: string;
   label: string;
+  /**
+   * The weighted profile score, 0-100. For a role this is the Raw Role Fit:
+   * explainable and decomposable, and not quite comparable across roles.
+   */
   score: number | null;
   coverage: number;
   components: ScoreComponent[];
   missing: string[];
   caveat: string | null;
+  /**
+   * Roles only. Where the raw score stands among every player evaluated for
+   * this same role — the comparable figure, and what the best role is chosen
+   * by. Null when too few players were evaluated for a standing to mean
+   * anything.
+   */
+  role_fit_percentile?: number | null;
+  /** How many players that standing was measured against. */
+  role_population?: number;
 }
 
 export interface RoleFit {
@@ -153,7 +166,10 @@ export interface PlayerSummary {
   market_value_eur: number | null;
   contract_expires: string | null;
   best_role: string | null;
+  /** Raw Role Fit for the best role. */
   best_role_score: number | null;
+  /** Its standing among players evaluated for that same role. */
+  best_role_percentile?: number | null;
 }
 
 export interface PlayerDetail extends PlayerSummary {

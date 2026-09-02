@@ -299,8 +299,14 @@ class TestRoles:
     ) -> None:
         """Rules 20 and 21: never presented as quality or probability."""
         body = api.get(f"/api/v1/players/{a_midfielder['player_id']}/roles").json()
-        assert "not player quality" in body["meaning"]
-        assert "not a probability" in body["meaning"]
+        assert (
+            "not player quality" in body["meaning"]
+            or "Neither is player quality" in body["meaning"]
+        )
+        # Both numbers must be described, not just the raw one.
+        assert "Raw Role Fit" in body["meaning"]
+        assert "Role Fit Percentile" in body["meaning"]
+        assert "a probability" in body["meaning"]
 
     def test_role_definitions_never_expose_their_weights(self, api: TestClient) -> None:
         """Section 28: the frontend receives results, not implementations."""

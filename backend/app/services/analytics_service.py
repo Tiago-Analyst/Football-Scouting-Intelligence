@@ -37,7 +37,7 @@ from app.analytics.percentiles import (
     PercentileScope,
     PlayerMetrics,
 )
-from app.analytics.roles import RoleEngine, RoleFit
+from app.analytics.roles import RoleEngine, RoleFit, normalise_fits
 from app.analytics.sample import SampleBand, classify_minutes
 from app.analytics.similarity import (
     MINIMUM_SIMILARITY,
@@ -369,8 +369,15 @@ def build_view(settings: Settings) -> AnalyticsView:
 
     # Precomputed because player search lists a best-role column: resolving it
     # per row would make a page of results cost as much as the whole database.
-    for key, metrics_record in player_metrics.items():
-        view.best_roles[key] = view.roles.fit(metrics_record)
+    raw_fits = {
+        key: view.roles.fit(metrics_record) for key, metrics_record in player_metrics.items()
+    }
+    # Then placed within each role's own distribution, which needs every
+    # player's raw score and so cannot happen one player at a time. This is
+    # what decides `best`: raw scores from differently weighted roles do not
+    # share a scale, and comparing them directly compares distributions rather
+    # than players. See `normalise_fits`.
+    view.best_roles = normalise_fits(raw_fits)
 
     view.build_seconds = time.perf_counter() - started
     log.info(

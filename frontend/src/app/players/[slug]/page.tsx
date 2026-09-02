@@ -131,10 +131,23 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Best role"
-          value={roles?.best?.score !== undefined && roles.best?.score !== null
-            ? Math.round(roles.best.score)
-            : "–"}
-          unit="/ 100"
+          // The standing, not the raw score. Raw role scores from differently
+          // weighted roles do not share a scale, so the headline number is the
+          // one that can be compared. The raw fit is shown in full below.
+          value={
+            roles?.best?.role_fit_percentile !== undefined &&
+            roles?.best?.role_fit_percentile !== null
+              ? Math.round(roles.best.role_fit_percentile)
+              : roles?.best?.score !== undefined && roles.best?.score !== null
+                ? Math.round(roles.best.score)
+                : "–"
+          }
+          unit={
+            roles?.best?.role_fit_percentile !== undefined &&
+            roles?.best?.role_fit_percentile !== null
+              ? "pctl"
+              : "/ 100"
+          }
           hint={roles?.best?.label ?? "Not available"}
           tone="accent"
         />
@@ -216,17 +229,48 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
 
         <Card>
           <CardHeader
-            title="Role compatibility"
+            title={
+              <span className="flex items-center gap-1.5">
+                Role compatibility
+                <Tooltip label="Raw Role Fit and Role Fit Percentile">
+                  Raw Role Fit is the weighted statistical profile score, built from the
+                  components listed below it. Role Fit Percentile is where that score
+                  stands among every player evaluated for the same role. Roles weight
+                  their components differently, so raw scores from two roles are not
+                  directly comparable — the percentile is, and it is what the best role
+                  is chosen by. Neither is player quality.
+                </Tooltip>
+              </span>
+            }
             description="Statistical fit against each role compatible with this position."
           />
           <CardBody className="space-y-3.5">
             {roles?.best ? (
               [roles.best, ...roles.alternatives].map((role, index) => (
-                <div key={role.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
-                  <span className={index === 0 ? "text-xs font-medium" : "text-xs text-muted"}>
-                    {role.label}
-                  </span>
-                  <PercentileBar percentile={role.score ?? 0} />
+                <div key={role.key} className="space-y-1">
+                  <div className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
+                    <span className={index === 0 ? "text-xs font-medium" : "text-xs text-muted"}>
+                      {role.label}
+                    </span>
+                    {/* The bar shows the standing where there is one, because
+                        that is what can be read across rows. */}
+                    <PercentileBar
+                      percentile={role.role_fit_percentile ?? role.score ?? 0}
+                    />
+                  </div>
+                  <p className="pl-[9.5rem] text-[11px] text-subtle tabular">
+                    Raw Role Fit {role.score !== null ? Math.round(role.score) : "N/A"}
+                    {role.role_fit_percentile !== null &&
+                    role.role_fit_percentile !== undefined ? (
+                      <>
+                        {" · "}
+                        {Math.round(role.role_fit_percentile)}th percentile of{" "}
+                        {role.role_population ?? 0} evaluated for this role
+                      </>
+                    ) : (
+                      " · too few players evaluated for a standing"
+                    )}
+                  </p>
                 </div>
               ))
             ) : (
