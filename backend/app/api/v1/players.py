@@ -466,6 +466,10 @@ def get_player_profile(
         player=get_player(player_id),
         stats=get_player_stats(player_id, scope=PercentileScope.COMPETITION.value),
         roles=roles,
+        # Read from the database like everything else, so the page cannot
+        # disagree with itself about a player.
+        market_value_history=get_market_value_history(player_id),
+        transfers=get_transfers(player_id),
         similar=get_similar_players(
             player_id,
             limit=similar_limit,
