@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(REPO_ROOT / "backend"))
     from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
     from app.analytics.percentiles import MIN_POPULATION, PercentileScope
-    from app.analytics.sample import LOW_SAMPLE_MINUTES
+    from app.analytics.sample import can_rate
     from app.core.config import get_settings
     from app.core.database import get_session_factory
     from app.core.logging import configure_logging, get_logger
@@ -248,9 +248,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    # Rebuild the comparison populations by hand: position group, season, and
-    # competition, over players who clear the minutes bar. Anyone below it is
-    # still scored, but does not shape the distribution others are measured on.
+    # Rebuild the comparison populations by hand: position group, season and
+    # competition, over everyone whose rate exists at all.
+    #
+    # This must mirror the engine's rule exactly, and the rule is `can_rate`:
+    # a positive denominator, nothing more. It used to be a 450-minute floor
+    # here while the engine had dropped one, and an independent check that
+    # disagrees with the thing it is checking reports a fault that is its own.
     metrics_to_check = [
         DerivedMetric.GOALS_PER90,
         DerivedMetric.PASSES_PER90,
@@ -269,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
     populations: dict[tuple, list[float]] = {}
     for stats, player in rows:
         evidence = eligible_minutes(stats.recorded_minutes, stats.minutes)
-        if evidence is None or evidence < LOW_SAMPLE_MINUTES:
+        if not can_rate(evidence):
             continue
         for metric in metrics_to_check:
             value = independent_per90(
@@ -280,12 +284,12 @@ def main(argv: list[str] | None = None) -> int:
             key = (metric, player.position_group, stats.season_id, stats.competition_id)
             populations.setdefault(key, []).append(value)
 
-    # Sample players with something to check: enough minutes to be ranked, and
-    # inside a population large enough for the engine to produce a percentile.
+    # Sample players with something to check: a rate that exists, inside a
+    # population large enough for the engine to produce a percentile.
     candidates = [
         (stats, player)
         for stats, player in rows
-        if (eligible_minutes(stats.recorded_minutes, stats.minutes) or 0) >= LOW_SAMPLE_MINUTES
+        if can_rate(eligible_minutes(stats.recorded_minutes, stats.minutes))
         and len(
             populations.get(
                 (metrics_to_check[0], player.position_group, stats.season_id, stats.competition_id),

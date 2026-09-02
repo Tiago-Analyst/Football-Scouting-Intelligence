@@ -133,9 +133,16 @@ class TestPlayerSearch:
 
     def test_every_row_carries_its_sample_band(self, api: TestClient) -> None:
         """Rule 23: a per-90 figure from 200 minutes must not look identical to
-        one from 3,000."""
+        one from 3,000.
+
+        The band says how much football is behind the number. It never decides
+        whether the row appears - see `TestEveryoneIsSearchable`.
+        """
         body = api.get("/api/v1/players", params={"limit": 20, "minutes_min": 0}).json()
-        assert all(p["sample_band"] in {"full", "low", "insufficient"} for p in body["items"])
+        assert all(
+            p["sample_band"] in {"very_low", "low", "developing", "established"}
+            for p in body["items"]
+        )
 
 
 class TestPlayerProfile:
@@ -216,8 +223,27 @@ class TestPlayerStats:
         assert stats["context"]["strength_adjusted"] is False
 
     def test_the_sample_band_is_explained(self, stats: dict) -> None:
-        assert stats["sample"]["band"] in {"full", "low", "insufficient"}
-        assert stats["sample"]["explanation"]
+        sample = stats["sample"]
+        assert sample["band"] in {"very_low", "low", "developing", "established"}
+        assert sample["band_label"]
+        assert sample["explanation"]
+
+    def test_the_sample_reports_detailed_stat_coverage(self, stats: dict) -> None:
+        """Minutes played and minutes recorded in detail are different numbers,
+        and the per-90s divide by the second. A profile that showed only the
+        first left the correction invisible."""
+        sample = stats["sample"]
+        assert "recorded_minutes" in sample
+        assert "detailed_coverage_pct" in sample
+        pct = sample["detailed_coverage_pct"]
+        if pct is not None:
+            assert sample["coverage_band"] in {"excellent", "good", "partial", "limited"}
+            assert sample["coverage_label"]
+            assert sample["coverage_explanation"]
+        else:
+            # Unknown is not nought: a missing recorded figure must not be
+            # reported as 0% coverage.
+            assert sample["coverage_band"] is None
 
     def test_inverse_metrics_are_marked(self, stats: dict) -> None:
         """The UI has to say that being dispossessed often is bad, or a high

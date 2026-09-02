@@ -11,11 +11,17 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.analytics.contracts import expires_within
+from app.analytics.coverage import (
+    COVERAGE_BAND_LABEL,
+    COVERAGE_EXPLANATION,
+    classify_coverage,
+    detailed_coverage_pct,
+)
 from app.analytics.intelligence import IntelligenceScore
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
 from app.analytics.roles import RoleScore
-from app.analytics.sample import SAMPLE_BAND_COPY
+from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
@@ -182,6 +188,29 @@ def require_player(view: AnalyticsView, player_id: str) -> PlayerRecord:
 # ---------------------------------------------------------------------------
 
 
+def to_sample(record: PlayerRecord) -> SampleOut:
+    """The evidence behind one player-season's figures.
+
+    Built in one place because it used to be built in two - here and in the
+    shortlist comparison - and two constructions of the same thing is how they
+    stop agreeing. A reader comparing a player on their profile and on a
+    shortlist must not be told two different things about the same season.
+    """
+    coverage = detailed_coverage_pct(record.stats.recorded_minutes, record.minutes)
+    band = classify_coverage(coverage)
+    return SampleOut(
+        minutes=record.minutes,
+        recorded_minutes=record.stats.recorded_minutes,
+        detailed_coverage_pct=coverage,
+        coverage_band=band.value if band else None,
+        coverage_label=COVERAGE_BAND_LABEL[band] if band else None,
+        coverage_explanation=COVERAGE_EXPLANATION if coverage is not None else None,
+        band=record.sample_band.value,
+        band_label=SAMPLE_BAND_LABEL[record.sample_band],
+        explanation=SAMPLE_BAND_COPY[record.sample_band],
+    )
+
+
 @router.get("/players", response_model=PlayerListResponse)
 def list_players(
     search: str | None = Query(default=None, max_length=100),
@@ -325,11 +354,7 @@ def get_player_stats(
 
     return PlayerStatsResponse(
         player_id=player_id,
-        sample=SampleOut(
-            minutes=record.minutes,
-            band=record.sample_band.value,
-            explanation=SAMPLE_BAND_COPY[record.sample_band],
-        ),
+        sample=to_sample(record),
         context=context,
         metrics=metrics,
         scores=scores,

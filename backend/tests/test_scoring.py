@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 
 from app.analytics.sample import (
-    FULL_SAMPLE_MINUTES,
+    DEVELOPING_SAMPLE_MINUTES,
+    ESTABLISHED_SAMPLE_MINUTES,
     LOW_SAMPLE_MINUTES,
     SAMPLE_BAND_COPY,
+    SAMPLE_BAND_LABEL,
     SampleBand,
+    can_rate,
     classify_minutes,
-    is_rankable,
 )
 from app.analytics.scoring import (
     ScoreComponent,
@@ -166,42 +168,69 @@ class TestNormaliseWeights:
 
 
 class TestSampleBands:
+    """Bands describe how much football is behind a figure. They exclude nobody."""
+
     @pytest.mark.parametrize(
         ("minutes", "expected"),
         [
-            (3000, SampleBand.FULL),
-            (FULL_SAMPLE_MINUTES, SampleBand.FULL),
-            (FULL_SAMPLE_MINUTES - 1, SampleBand.LOW),
+            (3000, SampleBand.ESTABLISHED),
+            (ESTABLISHED_SAMPLE_MINUTES, SampleBand.ESTABLISHED),
+            (ESTABLISHED_SAMPLE_MINUTES - 1, SampleBand.DEVELOPING),
+            (DEVELOPING_SAMPLE_MINUTES, SampleBand.DEVELOPING),
+            (DEVELOPING_SAMPLE_MINUTES - 1, SampleBand.LOW),
             (LOW_SAMPLE_MINUTES, SampleBand.LOW),
-            (LOW_SAMPLE_MINUTES - 1, SampleBand.THIN),
-            (0, SampleBand.THIN),
+            (LOW_SAMPLE_MINUTES - 1, SampleBand.VERY_LOW),
+            (1, SampleBand.VERY_LOW),
+            (0, SampleBand.VERY_LOW),
         ],
     )
     def test_bands_are_correct_at_the_boundaries(self, minutes: int, expected: SampleBand) -> None:
         assert classify_minutes(minutes) is expected
 
-    def test_unknown_minutes_are_treated_as_insufficient(self) -> None:
-        """Without knowing the sample, keeping the player out of rankings is the
-        safe assumption."""
-        assert classify_minutes(None) is SampleBand.THIN
+    def test_unknown_minutes_band_as_the_weakest_claim(self) -> None:
+        """Not knowing the sample is a reason to claim less, not to hide anyone."""
+        assert classify_minutes(None) is SampleBand.VERY_LOW
 
-    def test_every_band_has_an_explanation(self) -> None:
+    def test_every_band_has_a_label_and_an_explanation(self) -> None:
         for band in SampleBand:
+            assert SAMPLE_BAND_LABEL[band]
             assert SAMPLE_BAND_COPY[band]
 
 
-class TestRankability:
-    def test_a_full_season_is_rankable(self) -> None:
-        assert is_rankable(2500)
+class TestEligibilityIsArithmeticOnly:
+    """The product decision this file exists to hold.
 
-    def test_a_small_sample_is_excluded_by_default(self) -> None:
-        assert not is_rankable(200)
+    Every player is searchable, ranked, scored and comparable whatever their
+    minutes. The only thing that can keep a figure out is that it cannot be
+    computed - a per-90 needs something to divide by - and that is a fact about
+    division, not a judgement about who has played enough.
 
-    def test_the_bar_can_be_lowered_deliberately(self) -> None:
-        """The spec requires users to be able to include small samples on
-        purpose - but never by accident."""
-        assert is_rankable(200, minimum_minutes=90)
+    This replaced `is_rankable`, whose default excluded anyone under 450
+    minutes. Four matches into a season that emptied entire competitions.
+    """
 
-    def test_unknown_minutes_are_never_rankable(self) -> None:
-        assert not is_rankable(None)
-        assert not is_rankable(None, minimum_minutes=0)
+    @pytest.mark.parametrize("minutes", [1, 12, 100, 179, 450, 900, 3000])
+    def test_anyone_who_played_at_all_has_a_rate(self, minutes: int) -> None:
+        assert can_rate(minutes)
+
+    def test_a_one_minute_player_is_eligible(self) -> None:
+        assert can_rate(1)
+        assert classify_minutes(1) is SampleBand.VERY_LOW
+
+    def test_no_denominator_means_no_rate(self) -> None:
+        """Not an exclusion on merit: there is nothing to divide by.
+
+        The alternative is fabricating a value, which is what N/A exists to
+        avoid.
+        """
+        assert not can_rate(0)
+        assert not can_rate(None)
+
+    def test_a_floor_can_still_be_asked_for(self) -> None:
+        """The specification requires a deliberate floor to be possible.
+
+        Nothing passes one by default, which is the difference that matters.
+        """
+        assert can_rate(200, at_least=90)
+        assert not can_rate(200, at_least=450)
+        assert not can_rate(None, at_least=0)

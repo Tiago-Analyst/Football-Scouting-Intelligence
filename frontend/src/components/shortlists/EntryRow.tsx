@@ -69,7 +69,7 @@ export function EntryRow({
               {player.minutes !== null ? (
                 <>
                   <span>· {formatCount(player.minutes)} min</span>
-                  <SampleSizeBadge minutes={player.minutes} />
+                  <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
                 </>
               ) : null}
             </>

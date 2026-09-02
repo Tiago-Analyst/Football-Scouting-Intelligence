@@ -119,12 +119,12 @@ export default function DesignSystemPage() {
           <StatusPill state="not_configured" />
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <SampleSizeBadge minutes={2400} />
+          <SampleSizeBadge band="established" minutes={2400} />
           <span className="text-xs text-subtle">2,400 min — full sample, badge hidden</span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <SampleSizeBadge minutes={640} />
-          <SampleSizeBadge minutes={380} />
+          <SampleSizeBadge band="developing" minutes={640} />
+          <SampleSizeBadge band="low" minutes={380} />
         </div>
       </Section>
 

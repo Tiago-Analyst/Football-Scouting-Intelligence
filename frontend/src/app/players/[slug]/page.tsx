@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DataConfidence } from "@/components/player/DataConfidence";
 import { SaveToShortlist } from "@/components/shortlists/SaveToShortlist";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -121,7 +122,7 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         actions={
           <>
             {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
-            {player.minutes !== null ? <SampleSizeBadge minutes={player.minutes} /> : null}
+            <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
             <SaveToShortlist playerId={player.player_id} playerName={player.name} />
           </>
         }
@@ -153,14 +154,20 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         />
       </div>
 
-      {stats?.sample && stats.sample.band !== "full" ? (
+      {stats?.sample ? (
+        <div className="max-w-md">
+          <DataConfidence sample={stats.sample} />
+        </div>
+      ) : null}
+
+      {stats?.sample && stats.sample.band !== "established" ? (
         <Callout
-          // A note, not an alarm. Nothing is withheld for a short sample any
-          // more, so the red caution tone was warning about a consequence that
-          // no longer follows - and four matches into a season it was on every
+          // A note, not an alarm. Nothing is withheld for a short sample, so a
+          // red caution tone would warn about a consequence that does not
+          // follow - and four matches into a season it would be on every
           // player in half the competitions.
           tone="note"
-          title={stats.sample.band === "low" ? "Low sample size" : "Thin sample size"}
+          title={stats.sample.band_label}
         >
           {stats.sample.explanation}
         </Callout>

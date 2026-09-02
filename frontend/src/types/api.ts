@@ -1,3 +1,4 @@
+import type { CoverageBand, SampleBand } from "@/lib/sample";
 /**
  * TypeScript mirrors of the backend Pydantic response models.
  *
@@ -113,9 +114,28 @@ export interface RoleFit {
   meaning: string;
 }
 
+/**
+ * What a figure rests on: how much football, and how much of it was recorded.
+ *
+ * None of this filters anybody. Every player is scored and ranked whatever
+ * their minutes; these say how much weight to put on the result.
+ */
 export interface Sample {
+  /** Time on the pitch. */
   minutes: number | null;
-  band: "full" | "low" | "insufficient";
+  /**
+   * The minutes the provider's detailed counts describe - the denominator of
+   * every per-90 here. Null when the provider said nothing, which is not the
+   * same as nought.
+   */
+  recorded_minutes: number | null;
+  /** recorded / played, as a percentage. Null when it cannot be computed. */
+  detailed_coverage_pct: number | null;
+  coverage_band: CoverageBand | null;
+  coverage_label: string | null;
+  coverage_explanation: string | null;
+  band: SampleBand;
+  band_label: string;
   explanation: string;
 }
 
@@ -129,7 +149,7 @@ export interface PlayerSummary {
   competition: string;
   nationality: string | null;
   minutes: number | null;
-  sample_band: "full" | "low" | "insufficient";
+  sample_band: SampleBand;
   market_value_eur: number | null;
   contract_expires: string | null;
   best_role: string | null;
