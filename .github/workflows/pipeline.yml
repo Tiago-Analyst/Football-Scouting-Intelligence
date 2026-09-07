@@ -68,6 +68,32 @@ jobs:
         working-directory: backend
         run: pip install -e ".[dev,pipelines]"
 
+      # -- Which source is this run refreshing? -----------------------------
+      #
+      # THE BUG THIS REPLACES
+      #
+      # Every step used to read `inputs.source || 'transfermarkt'`. A
+      # scheduled run has no inputs at all, so `inputs.source` is empty and the
+      # fallback applied - which meant the Monday, Wednesday and Friday
+      # FootyStats crons resolved to Transfermarkt and refreshed the wrong
+      # provider three times a week. The FootyStats fetch still ran, because it
+      # was gated on the key rather than on the source, so the run did fetch
+      # FootyStats data and then load Transfermarkt over the top of it.
+      #
+      # The cadence lives in the `on.schedule` crons above and cannot be read
+      # from config at schedule time, so it is matched here against
+      # `github.event.schedule` - the literal GitHub fires with. One place
+      # decides, every step below reads the answer, and an unrecognised cron
+      # stops the run rather than guessing.
+      - name: Resolve which source to refresh
+        id: resolve_source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_SOURCE: ${{ inputs.source }}
+        run: |
+          python -m pipelines.load.resolve_source
+
       # -- Is there anywhere to publish to? ---------------------------------
       #
       # Until Phase 23 deploys a production database there is nothing to
@@ -143,11 +169,17 @@ jobs:
         run: alembic upgrade head
 
       - name: Retrieve the Transfermarkt dataset
-        if: steps.preflight.outputs.database == 'true' && steps.preflight.outputs.transfermarkt == 'true'
+        if: >-
+          steps.preflight.outputs.database == 'true' &&
+          steps.preflight.outputs.transfermarkt == 'true' &&
+          steps.resolve_source.outputs.source == 'transfermarkt'
         run: python -m pipelines.transfermarkt.download
 
       - name: Profile the Transfermarkt dataset
-        if: steps.preflight.outputs.database == 'true' && steps.preflight.outputs.transfermarkt == 'true'
+        if: >-
+          steps.preflight.outputs.database == 'true' &&
+          steps.preflight.outputs.transfermarkt == 'true' &&
+          steps.resolve_source.outputs.source == 'transfermarkt'
         # Validates the source before anything is loaded from it. A schema that
         # changed under us is caught here rather than as a puzzling load error.
         run: python -m pipelines.transfermarkt.profile
@@ -179,7 +211,9 @@ jobs:
         # paid infrastructure for a problem this project does not yet have, and
         # introducing it now would be buying insurance against an outcome whose
         # worst case is waiting.
-        if: steps.preflight.outputs.footystats == 'true'
+        if: >-
+          steps.preflight.outputs.footystats == 'true' &&
+          steps.resolve_source.outputs.source == 'footystats'
         uses: actions/cache@v4
         with:
           path: data/raw/footystats/snapshots
@@ -188,7 +222,9 @@ jobs:
 
       - name: Retrieve FootyStats data
         id: fetch
-        if: steps.preflight.outputs.footystats == 'true'
+        if: >-
+          steps.preflight.outputs.footystats == 'true' &&
+          steps.resolve_source.outputs.source == 'footystats'
         # A full fetch is one request per player - roughly 23,500 across the 47
         # configured competitions, or thirteen hours at the account's rate
         # limit. It cannot finish inside a job, and it does not need to:
@@ -210,7 +246,10 @@ jobs:
         run: python -m pipelines.footystats.ingest --resume --max-runtime-minutes 45
 
       - name: Report that the refresh is not finished yet
-        if: steps.preflight.outputs.footystats == 'true' && steps.fetch.outputs.complete == 'false'
+        if: >-
+          steps.preflight.outputs.footystats == 'true' &&
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.fetch.outputs.complete == 'false'
         # Not a failure. The snapshots are further along than they were, the
         # cache keeps them, and the next run continues - which is the design
         # working, not breaking.
@@ -240,7 +279,7 @@ jobs:
         if: >-
           steps.preflight.outputs.database == 'true' &&
           (
-            (inputs.source || 'transfermarkt') != 'footystats' ||
+            steps.resolve_source.outputs.source != 'footystats' ||
             steps.fetch.outputs.complete == 'true'
           )
         id: load
@@ -260,9 +299,42 @@ jobs:
         run: |
           set -o pipefail
           python -m pipelines.load.load_providers \
-            --source "${{ inputs.source || 'transfermarkt' }}" \
+            --source "${{ steps.resolve_source.outputs.source }}" \
             --replace \
             --verify 2>&1 | tee pipeline-load.log
+
+      - name: Resolve identities across providers
+        if: steps.load.outcome == 'success'
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        # WHY THIS RUNS ON EVERY REFRESH
+        #
+        # A load replaces one provider's rows. Purging that source deletes its
+        # bridge rows, so the FootyStats half of a merged player is gone the
+        # moment FootyStats is refreshed - the identity survives, and stops
+        # being an identity. Until this ran automatically, every refresh
+        # unpicked the matching and left it unpicked until somebody noticed and
+        # ran the resolver by hand.
+        #
+        # It has to run here, before anything downstream: the prune below asks
+        # which market values belong to a covered player, and the answer is
+        # wrong while the sources are still two separate populations.
+        #
+        # Non-fatal on purpose. Resolution failing leaves the two providers
+        # unmatched, which is a degraded site rather than a corrupt one, and
+        # stopping the run here would also stop the analytics reload - so a
+        # refresh that loaded and verified correctly would never reach readers.
+        continue-on-error: true
+        id: identity
+        run: |
+          set -o pipefail
+          python -m pipelines.identity_resolution.resolve --apply 2>&1 | tee pipeline-identity.log
 
       - name: Drop market history nothing can reach
         if: steps.load.outcome == 'success'
@@ -315,7 +387,7 @@ jobs:
         # no --fail-on-absent.
         run: |
           set -o pipefail
-          python -m pipelines.quality.derived_coverage             --source "${{ inputs.source || 'transfermarkt' }}" 2>&1 | tee pipeline-derived.log
+          python -m pipelines.quality.derived_coverage             --source "${{ steps.resolve_source.outputs.source }}" 2>&1 | tee pipeline-derived.log
 
       - name: Recompute sample players independently
         if: steps.load.outcome == 'success'
@@ -383,8 +455,9 @@ jobs:
             echo ""
             echo "| Step | Result |"
             echo "| --- | --- |"
-            echo "| Source | \`${{ inputs.source || 'transfermarkt' }}\` |"
+            echo "| Source | \`${{ steps.resolve_source.outputs.source }}\` |"
             echo "| Load and verify | ${{ steps.load.outcome }} |"
+            echo "| Identity resolution | ${{ steps.identity.outcome }} |"
             echo ""
             if [ "${{ steps.load.outcome }}" != "success" ]; then
               echo "**Nothing was published.** The load rolled back and the previous"
@@ -406,6 +479,7 @@ jobs:
           name: pipeline-logs-${{ github.run_id }}
           path: |
             pipeline-load.log
+            pipeline-identity.log
             pipeline-quality.log
             docs/transfermarkt_field_availability.md
           if-no-files-found: ignore

@@ -117,6 +117,15 @@ class CompetitionResult:
     stopped_early: bool = False
     #: Roster players still unfetched when this competition was left.
     pending: int = 0
+    #: The players whose own endpoint failed after retries. Recorded rather
+    #: than counted so the next run can say what it is retrying, and so a
+    #: player failing every week can be told apart from a different player
+    #: failing each week - the first is a broken record, the second is weather.
+    failed_player_ids: list[str] = field(default_factory=list)
+    #: True when the failure was one that will not fix itself: a rejected key,
+    #: a provider refusing everything. Distinguished from a per-player error
+    #: because the two need opposite handling.
+    fatal: bool = False
 
     @property
     def ok(self) -> bool:
@@ -164,6 +173,20 @@ class RunReport:
     @property
     def pending(self) -> int:
         return sum(c.pending for c in self.competitions)
+
+    @property
+    def fatal(self) -> bool:
+        """Whether the run hit something no later run will get past unaided."""
+        return any(c.fatal for c in self.competitions)
+
+    @property
+    def failed_player_ids(self) -> list[str]:
+        """Every player whose endpoint failed, across the whole run."""
+        return [pid for c in self.competitions for pid in c.failed_player_ids]
+
+    @property
+    def failed_count(self) -> int:
+        return sum(c.failed for c in self.competitions)
 
 
 def snapshot_path(season_id: str) -> Path:
@@ -214,6 +237,10 @@ def ingest_competition(
     """Fetch one competition's roster and every player's detail."""
     from app.core.logging import get_logger
 
+    # Imported here with the logger, following this module's pattern: `app` is
+    # only importable once the path setup at the bottom of the imports has run.
+    from app.providers.footystats import FootyStatsAuthError
+
     log = get_logger(__name__)
     started = time.monotonic()
     result = CompetitionResult(season_id=season_id, name=name)
@@ -226,6 +253,16 @@ def ingest_competition(
 
     try:
         roster = provider._roster(season_id)
+    except FootyStatsAuthError as exc:
+        # Fatal. The key is refused, so every competition after this one would
+        # fail identically - and each attempt still costs the rate limiter's
+        # wait, so carrying on would spend the run's whole budget discovering
+        # the same thing 47 times.
+        result.error = f"roster refused: {exc}"
+        result.fatal = True
+        result.seconds = time.monotonic() - started
+        log.error("footystats_auth_failed", season_id=season_id)
+        return result
     except Exception as exc:
         result.error = f"roster failed: {type(exc).__name__}"
         result.seconds = time.monotonic() - started
@@ -260,8 +297,24 @@ def ingest_competition(
                 break
             try:
                 body = provider._get("/player-stats", player_id=player_id)
+            except FootyStatsAuthError:
+                # A key that worked for the roster and stops working mid-run -
+                # revoked, or a quota exhausted for the period. Everything
+                # already written stays written and progress is saved below;
+                # what must not happen is grinding through the remaining
+                # players collecting identical refusals.
+                result.error = "authentication failed mid-competition"
+                result.fatal = True
+                log.error("footystats_auth_failed", season_id=season_id, player_id=player_id)
+                break
             except Exception as exc:
+                # Recoverable. One player's endpoint failed after the
+                # provider's own retries; the rest of the roster is unaffected.
+                # They stay out of `done`, so they count as pending, so the run
+                # is incomplete and nothing is published - and the next run
+                # retries exactly them.
                 result.failed += 1
+                result.failed_player_ids.append(player_id)
                 log.warning(
                     "footystats_player_failed",
                     season_id=season_id,
@@ -301,22 +354,90 @@ def ingest_competition(
     return result
 
 
-def emit_completion(complete: bool) -> None:
+def failure_ledger_path() -> Path:
+    return SNAPSHOT_DIR / "failures.json"
+
+
+def load_failure_ledger() -> dict[str, dict[str, object]]:
+    """Players that have failed, and how often, across runs."""
+    path = failure_ledger_path()
+    if not path.exists():
+        return {}
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        # A corrupt ledger is an inconvenience, not a reason to fail a fetch:
+        # it records history about failures, it does not gate anything.
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def update_failure_ledger(report: RunReport, *, now: str | None = None) -> dict[str, dict]:
+    """Fold this run's failures into the ledger, and clear the ones that healed.
+
+    WHY THIS IS KEPT AT ALL
+
+    A player whose endpoint fails is retried next run, and the run before that
+    told nobody. A player whose endpoint fails *every* run is a broken record
+    that will hold the universe incomplete forever, and is indistinguishable
+    from transient weather unless somebody counts.
+
+    So: a failure increments a count and stamps a date; a successful fetch
+    removes the entry entirely. A player who appears here with a high count and
+    a recent date is the case worth a human's attention, and
+    `pipelines.quality` reads exactly that.
+    """
+    stamp = now or datetime.now(UTC).isoformat()
+    ledger = load_failure_ledger()
+
+    failed_now = set(report.failed_player_ids)
+    for player_id in failed_now:
+        entry = ledger.get(player_id) or {}
+        ledger[player_id] = {
+            "runs_failed": int(entry.get("runs_failed", 0)) + 1,
+            "first_failed_at": entry.get("first_failed_at", stamp),
+            "last_failed_at": stamp,
+        }
+
+    # Anything fetched this run is working again, whatever its history.
+    for competition in report.competitions:
+        if competition.fetched:
+            for player_id in _load_progress(competition.season_id):
+                if player_id not in failed_now:
+                    ledger.pop(player_id, None)
+
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    failure_ledger_path().write_text(json.dumps(ledger, indent=2, sort_keys=True), encoding="utf-8")
+    return ledger
+
+
+def emit_completion(complete: bool, *, failed_count: int = 0, fatal: bool = False) -> None:
     """Tell the caller whether the whole refresh is now on disk.
 
     Printed for a person, and appended to `$GITHUB_OUTPUT` for the workflow,
     which gates loading and publishing on it. Nothing downstream may run from a
     partial universe: the previous production data stays live until a complete
     one is ready, which is the whole reason fetching is separate from loading.
+
+    `failed_count` and `fatal` travel with it so the workflow can say *why* a
+    run was incomplete without parsing the log. Being short of time and being
+    short of a working key produce the same `complete=false` and want very
+    different summaries.
     """
-    value = "true" if complete else "false"
-    print(f"complete={value}")
+    values = {
+        "complete": "true" if complete else "false",
+        "failed_count": str(failed_count),
+        "fatal": "true" if fatal else "false",
+    }
+    for key, value in values.items():
+        print(f"{key}={value}")
 
     output = os.environ.get("GITHUB_OUTPUT")
     if not output:
         return
     with open(output, "a", encoding="utf-8") as handle:
-        handle.write(f"complete={value}\n")
+        for key, value in values.items():
+            handle.write(f"{key}={value}\n")
 
 
 def write_manifest(report: RunReport) -> Path:
@@ -337,6 +458,10 @@ def write_manifest(report: RunReport) -> Path:
                     "sha256": _sha256(path),
                     "players": competition.players,
                     "fetched": competition.fetched,
+                    "failed": competition.failed,
+                    "failed_player_ids": competition.failed_player_ids,
+                    "pending": competition.pending,
+                    "complete": competition.complete,
                 }
             )
 
@@ -344,6 +469,12 @@ def write_manifest(report: RunReport) -> Path:
         "generated_at": datetime.now(UTC).isoformat(),
         "started_at": report.started_at,
         "finished_at": report.finished_at,
+        # The three questions a reader of this file actually has, answered at
+        # the top rather than reconstructed by summing the entries below.
+        "complete": report.complete,
+        "failed_count": report.failed_count,
+        "failed_player_ids": report.failed_player_ids,
+        "fatal": report.fatal,
         "competitions": entries,
         "note": (
             "Raw FootyStats responses. Kept so transformations are reproducible "
@@ -454,6 +585,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         report.competitions.append(result)
         report.stopped_early = report.stopped_early or result.stopped_early
+        if result.fatal:
+            report.unvisited = len(competitions) - position
+            print(f"    FATAL: {result.error}")
+            print("\nStopping. This will not fix itself by trying the next competition.")
+            break
         marker = "ok" if result.ok else "FAILED"
         pending = f", {result.pending} pending" if result.pending else ""
         print(
@@ -463,12 +599,24 @@ def main(argv: list[str] | None = None) -> int:
 
     report.finished_at = datetime.now(UTC).isoformat()
     manifest = write_manifest(report)
+    ledger = update_failure_ledger(report)
+    persistent = {pid: e for pid, e in ledger.items() if int(e.get("runs_failed", 0)) >= 3}
+    if persistent:
+        print(
+            f"\n{len(persistent)} player(s) have now failed three or more runs "
+            f"running. These hold the universe incomplete and want looking at: "
+            + ", ".join(sorted(persistent)[:10])
+        )
 
     fetched = sum(c.fetched for c in report.competitions)
-    failed = sum(c.failed for c in report.competitions)
+    failed = report.failed_count
     complete = report.complete
 
     print(f"\n{fetched:,} players fetched, {failed} failed.")
+    if failed:
+        sample = ", ".join(report.failed_player_ids[:10])
+        more = "" if failed <= 10 else f" (+{failed - 10} more)"
+        print(f"Failed players, which the next run retries: {sample}{more}")
     if complete:
         print("The requested refresh is COMPLETE.")
         print(
@@ -483,7 +631,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Nothing should be loaded from a partial universe. Run again to continue.")
     print(f"Manifest: {manifest.relative_to(REPO_ROOT)}")
 
-    emit_completion(complete)
+    emit_completion(complete, failed_count=failed, fatal=report.fatal)
 
     log.info(
         "footystats_ingest_finished",
@@ -492,13 +640,32 @@ def main(argv: list[str] | None = None) -> int:
         complete=complete,
         pending=report.pending,
         stopped_early=report.stopped_early,
+        fatal=report.fatal,
     )
 
-    # A graceful stop is a success. The distinction a caller needs is not "did
-    # it finish" but "is the universe complete", and that is `complete`, not
-    # the exit code. Conflating them would make every partial run look broken
-    # and hide the runs that really are.
-    return 1 if report.failed else 0
+    # WHAT THE EXIT CODE MEANS, AND WHAT IT DOES NOT
+    #
+    # Not "is the universe complete" - that is `complete`, emitted separately,
+    # and it is what gates the load. Conflating the two made every partial run
+    # look broken and hid the runs that really were.
+    #
+    # It used to return 1 whenever any player had failed, which is the same
+    # mistake pointing the other way: one transient 500 on one player out of
+    # twenty-three thousand turned a run that had saved an hour of good
+    # progress into a red job. Those players are simply not in `done`, so they
+    # are pending, so `complete` is false, so nothing is published and the next
+    # run retries exactly them. That is the design working, not failing.
+    #
+    # So the exit code answers one question: did something happen that another
+    # run will not get past on its own? A rejected key, or a competition whose
+    # roster could not be read at all. Those need a person.
+    if report.fatal:
+        print("\nExiting non-zero: this run failed for a reason retrying will not fix.")
+        return 1
+    if any(c.error for c in report.competitions):
+        print("\nExiting non-zero: at least one competition could not be read at all.")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

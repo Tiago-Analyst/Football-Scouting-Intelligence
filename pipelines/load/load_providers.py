@@ -642,11 +642,30 @@ def purge(session: Session, source: str) -> None:
 
     So facts go by their own source column, and a player is removed only when
     no other source still knows them.
+
+    WHY MARKET VALUES AND TRANSFERS ARE LISTED EXPLICITLY
+
+    They used to be left to the cascade from `dim_player`, which worked only
+    for players this source alone knew about. The moment identity resolution
+    merged a player across providers, their `dim_player` row survived a purge -
+    and their market history survived with it. A Transfermarkt refresh then
+    inserted the new valuations alongside the old ones, so a player who had
+    been revalued downwards kept both figures and the chart drew a history that
+    never happened. `uq_market_value_point` did not catch it either: it is
+    `(player_id, valued_on, source)`, so a valuation moved to a different date
+    is a different row.
+
+    Both tables carry their own `source`, so both are purged the same way as
+    the statistics - before the players, because the rows point at them.
     """
     mine = select(BridgePlayerSource.player_id).where(BridgePlayerSource.source == source)
     shared = select(BridgePlayerSource.player_id).where(BridgePlayerSource.source != source)
 
     session.execute(delete(FactPlayerSeasonStats).where(FactPlayerSeasonStats.source == source))
+    # Before `dim_player`: these reference it, and a shared identity's row is
+    # not going to be deleted for the cascade to reach them.
+    session.execute(delete(FactMarketValue).where(FactMarketValue.source == source))
+    session.execute(delete(FactTransfer).where(FactTransfer.source == source))
     session.execute(
         delete(DimPlayer).where(DimPlayer.player_id.in_(mine), ~DimPlayer.player_id.in_(shared))
     )

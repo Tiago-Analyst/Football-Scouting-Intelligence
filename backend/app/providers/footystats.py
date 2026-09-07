@@ -77,6 +77,24 @@ class FootyStatsError(ProviderError):
     """A FootyStats call failed. Never carries the URL, which carries the key."""
 
 
+class FootyStatsAuthError(FootyStatsError):
+    """The account, not the request, was refused.
+
+    Separated from every other failure because the two need opposite handling.
+    A player endpoint that fails is one player missing from a run that should
+    carry on and retry them next time; a key that is rejected fails every
+    request that follows, so carrying on means twenty thousand pointless calls
+    and a run that reports partial progress it never made.
+
+    Raised on 401 and 403 only. A 404 is a missing entity, and 429 is the rate
+    limit doing its job.
+    """
+
+
+#: HTTP statuses that mean the credential is the problem.
+AUTH_STATUSES = frozenset({401, 403})
+
+
 def _ssl_context() -> ssl.SSLContext:
     """A verifying TLS context that also honours the OS trust store.
 
@@ -255,6 +273,14 @@ class FootyStatsProvider(PerformanceDataProvider):
                     body = json.loads(response.read().decode("utf-8", errors="replace"))
             except urllib.error.HTTPError as exc:
                 last = f"HTTP {exc.code}"
+                # A rejected credential is fatal, and distinguishable, because
+                # retrying it wastes the whole run's budget on calls that
+                # cannot succeed.
+                if exc.code in AUTH_STATUSES:
+                    raise FootyStatsAuthError(
+                        f"{path} refused: {last}. The API key is missing, wrong or "
+                        f"not entitled to this endpoint."
+                    ) from None
                 # 4xx other than rate limiting will not fix themselves.
                 if exc.code not in {429, 500, 502, 503, 504}:
                     raise FootyStatsError(f"{path} failed: {last}") from None

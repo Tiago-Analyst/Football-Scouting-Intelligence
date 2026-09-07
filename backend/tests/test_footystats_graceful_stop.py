@@ -224,14 +224,38 @@ class TestTellingTheWorkflow:
         output = tmp_path / "github_output"
         monkeypatch.setenv("GITHUB_OUTPUT", str(output))
 
-        emit_completion(False)
+        emit_completion(False, failed_count=3, fatal=False)
         emit_completion(True)
 
         assert output.read_text(encoding="utf-8").splitlines() == [
             "complete=false",
+            "failed_count=3",
+            "fatal=false",
             "complete=true",
+            "failed_count=0",
+            "fatal=false",
         ]
         assert "complete=false" in capsys.readouterr().out
+
+    def test_it_distinguishes_out_of_time_from_out_of_key(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Both are incomplete. Only one of them wants a person.
+
+        The workflow gates the load on `complete`, so these two runs are
+        identical to it - and the summary a human reads has to tell them
+        apart, which is what `fatal` is for.
+        """
+        output = tmp_path / "github_output"
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+
+        emit_completion(False, failed_count=0, fatal=False)  # ran out of time
+        emit_completion(False, failed_count=0, fatal=True)  # key refused
+
+        lines = output.read_text(encoding="utf-8").splitlines()
+        assert lines.count("complete=false") == 2
+        assert lines.count("fatal=false") == 1
+        assert lines.count("fatal=true") == 1
 
     def test_outside_actions_it_still_says_so_on_stdout(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture

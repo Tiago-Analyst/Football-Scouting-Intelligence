@@ -170,6 +170,39 @@ class TestTheViewBuiltFromTheDatabase:
             most = max(season.stats.minutes or 0 for season in seasons)
             assert (shown.minutes or 0) == most, key
 
+    def test_exactly_one_season_per_player_is_primary(self, view, universe: LoadedUniverse) -> None:  # type: ignore[no-untyped-def]
+        """The flag that keeps a player out of the global population twice.
+
+        `build_view` appends every player-season to the population and then
+        chooses which one represents the player. The choice is made as it goes,
+        so the winner can arrive after a row has already been appended as
+        primary - and that earlier row has to be demoted, or the player enters
+        every cross-competition distribution twice with the roles reversed.
+        """
+        primaries: dict[str, int] = {}
+        for record in view.percentiles._eligible:
+            if record.is_primary:
+                primaries[record.player_key] = primaries.get(record.player_key, 0) + 1
+
+        doubled = {key: n for key, n in primaries.items() if n > 1}
+        assert not doubled, f"{len(doubled)} player(s) are primary more than once"
+
+    def test_the_primary_season_is_the_one_the_site_displays(
+        self, view, universe: LoadedUniverse
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Otherwise a profile and its own percentiles describe different seasons."""
+        primary_competition = {
+            record.player_key: record.competition_id
+            for record in view.percentiles._eligible
+            if record.is_primary
+        }
+        mismatched = [
+            key
+            for key, player in view.players.items()
+            if key in primary_competition and primary_competition[key] != player.competition_id
+        ]
+        assert not mismatched, mismatched[:5]
+
     def test_every_player_season_still_shapes_the_populations(
         self, view, universe: LoadedUniverse
     ) -> None:  # type: ignore[no-untyped-def]

@@ -63,6 +63,24 @@ class PlayerMetrics:
     season_id: str
     metrics: DerivedMetrics
 
+    #: Whether this is the player-season that represents the player when a
+    #: population spans more than one competition.
+    #:
+    #: A player who appears in a league, a continental competition and a cup
+    #: has three rows in the same season. Against their own league that is
+    #: correct - each competition's population contains exactly the players who
+    #: played in it. Across competitions it is not: the same person entered a
+    #: single distribution three times, so their form counted three times
+    #: towards where everyone else ranked, and a player with three entries
+    #: pulled the distribution harder than one with a league season alone.
+    #:
+    #: `build_view` sets this on the row it already chooses to display - the
+    #: most minutes played - so the row that represents the player on the site
+    #: is the row that represents them in a cross-competition comparison.
+    #: Defaulting to True keeps every existing caller and test constructing
+    #: single-competition populations behaving exactly as before.
+    is_primary: bool = True
+
     @property
     def minutes(self) -> int | None:
         return self.metrics.minutes
@@ -196,8 +214,21 @@ class PercentileEngine:
     ) -> list[PlayerMetrics]:
         records = self._by_group.get((position_group, season_id), [])
         if competition_ids is None:
-            return records
-        return [r for r in records if r.competition_id in competition_ids]
+            # Global: one row per player. See `PlayerMetrics.is_primary`.
+            return [r for r in records if r.is_primary]
+        if len(competition_ids) == 1:
+            # A single competition's own population. Every row in it belongs to
+            # a different player-season *of that competition*, so there is
+            # nothing to deduplicate and a player whose primary row is
+            # elsewhere still belongs here.
+            return [r for r in records if r.competition_id in competition_ids]
+        # A league group spans competitions, so it has the same defect global
+        # had and takes the same answer. A player whose primary row falls
+        # outside the group is represented by nothing here rather than by a
+        # secondary row: including one would compare a cup appearance against
+        # other players' league seasons, which is the confusion the primary row
+        # exists to avoid.
+        return [r for r in records if r.is_primary and r.competition_id in competition_ids]
 
     def _sorted_values(
         self,

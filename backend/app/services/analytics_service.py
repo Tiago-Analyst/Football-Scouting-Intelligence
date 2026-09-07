@@ -24,7 +24,7 @@ site.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from functools import lru_cache
 
@@ -316,9 +316,24 @@ def build_view(settings: Settings) -> AnalyticsView:
                         competition_id=record.competition_id,
                         season_id=record.comparable_season,
                         metrics=metrics,
+                        # Still in its own competition's population, and not in
+                        # any cross-competition one: the player is already
+                        # there once, through the row below.
+                        is_primary=False,
                     )
                 )
                 continue
+
+        if existing is not None:
+            # The challenger won, so the row already in `population` for this
+            # player is no longer the one that represents them. Demote it:
+            # leaving it primary would put the player into every global
+            # population twice, which is the whole defect this flag addresses.
+            for index in range(len(population) - 1, -1, -1):
+                candidate = population[index]
+                if candidate.player_key == record.player_key and candidate.is_primary:
+                    population[index] = replace(candidate, is_primary=False)
+                    break
 
         view.players[record.player_key] = record
         view.competitions[record.competition_id] = record.competition_name
