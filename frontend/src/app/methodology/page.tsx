@@ -147,24 +147,36 @@ export default function MethodologyPage() {
         body={
           <>
             <p>
-              Per-90 figures are volatile over short spells, so playing time governs how a player
-              is treated:
+              All players with valid statistical data are included. Minutes do not determine
+              eligibility. Sample labels indicate how much playing-time evidence supports the
+              player&rsquo;s per-90 profile — nothing more.
             </p>
             <ul className="ml-4 list-disc space-y-1.5">
               <li>
-                <strong className="font-medium text-text">900 minutes or more</strong> — full
-                sample, included everywhere.
+                <strong className="font-medium text-text">900 minutes or more</strong> —
+                established sample. Roughly ten full matches; per-90 figures are reasonably
+                settled.
               </li>
               <li>
-                <strong className="font-medium text-text">450 to 899 minutes</strong> — profile and
-                metrics shown, with a visible low-sample warning.
+                <strong className="font-medium text-text">450 to 899 minutes</strong> —
+                developing sample. Enough football to read a direction from, though the rates
+                still move.
               </li>
               <li>
-                <strong className="font-medium text-text">Under 450 minutes</strong> — excluded by
-                default from rankings, similarity and recruitment results. The minutes filter can
-                be lowered to include them.
+                <strong className="font-medium text-text">180 to 449 minutes</strong> — low
+                sample. One goal or tackle moves a rate noticeably.
+              </li>
+              <li>
+                <strong className="font-medium text-text">Under 180 minutes</strong> — very low
+                sample. A per-90 from this little football is close to a single passage of play
+                multiplied up. Read it as what happened, not as a rate the player sustains.
               </li>
             </ul>
+            <p>
+              The one requirement is arithmetic rather than editorial: a per-90 needs minutes to
+              divide by. A player with no minutes behind a metric has no rate for it, and that
+              metric reads N/A. Nothing is invented to fill the gap.
+            </p>
           </>
         }
       />

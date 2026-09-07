@@ -310,7 +310,8 @@ def compare(
         metrics = [m for m in metrics if m.value is not None]
         if context is None:
             context = next(
-                (to_context(ranked[m].context) for m in PROFILE_METRICS if m in ranked), None
+                (to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked),
+                None,
             )
 
         fit = view.role_fit(key)

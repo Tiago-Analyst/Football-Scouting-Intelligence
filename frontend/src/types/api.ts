@@ -87,10 +87,19 @@ export interface ApiErrorBody {
 export interface ComparisonContext {
   scope: string;
   position_group: string;
+  /** "Central Midfielders", not "CM". */
+  position_label: string;
   season_id: string;
   competition_ids: string[];
+  /** Display names for those ids, in the same order. */
+  competition_names: string[];
   population_size: number;
+  /**
+   * The floor a caller asked for. Nought by default, because minutes do not
+   * decide who is compared — so do not render it unconditionally.
+   */
   minimum_minutes: number;
+  /** Server-assembled one-liner. Prefer the parts above for display. */
   label: string;
   /** Present whenever the comparison spans more than one competition. */
   caveat: string | null;

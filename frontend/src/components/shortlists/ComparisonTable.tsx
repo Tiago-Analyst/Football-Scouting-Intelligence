@@ -1,3 +1,4 @@
+import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import Link from "next/link";
 
 import { PercentileBar } from "@/components/ui/PercentileBar";
@@ -38,7 +39,7 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
         <h2 className="text-sm font-semibold tracking-tight">
           Comparing {players.length} player{players.length === 1 ? "" : "s"}
         </h2>
-        {context ? <p className="text-xs text-subtle">{context.label}</p> : null}
+        {context ? <ComparisonPopulation context={context} /> : null}
       </div>
 
       {caveat ? (

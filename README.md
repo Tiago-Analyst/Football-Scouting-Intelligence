@@ -4,11 +4,15 @@ A football scouting and recruitment intelligence platform: contextual
 percentiles, player role fit, statistical similarity, recruitment profiles and
 market analysis, built on top of performance and market data.
 
-> **Status: Phase 9 complete — demo website.**
-> The site is fully navigable on demo data: player search, profiles with
-> percentiles and role fit, similarity, a recruitment profile builder,
-> replacement finder and market opportunities. Authentication and shortlists are
-> next; real performance data still awaits a FootyStats key.
+> **Current status: every phase that is code is complete, running on real
+> data.**
+> Player search, profiles with percentiles and role fit, statistical
+> similarity, a recruitment profile builder, replacement finder, market
+> opportunities, authentication and shortlists. Performance data comes from
+> FootyStats (8,701 player-seasons, 44 competitions) and market data from the
+> public Transfermarkt dataset (79,800 valuations), both refreshed on their own
+> schedules. `APP_MODE=demo` still runs the whole site on a generated dataset
+> for local work, and labels it as such.
 
 ## Current state, stated plainly
 
@@ -17,11 +21,11 @@ market analysis, built on top of performance and market data.
 | Next.js → FastAPI → PostgreSQL request path | Working, verified |
 | Database migrations (Alembic) | Working, baseline applied |
 | Design system and site shell | Working, all routes navigable |
-| Website pages | Working on demo data — search, profiles, similarity, recruitment |
+| Website pages | Working on real data — search, profiles, similarity, recruitment |
 | Analytical schema (`dim_player`, `fact_*`) | Working — 9 tables, 96 CHECK constraints |
 | Loading into PostgreSQL | Working — transactional, idempotent, self-checking |
 | Serving from PostgreSQL | Working — the API reads the database, not providers |
-| Scheduled data pipeline | Working — verified before publishing; FootyStats half idle |
+| Scheduled data pipeline | Working — both sources on their own cadence, verified before publishing |
 | Production readiness | Working — posture checked, not merely intended |
 | Accessibility and SEO | Working — audited on every route, in CI |
 | Canonical model and provider abstraction | Working, tested |
@@ -43,6 +47,16 @@ market analysis, built on top of performance and market data.
 | `FootyStatsProvider` | Working — reads the verified mapping, 47 competitions |
 | FootyStats ingestion | Working — resumable snapshots, load reads from disk |
 
+### Current data sources
+
+| Source | What it supplies | Cadence |
+| --- | --- | --- |
+| FootyStats | Performance: 8,701 player-seasons across 44 competitions | Mon/Wed/Fri 04:00 UTC |
+| Transfermarkt (public dataset) | Market: 79,800 valuations and transfer history | Sundays 05:00 UTC |
+
+Both are loaded and live. Which provider a scheduled run refreshes is resolved
+once, from the cron that fired, against `config/competitions.yaml`.
+
 ### About FootyStats
 
 A real API key has been used. The API was profiled from recorded responses and
@@ -52,9 +66,17 @@ and `player-stats`.
 `config/footystats_mapping.yaml` is the authoritative record: for every metric
 it carries the field it came from, the response it was seen in, and what
 established it. **24 were confirmed arithmetically** rather than by name — for
-each, `total / recorded_minutes * 90` reproduced the provider's own per-90
-field in every sampled record, which is the only thing that settles whether a
-field named `_total_overall` is a season total or a rate.
+each, dividing the season total by the right minutes reproduced the provider's
+own per-90 field in every sampled record, which is the only thing that settles
+whether a field named `_total_overall` is a season total or a rate.
+
+*Which* minutes turned out not to be one answer. The provider uses two, and
+[`docs/footystats_denominator_validation.md`](docs/footystats_denominator_validation.md)
+settles it metric by metric against real responses: its headline counters
+(goals, assists, goals conceded) divide by minutes played, its detailed feed by
+the minutes that feed records. The engine originally used the second for
+everything, which overstated the first three for any player whose detailed feed
+covers less football than they played.
 
 The generated summary lives in one place and is not maintained by hand:
 
@@ -125,17 +147,48 @@ the provider a metric. Both scripts refuse and write nothing without a key.
 phase order, and the rules that constrain provider data. Where any other
 document disagrees with it, it wins.
 
-Progress against it, as of the last phase: **phases 0 to 11 complete**. Phases
-12 to 21 are blocked on a FootyStats API key and cannot begin without one;
-phase 22 (pipelines) is done as far as an idle FootyStats allows, and phase 23
-is prepared up to the decisions that are the owner's — see `docs/deployment.md`.
-Phase 24 (polish) is done. Every phase that is code is done: 0 to 22 and 24.
-Phase 23 — production deployment — is a decision about hosting, domain and
-secrets rather than something to build; `docs/deployment.md` describes it and
+Progress against it: **every phase that is code is done — 0 to 22 and 24.**
+Phases 12 to 21 needed a FootyStats API key; one has been used, the responses
+are validated, and those phases are complete. Phase 23 — production deployment
+— is a decision about hosting, domain and secrets rather than something to
+build; `docs/deployment.md` describes it and
 `backend/scripts/check_production.py` refuses an unsafe configuration.
 
-Two things in `docs/architecture.md` were built while phase 12 was blocked and
-are labelled as such rather than borrowing a phase number.
+Two sections of `docs/architecture.md` were written while phase 12 was waiting
+on credentials and are labelled as such rather than borrowing a phase number.
+That file is a chronological record throughout: it documents decisions when
+they were taken, so figures in it were true when written and may since have
+been superseded. Its own preamble says so, and says where to read the current
+position instead.
+
+### Current known limitations
+
+- **Cross-league percentiles are not strength-adjusted.** A 90th percentile in
+  one competition is not a 90th percentile in another, and the site says so
+  wherever it shows one.
+- **Eight configured metrics are unavailable** from the provider and return
+  N/A rather than a substitute. `docs/config_availability.md` lists which role
+  and score definitions that affects and by how much.
+- **A player in several competitions is shown by one of them** — the season
+  they played most. Cross-competition aggregation is described as future work
+  in `docs/multi_competition.md`.
+- **The backend rate limit cannot see end users**, because the browser never
+  talks to it. `docs/rate_limiting.md` explains what it does and does not
+  protect.
+- **`aerial_presence` is undefined in the specification** and so is not
+  computed; eight of the nine intelligence scores are.
+
+### Next steps
+
+- Review the FootyStats and Transfermarkt terms against what is redistributed
+  (specification section 29).
+- Test a Neon backup and restore rather than assuming one works.
+- Decide whether `docs/identity_resolution_footystats.csv` — 8,575 rows of real
+  people's names, dates of birth and nationalities — should be in a public
+  repository at all.
+- Decide whether the two role definitions currently switched off for
+  insufficient metric coverage should run with a caveat instead. See
+  `docs/config_availability.md`.
 
 ## Architecture
 

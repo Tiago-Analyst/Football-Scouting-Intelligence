@@ -1,10 +1,42 @@
 # Architecture
 
+> **This file is a chronological record, not a description of the current
+> system.** Each section documents a decision at the time it was taken, with
+> the reasoning and often the measurements behind it. Where a later decision
+> superseded an earlier one, both are here, in the order they happened.
+>
+> That means figures and rules quoted below were true when written and may not
+> be now. For what is true today, read:
+>
+> - [`docs/methodology.md`](methodology.md) — how the numbers are produced and
+>   what they mean;
+> - [`docs/footystats_provider_status.md`](footystats_provider_status.md) —
+>   which provider fields are verified, generated from the mapping;
+> - [`docs/footystats_denominator_validation.md`](footystats_denominator_validation.md)
+>   — which minutes each per-90 divides by, generated from real responses;
+> - the `README.md` **Current status** section.
+>
+> **HISTORICAL NOTE — BEFORE REAL FOOTYSTATS ACCESS.** Sections written while
+> Phase 12 was waiting on credentials describe that state as current. A real
+> API key has since been used and real responses validated; the mapping in
+> `config/footystats_mapping.yaml` and the generated status report are the
+> source of truth for what the provider supplies. Passages saying no key
+> exists, that no fields are mapped, or that the phase is blocked, record where
+> the project was and not where it is.
+>
+> **HISTORICAL NOTE — MINUTES ONCE DECIDED ELIGIBILITY.** Early sections
+> describe players below a minutes threshold being excluded from rankings,
+> populations or search. That rule was removed deliberately: every player with
+> a mathematically valid metric is now searchable, rankable, scorable and
+> available for similarity and recruitment, whatever their minutes. Sample
+> bands label how much evidence is behind a figure and exclude nobody. See
+> `docs/methodology.md`.
+
 > **Phase numbers here refer to `docs/specification.md`, section 30.** Three
 > sections below are marked otherwise: the FootyStats validation gate is
-> *groundwork* for Phase 12 rather than Phase 12 itself, which cannot begin
-> without an API key, and two sections record work done while that phase was
-> blocked. They are not specification phases and borrow no number from one.
+> *groundwork* for Phase 12 rather than Phase 12 itself, and two sections
+> record work done while that phase was waiting on credentials. They are not
+> specification phases and borrow no number from one.
 
 
 Decisions taken so far, and the reasoning behind them. Engineering rule 18:
@@ -580,12 +612,16 @@ sum back to it — so a recruitment ranking can be justified line by line.
 ### The frontend no longer owns sample thresholds
 
 `app/analytics/sample.py` is now authoritative. `frontend/src/lib/sample.ts` is
-marked as a mirror: if the two drift, the UI would show a "full sample" badge on
-a player the backend excluded from rankings, which is worse than showing
-nothing.
+marked as a mirror: if the two drift, the UI would label a figure with more
+confidence than the server assigned it.
 
-Unknown minutes classify as *insufficient* rather than full — without knowing
-the sample, keeping the player out of rankings is the safe assumption.
+Unknown minutes classify as the lowest band rather than the highest — without
+knowing the sample, understating the evidence is the safe direction.
+
+> **Superseded.** When this was written the bands also decided who was ranked,
+> and this section said the badge mattered because the backend "excluded"
+> low-sample players. It no longer does: minutes label a figure and exclude
+> nobody. The mirroring argument stands; the exclusion it referred to is gone.
 
 ## Percentile engine (Phase 5)
 

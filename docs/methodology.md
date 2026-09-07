@@ -49,18 +49,36 @@ secondary nationality, and transfer type.
 
 ---
 
-## Minimum sample sizes
+## Sample size
 
 A per-90 figure from 200 minutes and one from 3,000 minutes look identical on
-screen. They are not comparable, and the difference is always shown.
+screen. They are not equally reliable, and the difference is always shown.
 
-| Minutes | Band | Treatment |
+**All players with valid statistical data are included. Minutes do not
+determine eligibility.** Sample labels indicate how much playing-time evidence
+supports a player's per-90 profile; they never exclude anybody from search,
+percentiles, role scores, similarity, replacement or recruitment.
+
+| Minutes | Band | What it means |
 | --- | --- | --- |
-| ≥ 900 | Full sample | Included in rankings, roles, similarity and recruitment results |
-| 450–899 | Low sample | Profile and metrics shown, with a visible warning. Per-90 figures are volatile at this size. |
-| < 450 | Insufficient | Excluded by default from rankings, similarity and recommendations. The minutes filter can be lowered manually. |
+| ≥ 900 | Established sample | About ten full matches. Per-90 figures are reasonably settled. |
+| 450–899 | Developing sample | Enough football to read a direction from, though the rates still move. |
+| 180–449 | Low sample | One goal or tackle moves a rate noticeably. |
+| < 180 | Very low sample | Close to a single passage of play multiplied up. Read it as what happened, not as a rate the player sustains. |
 
-All calculations use actual minutes played, never appearances as a proxy.
+The one requirement is arithmetic rather than editorial: a per-90 needs minutes
+to divide by. A player with no minutes behind a metric has no rate for it, and
+that metric reads N/A. Nothing is invented to fill the gap, and a zero
+denominator never becomes a zero rate.
+
+There is no default minutes filter anywhere in the product. Search and
+recruitment both offer one, set to nothing, for a user who wants to impose a
+floor of their own.
+
+All calculations use actual minutes played, never appearances as a proxy — and
+which minutes, for which metric, is settled in
+[the denominator validation](footystats_denominator_validation.md) rather than
+assumed.
 
 ---
 

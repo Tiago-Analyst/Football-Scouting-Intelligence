@@ -23,9 +23,24 @@ class ComparisonContextOut(BaseModel):
 
     scope: str
     position_group: str
+    #: What to call the position group in front of a reader: "Central
+    #: Midfielders", not "CM". The code stays above for callers that key on it.
+    position_label: str = ""
     season_id: str
     competition_ids: list[str]
+    #: Display names for those competitions, in the same order.
+    #:
+    #: The ids are source-prefixed keys - `footystats:12345` - which are
+    #: correct, stable and meaningless to a reader. They used to reach the
+    #: profile through `label`, which is why this exists.
+    competition_names: list[str] = Field(default_factory=list)
     population_size: int
+    #: The minutes floor a caller asked for, which is nought by default because
+    #: minutes do not decide who is compared.
+    #:
+    #: Kept so a caller who set one can see it honoured. It is not something to
+    #: render unprompted: "players with at least 0 minutes" is the sentence
+    #: that made this comment necessary.
     minimum_minutes: int
     label: str
     caveat: str | None = None

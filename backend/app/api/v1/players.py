@@ -25,6 +25,7 @@ from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
+from app.schemas.canonical import position_group_name
 from app.schemas.api import (
     ComparisonContextOut,
     MarketValuePointOut,
@@ -103,12 +104,32 @@ def metric_label(name: str) -> str:
     return label[:1].upper() + label[1:]
 
 
-def to_context(context: ComparisonContext) -> ComparisonContextOut:
+def to_context(
+    context: ComparisonContext, view: AnalyticsView | None = None
+) -> ComparisonContextOut:
+    """Serialise a comparison population, in words a reader can use.
+
+    The ids stay - callers key on them - but nothing forces a reader to. A
+    profile used to say `CM · footystats:12345 · 2026/27`, which names the
+    right population in a vocabulary belonging to the model and the provider,
+    neither of which the reader has.
+
+    `view` supplies competition display names. Optional so existing callers
+    keep working; without it the ids come back as their own names, which is
+    honest rather than pretty.
+    """
+    ids = list(context.competition_ids)
+    names = [
+        (view.competitions.get(competition_id) if view else None) or competition_id
+        for competition_id in ids
+    ]
     return ComparisonContextOut(
         scope=context.scope.value,
         position_group=context.position_group.value,
+        position_label=position_group_name(context.position_group),
         season_id=context.season_id,
-        competition_ids=list(context.competition_ids),
+        competition_ids=ids,
+        competition_names=names,
         population_size=context.population_size,
         minimum_minutes=context.minimum_minutes,
         label=context.label,
@@ -365,12 +386,12 @@ def get_player_stats(
     # Every metric absent is a truthful zero; sixteen present is not.
     context = next(
         (
-            to_context(ranked[m].context)
+            to_context(ranked[m].context, view)
             for m in PROFILE_METRICS
             if ranked.get(m) is not None and ranked[m].percentile is not None
         ),
         None,
-    ) or next((to_context(ranked[m].context) for m in PROFILE_METRICS if m in ranked), None)
+    ) or next((to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked), None)
     scores = [to_score(s) for s in view.scores(player_id, scope=percentile_scope).values()]
 
     return PlayerStatsResponse(

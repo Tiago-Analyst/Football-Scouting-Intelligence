@@ -46,6 +46,32 @@ class PositionGroup(StrEnum):
     FORWARD = "FORWARD"
 
 
+#: What to call each group when a person is reading.
+#:
+#: The codes are the model's vocabulary and a reasonable one; `FB_WB` on a
+#: profile is not. A comparison context that says "compared with FB_WB" asks
+#: the reader to learn an internal enum before they can read a percentile, and
+#: the plural is deliberate - the group is the population, not the player.
+POSITION_GROUP_NAMES: dict[PositionGroup, str] = {
+    PositionGroup.GK: "Goalkeepers",
+    PositionGroup.CB: "Centre-Backs",
+    PositionGroup.FB_WB: "Full-Backs / Wing-Backs",
+    PositionGroup.DM: "Defensive Midfielders",
+    PositionGroup.CM: "Central Midfielders",
+    PositionGroup.AM: "Attacking Midfielders",
+    PositionGroup.WINGER: "Wingers",
+    PositionGroup.FORWARD: "Forwards",
+}
+
+
+def position_group_name(group: PositionGroup | str) -> str:
+    """Display name for a position group, falling back to its own code."""
+    try:
+        return POSITION_GROUP_NAMES[PositionGroup(group)]
+    except ValueError:
+        return str(group)
+
+
 class PreferredFoot(StrEnum):
     LEFT = "left"
     RIGHT = "right"

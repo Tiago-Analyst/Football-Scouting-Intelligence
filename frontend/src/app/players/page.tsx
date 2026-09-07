@@ -50,9 +50,8 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
     // page - indistinguishable from having no data at all.
     //
     // Short samples are still short, and still labelled: every row carries its
-    // sample band, and a player under 450 covered minutes shows as
-    // insufficient. Showing them with the warning beats hiding them without
-    // one.
+    // sample band. Showing them with the label beats hiding them without one,
+    // and the bands say how much evidence there is rather than who counts.
     minutes_min: first(params.minutes_min),
     market_value_max: first(params.market_value_max),
     contract_within_months: first(params.contract_within_months),
@@ -171,11 +170,12 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                 <>
                   Minimum minutes
                   <Tooltip label="Why does minutes played matter?">
-                    Per-90 figures are volatile over short spells. Every player is listed
-                    whatever their minutes, and each row says how much evidence is behind it -
-                    under 450 covered minutes reads as an insufficient sample. Those players
-                    are still ranked, but they do not shape the population everyone else is
-                    ranked against. Set a floor here to leave them out entirely.
+                    Per-90 figures are volatile over short spells. Minutes do not determine
+                    eligibility: every player with a valid rate is listed, ranked and compared,
+                    and shapes the population everyone else is measured against. Each row
+                    carries a sample label saying how much playing-time evidence is behind its
+                    figures. This filter is yours to set if you want a floor; there is none by
+                    default.
                   </Tooltip>
                 </>
               }

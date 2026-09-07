@@ -312,6 +312,13 @@ def write_report(
         f"Measured over player-seasons with at least {MINIMUM_MINUTES} minutes"
         + (f", from `{source}`." if source else ", from every loaded source."),
         "",
+        "**That window is a reporting choice, not an eligibility rule.** Coverage",
+        "asks whether a provider supplies a field, and a player with ninety",
+        "minutes answers that question weakly whether the field exists or not.",
+        "Restricting the measurement keeps the answer about the provider. No",
+        "player is excluded from the product for playing too little; see",
+        "`docs/methodology.md`.",
+        "",
         "This counts what the engines returned. It is not a reading of the",
         "configuration: a metric the dependency graph calls computable is still",
         "useless if the provider leaves it null, and only running it says so.",

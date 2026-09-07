@@ -104,7 +104,7 @@ const PRINCIPLES = [
   },
   {
     title: "Sample size is never hidden",
-    body: "A per-90 figure from 200 minutes looks identical to one from 3,000. Players below the minutes threshold are flagged, and excluded from rankings by default rather than quietly averaged in.",
+    body: "A per-90 figure from 200 minutes looks identical to one from 3,000. Every figure carries the minutes behind it and a sample label saying how much weight that deserves. No player is excluded for playing too little.",
   },
   {
     title: "Scores describe fit, not quality",

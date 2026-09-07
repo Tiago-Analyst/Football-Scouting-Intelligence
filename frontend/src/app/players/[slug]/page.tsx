@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { DataConfidence } from "@/components/player/DataConfidence";
 import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
 import { MarketValueChart } from "@/components/player/MarketValueChart";
@@ -228,8 +229,8 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
             ))}
           </CardBody>
           {stats?.context ? (
-            <CardFooter className="text-subtle">
-              Compared with {stats.context.label} · {stats.context.population_size} players
+            <CardFooter>
+              <ComparisonPopulation context={stats.context} />
             </CardFooter>
           ) : null}
         </Card>
@@ -356,11 +357,7 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         </TableWrap>
         {stats?.context ? (
           <CardFooter>
-            <span className="text-subtle">
-              Compared with <span className="text-text">{stats.context.label}</span> ·{" "}
-              {stats.context.population_size} players with at least{" "}
-              {stats.context.minimum_minutes} minutes
-            </span>
+            <ComparisonPopulation context={stats.context} />
           </CardFooter>
         ) : null}
       </Card>
@@ -390,6 +387,13 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                     <TH>Club</TH>
                     <TH>Best role</TH>
                     <TH numeric>Similarity</TH>
+                    {/* A similarity of 92 from six shared features and one
+                        from eleven are not the same claim, and they look
+                        identical as a single number. The dedicated page has
+                        said so for a while; this table did not, which meant
+                        the profile was the less honest of the two. */}
+                    <TH numeric>Shared</TH>
+                    <TH numeric>Coverage</TH>
                     <TH numeric>Value</TH>
                   </TR>
                 </THead>
@@ -416,6 +420,21 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                       </TD>
                       <TD numeric className="font-medium">
                         {Math.round(entry.similarity)}
+                      </TD>
+                      <TD numeric className="whitespace-nowrap text-muted">
+                        {entry.shared_features} / {entry.expected_features}
+                      </TD>
+                      <TD numeric className="whitespace-nowrap">
+                        <span
+                          className={
+                            entry.coverage_band === "high" || entry.coverage_band === "good"
+                              ? "text-muted"
+                              : "text-warning"
+                          }
+                          title={entry.coverage_label}
+                        >
+                          {Math.round(entry.feature_coverage_pct)}%
+                        </span>
                       </TD>
                       <TD numeric>
                         {entry.player.market_value_eur !== null
