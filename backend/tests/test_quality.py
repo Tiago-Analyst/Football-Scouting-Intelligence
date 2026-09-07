@@ -124,13 +124,52 @@ class TestImpactOfAbsence:
         assert "target_forward" not in impact.roles
         assert "defensive_stopper" not in impact.roles
 
-    def test_a_role_still_fails_when_its_defining_component_goes(self) -> None:
-        """`min_coverage` is a floor, not a licence. Progressive passing is 30%
-        of a deep-lying playmaker and is what the name promises; the role stays
-        disabled rather than measuring something else."""
+    def test_the_two_roles_missing_their_defining_component_are_still_produced(
+        self,
+    ) -> None:
+        """A reversed product decision, recorded where it can be checked.
+
+        These two roles used to be switched off: progressive passing is what
+        both names promise, so scoring them without it looked like measuring
+        something else and calling it the role. They are now produced, because
+        refusing withheld a useful comparison - a centre-back's passing volume
+        and accuracy are supplied and are most of what the role is about - to
+        avoid admitting an incomplete one.
+
+        What makes that defensible is the next test, not this one. Being
+        produced is only acceptable while the incompleteness is impossible to
+        miss.
+        """
         impact = impact_of_absence({CanonicalMetric.PROGRESSIVE_PASSES})
-        assert "deep_lying_playmaker" in impact.roles
-        assert "ball_playing_centre_back" in impact.roles
+        assert "deep_lying_playmaker" not in impact.roles
+        assert "ball_playing_centre_back" not in impact.roles
+
+    def test_and_they_are_banded_limited_rather_than_compensated(self) -> None:
+        """The condition the decision above rests on.
+
+        Missing weight is renormalised across what remains, which is right -
+        otherwise absent data would read as poor performance. It also means a
+        score built from 60% of a definition is numerically indistinguishable
+        from one built from all of it, so the coverage has to be carried
+        separately and said out loud.
+        """
+        from app.analytics.roles import RoleCoverage, classify_role_coverage, load_roles
+
+        roles = load_roles()
+
+        for key, available in (
+            ("ball_playing_centre_back", 0.60),
+            ("deep_lying_playmaker", 0.70),
+        ):
+            role = roles[key]
+            assert role.min_coverage <= available, (
+                f"{key} is configured to refuse a score it is meant to produce"
+            )
+            assert classify_role_coverage(available) is RoleCoverage.LIMITED, (
+                f"{key} would be presented as a full-confidence role"
+            )
+            assert role.caveat, f"{key} is produced with no caveat explaining what is missing"
+            assert "LIMITED COVERAGE" in role.caveat
 
     def test_an_unused_metric_disables_nothing(self) -> None:
         impact = impact_of_absence({CanonicalMetric.STARTS})

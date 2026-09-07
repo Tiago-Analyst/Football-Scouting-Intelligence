@@ -260,8 +260,19 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               [roles.best, ...roles.alternatives].map((role, index) => (
                 <div key={role.key} className="space-y-1">
                   <div className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
-                    <span className={index === 0 ? "text-xs font-medium" : "text-xs text-muted"}>
+                    <span
+                      className={
+                        index === 0
+                          ? "flex items-center gap-1.5 text-xs font-medium"
+                          : "flex items-center gap-1.5 text-xs text-muted"
+                      }
+                    >
                       {role.label}
+                      {/* A role missing enough of its own definition that the
+                          name promises more than was measured. Marked, rather
+                          than left to be inferred from a coverage figure
+                          further down the row. */}
+                      {role.is_limited ? <Badge tone="warning">Limited</Badge> : null}
                     </span>
                     {/* The bar shows the standing where there is one, because
                         that is what can be read across rows. */}
@@ -290,14 +301,18 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         nobody reads. */}
                     {role.coverage !== null &&
                     role.coverage !== undefined &&
-                    role.coverage < 1 ? (
+                    role.coverage_band !== "full" ? (
                       <>
                         {" · "}
                         <span
-                          className="text-warning"
-                          title="Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the score is built from what is available."
+                          className={role.is_limited ? "text-warning" : "text-subtle"}
+                          title={
+                            role.caveat ??
+                            "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
+                          }
                         >
                           {Math.round(role.coverage * 100)}% metric coverage
+                          {role.coverage_label ? ` · ${role.coverage_label}` : null}
                         </span>
                       </>
                     ) : null}
@@ -308,8 +323,19 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               <p className="text-sm text-muted">No role fit could be computed.</p>
             )}
           </CardBody>
-          <CardFooter className="text-subtle">
-            {roles?.meaning ?? "Role score measures resemblance to a profile."}
+          <CardFooter className="space-y-2 text-subtle">
+            {/* Spelt out rather than hidden in a tooltip. A role scored from
+                60% of its definition is a different claim from one scored from
+                all of it, and a reader comparing two rows cannot see that from
+                the numbers. */}
+            {[roles?.best, ...(roles?.alternatives ?? [])]
+              .filter((role) => role?.is_limited && role?.caveat)
+              .map((role) => (
+                <p key={role!.key} className="text-[11px] leading-relaxed">
+                  <span className="font-medium">{role!.label}:</span> {role!.caveat}
+                </p>
+              ))}
+            <p>{roles?.meaning ?? "Role score measures resemblance to a profile."}</p>
           </CardFooter>
         </Card>
       </div>

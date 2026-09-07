@@ -122,10 +122,20 @@ settled.
   repository's history is not private in the way people assume. Splitting means
   a fresh history for whatever stays public, or accepting that the weights are
   recoverable from the past.
-- Move `docs/identity_resolution_footystats.csv` regardless of which option is
-  chosen. It is 8,575 rows of names, dates of birth and nationalities of real
-  people, and it is currently public. That is a separate problem from
-  intellectual property and a more pressing one.
+- **Done, in the working tree.** `docs/identity_resolution_footystats.csv` was
+  8,575 rows of names, dates of birth and nationalities of real people, in a
+  public repository. The resolver now writes it to `data/processed/`, which is
+  git-ignored; `.gitignore` refuses the old path and any sibling; and
+  `docs/identity_resolution_example.csv` documents the columns with six
+  invented players. The aggregate report, which is the part worth publishing,
+  is unchanged.
+
+  **Not done: the history.** Three earlier commits still contain the file, so
+  it remains retrievable from the published repository until the history is
+  rewritten and force-pushed. Note that a rewrite does not reach forks, clones
+  or GitHub's own cached views of those blobs — those need a request to GitHub
+  support. Treat the data as having been disclosed and act accordingly rather
+  than assuming a rewrite undoes it.
 - Decide what happens to the generated provider documentation. Files like
   `docs/footystats_provider_status.md`, `docs/config_availability.md` and
   `docs/footystats_denominator_validation.md` are the accumulated record of

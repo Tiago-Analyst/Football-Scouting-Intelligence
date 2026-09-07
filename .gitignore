@@ -72,3 +72,22 @@ desktop.ini
 # and with core.symlinks off on Windows, git would store that path as a text
 # file pretending to be a skill directory.
 .claude/skills/
+
+# ---------------------------------------------------------------------------
+# Identity-resolution output: personal data
+# ---------------------------------------------------------------------------
+# Row-level resolution output carries real people's names, dates of birth and
+# nationalities - one row per player in the provider's universe. It was
+# published to this public repository for a while, which was a mistake, and
+# these rules exist so it cannot happen again by accident.
+#
+# The resolver writes the real file to `data/processed/`, already ignored
+# above. These patterns cover the old location and any variant of the name, so
+# a future change of output path does not quietly re-publish it.
+#
+# What IS committed: `docs/identity_resolution_footystats.md` (counts and
+# shares, no individuals) and `docs/identity_resolution_example.csv` (six
+# invented people, showing the columns).
+docs/identity_resolution_footystats.csv
+docs/identity_resolution*.csv
+!docs/identity_resolution_example.csv

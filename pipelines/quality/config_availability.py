@@ -36,8 +36,13 @@ OK        Every component is computable from what the provider supplies.
 REDUCED   Some are not. The remaining weight still meets the definition's own
           `min_coverage`, so the score is produced from the rest with its
           coverage reported. Renormalised, never filled in with a zero.
-DISABLED  Too little remains. The score is not produced at all, and the
-          feature depending on it says so.
+LIMITED   Produced, and from little enough of its own definition that the
+          label overstates what was measured. The same arithmetic as REDUCED;
+          the difference is what the product must say about it. Banded this way
+          in `app.analytics.roles` too, so the report and the running site
+          agree on which roles are which.
+DISABLED  Too little remains to meet `min_coverage`. The score is not produced
+          at all, and the feature depending on it says so.
 """
 
 from __future__ import annotations
@@ -77,7 +82,13 @@ class Line:
         if not self.missing:
             return "OK"
         if self.coverage >= self.min_coverage:
-            return "REDUCED"
+            # The same threshold the serving layer bands on, imported rather
+            # than repeated: a report that disagreed with the site about which
+            # roles are limited would be worse than no report. Imported here
+            # because `app` is only on the path once a caller has put it there.
+            from app.analytics.roles import LIMITED_COVERAGE
+
+            return "REDUCED" if self.coverage >= LIMITED_COVERAGE else "LIMITED"
         return "DISABLED"
 
     def cells(self) -> list[str]:
@@ -278,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
     # must say so where a reader will see it. This is the check that stops a
     # provider change quietly degrading a score behind an unchanged label.
     #
-    # Deliberately REDUCED only. A DISABLED role produces nothing at all, so a
+    # Deliberately the produced ones only. A DISABLED role produces nothing, so a
     # caveat on it would never be shown to anybody - what a reader sees there is
     # the role's absence, and requiring wording that cannot appear would be a
     # check satisfied by writing something nobody reads.
@@ -287,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
 
     role_caveats = {role.key: role.caveat for role in get_roles().values()}
     for line in roles:
-        if line.status == "REDUCED" and not role_caveats.get(line.key):
+        if line.status in {"REDUCED", "LIMITED"} and not role_caveats.get(line.key):
             problems.append(
                 f"Role '{line.key}' produces a score at {line.coverage * 100:.0f}% "
                 f"coverage (missing {', '.join(line.missing)}) and carries no caveat."

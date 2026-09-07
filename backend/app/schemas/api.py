@@ -97,6 +97,17 @@ class ScoreOut(BaseModel):
     #: How many players that standing was measured against. Absent standing
     #: with a small population means the role had too few to rank within.
     role_population: int = 0
+    #: Roles only. `coverage` banded: full, reduced or limited.
+    #:
+    #: Needed because the score itself cannot show it. Missing components have
+    #: their weight renormalised across what remains - otherwise absent data
+    #: would read as poor performance - and after that a score built from 60%
+    #: of a definition looks exactly like one built from all of it.
+    coverage_band: str | None = None
+    coverage_label: str | None = None
+    #: True when enough of the definition is missing that the role's label
+    #: overstates what was measured. The score is real; the name is generous.
+    is_limited: bool = False
 
 
 class RoleFitOut(BaseModel):

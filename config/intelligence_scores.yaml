@@ -132,7 +132,26 @@ scores:
       shot_quality: 10
 
 # ---------------------------------------------------------------------------
-# NOT IMPLEMENTED: aerial_presence
+# ARCHIVED: aerial_presence
+# ---------------------------------------------------------------------------
+# A decision, taken deliberately and recorded here rather than left as an
+# omission somebody might read as an oversight: this score stays off until the
+# provider supplies enough validated metrics to compute it honestly. The
+# configuration below is kept for that day. Nothing unrelated is substituted
+# in the meantime, and nothing about it is exposed in the product.
+#
+# TWO CONDITIONS, BOTH UNMET
+#
+#   1. The specification must define its weights. Section 5 names the score;
+#      section 9, which defines the weights for every other score, does not.
+#   2. The provider must supply its inputs. Two of the three are absent - see
+#      below.
+#
+# Meeting one without the other is not enough. Turning it on with invented
+# weights, or with a substitute metric standing in for a missing one, would
+# produce a number that looks exactly as authoritative as the eight defined
+# scores while resting on nothing - which is the one failure mode this whole
+# project is built to avoid.
 # ---------------------------------------------------------------------------
 # `fact_player_intelligence_scores` in the master spec (section 5) lists
 # `aerial_presence_score`, but section 9 — which defines the weights for every

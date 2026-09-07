@@ -187,6 +187,14 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
         # two that can disagree.
         role_fit_percentile=getattr(score, "role_fit_percentile", None),
         role_population=getattr(score, "role_population", 0),
+        # Roles only, same reasoning as above: intelligence scores carry
+        # coverage but are not banded, and one serialiser beats two that can
+        # disagree.
+        coverage_band=(
+            band.value if (band := getattr(score, "coverage_band", None)) is not None else None
+        ),
+        coverage_label=getattr(score, "coverage_label", None),
+        is_limited=bool(getattr(score, "is_limited", False)),
     )
 
 

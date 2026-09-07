@@ -1,0 +1,7 @@
+status,footystats_id,footystats_name,date_of_birth,nationality,matched_transfermarkt_id,matched_name,confidence,method,runner_up,runner_up_confidence,reasons
+matched,900001,Aurelio Bentes Marchand,1998-04-12,Portugal,800001,Aurelio Bentes Marchand,0.950,exact_name+dob,Aurelio Marchand Silva,0.512,name~1.00; dob=exact; nationality=same
+matched,900002,Kwame Osei-Tutu,2001-11-03,Ghana,800002,Kwame Osei Tutu,0.910,name+dob,,0.000,name~0.96; dob=exact; nationality=same
+ambiguous,900003,Luca Ferrari,1999-07-21,Italy,,,0.780,name+dob,Luca Ferrari,0.771,two targets within the margin; dob=exact for both
+unmatched,900004,Sebastien Moreau-Lacroix,,France,,,0.000,no_candidates,,,no blocking candidates
+unmatched,900005,Yusuf Demirtas,1997-02-28,Turkey,,,0.640,name+nationality,Yusuf Demir,0.640,name~0.88; dob=missing; below threshold
+manual,900006,Jan Novotny,1996-09-15,Czech Republic,800006,Jan Novotny,1.000,manual_override,,0.000,confirmed by hand

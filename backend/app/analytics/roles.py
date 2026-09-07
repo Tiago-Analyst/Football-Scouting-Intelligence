@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, replace
+from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 
@@ -58,6 +59,56 @@ ROLE_SCORE_MEANING = (
     "weighted roles do not share a scale. Neither is player quality, a "
     "probability, or a scouting grade."
 )
+
+
+class RoleCoverage(StrEnum):
+    """How much of a role's own definition was available to score it.
+
+    A role is scored from the components the provider actually supplies, with
+    the remaining weights renormalised - otherwise a missing 30% component
+    would drag every score down by a third and read as poor performance rather
+    than absent data. That renormalisation is right and it is also exactly what
+    makes this enum necessary: once the weights are rescaled, a score built
+    from 60% of a definition looks identical to one built from all of it.
+
+    So the original coverage is reported separately and banded, and the band
+    travels with the score everywhere it is shown.
+    """
+
+    #: Scored from essentially the whole definition.
+    FULL = "full"
+    #: A component or two missing. The role still measures what it claims to.
+    REDUCED = "reduced"
+    #: Enough of the definition is missing that the label overstates what was
+    #: measured. Shown, with its caveat, and never presented as equivalent.
+    LIMITED = "limited"
+
+
+#: At or above this, a role is scored from all but a rounding error.
+FULL_COVERAGE = 0.95
+
+#: Below this, the role is LIMITED. Chosen so the two roles whose defining
+#: component the provider does not supply - ball-playing centre-back at 60%,
+#: deep-lying playmaker at 70% - land there, while roles missing a single
+#: secondary component do not. It is a judgement, not a discovery, and it is
+#: written down here rather than implied by a comparison somewhere.
+LIMITED_COVERAGE = 0.75
+
+
+def classify_role_coverage(coverage: float) -> RoleCoverage:
+    """Band a role's metric coverage."""
+    if coverage >= FULL_COVERAGE:
+        return RoleCoverage.FULL
+    if coverage >= LIMITED_COVERAGE:
+        return RoleCoverage.REDUCED
+    return RoleCoverage.LIMITED
+
+
+ROLE_COVERAGE_LABELS: dict[RoleCoverage, str] = {
+    RoleCoverage.FULL: "Full coverage",
+    RoleCoverage.REDUCED: "Reduced coverage",
+    RoleCoverage.LIMITED: "Limited coverage",
+}
 
 
 class RoleConfigError(Exception):
@@ -111,6 +162,25 @@ class RoleScore:
     @property
     def is_available(self) -> bool:
         return self.score is not None
+
+    @property
+    def coverage_band(self) -> RoleCoverage:
+        """How much of this role's definition was behind the score."""
+        return classify_role_coverage(self.coverage)
+
+    @property
+    def coverage_label(self) -> str:
+        return ROLE_COVERAGE_LABELS[self.coverage_band]
+
+    @property
+    def is_limited(self) -> bool:
+        """Whether the label overstates what was actually measured.
+
+        Not the same question as `is_available`. A limited role has a real
+        score, computed from real data; what it does not have is the component
+        that gives the role its name.
+        """
+        return self.coverage_band is RoleCoverage.LIMITED
 
     @property
     def standing(self) -> float:

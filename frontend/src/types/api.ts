@@ -116,6 +116,9 @@ export interface Metric {
   unavailable_reason: string | null;
 }
 
+/** How much of a role's own definition was available to score it. */
+export type RoleCoverageBand = "full" | "reduced" | "limited";
+
 export interface ScoreComponent {
   metric: string;
   label: string;
@@ -151,6 +154,14 @@ export interface Score {
   role_fit_percentile?: number | null;
   /** How many players that standing was measured against. */
   role_population?: number;
+  /** Roles only. `coverage` banded: full, reduced or limited. */
+  coverage_band?: RoleCoverageBand | null;
+  coverage_label?: string | null;
+  /**
+   * True when enough of the role's definition is missing that its label
+   * overstates what was measured. The score is real; the name is generous.
+   */
+  is_limited?: boolean;
 }
 
 export interface RoleFit {

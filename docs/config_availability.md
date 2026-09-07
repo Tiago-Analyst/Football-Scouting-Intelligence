@@ -27,8 +27,6 @@ Too little of the definition survives to produce a number, so none is
 produced. These are absences a reader sees as an absence - not as a low
 score, which is what substituting or zero-filling would produce.
 
-- **Ball-Playing Centre-Back** - 60% of weight available, needs 100%. Missing `aerial_duel_win_percentage`, `progressive_passes_per90`
-- **Deep-Lying Playmaker** - 70% of weight available, needs 100%. Missing `progressive_passes_per90`
 - **Ball Progression** - 55% of weight available, needs 100%. Missing `progressive_passes_per90`
 - **Duel Dominance** - 70% of weight available, needs 100%. Missing `aerial_duel_win_percentage`
 
@@ -53,12 +51,12 @@ A role component can be a derived metric or a whole intelligence score. A role i
 
 | Role | Configured | Available | Coverage | Missing | Status |
 | --- | ---: | ---: | ---: | --- | --- |
-| Ball-Playing Centre-Back | 100 | 60 | 60% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **DISABLED** |
+| Ball-Playing Centre-Back | 100 | 60 | 60% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **LIMITED** |
 | Defensive Stopper | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
 | Defensive Full-Back | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
 | Attacking Full-Back | 100 | 80 | 80% | `progressive_passes_per90` | **REDUCED** |
 | Ball-Winning Midfielder | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| Deep-Lying Playmaker | 100 | 70 | 70% | `progressive_passes_per90` | **DISABLED** |
+| Deep-Lying Playmaker | 100 | 70 | 70% | `progressive_passes_per90` | **LIMITED** |
 | Box-to-Box Midfielder | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
 | Advanced Playmaker | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
 | Creative Winger | 100 | 100 | 100% | - | **OK** |
@@ -76,7 +74,7 @@ Every feature carries equal weight, so the count is the weight. A vector is neve
 | Position group | Configured | Available | Coverage | Missing | Status |
 | --- | ---: | ---: | ---: | --- | --- |
 | AM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| CB | 11 | 8 | 73% | `aerial_duel_win_percentage`, `aerial_duels_per90`, `progressive_passes_per90` | **REDUCED** |
+| CB | 11 | 8 | 73% | `aerial_duel_win_percentage`, `aerial_duels_per90`, `progressive_passes_per90` | **LIMITED** |
 | CM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
 | DM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
 | FB_WB | 11 | 10 | 91% | `progressive_passes_per90` | **REDUCED** |

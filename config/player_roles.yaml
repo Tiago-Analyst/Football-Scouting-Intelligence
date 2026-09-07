@@ -75,6 +75,28 @@ roles:
         interceptions_per90: 15
         duel_win_percentage: 10
         aerial_duel_win_percentage: 10
+    # 60% of the configured weight is available, which is the lowest of any
+    # enabled role. It is enabled deliberately rather than left off: a
+    # centre-back's passing volume and accuracy are the bulk of what this role
+    # is about and both are supplied, so refusing to score it withheld a useful
+    # comparison to avoid admitting an incomplete one.
+    #
+    # What makes that defensible is that the incompleteness is never hidden.
+    # The role reports 60% metric coverage, is banded LIMITED, and carries the
+    # caveat below wherever it appears. The missing 40% is not redistributed
+    # into a pretence of completeness - the weights of what remains are
+    # renormalised so absence does not read as poor performance, and the
+    # original coverage travels separately so nobody mistakes the two.
+    min_coverage: 0.59
+    caveat: >-
+      LIMITED COVERAGE. Computed from 60% of this role's configured weight.
+      Progressive passes (30%) are declared by the performance provider and
+      never populated; aerial duel win percentage (10%) cannot be derived
+      because the provider reports aerial duels won but not attempted.
+      Progression is the defining component of this role, so read this as
+      passing volume and accuracy from a centre-back rather than as measured
+      ball progression. It is not comparable in confidence with a role scored
+      from its full definition.
 
   defensive_stopper:
     label: Defensive Stopper
@@ -186,6 +208,17 @@ roles:
         key_passes_per90: 10
         xa_per90: 10
         dispossessed_per90: 10
+    # 70% available. Same reasoning as the ball-playing centre-back above, and
+    # the same honesty about what is missing: enabled, banded LIMITED, and
+    # carrying its caveat everywhere it is shown.
+    min_coverage: 0.69
+    caveat: >-
+      LIMITED COVERAGE. Computed from 70% of this role's configured weight.
+      Progressive passes (30%) are declared by the performance provider and
+      never populated. That is the component distinguishing a deep-lying
+      playmaker from a tidy passer, so read this as passing volume, accuracy
+      and creation from deep rather than as measured progression. It is not
+      comparable in confidence with a role scored from its full definition.
 
   # -- Central midfield ----------------------------------------------------
   box_to_box_midfielder:

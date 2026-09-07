@@ -183,9 +183,9 @@ position instead.
 - Review the FootyStats and Transfermarkt terms against what is redistributed
   (specification section 29).
 - Test a Neon backup and restore rather than assuming one works.
-- Decide whether `docs/identity_resolution_footystats.csv` — 8,575 rows of real
-  people's names, dates of birth and nationalities — should be in a public
-  repository at all.
+- Purge the identity-resolution CSV from the published Git history. The file
+  is no longer tracked and can no longer be committed, but earlier commits
+  still contain it until the history is rewritten and force-pushed.
 - Decide whether the two role definitions currently switched off for
   insufficient metric coverage should run with a caveat instead. See
   `docs/config_availability.md`.
