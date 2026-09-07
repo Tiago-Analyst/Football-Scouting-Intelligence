@@ -83,7 +83,30 @@ class PlayerMetrics:
 
     @property
     def minutes(self) -> int | None:
+        """The denominator most of this player's rates divide by."""
         return self.metrics.minutes
+
+    @property
+    def rateable_minutes(self) -> int | None:
+        """The largest denominator this player has any rate under.
+
+        There are two, and they can differ: goals, assists and goals conceded
+        divide by time on the pitch, everything else by the minutes the
+        detailed feed describes. See `app.analytics.denominators`.
+
+        Eligibility asks whether the player has *any* rate at all, so it takes
+        whichever is available. Using the detailed figure alone would drop a
+        player whose detailed feed covers nothing out of every population,
+        including the goalscoring ones their playing minutes fully support -
+        which would be a minutes-based exclusion arriving through the back
+        door, and there are none of those by deliberate product decision.
+
+        The per-metric answer is still per-metric: a metric whose own
+        denominator is missing comes out `None` and is skipped when the values
+        are collected, so nothing is ranked against a rate it does not have.
+        """
+        candidates = [m for m in (self.metrics.minutes, self.metrics.playing_minutes) if m]
+        return max(candidates) if candidates else None
 
 
 @dataclass(frozen=True)
@@ -191,11 +214,18 @@ class PercentileEngine:
     ) -> None:
         self.minimum_minutes = minimum_minutes
         self.min_population = min_population
-        # `record.minutes` here is the per-90 denominator, not time on the
-        # pitch: `compute_derived` puts `recorded_minutes` there. So this asks
-        # "does this player have a rate at all", and nothing else.
+        # Asks "does this player have a rate at all", and nothing else.
+        #
+        # `rateable_minutes` rather than `minutes` because there are two
+        # denominators and a player can have one without the other. A
+        # goalkeeper whose detailed feed covers nothing still has a conceding
+        # rate over the minutes they played, and dropping them here would
+        # exclude them from every population on a minutes test - which this
+        # project does not have.
         self._eligible = [
-            record for record in population if can_rate(record.minutes, at_least=minimum_minutes)
+            record
+            for record in population
+            if can_rate(record.rateable_minutes, at_least=minimum_minutes)
         ]
         self._by_group: dict[tuple[PositionGroup, str], list[PlayerMetrics]] = defaultdict(list)
         for record in self._eligible:

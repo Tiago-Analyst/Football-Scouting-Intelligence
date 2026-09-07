@@ -22,6 +22,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
+from app.analytics.denominators import minutes_for
 from app.schemas.canonical import PlayerSeasonStats
 
 MINUTES_PER_MATCH = 90.0
@@ -189,7 +190,14 @@ class DerivedMetrics(BaseModel):
     source_player_id: str | None = None
     season_id: str | None = None
     competition_id: str | None = None
+    #: The denominator for most of the rates below: the minutes the detailed
+    #: feed describes. Kept under this name because the sample band, the
+    #: coverage figure and the whole serving layer already read it.
     minutes: int | None = None
+    #: Time on the pitch, which is the denominator FootyStats uses for goals,
+    #: assists and goals conceded. Carried separately because substituting one
+    #: for the other misstates a rate rather than approximating it.
+    playing_minutes: int | None = None
 
     goals_per90: float | None = None
     non_penalty_goals_per90: float | None = None
@@ -257,12 +265,33 @@ def compute_derived(stats: PlayerSeasonStats, *, player_id: int | None = None) -
     provider that does not carry a field disables the features depending on it
     rather than contributing a fabricated zero.
     """
-    # The minutes the statistics actually cover, which is what every rate below
-    # must divide by. A provider that records detail for only some matches
-    # supplies fewer here than `minutes`, and dividing by the larger figure
-    # would understate every rate in proportion to the gap. Providers that do
-    # not distinguish the two leave it unset and the two are the same.
-    minutes = stats.recorded_minutes if stats.recorded_minutes is not None else stats.minutes
+    # WHICH MINUTES EACH RATE DIVIDES BY
+    #
+    # Not one figure for all of them. The canonical model carries two - time
+    # on the pitch, and the minutes a provider's detailed feed describes - and
+    # the provider uses different ones for different metrics. Its headline
+    # counters (goals, assists, goals conceded) divide by playing minutes; its
+    # detailed feed divides by recorded minutes.
+    #
+    # This used to divide everything by recorded minutes, which is right for
+    # the detailed feed and wrong for the three metrics that do not come from
+    # it. It
+    # overstated goals, assists and conceding rates for every player whose
+    # detailed feed covers less football than they played, in the same
+    # direction for all of them.
+    #
+    # `app.analytics.denominators` holds the routing and the evidence for it.
+    # Providers that do not distinguish the two supply one figure for both, so
+    # nothing changes for them.
+    recorded = stats.recorded_minutes if stats.recorded_minutes is not None else stats.minutes
+    playing = stats.minutes if stats.minutes is not None else stats.recorded_minutes
+
+    def rate(metric: DerivedMetric, total: float | None) -> float | None:
+        """One metric's per-90, over the denominator that metric belongs to."""
+        return per90(
+            total,
+            minutes_for(metric, playing_minutes=playing, recorded_minutes=recorded),
+        )
 
     # Penalties inflate shooting volume and conversion, so finishing metrics are
     # computed on open play. Non-penalty shots are unknown if either input is.
@@ -281,17 +310,20 @@ def compute_derived(stats: PlayerSeasonStats, *, player_id: int | None = None) -
         source_player_id=stats.source_player_id,
         season_id=stats.season_id,
         competition_id=stats.competition_id,
-        minutes=minutes,
+        minutes=recorded,
+        playing_minutes=playing,
         # -- Attacking output ------------------------------------------------
-        goals_per90=per90(stats.goals, minutes),
-        non_penalty_goals_per90=per90(stats.non_penalty_goals, minutes),
-        assists_per90=per90(stats.assists, minutes),
-        xg_per90=per90(stats.xg, minutes),
-        npxg_per90=per90(stats.npxg, minutes),
-        xa_per90=per90(stats.xa, minutes),
+        goals_per90=rate(DerivedMetric.GOALS_PER90, stats.goals),
+        non_penalty_goals_per90=rate(
+            DerivedMetric.NON_PENALTY_GOALS_PER90, stats.non_penalty_goals
+        ),
+        assists_per90=rate(DerivedMetric.ASSISTS_PER90, stats.assists),
+        xg_per90=rate(DerivedMetric.XG_PER90, stats.xg),
+        npxg_per90=rate(DerivedMetric.NPXG_PER90, stats.npxg),
+        xa_per90=rate(DerivedMetric.XA_PER90, stats.xa),
         # -- Shooting --------------------------------------------------------
-        shots_per90=per90(stats.shots, minutes),
-        shots_on_target_per90=per90(stats.shots_on_target, minutes),
+        shots_per90=rate(DerivedMetric.SHOTS_PER90, stats.shots),
+        shots_on_target_per90=rate(DerivedMetric.SHOTS_ON_TARGET_PER90, stats.shots_on_target),
         shot_accuracy=percentage(stats.shots_on_target, stats.shots),
         # Non-penalty on both sides: a penalty converted is not evidence of
         # open-play finishing.
@@ -300,41 +332,47 @@ def compute_derived(stats: PlayerSeasonStats, *, player_id: int | None = None) -
         # chances a player gets, separate from how many they take.
         shot_quality=ratio(stats.npxg, non_penalty_shots),
         # -- Passing ---------------------------------------------------------
-        passes_per90=per90(stats.passes, minutes),
-        completed_passes_per90=per90(stats.passes_completed, minutes),
+        passes_per90=rate(DerivedMetric.PASSES_PER90, stats.passes),
+        completed_passes_per90=rate(DerivedMetric.COMPLETED_PASSES_PER90, stats.passes_completed),
         pass_completion=percentage(stats.passes_completed, stats.passes),
-        progressive_passes_per90=per90(stats.progressive_passes, minutes),
-        key_passes_per90=per90(stats.key_passes, minutes),
-        crosses_per90=per90(stats.crosses, minutes),
-        accurate_crosses_per90=per90(stats.accurate_crosses, minutes),
+        progressive_passes_per90=rate(
+            DerivedMetric.PROGRESSIVE_PASSES_PER90, stats.progressive_passes
+        ),
+        key_passes_per90=rate(DerivedMetric.KEY_PASSES_PER90, stats.key_passes),
+        crosses_per90=rate(DerivedMetric.CROSSES_PER90, stats.crosses),
+        accurate_crosses_per90=rate(DerivedMetric.ACCURATE_CROSSES_PER90, stats.accurate_crosses),
         cross_accuracy=percentage(stats.accurate_crosses, stats.crosses),
         # -- Dribbling -------------------------------------------------------
-        dribbles_per90=per90(stats.dribbles, minutes),
-        successful_dribbles_per90=per90(stats.successful_dribbles, minutes),
+        dribbles_per90=rate(DerivedMetric.DRIBBLES_PER90, stats.dribbles),
+        successful_dribbles_per90=rate(
+            DerivedMetric.SUCCESSFUL_DRIBBLES_PER90, stats.successful_dribbles
+        ),
         dribble_success_percentage=percentage(stats.successful_dribbles, stats.dribbles),
         # -- Defending -------------------------------------------------------
-        tackles_per90=per90(stats.tackles, minutes),
-        successful_tackles_per90=per90(stats.successful_tackles, minutes),
+        tackles_per90=rate(DerivedMetric.TACKLES_PER90, stats.tackles),
+        successful_tackles_per90=rate(
+            DerivedMetric.SUCCESSFUL_TACKLES_PER90, stats.successful_tackles
+        ),
         tackle_success_percentage=percentage(stats.successful_tackles, stats.tackles),
-        interceptions_per90=per90(stats.interceptions, minutes),
-        blocks_per90=per90(stats.blocks, minutes),
-        clearances_per90=per90(stats.clearances, minutes),
+        interceptions_per90=rate(DerivedMetric.INTERCEPTIONS_PER90, stats.interceptions),
+        blocks_per90=rate(DerivedMetric.BLOCKS_PER90, stats.blocks),
+        clearances_per90=rate(DerivedMetric.CLEARANCES_PER90, stats.clearances),
         # -- Duels -----------------------------------------------------------
-        duels_per90=per90(stats.duels, minutes),
-        duels_won_per90=per90(stats.duels_won, minutes),
+        duels_per90=rate(DerivedMetric.DUELS_PER90, stats.duels),
+        duels_won_per90=rate(DerivedMetric.DUELS_WON_PER90, stats.duels_won),
         duel_win_percentage=percentage(stats.duels_won, stats.duels),
-        aerial_duels_per90=per90(stats.aerial_duels, minutes),
-        aerial_duels_won_per90=per90(stats.aerial_duels_won, minutes),
+        aerial_duels_per90=rate(DerivedMetric.AERIAL_DUELS_PER90, stats.aerial_duels),
+        aerial_duels_won_per90=rate(DerivedMetric.AERIAL_DUELS_WON_PER90, stats.aerial_duels_won),
         aerial_duel_win_percentage=percentage(stats.aerial_duels_won, stats.aerial_duels),
         # -- Discipline and possession loss ----------------------------------
-        fouls_committed_per90=per90(stats.fouls_committed, minutes),
-        fouls_drawn_per90=per90(stats.fouls_drawn, minutes),
-        dispossessed_per90=per90(stats.dispossessed, minutes),
-        dribbled_past_per90=per90(stats.dribbled_past, minutes),
+        fouls_committed_per90=rate(DerivedMetric.FOULS_COMMITTED_PER90, stats.fouls_committed),
+        fouls_drawn_per90=rate(DerivedMetric.FOULS_DRAWN_PER90, stats.fouls_drawn),
+        dispossessed_per90=rate(DerivedMetric.DISPOSSESSED_PER90, stats.dispossessed),
+        dribbled_past_per90=rate(DerivedMetric.DRIBBLED_PAST_PER90, stats.dribbled_past),
         # -- Goalkeeping -----------------------------------------------------
-        saves_per90=per90(stats.saves, minutes),
-        inside_box_saves_per90=per90(stats.inside_box_saves, minutes),
-        goals_conceded_per90=per90(stats.goals_conceded, minutes),
+        saves_per90=rate(DerivedMetric.SAVES_PER90, stats.saves),
+        inside_box_saves_per90=rate(DerivedMetric.INSIDE_BOX_SAVES_PER90, stats.inside_box_saves),
+        goals_conceded_per90=rate(DerivedMetric.GOALS_CONCEDED_PER90, stats.goals_conceded),
         save_percentage=percentage(stats.saves, shots_faced),
         clean_sheet_percentage=percentage(stats.clean_sheets, stats.appearances),
     )

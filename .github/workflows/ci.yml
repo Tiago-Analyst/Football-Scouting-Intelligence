@@ -152,6 +152,19 @@ jobs:
         working-directory: .
         run: python -m pipelines.quality.config_availability --check
 
+      - name: Per-90 denominators still reproduce the provider
+        # The routing in app/analytics/denominators.py is a claim about
+        # evidence, and this is the evidence: for every player whose two minute
+        # figures differ, the provider's own published per-90 is reproduced by
+        # exactly one of them.
+        #
+        # Skipped when no snapshots are present, which is the normal state of a
+        # CI checkout - the report is committed and reviewed with the change
+        # that produces it. It runs where the snapshots exist, which is the
+        # pipeline and a developer's machine.
+        working-directory: .
+        run: python -m pipelines.footystats.denominators --check
+
       - name: FootyStats validation gate
         # Asserts the gate is still shut: no field mapping may exist without a
         # recorded response behind it. Runs with no API key, which is exactly

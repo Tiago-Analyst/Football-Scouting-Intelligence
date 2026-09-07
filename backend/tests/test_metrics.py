@@ -98,7 +98,12 @@ class TestMetricEnumStaysInSync:
             "source_player_id",
             "season_id",
             "competition_id",
+            # Both denominators, not metrics. `minutes` is the recorded figure
+            # most rates divide by; `playing_minutes` is time on the pitch,
+            # which is what goals, assists and goals conceded divide by. See
+            # `app.analytics.denominators`.
             "minutes",
+            "playing_minutes",
         }
         model_metrics = set(DerivedMetrics.model_fields) - identity_fields
         assert model_metrics == {m.value for m in DerivedMetric}

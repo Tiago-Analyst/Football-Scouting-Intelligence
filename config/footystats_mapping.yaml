@@ -65,7 +65,12 @@ metrics:
     response: league-players
     verified_on: 2026-08-29
     note: >
-      Season assists, consistent with assists_per_90_overall.
+      Season assists. DENOMINATOR: total / minutes_played_overall * 90 equals
+      the API's own assists_per_90_overall for 167 of 167 players whose two
+      minute figures differ by 45 minutes or more; recorded minutes matched
+      none of them. This is a top-level counter, not part of the detailed
+      feed, and it does not share that feed's denominator. See
+      docs/footystats_denominator_validation.md.
   blocks:
     field: detailed.blocks_total_overall
     response: player-stats
@@ -168,6 +173,10 @@ metrics:
     verified_on: 2026-08-29
     note: >
       Season goals including penalties; non_penalty_goals is derived from it.
+      DENOMINATOR: total / minutes_played_overall * 90 equals the API's own
+      goals_per_90_overall for 237 of 237 players whose two minute figures
+      differ by 45 minutes or more; recorded minutes matched none of them. See
+      docs/footystats_denominator_validation.md.
   goals_conceded:
     field: conceded_overall
     response: league-players
@@ -175,7 +184,12 @@ metrics:
     note: >
       Goals conceded while on the pitch. Named 'conceded' by the provider; the
       word 'goals' is absent from the field name, which is why automatic
-      matching missed it.
+      matching missed it. DENOMINATOR: total / minutes_played_overall * 90
+      equals the API's own conceded_per_90_overall for 741 of 741 players whose
+      two minute figures differ by 45 minutes or more; recorded minutes matched
+      none of them. Dividing by recorded minutes produced keepers conceding
+      thirty goals per ninety on loaded data. See
+      docs/footystats_denominator_validation.md.
   inside_box_saves:
     field: detailed.inside_box_saves_total_overall
     response: player-stats
