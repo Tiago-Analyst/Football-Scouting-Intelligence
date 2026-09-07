@@ -28,11 +28,13 @@ from app.core.config import get_settings
 from app.core.database import get_session_factory
 from app.core.logging import configure_logging, get_logger
 from app.models import (
+    BridgePlayerSource,
     DimCompetition,
     DimPlayer,
     FactDataQuality,
     FactMarketValue,
     FactPlayerSeasonStats,
+    FactTransfer,
 )
 from pipelines.quality.coverage import absent_metrics, impact_of_absence, metric_coverage
 
@@ -258,12 +260,138 @@ def integrity_checks(session: Session) -> list[Check]:
     ]
 
 
+def ownership_checks(session: Session) -> list[Check]:
+    """Whether every fact still belongs to a source that owns it.
+
+    WHY THIS EXISTS
+
+    A refresh replaces one provider's rows by purging that provider and loading
+    it again. The purge used to reach the statistics and leave market values
+    and transfers to the cascade from `dim_player` - which only fires for a
+    player one provider knows about. Once identity resolution merges a player
+    across providers, their `dim_player` row survives a purge and their market
+    history survived with it, so the refreshed valuations were inserted
+    alongside the stale ones.
+
+    That is fixed in `pipelines.load.load_providers.purge`. These checks are
+    the standing evidence that it stays fixed, because the symptom is invisible
+    from inside a single load: every row is well-formed, and only the shape of
+    the history is wrong.
+
+    WHAT IS DELIBERATELY NOT CHECKED
+
+    Several valuations for one player on several dates. That is a market
+    history, which is the entire point of the table. Only the same source
+    claiming the same player on the same date is a duplicate, and the unique
+    constraint already forbids it - this asserts the constraint is doing its
+    job rather than duplicating it.
+    """
+    checks: list[Check] = []
+
+    # -- Facts whose source no longer loads anything --------------------------
+    #
+    # A source with facts and no bridge rows is a purge that half-happened: the
+    # players it knew about are gone and its market history is not.
+    live_sources = set(session.scalars(select(BridgePlayerSource.source).distinct()).all())
+
+    for table, model in (
+        ("fact_market_value", FactMarketValue),
+        ("fact_transfer", FactTransfer),
+        ("fact_player_season_stats", FactPlayerSeasonStats),
+    ):
+        fact_sources = set(session.scalars(select(model.source).distinct()).all())
+        stranded = sorted(fact_sources - live_sources)
+        checks.append(
+            Check(
+                table,
+                "no_facts_from_a_source_that_loads_nothing",
+                _verdict(not stranded),
+                len(stranded),
+                (
+                    f"{', '.join(stranded)} has rows here and no player mappings, "
+                    "which is what a refresh that purged half of itself leaves behind"
+                    if stranded
+                    else f"sources: {', '.join(sorted(fact_sources)) or 'none'}"
+                ),
+            )
+        )
+
+    # -- Facts pointing at nobody --------------------------------------------
+    for table, model in (
+        ("fact_market_value", FactMarketValue),
+        ("fact_transfer", FactTransfer),
+    ):
+        orphans = (
+            session.scalar(
+                select(func.count())
+                .select_from(model)
+                .outerjoin(DimPlayer, model.player_id == DimPlayer.player_id)
+                .where(DimPlayer.player_id.is_(None))
+            )
+            or 0
+        )
+        checks.append(Check(table, "no_orphaned_player_ids", _verdict(orphans == 0), orphans))
+
+    # -- The same source claiming the same observation twice ------------------
+    #
+    # `uq_market_value_point` is (player, date, source), so this should be
+    # impossible. Checked anyway: a constraint dropped by a careless migration
+    # fails silently until something reads the data.
+    duplicate_values = (
+        session.scalar(
+            select(func.count()).select_from(
+                select(FactMarketValue.player_id)
+                .group_by(
+                    FactMarketValue.player_id,
+                    FactMarketValue.valued_on,
+                    FactMarketValue.source,
+                )
+                .having(func.count() > 1)
+                .subquery()
+            )
+        )
+        or 0
+    )
+    checks.append(
+        Check(
+            "fact_market_value",
+            "no_duplicate_same_source_valuation",
+            _verdict(duplicate_values == 0),
+            duplicate_values,
+            "several dates for one player is a history, not a duplicate; "
+            "this counts one source claiming one player on one date twice",
+        )
+    )
+
+    # -- A bridge row naming a player that is gone ----------------------------
+    dangling = (
+        session.scalar(
+            select(func.count())
+            .select_from(BridgePlayerSource)
+            .outerjoin(DimPlayer, BridgePlayerSource.player_id == DimPlayer.player_id)
+            .where(DimPlayer.player_id.is_(None))
+        )
+        or 0
+    )
+    checks.append(
+        Check(
+            "bridge_player_source",
+            "no_mapping_to_a_missing_player",
+            _verdict(dangling == 0),
+            dangling,
+        )
+    )
+
+    return checks
+
+
 def run(session: Session, *, source: str | None = None) -> list[Check]:
     return [
         *freshness_checks(session),
         *volume_checks(session),
         *coverage_checks(session, source=source),
         *integrity_checks(session),
+        *ownership_checks(session),
     ]
 
 

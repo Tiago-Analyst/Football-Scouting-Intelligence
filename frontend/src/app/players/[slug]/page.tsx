@@ -246,7 +246,10 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                   stands among every player evaluated for the same role. Roles weight
                   their components differently, so raw scores from two roles are not
                   directly comparable — the percentile is, and it is what the best role
-                  is chosen by. Neither is player quality.
+                  is chosen by. Metric Coverage, shown when it is below full, is the
+                  share of the role&rsquo;s configured weight backed by metrics the
+                  provider actually supplies; missing components are left out rather
+                  than counted as zero. None of the three is player quality.
                 </Tooltip>
               </span>
             }
@@ -278,6 +281,26 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                     ) : (
                       " · too few players evaluated for a standing"
                     )}
+                    {/* How much of the role's configured weight is actually
+                        backed by a metric the provider supplies. A role scored
+                        from 70% of its own definition is a different claim from
+                        one scored from all of it, and the two numbers to the
+                        left look identical either way. Shown only when it is
+                        below full, because "100%" on every row is a column
+                        nobody reads. */}
+                    {role.coverage !== null &&
+                    role.coverage !== undefined &&
+                    role.coverage < 1 ? (
+                      <>
+                        {" · "}
+                        <span
+                          className="text-warning"
+                          title="Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the score is built from what is available."
+                        >
+                          {Math.round(role.coverage * 100)}% metric coverage
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               ))

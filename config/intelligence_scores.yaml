@@ -142,13 +142,19 @@ scores:
 # as guessing a provider field: the number would look exactly as authoritative
 # as the eight defined scores while resting on nothing.
 #
-# The metrics needed are already available (`aerial_duel_win_percentage`,
-# `aerial_duels_won_per90`, `aerial_duels_per90`, plus height from the market
-# data), so this needs a decision rather than more work. A plausible starting
-# point, requiring sign-off before use:
+# It also needs metrics that do not exist. When this was written the three
+# aerial fields were assumed available; profiling the real API found that only
+# `aerial_duels_won` is populated. `aerial_duels` (attempts) is never supplied,
+# and `aerial_duel_win_percentage` is declared and left null, so two of the
+# three components sketched below cannot be computed at all - see
+# `docs/footystats_provider_status.md`, which is generated from the mapping.
+#
+# So this needs a definition from the specification AND a provider that
+# supplies the inputs, and currently has neither. The sketch is kept as a
+# record of the shape, not as something ready to switch on:
 #
 #   aerial_presence:
 #     components:
-#       aerial_duel_win_percentage: 50
-#       aerial_duels_won_per90: 35
-#       aerial_duels_per90: 15
+#       aerial_duel_win_percentage: 50   # UNAVAILABLE - declared, always null
+#       aerial_duels_won_per90: 35       # available
+#       aerial_duels_per90: 15           # UNAVAILABLE - never supplied

@@ -25,7 +25,6 @@ from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
-from app.schemas.canonical import position_group_name
 from app.schemas.api import (
     ComparisonContextOut,
     MarketValuePointOut,
@@ -43,6 +42,7 @@ from app.schemas.api import (
     SimilarPlayersResponse,
     TransferOut,
 )
+from app.schemas.canonical import position_group_name
 from app.services.analytics_service import AnalyticsView, PlayerRecord, get_analytics_view
 
 router = APIRouter(prefix="/api/v1", tags=["players"])
