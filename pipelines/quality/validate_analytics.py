@@ -43,6 +43,14 @@ import argparse
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # `app` is only importable once `main` has put the backend on the path, so
+    # the runtime imports live inside the functions that need them. Annotations
+    # are strings here (see `from __future__ import annotations` above), so
+    # this block is enough to name the type without importing it.
+    from app.analytics.metrics import DerivedMetric
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
@@ -105,19 +113,51 @@ class Validation:
         self.checks.append(check)
 
 
-def independent_per90(
-    total: float | None, recorded: int | None, minutes: int | None
-) -> float | None:
-    """A per-90 rate, computed here rather than asked for.
+def independent_denominator(
+    metric: DerivedMetric, recorded: int | None, minutes: int | None
+) -> int | None:
+    """Which minutes this metric divides by, resolved here.
 
-    The denominator is the minutes the statistics actually cover, falling back
-    to minutes played - which is the rule the canonical model states, and the
-    thing most worth re-checking, because getting it wrong inflates every rate
-    for the 13% of player-seasons whose detailed coverage is partial.
+    WHY THIS IS NOT ONE FIGURE
+
+    It used to be: recorded minutes for everything, falling back to minutes
+    played. That is the rule for the detailed feed and the wrong one for goals,
+    assists and goals conceded, which the provider computes over time on the
+    pitch - see `docs/footystats_denominator_validation.md`.
+
+    While the engine made the same mistake, this validator agreed with it, and
+    a validator that shares a defect with the thing it validates reports
+    nothing. It passed because the sampled players happened not to expose the
+    difference, which is worse than failing.
+
+    The routing table is shared deliberately. It is configuration, like the
+    role weights this module already reads, and it is backed by evidence
+    against real responses. What stays independent is the arithmetic below,
+    which is what the engine could get wrong.
     """
+    # Imported here, not at module scope: `app` only becomes importable once
+    # `main` has put the backend on the path.
+    from app.analytics.denominators import minutes_for
+
+    recorded_or_played = recorded if recorded is not None else minutes
+    played_or_recorded = minutes if minutes is not None else recorded
+    return minutes_for(
+        metric,
+        playing_minutes=played_or_recorded,
+        recorded_minutes=recorded_or_played,
+    )
+
+
+def independent_per90(
+    total: float | None,
+    recorded: int | None,
+    minutes: int | None,
+    metric: DerivedMetric,
+) -> float | None:
+    """A per-90 rate, computed here rather than asked for."""
     if total is None:
         return None
-    denominator = recorded if recorded is not None else minutes
+    denominator = independent_denominator(metric, recorded, minutes)
     if not denominator:
         return None
     return total / denominator * 90.0
@@ -277,7 +317,10 @@ def main(argv: list[str] | None = None) -> int:
             continue
         for metric in metrics_to_check:
             value = independent_per90(
-                getattr(stats, source_of[metric]), stats.recorded_minutes, stats.minutes
+                getattr(stats, source_of[metric]),
+                stats.recorded_minutes,
+                stats.minutes,
+                metric,
             )
             if value is None:
                 continue
@@ -337,11 +380,9 @@ def main(argv: list[str] | None = None) -> int:
 
         for metric in metrics_to_check:
             total = getattr(stats, source_of[metric])
-            mine = independent_per90(total, stats.recorded_minutes, stats.minutes)
+            mine = independent_per90(total, stats.recorded_minutes, stats.minutes, metric)
             theirs = getattr(record.metrics, metric.value, None)
-            denominator = (
-                stats.recorded_minutes if stats.recorded_minutes is not None else stats.minutes
-            )
+            denominator = independent_denominator(metric, stats.recorded_minutes, stats.minutes)
             validation.add(
                 Check(
                     player=name,

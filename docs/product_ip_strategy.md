@@ -88,15 +88,31 @@ the cheaper split is the one that survives.
 
 ## What is already true, and what would need doing
 
-**Already in place, so the move is not blocked:**
+**Already in place, so the move is not blocked** — and now asserted rather
+than believed. Each of these was true when this document was written, which is
+a weaker claim than it sounds: the whole point of a boundary is that it holds
+while nobody is watching it, and an import added to save a round trip would
+have broken this quietly. `frontend/tests/repository-split.test.mjs` runs the
+first four in CI.
 
-- The frontend holds no scoring logic. It renders what the API returns.
-- `API_BASE_URL` is server-side only; the browser has never known the API's
-  address.
-- No configuration file is imported by the frontend.
+- **The frontend imports nothing from outside itself.** No relative path
+  escapes its root; no `backend/`, `pipelines/` or `config/` module is reached.
+- **No configuration file is imported by it.** The role weights, score
+  compositions and similarity feature vectors are YAML the server reads.
+- **No scoring definition is reimplemented in it.** No component-weight map, no
+  coverage floor, no cosine similarity, no percentile arithmetic.
+- **The API's address never reaches the browser.** `API_BASE_URL` is
+  server-side only, and no `NEXT_PUBLIC_` variable carries an address, token or
+  secret. A separate test asserts no server secret reaches the client bundle.
 - Secrets are environment variables in both, and neither is committed.
 - The API returns results with their explanations, never definitions — so a
   backend that moved private would serve exactly the same responses.
+
+**What that means for the split.** Option B — public frontend, private backend
+— is technically available today rather than after preparatory work. The
+argument against it below is about the cost of maintaining a contract across a
+visibility boundary, not about whether the code is ready; that part is
+settled.
 
 **Would need doing:**
 
@@ -110,6 +126,12 @@ the cheaper split is the one that survives.
   chosen. It is 8,575 rows of names, dates of birth and nationalities of real
   people, and it is currently public. That is a separate problem from
   intellectual property and a more pressing one.
+- Decide what happens to the generated provider documentation. Files like
+  `docs/footystats_provider_status.md`, `docs/config_availability.md` and
+  `docs/footystats_denominator_validation.md` are the accumulated record of
+  what the provider actually supplies and how its arithmetic works — months of
+  profiling, written down. They read as documentation and are closer to the
+  proprietary list above than to the ordinary engineering below it.
 
 ## What not to do
 

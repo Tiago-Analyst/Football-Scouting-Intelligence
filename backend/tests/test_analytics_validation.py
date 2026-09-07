@@ -21,29 +21,52 @@ from pipelines.quality.validate_analytics import (
     independent_weighted,
 )
 
+from app.analytics.metrics import DerivedMetric
 from app.analytics.percentiles import percentile_of
 
 
 class TestPer90:
-    def test_it_divides_by_the_minutes_the_statistics_cover(self) -> None:
-        """Not minutes played. Where detailed coverage is partial - 13% of
-        player-seasons - using the wrong denominator understates every rate."""
-        assert independent_per90(10, 900, 1800) == pytest.approx(1.0)
+    """The validator's own arithmetic, which must not share the engine's bugs.
 
-    def test_it_falls_back_to_minutes_played(self) -> None:
-        assert independent_per90(10, None, 900) == pytest.approx(1.0)
+    It takes the metric now, because the denominator depends on it: the
+    provider divides its headline counters by minutes played and its detailed
+    feed by the minutes that feed records. This module used to divide
+    everything by the second, which is what the engine also did - so it agreed
+    with the defect it existed to catch, and reported nothing.
+    """
+
+    def test_a_detailed_metric_divides_by_the_minutes_the_statistics_cover(self) -> None:
+        """Not minutes played. Where detailed coverage is partial, using the
+        wrong denominator understates every rate built from that feed."""
+        assert independent_per90(10, 900, 1800, DerivedMetric.PASSES_PER90) == pytest.approx(1.0)
+
+    def test_a_headline_metric_divides_by_minutes_played(self) -> None:
+        """The half that was wrong. Same inputs, different metric, and the
+        answer must differ - if it does not, the routing is not being used."""
+        assert independent_per90(10, 900, 1800, DerivedMetric.GOALS_PER90) == pytest.approx(0.5)
+
+    def test_the_two_disagree_on_the_same_numbers(self) -> None:
+        """Stated directly, because this is the whole point of the change."""
+        detailed = independent_per90(10, 900, 1800, DerivedMetric.PASSES_PER90)
+        headline = independent_per90(10, 900, 1800, DerivedMetric.GOALS_PER90)
+        assert detailed != headline
+
+    def test_it_falls_back_when_a_provider_supplies_one_figure(self) -> None:
+        """Most providers do not distinguish the two, and nothing changes."""
+        assert independent_per90(10, None, 900, DerivedMetric.PASSES_PER90) == pytest.approx(1.0)
+        assert independent_per90(10, None, 900, DerivedMetric.GOALS_PER90) == pytest.approx(1.0)
 
     def test_an_absent_total_stays_absent(self) -> None:
         """Absent is not zero: a player with no recorded passes has no pass
         rate, and calling it 0.0 would rank them below everyone who played."""
-        assert independent_per90(None, 900, 900) is None
+        assert independent_per90(None, 900, 900, DerivedMetric.PASSES_PER90) is None
 
     def test_zero_minutes_yields_nothing_rather_than_dividing(self) -> None:
-        assert independent_per90(5, 0, 0) is None
+        assert independent_per90(5, 0, 0, DerivedMetric.PASSES_PER90) is None
 
     def test_a_genuine_zero_is_a_rate_of_zero(self) -> None:
         """Nought goals in 900 minutes is a measurement, not a gap."""
-        assert independent_per90(0, 900, 900) == pytest.approx(0.0)
+        assert independent_per90(0, 900, 900, DerivedMetric.GOALS_PER90) == pytest.approx(0.0)
 
 
 class TestPercentile:
