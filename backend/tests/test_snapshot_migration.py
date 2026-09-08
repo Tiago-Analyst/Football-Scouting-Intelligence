@@ -85,7 +85,8 @@ def projection_cleanup():  # type: ignore[no-untyped-def]
                         text("SELECT generation_id FROM fact_refresh_generation")
                     )
                 }
-        except Exception:  # noqa: BLE001 - no database is a normal state here
+        except Exception:
+            # No database configured is a normal state for these tests.
             return set()
 
     before = ids()
