@@ -19,6 +19,10 @@ import type { RefreshStatus } from "@/types/api";
  */
 export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
   const { current, published } = refresh;
+  // The heading followed the section, not the state, so a generation whose
+  // fetch had finished and was waiting on promotion was filed under "In
+  // progress" beneath a full progress bar — which reads as a stall.
+  const heading = current ? SECTION_HEADING[current.status] ?? "In progress" : null;
 
   return (
     <Card>
@@ -35,7 +39,7 @@ export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
         {current ? (
           <section className="space-y-3">
             <h3 className="text-[11px] font-semibold tracking-widest text-subtle uppercase">
-              In progress
+              {heading}
             </h3>
             <div className="grid gap-4 sm:grid-cols-3">
               <StatTile
@@ -64,6 +68,12 @@ export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
                 <> · last checkpoint {formatTimestamp(current.last_updated_at)}</>
               ) : null}
             </p>
+            {current.status !== "IN_PROGRESS" ? (
+              <p className="text-xs text-muted">
+                Fetching is finished. This generation replaces the published one below only
+                once it has been promoted, and the site serves the published one until then.
+              </p>
+            ) : null}
           </section>
         ) : (
           <p className="text-sm text-muted">
@@ -102,6 +112,13 @@ export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
     </Card>
   );
 }
+
+/** What the section above the progress bar is called, per generation status. */
+const SECTION_HEADING: Record<string, string> = {
+  IN_PROGRESS: "In progress",
+  COMPLETE: "Fetched, running checks",
+  VALIDATED: "Checked, awaiting publication",
+};
 
 function toneFor(state: string): "neutral" | "warning" {
   return state === "Failed" ? "warning" : "neutral";

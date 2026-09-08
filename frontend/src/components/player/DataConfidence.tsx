@@ -18,6 +18,11 @@ import type { Sample } from "@/types/api";
  * first answers how volatile a per-90 is; the second answers how much of the
  * player's football the provider looked at closely.
  *
+ * Coverage bears on the rates built from the detailed feed — passing,
+ * tackling, shooting, npxG, xA — because those divide by the recorded count.
+ * Goals, assists and goals conceded divide by minutes played and are unaffected
+ * by it.
+ *
  * The card used to run them together in one list, and the sample band was
  * itself computed from recorded minutes - so a player with 1,200 minutes
  * played and 300 recorded was labelled a low sample, which is a statement

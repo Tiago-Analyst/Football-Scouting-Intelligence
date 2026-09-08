@@ -63,9 +63,11 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 GENERATIONS_DIR = REPO_ROOT / "data" / "raw" / "footystats" / "generations"
@@ -191,6 +193,26 @@ class Generation:
         A roster written once when the file was created cannot grow, and a
         league's roster does change mid-season - so a generation that fetched
         its roster in September would never discover a January signing.
+
+        THE FILE FORMAT, AND WHY IT CHANGED
+        -----------------------------------
+
+        It held a list of player ids, which was enough to count what was
+        expected and not enough to be the source of truth. The loader needs
+        the whole record - the roster carries `club_team_id`, which is where a
+        player's club comes from - so it went on reading the snapshot's
+        immutable header, and the January signing this file exists to capture
+        was expected, fetched, and then dropped on the way in because the
+        header had never heard of them.
+
+        So it holds the records now:
+
+            {"players": [{...}, {...}]}
+
+        A bare list is still read, as the ids of a generation written before
+        this. Those generations keep working and simply cannot answer the
+        richer question, which is the honest outcome for data that was never
+        stored.
         """
         return self.directory / f"season-{season_id}.roster.json"
 
@@ -227,32 +249,62 @@ class Generation:
             self.metadata.failure_reason = reason
         self.save()
 
-    def record_roster(self, season_id: str, player_ids: list[str]) -> None:
+    def record_roster(self, season_id: str, players: Sequence[Mapping[str, Any] | str]) -> None:
         """Store this generation's expected players for one competition.
+
+        Accepts the provider's roster records, or bare ids for a caller that
+        has nothing else. Records are what make this file usable as the
+        source of truth; ids alone leave the loader reading the snapshot
+        header, which cannot grow.
 
         Called on every visit, not only the first. A roster fetched again
         mid-generation can only grow the expected universe: a player who has
         left is still a player whose season happened, and dropping them here
         would silently shrink the thing being measured.
-        """
-        path = self.roster_path(season_id)
-        known: list[str] = []
-        if path.exists():
-            try:
-                parsed = json.loads(path.read_text(encoding="utf-8"))
-                if isinstance(parsed, list):
-                    known = [str(p) for p in parsed]
-            except (OSError, json.JSONDecodeError):
-                known = []
 
-        merged = list(dict.fromkeys([*known, *(str(p) for p in player_ids)]))
-        path.write_text(json.dumps(merged, indent=0), encoding="utf-8")
+        A record for a player already present replaces the earlier one - it is
+        the same player, described more recently, and a mid-season transfer is
+        exactly the update worth keeping.
+        """
+        merged: dict[str, dict[str, Any] | None] = {
+            player_id: record for player_id, record in self._stored_roster(season_id)
+        }
+        for entry in players:
+            if isinstance(entry, Mapping):
+                player_id = entry.get("id")
+                if player_id is None:
+                    continue
+                merged[str(player_id)] = dict(entry)
+            else:
+                merged.setdefault(str(entry), None)
+
+        self.roster_path(season_id).write_text(
+            json.dumps(
+                {
+                    # A player stored as a bare id stays a bare string. An
+                    # `{"id": ...}` stub would read back as a roster record and
+                    # carry none of what one is read for, which is worse than
+                    # admitting the record was never captured.
+                    "players": [
+                        record if record is not None else player_id
+                        for player_id, record in merged.items()
+                    ]
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
 
         if season_id not in self.metadata.competitions_expected:
             self.metadata.competitions_expected.append(season_id)
         self._recount()
 
-    def expected_players(self, season_id: str) -> list[str]:
+    def _stored_roster(self, season_id: str) -> list[tuple[str, dict[str, Any] | None]]:
+        """What is on disk, in insertion order, in either file format.
+
+        `None` as the record means "an id was stored and nothing else", which
+        is what a generation written before rosters carried records holds.
+        """
         path = self.roster_path(season_id)
         if not path.exists():
             return []
@@ -260,7 +312,32 @@ class Generation:
             parsed = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return []
-        return [str(p) for p in parsed] if isinstance(parsed, list) else []
+
+        if isinstance(parsed, list):
+            return [(str(entry), None) for entry in parsed]
+        if isinstance(parsed, dict):
+            rows = parsed.get("players")
+            if isinstance(rows, list):
+                stored: list[tuple[str, dict[str, Any] | None]] = []
+                for row in rows:
+                    if isinstance(row, Mapping) and row.get("id") is not None:
+                        stored.append((str(row["id"]), dict(row)))
+                    elif isinstance(row, str):
+                        stored.append((row, None))
+                return stored
+        return []
+
+    def expected_players(self, season_id: str) -> list[str]:
+        return [player_id for player_id, _ in self._stored_roster(season_id)]
+
+    def roster_records(self, season_id: str) -> list[dict[str, Any]]:
+        """The roster as the provider sent it, for whoever needs more than ids.
+
+        Empty for a generation whose roster was stored as ids alone. Empty
+        rather than reconstructed: an `{"id": ...}` stub would look like a
+        roster record and carry none of what one is read for.
+        """
+        return [record for _, record in self._stored_roster(season_id) if record is not None]
 
     def _recount(self) -> None:
         total = 0

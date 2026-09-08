@@ -323,7 +323,17 @@ def ingest_competition(
         # `record_roster` merges rather than replaces, so a player who has
         # since left the club stays expected - their season happened, and
         # dropping them would quietly shrink the thing being measured.
-        generation.record_roster(season_id, player_ids)
+        #
+        # The records, not the ids. The roster carries `club_team_id`, which is
+        # where a player's club comes from, so a file of ids left the loader
+        # reading the snapshot's immutable header instead - and the January
+        # signing this file exists to capture was expected, fetched, and then
+        # dropped on the way in because the header had never heard of them.
+        wanted = set(player_ids)
+        generation.record_roster(
+            season_id,
+            [row for row in roster if row.get("id") is not None and str(row["id"]) in wanted],
+        )
         player_ids = generation.expected_players(season_id) or player_ids
 
     result.players = len(player_ids)

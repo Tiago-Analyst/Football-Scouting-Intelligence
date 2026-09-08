@@ -116,7 +116,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
         <Card>
           <CardHeader
             title="Detailed statistics coverage"
-            description="The provider records detailed events for only some matches, and every per-90 divides by those minutes rather than all minutes played. This is the mean share across every loaded player-season carrying both figures."
+            description="The provider records detailed events for only some matches, and the rates built from those events — passing, tackling, shooting, npxG, xA — divide by the minutes it recorded rather than by all minutes played. Goals, assists and goals conceded are top-level counters and divide by minutes played. This is the mean share between the two counts across every loaded player-season carrying both."
           />
           <CardBody>
             {report.average_detailed_coverage_pct !== null ? (

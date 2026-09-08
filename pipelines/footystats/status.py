@@ -18,10 +18,17 @@ WHAT THE STATUSES MEAN
 ----------------------
 
 VERIFIED     Mapped, and confirmed arithmetically against real responses:
-             total / recorded_minutes * 90 reproduced the provider's own per-90
-             field in every sampled record. That is what establishes a field
-             named `_total_overall` is a season total and not a rate - a
-             question no amount of reading the name settles.
+             total / minutes * 90 reproduced the provider's own per-90 field in
+             every sampled record, for whichever of the two minute counts the
+             provider itself used. That is what establishes a field named
+             `_total_overall` is a season total and not a rate - a question no
+             amount of reading the name settles.
+
+             Which count that is varies by metric, and the Denominator column
+             reads it from `app.analytics.denominators` rather than restating
+             it. This document said `recorded_minutes` throughout, which was
+             the engine's behaviour before the denominators were tested and is
+             wrong for goals, assists and goals conceded.
 
 AVAILABLE    Mapped and observed in real responses, named unambiguously, but
              with no per-90 counterpart to check it against. Counts and
@@ -55,12 +62,29 @@ OUTPUT = REPO_ROOT / "docs" / "footystats_provider_status.md"
 ARITHMETIC_MARKER = "Verified arithmetically"
 
 #: Metrics that are not rates, so no per-90 denominator applies to them.
+#:
+#: `penalties_taken` and `penalties_saved` are here because the model carries
+#: no per-90 for either: they exist to separate penalty goals from open play
+#: and to describe a goalkeeper's penalty record, and a rate of penalties per
+#: ninety minutes would describe how often a referee pointed at the spot.
 NOT_A_RATE = {
     "appearances",
     "starts",
     "minutes",
     "recorded_minutes",
     "clean_sheets",
+    "penalties_taken",
+    "penalties_saved",
+}
+
+#: Mapping metrics whose per-90 is not simply `<metric>_per90`.
+#:
+#: One entry, and it earns its place: the provider counts `passes_completed`
+#: and the model publishes `completed_passes_per90`. A silent miss here would
+#: fall through to the default and print the wrong denominator, so
+#: `derived_metric_for` raises instead and the test suite catches it.
+DERIVED_NAME_ALIASES = {
+    "passes_completed": "completed_passes_per90",
 }
 
 
@@ -97,12 +121,49 @@ def stamp(value: Any) -> str:
     return str(value) if value else "-"
 
 
+def derived_metric_for(metric: str) -> str:
+    """The model's per-90 name for a mapping metric.
+
+    Raises rather than guessing. A metric that is a rate and has no per-90 in
+    the model is either a naming drift or a metric nobody wired up, and both
+    are worth stopping for - the alternative is a generated document quietly
+    describing a denominator the engine does not use.
+    """
+    from app.analytics.metrics import DerivedMetric
+
+    known = {m.value for m in DerivedMetric}
+    candidate = DERIVED_NAME_ALIASES.get(metric, f"{metric}_per90")
+    if candidate not in known:
+        raise LookupError(
+            f"{metric!r} is treated as a rate but the model has no {candidate!r}. "
+            f"Add it to NOT_A_RATE if it is not a rate, or to DERIVED_NAME_ALIASES "
+            f"if the model calls it something else."
+        )
+    return candidate
+
+
 def denominator_for(metric: str, field: str) -> str:
+    """Which minute count this metric's per-90 divides by, per the engine.
+
+    Read from `app.analytics.denominators` rather than stated here. This
+    column used to say `recorded_minutes` for every row, which was the engine's
+    behaviour before the denominators were tested against the provider's own
+    published per-90 figures - and wrong for goals, assists and goals conceded,
+    which divide by minutes played.
+
+    A generated document restating a rule it does not read is the drift this
+    whole module exists to prevent, so it reads it.
+    """
+    from app.analytics.denominators import Denominator
+    from app.analytics.denominators import denominator_for as engine_denominator
+
     if metric in NOT_A_RATE:
         return "not a rate"
     if field.endswith("_percentage_overall"):
         return "provider ratio"
-    return "`recorded_minutes`"
+
+    chosen = engine_denominator(derived_metric_for(metric))
+    return "`minutes`" if chosen is Denominator.PLAYING else "`recorded_minutes`"
 
 
 def build_rows(mapping: dict[str, Any]) -> list[Row]:
@@ -215,8 +276,18 @@ def render(mapping: dict[str, Any], rows: list[Row]) -> str:
         "minutes played understates every rate in proportion to the gap - measured at",
         "27% of the true value in the worst sampled case.",
         "",
-        "So `recorded_minutes` is the per-90 denominator throughout, and `minutes` is",
-        "time on the pitch. The product reports both, and the share between them as",
+        "Which of the two a per-90 divides by is not a choice made here. The provider",
+        "publishes its own per-90 for some metrics, so whichever denominator reproduces",
+        "that figure is the one it used, and the evidence was unanimous wherever it",
+        "existed: goals, assists and goals conceded divide by `minutes`; the detailed",
+        "counts - passes, tackles, shots, npxG, xA - divide by `recorded_minutes`.",
+        "",
+        "The Denominator column below is read from `app.analytics.denominators`, the",
+        "same table the engine divides by, so this document cannot describe arithmetic",
+        "the product does not perform. `docs/footystats_denominator_validation.md`",
+        "records the evidence metric by metric.",
+        "",
+        "The product reports both minute counts, and the share between them as",
         "detailed-stat coverage.",
         "",
         "## Every metric",

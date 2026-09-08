@@ -191,12 +191,14 @@ export interface Sample {
   /** Time on the pitch. */
   minutes: number | null;
   /**
-   * The minutes the provider's detailed counts describe - the denominator of
-   * every per-90 here. Null when the provider said nothing, which is not the
-   * same as nought.
+   * The minutes the provider's detailed counts describe, and the denominator
+   * of the rates built from them — passing, tackling, shooting, npxG, xA.
+   * Not of every per-90: goals, assists and goals conceded are top-level
+   * counters and divide by `minutes`, which is what the provider's own
+   * published per-90 figures for them reproduce against.
+   * Null when the provider said nothing, which is not the same as nought.
    */
   recorded_minutes: number | null;
-  /** recorded / played, as a percentage. Null when it cannot be computed. */
   /** recorded / played as a percentage, capped at 100 for display. */
   detailed_coverage_pct: number | null;
   /** The uncapped ratio. May exceed 100; for data quality, not for display. */

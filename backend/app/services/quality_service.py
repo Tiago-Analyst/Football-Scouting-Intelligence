@@ -408,6 +408,16 @@ class GenerationSummary:
 
 @dataclass(frozen=True)
 class RefreshStatus:
+    """What the refresh is doing, and what the site is actually serving.
+
+    Two generations, and the distance between them is the point. `current` is
+    the one being worked on and `published` is the one a reader is looking at;
+    they are different objects until a promotion makes them the same, and a
+    panel showing only one of them cannot answer "why is this still last
+    week's figure".
+    """
+
+    #: Fetching | Validating | Ready to publish | Failed | Idle.
     state: str
     published: GenerationSummary | None
     current: GenerationSummary | None
@@ -434,11 +444,23 @@ def refresh_status(session: Session) -> RefreshStatus | None:
         return None
 
     published = next((r for r in reversed(rows) if r.status == "PUBLISHED"), None)
-    current = next((r for r in reversed(rows) if r.status in {"IN_PROGRESS", "COMPLETE"}), None)
+    # VALIDATED belongs here as much as the other two. It means the fetch
+    # finished, the checks passed, and promotion has not happened yet - a
+    # generation genuinely waiting to be published. Leaving it out reported
+    # "Idle" over a refresh that was one step from the site, which is the
+    # state a reader most wants to see named.
+    current = next(
+        (r for r in reversed(rows) if r.status in {"IN_PROGRESS", "COMPLETE", "VALIDATED"}),
+        None,
+    )
 
     state = "Idle"
     if current is not None:
-        state = "In progress" if current.status == "IN_PROGRESS" else "Validating"
+        state = {
+            "IN_PROGRESS": "Fetching",
+            "COMPLETE": "Validating",
+            "VALIDATED": "Ready to publish",
+        }[current.status]
     elif rows[-1].status == "FAILED":
         state = "Failed"
 

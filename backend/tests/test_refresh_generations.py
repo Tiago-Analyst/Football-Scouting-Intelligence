@@ -554,13 +554,49 @@ class TestTheDatabaseProjection:
 
         status = svc.refresh_status(db_session)
         assert status is not None
-        assert status.state == "In progress"
+        assert status.state == "Fetching"
         assert status.current is not None
         # Its own generation, not whatever else the database happens to hold.
         # A published row from a real migration is legitimate state this test
         # does not own.
         assert status.current.generation_id == generation.generation_id
         assert status.current.completion_pct == pytest.approx(68.0)
+
+    def test_a_validated_generation_is_shown_as_waiting_rather_than_idle(
+        self,
+        store: GenerationStore,
+        db_session,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """The gap that reported "Idle" over a refresh one step from the site.
+
+        VALIDATED means the fetch finished and every check passed; only the
+        promotion is left. A panel calling that idle answers "why is this still
+        last week's figure" with silence.
+        """
+        from pipelines.footystats.publish_status import record
+        from sqlalchemy import text
+
+        from app.services import quality_service as svc
+
+        generation = store.resolve(resume=True, now=at(4))
+        generation.record_roster("16504", [str(i) for i in range(100)])
+        generation.refresh_counts(completed=100, failed=[])
+        generation.save()
+        record(generation)
+
+        db_session.execute(
+            text(
+                "UPDATE fact_refresh_generation SET status = 'VALIDATED' WHERE generation_id = :g"
+            ),
+            {"g": generation.generation_id},
+        )
+        db_session.flush()
+
+        status = svc.refresh_status(db_session)
+        assert status is not None
+        assert status.state == "Ready to publish"
+        assert status.current is not None
+        assert status.current.generation_id == generation.generation_id
 
     def test_nothing_recorded_means_no_panel(self, db_session) -> None:  # type: ignore[no-untyped-def]
         """Rather than an empty progress bar implying a stalled refresh."""
@@ -571,3 +607,83 @@ class TestTheDatabaseProjection:
         db_session.execute(text("DELETE FROM fact_refresh_generation"))
         db_session.flush()
         assert svc.refresh_status(db_session) is None
+
+
+class TestTheRosterHoldsRecordsRatherThanIds:
+    """Ids were enough to count the universe and not enough to be its record.
+
+    The loader needs the whole row - the roster carries `club_team_id`, which
+    is where a player's club comes from - so a file of ids left it reading the
+    snapshot's immutable header instead, and the mid-season signing this file
+    exists to capture was expected, fetched, and dropped on the way in.
+    """
+
+    def test_the_records_survive_a_round_trip(self, store: GenerationStore) -> None:
+        generation = store.create(now=at(1))
+        generation.record_roster(
+            "17146",
+            [
+                {"id": 1, "known_as": "First", "club_team_id": 10},
+                {"id": 2, "known_as": "Second", "club_team_id": 11},
+            ],
+        )
+
+        assert generation.expected_players("17146") == ["1", "2"]
+        assert generation.roster_records("17146") == [
+            {"id": 1, "known_as": "First", "club_team_id": 10},
+            {"id": 2, "known_as": "Second", "club_team_id": 11},
+        ]
+
+    def test_a_second_visit_adds_the_new_players_and_keeps_the_old(
+        self, store: GenerationStore
+    ) -> None:
+        """A player who has left is still a player whose season happened."""
+        generation = store.create(now=at(1))
+        generation.record_roster("17146", [{"id": 1, "known_as": "Departed"}])
+        generation.record_roster("17146", [{"id": 2, "known_as": "January Signing"}])
+
+        assert generation.expected_players("17146") == ["1", "2"]
+        assert generation.metadata.total_expected_players == 2
+
+    def test_a_player_described_again_is_described_by_the_newer_record(
+        self, store: GenerationStore
+    ) -> None:
+        """A mid-season transfer is exactly the update worth keeping."""
+        generation = store.create(now=at(1))
+        generation.record_roster("17146", [{"id": 1, "known_as": "Mover", "club_team_id": 10}])
+        generation.record_roster("17146", [{"id": 1, "known_as": "Mover", "club_team_id": 20}])
+
+        assert generation.roster_records("17146") == [
+            {"id": 1, "known_as": "Mover", "club_team_id": 20}
+        ]
+        assert generation.metadata.total_expected_players == 1, "still one player"
+
+    def test_bare_ids_are_still_accepted(self, store: GenerationStore) -> None:
+        """A caller with nothing else - and every test written before this."""
+        generation = store.create(now=at(1))
+        generation.record_roster("17146", ["7", "8"])
+
+        assert generation.expected_players("17146") == ["7", "8"]
+        assert generation.roster_records("17146") == [], "nothing was stored to return"
+
+    def test_a_roster_file_of_ids_is_still_read(self, store: GenerationStore) -> None:
+        """The old file format, from a generation already on disk.
+
+        It keeps working and simply cannot answer the richer question, which is
+        the honest outcome for data that was never stored.
+        """
+        generation = store.create(now=at(1))
+        generation.roster_path("17146").write_text('["4", "5", "6"]', encoding="utf-8")
+
+        assert generation.expected_players("17146") == ["4", "5", "6"]
+        assert generation.roster_records("17146") == []
+
+    def test_a_record_without_an_id_is_skipped_rather_than_counted(
+        self, store: GenerationStore
+    ) -> None:
+        """It cannot be fetched, so counting it would make the generation
+        permanently incomplete."""
+        generation = store.create(now=at(1))
+        generation.record_roster("17146", [{"id": 1}, {"known_as": "No id"}])
+
+        assert generation.expected_players("17146") == ["1"]
