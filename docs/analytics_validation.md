@@ -8,9 +8,9 @@ Every figure below was rebuilt from the raw season totals in
 compared with what the engines produced. A check that asked the same
 code the same question would only prove the code is deterministic.
 
-**174 figures recomputed across 12 players. 0 disagreed.**
+**123 figures recomputed across 8 players. 0 disagreed.**
 
-123 of those compared an actual number on both
+101 of those compared an actual number on both
 sides. The rest are both sides agreeing a figure cannot be computed - a
 correct result, but one that says they agree about absence rather than
 about arithmetic, so it is counted separately.
@@ -142,54 +142,3 @@ about arithmetic, so it is counted separately.
 | Ashley Westwood (DM) | `ball_winning_midfielder` | role | 29.9479 | 29.9479 | 4 of 6 components (1 of them scores), weights renormalised over 80 of 100 |
 | Ashley Westwood (DM) | `deep_lying_playmaker` | role | 83.9286 | 83.9286 | 5 of 6 components, weights renormalised over 70 of 100 |
 | Ashley Westwood (DM) | `box_to_box_midfielder` | role | 42.7807 | 42.7807 | 7 of 8 components, weights renormalised over 85 of 100 |
-| Chang-geun Lee (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2250 * 90 |
-| Chang-geun Lee (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 17 equal of 17 |
-| Chang-geun Lee (GK) | `passes_per90` | per90 | 11.2400 | 11.2400 | 281 / 2250 * 90 |
-| Chang-geun Lee (GK) | `passes_per90 percentile` | percentile | 53.5714 | 53.5714 | 7 below + 1 equal of 14 |
-| Chang-geun Lee (GK) | `duels_won_per90` | per90 | 0.2000 | 0.2000 | 5 / 2250 * 90 |
-| Chang-geun Lee (GK) | `duels_won_per90 percentile` | percentile | 53.5714 | 53.5714 | 7 below + 1 equal of 14 |
-| Chang-geun Lee (GK) | `tackles_per90` | per90 | - | - | None / 2250 * 90 |
-| Chang-geun Lee (GK) | `dispossessed_per90` | per90 | - | - | None / 2250 * 90 |
-| Chang-geun Lee (GK) | `ball_progression` | score | - | - | coverage 40% below the required 100% |
-| Chang-geun Lee (GK) | `ball_security` | score | - | - | coverage 75% below the required 100% |
-| Chang-geun Lee (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
-| Chang-geun Lee (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
-| Chang-geun Lee (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
-| Chang-geun Lee (GK) | `one_v_one_threat` | score | 23.7449 | 23.7449 | 3 of 3 components, weights renormalised over 100 of 100 |
-| Chang-geun Lee (GK) | `goal_threat` | score | - | - | coverage 55% below the required 100% |
-| Chang-geun Lee (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Chang-geun Lee (GK) | `shot_stopper` | role | 49.9790 | 49.9790 | 4 of 4 components, weights renormalised over 100 of 100 |
-| Dong-jun Kim (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2250 * 90 |
-| Dong-jun Kim (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 17 equal of 17 |
-| Dong-jun Kim (GK) | `passes_per90` | per90 | 10.2400 | 10.2400 | 256 / 2250 * 90 |
-| Dong-jun Kim (GK) | `passes_per90 percentile` | percentile | 25.0000 | 25.0000 | 3 below + 1 equal of 14 |
-| Dong-jun Kim (GK) | `duels_won_per90` | per90 | 0.2800 | 0.2800 | 7 / 2250 * 90 |
-| Dong-jun Kim (GK) | `duels_won_per90 percentile` | percentile | 82.1429 | 82.1429 | 11 below + 1 equal of 14 |
-| Dong-jun Kim (GK) | `tackles_per90` | per90 | - | - | None / 2250 * 90 |
-| Dong-jun Kim (GK) | `dispossessed_per90` | per90 | - | - | None / 2250 * 90 |
-| Dong-jun Kim (GK) | `ball_progression` | score | - | - | coverage 20% below the required 100% |
-| Dong-jun Kim (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
-| Dong-jun Kim (GK) | `chance_creation` | score | - | - | coverage 50% below the required 100% |
-| Dong-jun Kim (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
-| Dong-jun Kim (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
-| Dong-jun Kim (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
-| Dong-jun Kim (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
-| Dong-jun Kim (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Dong-jun Kim (GK) | `shot_stopper` | role | 73.3824 | 73.3824 | 4 of 4 components, weights renormalised over 100 of 100 |
-| Jong-Bum Baek (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2250 * 90 |
-| Jong-Bum Baek (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 17 equal of 17 |
-| Jong-Bum Baek (GK) | `passes_per90` | per90 | 12.6000 | 12.6000 | 315 / 2250 * 90 |
-| Jong-Bum Baek (GK) | `passes_per90 percentile` | percentile | 67.8571 | 67.8571 | 9 below + 1 equal of 14 |
-| Jong-Bum Baek (GK) | `duels_won_per90` | per90 | 0.2400 | 0.2400 | 6 / 2250 * 90 |
-| Jong-Bum Baek (GK) | `duels_won_per90 percentile` | percentile | 67.8571 | 67.8571 | 9 below + 1 equal of 14 |
-| Jong-Bum Baek (GK) | `tackles_per90` | per90 | - | - | None / 2250 * 90 |
-| Jong-Bum Baek (GK) | `dispossessed_per90` | per90 | - | - | None / 2250 * 90 |
-| Jong-Bum Baek (GK) | `ball_progression` | score | - | - | coverage 35% below the required 100% |
-| Jong-Bum Baek (GK) | `ball_security` | score | - | - | coverage 55% below the required 100% |
-| Jong-Bum Baek (GK) | `chance_creation` | score | - | - | coverage 85% below the required 100% |
-| Jong-Bum Baek (GK) | `defensive_activity` | score | - | - | coverage 15% below the required 100% |
-| Jong-Bum Baek (GK) | `duel_dominance` | score | - | - | coverage 70% below the required 100% |
-| Jong-Bum Baek (GK) | `one_v_one_threat` | score | - | - | coverage 20% below the required 100% |
-| Jong-Bum Baek (GK) | `goal_threat` | score | - | - | coverage 45% below the required 100% |
-| Jong-Bum Baek (GK) | `finishing` | score | - | - | coverage 55% below the required 100% |
-| Jong-Bum Baek (GK) | `shot_stopper` | role | 28.8235 | 28.8235 | 4 of 4 components, weights renormalised over 100 of 100 |

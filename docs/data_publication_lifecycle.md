@@ -19,6 +19,13 @@ earned the right to.
   COMPLETE       every expected player is on disk
         |
         v
+  SEED STAGING   `analytics_staging` rebuilt from *current* production
+        |        <-- without this, promoting a FootyStats refresh would
+        |            publish a universe with no Transfermarkt in it
+        v
+  PURGE          only the refreshing provider's rows are removed
+        |
+        v
   STAGING LOAD + VERIFY   into `analytics_staging`, in one transaction
         |                 <-- any check fails, the transaction rolls back
         v
@@ -28,7 +35,9 @@ earned the right to.
   PRUNE, DATA QUALITY, ANALYTICS VALIDATION   against staging
         |                 <-- a figure that does not reproduce stops the run
         v
-  PROMOTE        three schema renames, one transaction
+  PROMOTE        three schema renames, one transaction, and in the same
+        |        transaction: a `fact_source_publication` row and the
+        |        generation moving to PUBLISHED
         |        <-- the first and only moment readers are affected
         v
   ANALYTICS RELOAD     the API rebuilds its in-memory view
@@ -39,6 +48,47 @@ earned the right to.
         v
   VISIBLE TO READERS
 ```
+
+### Why staging is seeded rather than inherited
+
+Production holds two providers and a refresh replaces one. Staging was empty,
+so a FootyStats refresh would have loaded performance data into nothing and
+promoted it — and production would have become a universe with 79,800 market
+values and 34,321 transfers missing. Silently, because the result is internally
+consistent and simply has no Transfermarkt in it.
+
+Letting the swap leave the previous production in staging is not a fix either.
+It is correct exactly once. Refresh FootyStats to F2 and publish, then refresh
+Transfermarkt from that staging, and production becomes `F1 + T2` — the one
+combination that must never exist. Seeding from *current* production is what
+makes each refresh start from the last one's result.
+
+## Three timestamps, and none of them is the others
+
+A reader asking "how old is this?" is asking about one of these, and answering
+with a different one is the failure this section exists to name.
+
+| Recorded in | Means | Shown as |
+| --- | --- | --- |
+| `fact_data_quality.executed_at` | the automated checks ran | "Checked" |
+| `fact_source_load.loaded_at` | a refresh loaded this source **into staging** | operational only |
+| `fact_source_publication.published_at` | this source's data **reached readers** | "Data published" |
+
+The middle one stopped meaning what it used to mean the day staging arrived. A
+refresh that loads at 10:00 and fails identity resolution at 10:20 leaves
+production serving yesterday and a load row stamped 10:00 — and the site footer,
+which read that ledger, announced 10:00 on every page.
+
+The publication row is written inside the promotion transaction, so it cannot
+exist for a dataset that never reached production and cannot be missing for one
+that did. A rollback deletes it: a rollback really does un-publish, and the
+previous row is true again. The load ledger keeps its own meaning and answers
+"did the pipeline run" on `/health`.
+
+A promotion writes a publication row for **one** source — the provider that was
+refreshed, named by `--source`. Publishing a Transfermarkt refresh must not
+restamp FootyStats: the performance figures in that dataset are the ones
+published a fortnight ago.
 
 ## Where "visible" actually happens
 
