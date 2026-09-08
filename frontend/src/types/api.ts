@@ -144,7 +144,12 @@ export interface Score {
   coverage: number;
   components: ScoreComponent[];
   missing: string[];
+  /** Hand-written, and qualitative only: limits no report can derive. */
   caveat: string | null;
+  /** Roles only. What was missing, generated from what was actually missing. */
+  availability_note?: string | null;
+  /** The two above joined, so they cannot be shown apart or out of order. */
+  explanation?: string | null;
   /**
    * Roles only. Where the raw score stands among every player evaluated for
    * this same role — the comparable figure, and what the best role is chosen

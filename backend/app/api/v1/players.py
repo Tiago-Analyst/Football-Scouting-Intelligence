@@ -186,6 +186,10 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
         ],
         missing=[metric_label(m) for m in score.missing],
         caveat=score.caveat,
+        # Roles only; intelligence scores carry neither. `getattr` keeps one
+        # serialiser for both rather than two that can disagree.
+        availability_note=getattr(score, "availability_note", None),
+        explanation=getattr(score, "explanation", None),
         # Roles carry a standing within their own distribution; intelligence
         # scores do not, and getattr keeps one serialiser for both rather than
         # two that can disagree.

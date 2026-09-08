@@ -168,8 +168,16 @@ class TestImpactOfAbsence:
             assert classify_role_coverage(available) is RoleCoverage.LIMITED, (
                 f"{key} would be presented as a full-confidence role"
             )
-            assert role.caveat, f"{key} is produced with no caveat explaining what is missing"
-            assert "LIMITED COVERAGE" in role.caveat
+            assert role.caveat, f"{key} is produced with no caveat at all"
+            # The caveat is deliberately qualitative now. What is missing, and
+            # how much weight it carried, is generated per player from what was
+            # actually missing - see `RoleScore.availability_note`. Asserting a
+            # hand-written percentage here would re-create the staleness that
+            # change removed.
+            assert "%" not in role.caveat, (
+                f"{key} states a quantitative availability fact by hand, which is "
+                f"exactly what went stale before"
+            )
 
     def test_an_unused_metric_disables_nothing(self) -> None:
         impact = impact_of_absence({CanonicalMetric.STARTS})

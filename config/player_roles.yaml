@@ -89,14 +89,10 @@ roles:
     # original coverage travels separately so nobody mistakes the two.
     min_coverage: 0.59
     caveat: >-
-      LIMITED COVERAGE. Computed from 60% of this role's configured weight.
-      Progressive passes (30%) are declared by the performance provider and
-      never populated; aerial duel win percentage (10%) cannot be derived
-      because the provider reports aerial duels won but not attempted.
       Progression is the defining component of this role, so read this as
       passing volume and accuracy from a centre-back rather than as measured
-      ball progression. It is not comparable in confidence with a role scored
-      from its full definition.
+      ball progression. It is not comparable in confidence with a role
+      scored from its full definition.
 
   defensive_stopper:
     label: Defensive Stopper
@@ -116,12 +112,11 @@ roles:
   # -- Full-back / wing-back ----------------------------------------------
     min_coverage: 0.89
     caveat: >-
-      Computed without aerial duel win percentage, which the performance
-      provider does not supply - it reports aerial duels won but not
-      attempted. That component carried 10% of this role.
-      Tackle volume here is attempts, not tackles won: the provider declares a
-      successful-tackles field and never populates it, so a player who tackles
-      often and fails often reads the same as one who succeeds.
+      Aerial duel efficiency cannot be measured at all: the provider reports
+      aerial duels won but not attempted, so there is no denominator. Tackle
+      volume here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who
+      tackles often and fails often reads the same as one who succeeds.
 
   defensive_full_back:
     label: Defensive Full-Back
@@ -139,12 +134,12 @@ roles:
         aerial_duel_win_percentage: 10
     min_coverage: 0.79
     caveat: >-
-      Computed without progressive passes or aerial duel win percentage,
-      neither of which the performance provider supplies. They carried 10%
-      each; the defensive core of the role is intact.
-      Tackle volume here is attempts, not tackles won: the provider declares a
-      successful-tackles field and never populates it, so a player who tackles
-      often and fails often reads the same as one who succeeds.
+      The defensive core of the role is intact; what is thin is progression
+      and aerial efficiency, the latter having no denominator to measure at
+      all. Tackle volume here is attempts, not tackles won: the provider
+      declares a successful-tackles field and never populates it, so a
+      player who tackles often and fails often reads the same as one who
+      succeeds.
 
   attacking_full_back:
     label: Attacking Full-Back
@@ -163,10 +158,8 @@ roles:
   # -- Defensive midfield --------------------------------------------------
     min_coverage: 0.79
     caveat: >-
-      Computed without progressive passes, which the performance provider
-      does not supply. That component carried 20% of this role, and the
-      crossing and chance creation that define an attacking full-back are
-      intact.
+      The crossing and chance creation that define an attacking full-back
+      are intact; carrying the ball forward is the part not measured.
 
   ball_winning_midfielder:
     label: Ball-Winning Midfielder
@@ -186,13 +179,11 @@ roles:
         ball_security: 10
     min_coverage: 0.69
     caveat: >-
-      Computed without progressive passes, aerial duel win percentage or
-      the ball security score, none of which the performance provider
-      supports. They carried 30% between them; tackling, interceptions and
-      duels won, which carry 70%, are intact.
-      Tackle volume here is attempts, not tackles won: the provider declares a
-      successful-tackles field and never populates it, so a player who tackles
-      often and fails often reads the same as one who succeeds.
+      Tackling, interceptions and duels won - the ball-winning itself - are
+      measured. What is not is aerial efficiency, which has no denominator.
+      Tackle volume here is attempts, not tackles won: the provider declares
+      a successful-tackles field and never populates it, so a player who
+      tackles often and fails often reads the same as one who succeeds.
 
   deep_lying_playmaker:
     label: Deep-Lying Playmaker
@@ -213,12 +204,10 @@ roles:
     # carrying its caveat everywhere it is shown.
     min_coverage: 0.69
     caveat: >-
-      LIMITED COVERAGE. Computed from 70% of this role's configured weight.
-      Progressive passes (30%) are declared by the performance provider and
-      never populated. That is the component distinguishing a deep-lying
-      playmaker from a tidy passer, so read this as passing volume, accuracy
-      and creation from deep rather than as measured progression. It is not
-      comparable in confidence with a role scored from its full definition.
+      Progression is what distinguishes a deep-lying playmaker from a tidy
+      passer, so read this as passing volume, accuracy and creation from
+      deep rather than as measured progression. It is not comparable in
+      confidence with a role scored from its full definition.
 
   # -- Central midfield ----------------------------------------------------
   box_to_box_midfielder:
@@ -242,13 +231,12 @@ roles:
   # -- Attacking midfield --------------------------------------------------
     min_coverage: 0.84
     caveat: >-
-      Computed without progressive passes, which the performance provider
-      does not supply. That component carried 15% of this role; the
-      defensive and attacking contributions that define a box-to-box
-      midfielder are intact.
-      Tackle volume here is attempts, not tackles won: the provider declares a
-      successful-tackles field and never populates it, so a player who tackles
-      often and fails often reads the same as one who succeeds.
+      The defensive and attacking contributions that define a box-to-box
+      midfielder are intact; carrying the ball forward is the part not
+      measured. Tackle volume here is attempts, not tackles won: the
+      provider declares a successful-tackles field and never populates it,
+      so a player who tackles often and fails often reads the same as one
+      who succeeds.
 
   advanced_playmaker:
     label: Advanced Playmaker
@@ -268,9 +256,8 @@ roles:
   # -- Wingers -------------------------------------------------------------
     min_coverage: 0.84
     caveat: >-
-      Computed without progressive passes, which the performance provider
-      does not supply. That component carried 15%; expected assists and
-      key passes, which carry 55% between them, are intact.
+      Expected assists and key passes - the creation this role is named for
+      - are intact. Progression is the part not measured.
 
   creative_winger:
     label: Creative Winger
@@ -302,9 +289,6 @@ roles:
         fouls_drawn_per90: 10
         dispossessed_per90: 5
     min_coverage: 0.94
-    caveat: >-
-      Computed without inverse dispossessions, which the performance
-      provider does not supply. That component carried 5% of this role.
 
   inside_forward:
     label: Inside Forward
@@ -355,8 +339,8 @@ roles:
         fouls_drawn_per90: 5
     min_coverage: 0.89
     caveat: >-
-      Computed without aerial duel win percentage, which the performance
-      provider does not supply. That component carried 10% of this role.
+      Aerial duel efficiency cannot be measured: the provider reports aerial
+      duels won but not attempted, so there is no denominator.
 
   target_forward:
     label: Target Forward
@@ -376,10 +360,9 @@ roles:
   # -- Goalkeeper ----------------------------------------------------------
     min_coverage: 0.74
     caveat: >-
-      Computed without aerial duel win percentage: the provider reports
-      aerial duels won but not attempted, so efficiency cannot be
-      measured. Aerial volume, which carries 20%, is still counted. Read
-      this as aerial presence rather than aerial success.
+      Aerial volume is counted; aerial efficiency cannot be, because the
+      provider reports duels won but not attempted. Read this as aerial
+      presence rather than aerial success.
 
   shot_stopper:
     label: Shot Stopper

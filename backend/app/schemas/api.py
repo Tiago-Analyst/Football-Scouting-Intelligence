@@ -83,7 +83,18 @@ class ScoreOut(BaseModel):
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
+    #: Hand-written, and deliberately qualitative only: methodological limits
+    #: that no availability report can derive.
     caveat: str | None = None
+    #: Roles only. What was missing, generated from what was actually missing.
+    #:
+    #: Availability claims used to live in `caveat` and went stale exactly as
+    #: one would expect - the Ball-Winning Midfielder apologised for a score
+    #: that had been available for months, and the Direct Winger for a metric
+    #: it was not missing at all.
+    availability_note: str | None = None
+    #: The two above, joined, so the interface cannot show them apart.
+    explanation: str | None = None
     #: Roles only. Where the raw score sits among every player evaluated for
     #: this same role.
     #:
