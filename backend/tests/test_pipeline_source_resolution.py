@@ -289,27 +289,37 @@ class TestIdentityResolutionRunsOnEveryRefresh:
         )
 
     def test_everything_downstream_requires_it(self, workflow: dict) -> None:
-        """Including the publish, which is what readers actually see."""
         for name in (
             "Drop market history nothing can reach",
             "Record the quality report",
             "Recompute sample players independently",
-            "Publish the refreshed data to the live site",
         ):
             condition = " ".join(str(_step(workflow, name)["if"]).split())
             assert "steps.identity.outcome" in condition, name
 
-    def test_a_transfermarkt_run_is_not_blocked_by_a_skipped_step(self, workflow: dict) -> None:
-        """`skipped` is not `failure`.
+    def test_the_promotion_requires_it_too(self, workflow: dict) -> None:
+        """The step that decides what readers see.
 
-        Identity resolution runs only after a successful load. A run where it
-        was skipped for an unrelated reason must not be treated as one where it
-        broke, or the gate would stop every refresh it does not apply to.
+        Identity resolution is no longer the last gate before publication -
+        promotion is - so this checks the gate that now matters.
+        """
+        condition = " ".join(str(_step(workflow, "Promote the staged dataset")["if"]).split())
+        assert "steps.identity.outcome == 'success'" in condition
+        for other in ("steps.load", "steps.quality", "steps.validation"):
+            assert other in condition, other
+
+    def test_publication_waits_for_the_promotion(self, workflow: dict) -> None:
+        """Not for the load.
+
+        The load now writes to staging, so a successful load means nothing has
+        reached readers yet. Reloading the API before the promotion would
+        publish the previous dataset's view over the new one's cache, which is
+        worse than doing nothing.
         """
         condition = " ".join(
             str(_step(workflow, "Publish the refreshed data to the live site")["if"]).split()
         )
-        assert "skipped" in condition
+        assert condition == "steps.promote.outcome == 'success'"
 
 
 class TestTheContinuationSchedule:

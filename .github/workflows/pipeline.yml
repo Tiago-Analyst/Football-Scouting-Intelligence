@@ -268,6 +268,20 @@ jobs:
           key: footystats-snapshots-${{ github.run_id }}
           restore-keys: footystats-snapshots-
 
+      - name: Migrate any legacy flat snapshots
+        # One time, and a no-op thereafter: it stops at a marker file.
+        #
+        # The flat layout had no notion of which refresh a snapshot belonged
+        # to, which is the defect generations fix. Converting it here rather
+        # than by hand means a deployment whose cache still holds the old
+        # layout is carried across on its next run instead of falling back to
+        # a layout nothing tests any more.
+        if: >-
+          steps.preflight.outputs.footystats == 'true' &&
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.proceed == 'true'
+        run: python -m pipelines.footystats.migrate_snapshots --apply
+
       - name: Retrieve FootyStats data
         id: fetch
         if: >-
@@ -302,7 +316,11 @@ jobs:
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-        run: python -m pipelines.footystats.ingest --resume --max-runtime-minutes 45
+        # `--only-resume` on the hourly cron: the gate above already decided
+        # not to run when no generation is open, and this makes it impossible
+        # for such a run to start one even if the gate is ever wrong.
+        run: |
+          python -m pipelines.footystats.ingest             --resume             --max-runtime-minutes 45             ${{ steps.resolve_source.outputs.mode == 'continue_only' && '--only-resume' || '' }}
 
       - name: Report that the refresh is not finished yet
         if: >-
@@ -350,6 +368,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
           LOG_FORMAT: json
         # `--verify` is what makes section 23 rule 11 literally true: the full
         # serving quality suite runs inside the load transaction, and any
@@ -372,6 +394,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # WHY THIS RUNS ON EVERY REFRESH
         #
         # A load replaces one provider's rows. Purging that source deletes its
@@ -423,6 +449,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Four fifths of the Transfermarkt valuations belong to players in no
         # covered competition. This refuses to run when nothing looks used,
         # which is what a database that has not been resolved yet looks like,
@@ -432,6 +462,7 @@ jobs:
           python -m pipelines.load.prune --apply 2>&1 | tee pipeline-prune.log
 
       - name: Record the quality report
+        id: quality
         if: >-
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
@@ -443,6 +474,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Persisted so /data-quality shows this run. Warnings do not fail the
         # job: staleness and absent metrics are facts about a source, not
         # faults in the refresh.
@@ -462,6 +497,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Regenerated per run so the published limitations describe the data
         # that is actually live. Absent metrics are a fact about the provider,
         # not a fault in the refresh, so this reports rather than fails - hence
@@ -471,6 +510,7 @@ jobs:
           python -m pipelines.quality.derived_coverage             --source "${{ steps.resolve_source.outputs.source }}" 2>&1 | tee pipeline-derived.log
 
       - name: Recompute sample players independently
+        id: validation
         if: >-
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
@@ -482,6 +522,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Rebuilds each figure from the raw season totals without calling the
         # engines, and fails the job on any disagreement. Unlike absent metrics,
         # a percentile that does not reproduce is a fault, not a fact about a
@@ -489,6 +533,38 @@ jobs:
         run: |
           set -o pipefail
           python -m pipelines.quality.validate_analytics --players 12 2>&1             | tee pipeline-validation.log
+
+      - name: Promote the staged dataset
+        # THE MOMENT ANYTHING BECOMES PRODUCTION.
+        #
+        # Everything above wrote to and checked `analytics_staging`. Readers
+        # have been served the previous dataset throughout, and would go on
+        # being served it indefinitely if this step never ran.
+        #
+        # Three schema renames in one transaction. PostgreSQL commits them
+        # atomically, so a reader sees the whole previous dataset or the whole
+        # new one - never a mixture and never an empty schema. Renaming does
+        # not rewrite rows, so it costs a lock rather than a copy.
+        #
+        # The schema that was serving becomes the staging schema, which is the
+        # recovery path: `--rollback --apply` is the same swap again.
+        if: >-
+          steps.load.outcome == 'success' &&
+          steps.identity.outcome == 'success' &&
+          steps.quality.outcome == 'success' &&
+          steps.validation.outcome == 'success'
+        id: promote
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: |
+          set -o pipefail
+          python -m pipelines.load.promote --apply 2>&1 | tee pipeline-promote.log
 
       - name: Publish the refreshed data to the live site
         # The last step of a data refresh, and the one that was missing.
@@ -503,9 +579,7 @@ jobs:
         # Both are told, in that order. `success()` matters: a run whose
         # validation failed must leave the previous data live rather than
         # publish something that did not reproduce.
-        if: >-
-          steps.load.outcome == 'success' &&
-          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
+        if: steps.promote.outcome == 'success'
         env:
           API_ORIGIN: ${{ secrets.API_ORIGIN }}
           SITE_ORIGIN: ${{ secrets.SITE_ORIGIN }}
@@ -543,6 +617,7 @@ jobs:
             echo "| Source | \`${{ steps.resolve_source.outputs.source }}\` |"
             echo "| Load and verify | ${{ steps.load.outcome }} |"
             echo "| Identity resolution | ${{ steps.identity.outcome }} |"
+            echo "| Promotion | ${{ steps.promote.outcome }} |"
             echo ""
             if [ "${{ steps.load.outcome }}" != "success" ]; then
               echo "**Nothing was published.** The load rolled back and the previous"
@@ -565,6 +640,7 @@ jobs:
           path: |
             pipeline-load.log
             pipeline-identity.log
+            pipeline-promote.log
             pipeline-quality.log
             docs/transfermarkt_field_availability.md
           if-no-files-found: ignore

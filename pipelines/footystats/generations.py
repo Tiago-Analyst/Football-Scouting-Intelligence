@@ -204,7 +204,8 @@ class Generation:
         self.metadata.last_updated_at = _now()
         self.directory.mkdir(parents=True, exist_ok=True)
         self.metadata_path.write_text(
-            json.dumps(asdict(self.metadata), indent=2, sort_keys=True), encoding="utf-8"
+            json.dumps(asdict(self.metadata), indent=2, sort_keys=True),
+            encoding="utf-8",
         )
 
     def set_status(self, status: GenerationStatus, *, reason: str | None = None) -> None:

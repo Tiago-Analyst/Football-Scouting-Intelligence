@@ -36,7 +36,11 @@ from app.models import (
     FactPlayerSeasonStats,
     FactTransfer,
 )
-from pipelines.quality.coverage import absent_metrics, impact_of_absence, metric_coverage
+from pipelines.quality.coverage import (
+    absent_metrics,
+    impact_of_absence,
+    metric_coverage,
+)
 
 log = get_logger(__name__)
 
@@ -112,8 +116,18 @@ def volume_checks(session: Session) -> list[Check]:
 
     return [
         Check("dim_player", "players_present", _verdict(players > 0), players),
-        Check("dim_competition", "competitions_present", _verdict(competitions > 0), competitions),
-        Check("fact_player_season_stats", "seasons_present", _verdict(seasons > 0), seasons),
+        Check(
+            "dim_competition",
+            "competitions_present",
+            _verdict(competitions > 0),
+            competitions,
+        ),
+        Check(
+            "fact_player_season_stats",
+            "seasons_present",
+            _verdict(seasons > 0),
+            seasons,
+        ),
         # Market data is genuinely optional: the performance side works without
         # it, and saying "fail" would train people to ignore this report.
         Check(

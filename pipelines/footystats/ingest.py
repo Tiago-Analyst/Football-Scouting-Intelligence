@@ -377,7 +377,11 @@ def ingest_competition(
                 )
                 continue
 
-            record = {"kind": "player", "player_id": player_id, "data": body.get("data")}
+            record = {
+                "kind": "player",
+                "player_id": player_id,
+                "data": body.get("data"),
+            }
             handle.write((json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8"))
             done.add(player_id)
             result.fetched += 1
@@ -566,6 +570,15 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--only-resume",
+        action="store_true",
+        help=(
+            "Continue an open generation and never start one. What the hourly "
+            "continuation cron passes: it must not begin a fourteen-hour "
+            "refresh every hour."
+        ),
+    )
+    parser.add_argument(
         "--flat",
         action="store_true",
         help=(
@@ -650,7 +663,19 @@ def main(argv: list[str] | None = None) -> int:
     generation = None
     if not args.flat:
         try:
-            generation = GenerationStore().resolve(resume=args.resume)
+            store = GenerationStore()
+            if args.only_resume:
+                # Defence in depth behind the workflow gate. The gate decides
+                # whether to run at all; this makes it impossible for a
+                # continuation run to start a refresh even if it does run -
+                # a fourteen-hour fetch begun by an hourly cron would be
+                # expensive and silent.
+                generation = store.in_progress()
+                if generation is None:
+                    print("No generation is in progress and --only-resume forbids starting one.")
+                    return 0
+            else:
+                generation = store.resolve(resume=args.resume)
         except GenerationError as exc:
             print(f"::error::{exc}", file=sys.stderr)
             return 1

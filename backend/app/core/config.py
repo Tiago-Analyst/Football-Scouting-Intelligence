@@ -100,6 +100,19 @@ class Settings(BaseSettings):
     # A real key has been used and the mapping validated against real responses;
     # see docs/footystats_provider_status.md. Never logged, never serialised
     # into a response - SecretStr guards accidental printing.
+    #: Which analytical schema this process reads and writes.
+    #:
+    #: `analytics` is the one being served. `analytics_staging` is the one a
+    #: refresh loads into, and is promoted by swapping the two names in a
+    #: single transaction - so a load, an identity resolution or a quality
+    #: check that fails leaves the served schema untouched, because it was
+    #: never the thing being written to.
+    #:
+    #: One lever, set per process, so every pipeline step targets the same
+    #: place without each of them growing its own flag. See
+    #: `docs/data_publication_lifecycle.md`.
+    analytics_schema: str = "analytics"
+
     footystats_api_key: SecretStr = SecretStr("")
     footystats_base_url: str = "https://api.football-data-api.com"
 

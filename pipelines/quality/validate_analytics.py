@@ -216,7 +216,11 @@ def independent_weighted(
     coverage = available_weight / total_weight if total_weight else 0.0
 
     if coverage < min_coverage or not available:
-        return None, coverage, f"coverage {coverage:.0%} below the required {min_coverage:.0%}"
+        return (
+            None,
+            coverage,
+            f"coverage {coverage:.0%} below the required {min_coverage:.0%}",
+        )
 
     score = sum((w / available_weight) * value for w, value in available.values())
     inner = sum(1 for key in available if key.startswith("score:"))
@@ -335,7 +339,12 @@ def main(argv: list[str] | None = None) -> int:
         if can_rate(eligible_minutes(stats.recorded_minutes, stats.minutes))
         and len(
             populations.get(
-                (metrics_to_check[0], player.position_group, stats.season_id, stats.competition_id),
+                (
+                    metrics_to_check[0],
+                    player.position_group,
+                    stats.season_id,
+                    stats.competition_id,
+                ),
                 [],
             )
         )
@@ -397,7 +406,8 @@ def main(argv: list[str] | None = None) -> int:
             if mine is None:
                 continue
             population = populations.get(
-                (metric, player.position_group, stats.season_id, stats.competition_id), []
+                (metric, player.position_group, stats.season_id, stats.competition_id),
+                [],
             )
             if len(population) < MIN_POPULATION:
                 continue

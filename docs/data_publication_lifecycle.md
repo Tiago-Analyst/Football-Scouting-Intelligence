@@ -19,17 +19,17 @@ earned the right to.
   COMPLETE       every expected player is on disk
         |
         v
-  LOAD + VERIFY  one transaction; the full quality suite runs inside it
-        |        <-- any check fails, the transaction rolls back
+  STAGING LOAD + VERIFY   into `analytics_staging`, in one transaction
+        |                 <-- any check fails, the transaction rolls back
         v
-  IDENTITY RESOLUTION   joins the two providers into one player
-        |               <-- a crash here stops everything below
+  IDENTITY RESOLUTION     against staging
+        |                 <-- a crash here stops everything below
         v
-  PRUNE, DATA QUALITY, ANALYTICS VALIDATION
-        |               <-- a figure that does not reproduce stops the run
+  PRUNE, DATA QUALITY, ANALYTICS VALIDATION   against staging
+        |                 <-- a figure that does not reproduce stops the run
         v
-  PROMOTE        the generation is marked PUBLISHED
-        |
+  PROMOTE        three schema renames, one transaction
+        |        <-- the first and only moment readers are affected
         v
   ANALYTICS RELOAD     the API rebuilds its in-memory view
         |
@@ -48,9 +48,10 @@ rows, and the site went on serving the old season indefinitely.
 
 Three things have to happen, in order, and each is a place data can stop:
 
-1. **The database transaction commits.** Before this, nothing has changed at
-   all - `--verify` runs the full serving quality suite *inside* the
-   transaction, so a failure rolls back and the previous data is untouched.
+1. **The promotion swaps the schemas.** Before this, nothing readers can see
+   has changed at all: every step from the load onward wrote to
+   `analytics_staging`. A failure anywhere in that stretch leaves the served
+   schema exactly as it was.
 2. **The API reloads its analytical view.** The view is built at start-up and
    held in memory for the life of the process, so a committed load reaches
    readers only when something tells the API to rebuild. That is
@@ -71,8 +72,12 @@ Nothing is loaded from a generation that is still `IN_PROGRESS`, so a
 half-fetched universe cannot replace a whole one. See
 `pipelines/footystats/generations.py`.
 
+**The staging schema.** Every step from the load to the promotion writes to
+`analytics_staging`. The served schema is not written to at all, so a failure
+anywhere in that stretch is invisible to readers.
+
 **The load transaction.** `--verify` runs the serving quality checks before
-committing, so a load that would publish something broken publishes nothing.
+committing, so a load that would stage something broken stages nothing.
 
 **The failure gates.** Every step after the load requires the ones before it to
 have succeeded, including identity resolution - which used to be advisory and
@@ -80,35 +85,79 @@ is not any more. A database where the two providers came apart is worse than a
 stale one: market values, contract dates and every cross-source figure hang off
 that join.
 
-## What this is not yet: atomic promotion
+## Atomic promotion
 
-The load replaces the previous rows in one transaction. That is atomic against
-a reader mid-query, and it is *not* a staging schema: while the transaction is
-open the new rows are already the ones that will be served, and rolling back is
-the only way out.
+The load writes to `analytics_staging`, every check runs against it, and
+promotion is three schema renames in one transaction:
 
-A fuller design would load into a staging schema, run every check against it,
-and promote by swapping - so the checks after the load could also roll back,
-rather than only the ones inside it. That would mean:
+```
+analytics          -> analytics_previous
+analytics_staging  -> analytics
+analytics_previous -> analytics_staging
+```
 
-- a `staging` schema mirroring the analytical tables;
-- the loader targeting it;
-- identity resolution, prune, quality and validation running against it;
-- promotion as a schema rename or a view repoint, which is instantaneous;
-- the previous schema kept for one cycle, so a rollback is a second rename.
+PostgreSQL commits that atomically, so a reader sees either the whole previous
+dataset or the whole new one - never a mixture and never an empty schema.
+Renaming a schema does not rewrite the tables in it, so the cost is a lock
+rather than a copy whatever the row count.
 
-**It is not done, deliberately.** The current arrangement has one property that
-matters more than atomicity of the later steps: nothing is published unless the
-generation is complete and the load verified. The steps that run after the
-commit - prune, quality, validation - can currently fail with new data already
-live, and what they do then is stop the analytics reload, so the *site* keeps
-serving the previous view until a person looks.
+**Anything failing before the swap leaves the served schema untouched**, because
+the served schema was never being written to. That is the guarantee the earlier
+design could not make: the checks after the commit ran against data readers
+were already receiving.
 
-That is a real gap and it is narrow. The failure it leaves open is a database
-holding new rows the site is not yet serving, which is recoverable by fixing
-the problem and re-running. The failure atomic promotion would prevent is the
-same one. Building a staging schema to close it would be a larger change than
-this project's current failure rate justifies.
+### What is swapped, and what is not
+
+The analytical tables are closed under foreign keys, so they can move as a
+unit:
+
+    dim_competition, dim_season, dim_club, dim_player,
+    bridge_player_source, fact_player_season_stats,
+    fact_market_value, fact_transfer
+
+Everything else stays in `public` and is never swapped - accounts, sessions,
+shortlists, and the quality, load and refresh histories, which are records of
+what happened and must outlive the data they describe.
+
+This works because `shortlist_entry` stores `player_key` as a plain string
+rather than a foreign key to `dim_player`. A referencing row in an operational
+table would break the instant the referenced table was swapped away, and
+`backend/tests/test_atomic_promotion.py` asserts that no foreign key crosses
+the boundary, so losing the property fails a test rather than a promotion.
+
+### Rollback
+
+The schema that was serving becomes the staging schema. That is the recovery
+path rather than a side effect: one cycle of production is always one swap
+away.
+
+```bash
+python -m pipelines.load.promote --rollback --apply
+```
+
+The row-count guard that protects a promotion deliberately does not apply to a
+rollback. Refusing to restore the previous dataset because it is smaller would
+be refusing the recovery at the moment it is needed.
+
+### What promotion refuses
+
+An empty staging schema, or one holding less than 75% of production's
+player-seasons. Both are the shape of a load that stopped partway and committed
+what it had - internally consistent, and simply missing most of a season, which
+no later check can detect because everything present is correct. `--force`
+exists for a season that really did shrink.
+
+### The cost of this design
+
+Two schemas have to stay structurally identical. A migration adding a column to
+an analytical table must add it to both, or the next promotion swaps in a
+schema missing a column the application expects - and the error surfaces in the
+serving layer rather than in the migration that caused it.
+
+`TestTheTwoSchemasStayIdentical` compares columns, constraints and index names
+on every test run, so a missed migration fails immediately and names the
+difference. Migrations run with `search_path=public` so a new operational table
+does not land in the analytical schema by accident.
 
 ## What a reader sees while a refresh is running
 
@@ -125,6 +174,7 @@ require reading a workflow log.
 | Transfermarkt download and profile | minutes |
 | Load and verify | minutes |
 | Identity resolution | minutes |
+| Promotion | milliseconds; three schema renames, independent of row count |
 | Analytics reload | seconds to ~50s, if the service is asleep |
 | Frontend revalidation | seconds |
 

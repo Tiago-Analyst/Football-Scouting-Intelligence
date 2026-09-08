@@ -107,10 +107,16 @@ UNDER_TEST: tuple[MetricUnderTest, ...] = (
     MetricUnderTest("goals_per90", "goals_overall", "goals_per_90_overall", "goals"),
     MetricUnderTest("assists_per90", "assists_overall", "assists_per_90_overall", "assists"),
     MetricUnderTest(
-        "goals_conceded_per90", "conceded_overall", "conceded_per_90_overall", "goals conceded"
+        "goals_conceded_per90",
+        "conceded_overall",
+        "conceded_per_90_overall",
+        "goals conceded",
     ),
     MetricUnderTest(
-        "shots_per90", "detailed.shots_total_overall", "detailed.shots_per_90_overall", "shots"
+        "shots_per90",
+        "detailed.shots_total_overall",
+        "detailed.shots_per_90_overall",
+        "shots",
     ),
     MetricUnderTest(
         "shots_on_target_per90",
@@ -119,7 +125,10 @@ UNDER_TEST: tuple[MetricUnderTest, ...] = (
         "shots",
     ),
     MetricUnderTest(
-        "npxg_per90", "detailed.npxg_total_overall", "detailed.npxg_per_90_overall", "xG"
+        "npxg_per90",
+        "detailed.npxg_total_overall",
+        "detailed.npxg_per_90_overall",
+        "xG",
     ),
     MetricUnderTest("xa_per90", "detailed.xa_total_overall", "detailed.xa_per_90_overall", "xA"),
     MetricUnderTest(
@@ -226,8 +235,39 @@ def _agrees(published: float, total: float, minutes: float) -> bool:
     return abs(total * 90.0 / minutes - published) <= TOLERANCE
 
 
-def iter_players(directory: pathlib.Path = SNAPSHOT_DIR):
+def snapshot_directory() -> pathlib.Path:
+    """Where the snapshots this validation reads actually live.
+
+    The published generation when there is one, and the flat directory when
+    there is not. The flat layout is what
+    `pipelines.footystats.migrate_snapshots` converts, so after that has run
+    this follows the data rather than reporting an empty universe from an
+    empty directory - which is what it did the first time the snapshots moved.
+    """
+    try:
+        from pipelines.footystats.generations import GenerationStore
+
+        store = GenerationStore()
+        published = store.latest_published()
+        if published is not None:
+            return published.directory
+        loadable = [g for g in store.all() if g.status.is_publishable]
+        if loadable:
+            return loadable[-1].directory
+    except Exception as exc:
+        # Said out loud rather than swallowed: falling back silently is how a
+        # report ends up describing the wrong directory and nobody notices.
+        print(
+            f"Could not read the generation store ({type(exc).__name__}); "
+            f"falling back to {SNAPSHOT_DIR}.",
+            file=sys.stderr,
+        )
+    return SNAPSHOT_DIR
+
+
+def iter_players(directory: pathlib.Path | None = None):
     """Every player record in every snapshot, as plain dicts."""
+    directory = directory or snapshot_directory()
     for path in sorted(directory.glob("season-*.jsonl.gz")):
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             for line in handle:
@@ -478,11 +518,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not SNAPSHOT_DIR.exists():
+    directory = snapshot_directory()
+    if not directory.exists():
         # Not a failure, in either mode. A CI checkout has no snapshots, and
         # the report is committed and reviewed with the change that produces
         # it; this check runs where the data is.
-        print(f"No snapshots at {SNAPSHOT_DIR}. Nothing to validate.", file=sys.stderr)
+        print(f"No snapshots at {directory}. Nothing to validate.", file=sys.stderr)
         return 0
 
     players = 0

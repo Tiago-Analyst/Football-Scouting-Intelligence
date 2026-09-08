@@ -295,7 +295,10 @@ def _measure_features(  # type: ignore[no-untyped-def]
 
 
 def write_report(
-    metrics: list[DerivedCoverage], features: list[FeatureCoverage], *, source: str | None
+    metrics: list[DerivedCoverage],
+    features: list[FeatureCoverage],
+    *,
+    source: str | None,
 ) -> Path:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     target = DOCS_DIR / "derived_metric_coverage.md"

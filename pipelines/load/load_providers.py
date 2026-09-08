@@ -155,7 +155,8 @@ class ProviderLoader:
                 )
 
         self.report.record(
-            "competitions", _bulk_insert(self.session, DimCompetition, list(rows.values()))
+            "competitions",
+            _bulk_insert(self.session, DimCompetition, list(rows.values())),
         )
 
     def load_seasons(self) -> None:
@@ -705,7 +706,10 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
         # fast, atomic and repeatable without asking the provider again.
         from app.core.config import get_settings
         from app.providers.footystats import FootyStatsProvider
-        from app.providers.footystats_snapshot import SnapshotReader, SnapshotUnavailableError
+        from app.providers.footystats_snapshot import (
+            SnapshotReader,
+            SnapshotUnavailableError,
+        )
 
         # WHICH GENERATION THIS LOADS FROM
         #
@@ -726,8 +730,17 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
                 f"({generation.status.value})."
             )
         else:
-            # The flat layout, for a database fetched before generations
-            # existed or by a local `--flat` run.
+            # The flat layout. Deprecated rather than supported: it is what
+            # `pipelines.footystats.migrate_snapshots` converts, and keeping
+            # two layouts working is how one of them quietly stops being
+            # tested. A local `--flat` fetch still lands here; anything else
+            # arriving here means the migration has not been run.
+            print(
+                "::warning::No refresh generation found; falling back to the flat "
+                "snapshot layout. Run `python -m pipelines.footystats.migrate_snapshots "
+                "--apply` to convert it - the flat layout has no notion of which "
+                "refresh a snapshot belongs to, which is the defect generations fix."
+            )
             reader = SnapshotReader()
 
         available = reader.available_seasons()

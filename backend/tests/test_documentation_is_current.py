@@ -144,10 +144,32 @@ class TestTheLifecycleIsDocumented:
         for stage in ("PROMOTE", "IDENTITY RESOLUTION", "ANALYTICS RELOAD"):
             assert stage in text, stage
 
-    def test_it_is_honest_about_what_is_not_atomic(self) -> None:
+    def test_it_documents_the_atomic_promotion(self) -> None:
+        """This asserted the opposite until the staging schema was built.
+
+        It required the document to admit that atomic promotion was not done.
+        It is now, so the assertion is inverted rather than deleted: what a
+        reader needs from this page is the truth about when data becomes
+        visible, and that truth changed.
+        """
         text = read("data_publication_lifecycle.md")
-        assert "not done, deliberately" in text.lower()
-        assert "staging" in text.lower()
+        lowered = text.lower()
+        assert "atomic promotion" in lowered
+        assert "analytics_staging" in text
+        assert "not done, deliberately" not in lowered, (
+            "the document still describes atomic promotion as future work"
+        )
+
+    def test_it_names_the_cost_as_well_as_the_benefit(self) -> None:
+        """Two schemas have to stay identical, and a page that only described
+        the guarantee would be selling it."""
+        text = read("data_publication_lifecycle.md")
+        assert "The cost of this design" in text
+        assert "structurally identical" in text
+
+    def test_it_documents_the_rollback(self) -> None:
+        text = read("data_publication_lifecycle.md")
+        assert "--rollback" in text
 
 
 class TestTheHistoryCleanupIsRecorded:

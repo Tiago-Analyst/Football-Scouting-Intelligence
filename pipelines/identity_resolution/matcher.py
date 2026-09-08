@@ -617,7 +617,10 @@ class IdentityResolver:
                 confidence=best_confidence,
                 method=best_method,
                 status=MatchStatus.AMBIGUOUS,
-                reasons=[*best_reasons, f"runner-up {runner_up_confidence:.2f} within margin"],
+                reasons=[
+                    *best_reasons,
+                    f"runner-up {runner_up_confidence:.2f} within margin",
+                ],
                 runner_up=runner_up,
                 runner_up_confidence=runner_up_confidence,
             )

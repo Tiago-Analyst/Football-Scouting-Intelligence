@@ -234,7 +234,12 @@ def main(argv: list[str] | None = None) -> int:
     report_path = DOCS_DIR / "identity_resolution_report.md"
     report_path.write_text(
         _render_report(
-            args.threshold, len(targets), mock_results, evaluation, shadow_results, len(overrides)
+            args.threshold,
+            len(targets),
+            mock_results,
+            evaluation,
+            shadow_results,
+            len(overrides),
         ),
         encoding="utf-8",
     )

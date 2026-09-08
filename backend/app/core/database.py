@@ -38,12 +38,28 @@ def build_engine(settings: Settings) -> Engine:
 
     `pool_pre_ping` costs one cheap round-trip per checkout and removes the
     class of errors where a managed database silently drops idle connections.
+
+    WHY THE SEARCH PATH IS SET HERE
+
+    The analytical tables live in a schema of their own - `analytics` when
+    serving, `analytics_staging` when a refresh is loading - and the models
+    name no schema at all. That is deliberate: one set of models, resolved by
+    the connection, so a pipeline step targets staging by being started with a
+    different setting rather than by every query growing a qualifier.
+
+    `public` stays on the path behind it, because the operational tables
+    (accounts, sessions, shortlists, and the quality and refresh history) are
+    never swapped and must resolve wherever the analytical ones point.
     """
+    schema = settings.analytics_schema
     return create_engine(
         settings.sqlalchemy_url,
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
+        # Applied per connection rather than per session: a pooled connection
+        # handed to a new session must already be pointing at the right place.
+        connect_args={"options": f"-csearch_path={schema},public"},
         # SQLAlchemy's `echo` attaches a second handler of its own, which
         # duplicates every statement alongside our root handler. SQL logging is
         # instead enabled by raising the sqlalchemy.engine level in

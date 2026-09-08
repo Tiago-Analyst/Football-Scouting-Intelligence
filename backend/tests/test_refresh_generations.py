@@ -443,7 +443,44 @@ class TestTheIngestHonoursGenerations:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def projection_cleanup():  # type: ignore[no-untyped-def]
+    """Remove rows `record()` committed.
+
+    `publish_status.record` opens its own session and commits - it has to, it
+    runs in a pipeline process with no ambient transaction. That escapes the
+    rollback the `db_session` fixture provides, so these tests have to clean up
+    after themselves or they leave a generation behind that the next test, and
+    the running site, will happily report.
+    """
+    from sqlalchemy import text
+
+    from app.core.database import get_engine
+
+    def ids() -> set[str]:
+        with get_engine().connect() as connection:
+            return {
+                row[0]
+                for row in connection.execute(
+                    text("SELECT generation_id FROM fact_refresh_generation")
+                )
+            }
+
+    # Only what these tests add. Deleting everything would remove the row
+    # describing the dataset actually being served, which is somebody else's.
+    before = ids()
+    yield
+    added = ids() - before
+    if added:
+        with get_engine().begin() as connection:
+            connection.execute(
+                text("DELETE FROM fact_refresh_generation WHERE generation_id = ANY(:ids)"),
+                {"ids": list(added)},
+            )
+
+
 @pytest.mark.integration
+@pytest.mark.usefixtures("projection_cleanup")
 class TestTheDatabaseProjection:
     """The generation lives on disk; the site cannot see that disk.
 
@@ -519,8 +556,11 @@ class TestTheDatabaseProjection:
         assert status is not None
         assert status.state == "In progress"
         assert status.current is not None
+        # Its own generation, not whatever else the database happens to hold.
+        # A published row from a real migration is legitimate state this test
+        # does not own.
+        assert status.current.generation_id == generation.generation_id
         assert status.current.completion_pct == pytest.approx(68.0)
-        assert status.published is None
 
     def test_nothing_recorded_means_no_panel(self, db_session) -> None:  # type: ignore[no-untyped-def]
         """Rather than an empty progress bar implying a stalled refresh."""
