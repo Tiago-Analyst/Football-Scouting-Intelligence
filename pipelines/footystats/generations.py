@@ -216,6 +216,15 @@ class Generation:
         """
         return self.directory / f"season-{season_id}.roster.json"
 
+    def clubs_path(self, season_id: str) -> pathlib.Path:
+        """The competition's clubs, as the provider listed them.
+
+        Beside the roster rather than inside the snapshot, and for the same
+        reason: a competition's clubs are not per-player data and the snapshot
+        is append-only, so refetching them on a resume has nowhere to go in it.
+        """
+        return self.directory / f"season-{season_id}.clubs.json"
+
     @property
     def metadata_path(self) -> pathlib.Path:
         return self.directory / METADATA_FILE

@@ -302,4 +302,35 @@ class TestTheLoadNeverCallsTheApi:
         assert reader("/player-stats", player_id="1")["data"]
         # Clubs are deliberately empty rather than invented; Transfermarkt
         # supplies club names.
-        assert reader("/league-teams", season_id="17146")["data"] == []
+        assert reader("/league-teams", season_id="17146")["data"] == [], (
+            "no clubs were recorded for this snapshot, and empty is the honest answer"
+        )
+
+    def test_recorded_clubs_are_served(self, snapshots_in_tmp: Path) -> None:
+        """The link that was missing.
+
+        The roster gives every player a `club_team_id`; this is what turns one
+        into a club. Without it the loader dropped the reference and every
+        FootyStats player arrived with no club, so the matcher - which scores
+        club agreement - had nothing to score from this side.
+        """
+        import json
+
+        ingest_competition(FakeProvider(roster(2)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.clubs.json").write_text(
+            json.dumps({"clubs": [{"id": 59, "name": "Arsenal FC", "country": "England"}]}),
+            encoding="utf-8",
+        )
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-teams", season_id="17146")
+        assert body["data"] == [{"id": 59, "name": "Arsenal FC", "country": "England"}]
+
+    def test_an_unreadable_clubs_file_serves_nothing_rather_than_raising(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """What an interrupted write leaves. The players are the load; the
+        clubs are an enrichment, and losing one must not lose the other."""
+        ingest_competition(FakeProvider(roster(2)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.clubs.json").write_text("{ trunc", encoding="utf-8")
+
+        assert SnapshotReader(snapshots_in_tmp)("/league-teams", season_id="17146")["data"] == []

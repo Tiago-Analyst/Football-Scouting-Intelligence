@@ -336,11 +336,19 @@ class RosterProvider:
     def __init__(self, players: list[str]) -> None:
         self.players = players
         self.fetched: list[str] = []
+        self.club_calls = 0
 
     def _roster(self, season_id: str) -> list[dict[str, object]]:
         return [{"id": p} for p in self.players]
 
     def _get(self, path: str, **params: object) -> object:
+        # Routed by path, as the real provider is. The fetch also asks for the
+        # competition's clubs once per generation, and counting that as a
+        # player fetch would make every assertion here off by one.
+        if path == "/league-teams":
+            self.club_calls += 1
+            return {"data": [{"id": 10, "name": "A Club"}]}
+
         player_id = str(params.get("player_id"))
         self.fetched.append(player_id)
         return {"data": {"id": player_id}}
@@ -687,3 +695,79 @@ class TestTheRosterHoldsRecordsRatherThanIds:
         generation.record_roster("17146", [{"id": 1}, {"known_as": "No id"}])
 
         assert generation.expected_players("17146") == ["1"]
+
+
+class TestTheClubsAreRecordedToo:
+    """3,442 FootyStats players carried no club, and none could.
+
+    The roster gives every player a `club_team_id` and nothing that turns it
+    into a club, so the loader dropped the reference it could not resolve. The
+    matcher has scored club agreement all along - `exact_name+dob+club` reaches
+    1.00 - and could never see it from this side, which is one signal missing
+    from exactly the players who need one: the ones no Transfermarkt row
+    matches on name and date of birth alone.
+    """
+
+    def test_the_fetch_records_them_beside_the_roster(self, store: GenerationStore) -> None:
+        import json
+
+        from pipelines.footystats.ingest import ingest_competition
+
+        generation = store.resolve(resume=True, now=at(4))
+        provider = RosterProvider(["A", "B"])
+        ingest_competition(provider, "16504", "Test", resume=True, generation=generation)
+
+        path = generation.clubs_path("16504")
+        assert path.exists()
+        assert json.loads(path.read_text(encoding="utf-8")) == {
+            "clubs": [{"id": 10, "name": "A Club"}]
+        }
+
+    def test_they_are_fetched_once_per_generation(self, store: GenerationStore) -> None:
+        """A competition's clubs do not change between two runs of the same
+        refresh, and the request budget is the constraint the whole fetch is
+        shaped around."""
+        from pipelines.footystats.ingest import ingest_competition
+
+        generation = store.resolve(resume=True, now=at(4))
+        provider = RosterProvider(["A", "B"])
+        ingest_competition(provider, "16504", "Test", resume=True, generation=generation)
+        ingest_competition(provider, "16504", "Test", resume=True, generation=generation)
+
+        assert provider.club_calls == 1
+
+    def test_a_new_generation_fetches_them_again(self, store: GenerationStore) -> None:
+        """It is a new universe, and clubs are part of it."""
+        from pipelines.footystats.ingest import ingest_competition
+
+        first = store.resolve(resume=True, now=at(4))
+        provider = RosterProvider(["A", "B"])
+        ingest_competition(provider, "16504", "Test", resume=True, generation=first)
+        first.set_status(GenerationStatus.FAILED, reason="abandoned by this test")
+
+        second = store.resolve(resume=True, now=at(5))
+        ingest_competition(provider, "16504", "Test", resume=True, generation=second)
+
+        assert provider.club_calls == 2
+        assert second.clubs_path("16504").exists()
+
+    def test_a_failed_club_request_does_not_fail_the_competition(
+        self, store: GenerationStore
+    ) -> None:
+        """The clubs are an enrichment. Losing them costs identity resolution a
+        signal; losing the players costs the refresh a competition."""
+        from pipelines.footystats.ingest import ingest_competition
+
+        class RefusesClubs(RosterProvider):
+            def _get(self, path: str, **params: object) -> object:
+                if path == "/league-teams":
+                    raise RuntimeError("the provider had a bad minute")
+                return super()._get(path, **params)
+
+        generation = store.resolve(resume=True, now=at(4))
+        provider = RefusesClubs(["A", "B"])
+        result = ingest_competition(provider, "16504", "Test", resume=True, generation=generation)
+
+        assert result.error is None
+        assert sorted(provider.fetched) == ["A", "B"]
+        assert not generation.clubs_path("16504").exists()

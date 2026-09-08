@@ -720,3 +720,181 @@ class TestPublicationIsPartOfThePromotion:
                     text("DELETE FROM public.fact_source_publication WHERE source = :s"),
                     {"s": self.SOURCE},
                 )
+
+
+class TestARefreshKeepsTheOtherProvider:
+    """The failure that would have published half a universe.
+
+    Production holds two providers. FootyStats supplies performance;
+    Transfermarkt supplies identity, market values and transfers. A refresh
+    replaces one of them, and staging was empty - so the next FootyStats
+    refresh would have loaded performance data into nothing and promoted it,
+    and production would have become a universe with every market value and
+    every transfer missing. Silently, because the result is internally
+    consistent and simply has no Transfermarkt in it.
+
+    Everything here runs inside a transaction that is rolled back. Staging is a
+    real schema on the developer's database, and a test that left it rebuilt
+    would be a test that changed what the next promotion promotes.
+    """
+
+    def _counts(self, connection, schema: str) -> dict[str, int]:  # type: ignore[no-untyped-def]
+        from pipelines.load.prepare_staging import ANALYTICAL_TABLES
+
+        return {
+            table: int(
+                connection.execute(text(f'SELECT count(*) FROM "{schema}"."{table}"')).scalar() or 0
+            )
+            for table in ANALYTICAL_TABLES
+        }
+
+    def test_seeding_copies_production_row_for_row(self) -> None:
+        from pipelines.load.prepare_staging import prepare
+
+        with get_engine().connect() as connection, connection.begin() as transaction:
+            production = self._counts(connection, SERVING)
+            prepare(connection)
+            assert self._counts(connection, STAGING) == production
+            transaction.rollback()
+
+    def test_the_seeded_sequences_do_not_hand_out_ids_that_exist(self) -> None:
+        """The copy preserves primary keys. A sequence left at 1 would give the
+        next insert an id already taken, and every load after a seed would fail
+        on its first new player."""
+        from pipelines.load.prepare_staging import prepare
+
+        with get_engine().connect() as connection, connection.begin() as transaction:
+            prepare(connection)
+            rows = connection.execute(
+                text(
+                    "SELECT c.relname, a.attname, "
+                    "  pg_get_serial_sequence(quote_ident(n.nspname) || '.' || "
+                    "                         quote_ident(c.relname), a.attname) "
+                    "FROM pg_class c "
+                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "JOIN pg_attribute a ON a.attrelid = c.oid "
+                    "WHERE n.nspname = :schema AND a.attnum > 0 AND NOT a.attisdropped "
+                    "  AND pg_get_serial_sequence(quote_ident(n.nspname) || '.' || "
+                    "                             quote_ident(c.relname), a.attname) IS NOT NULL"
+                ),
+                {"schema": STAGING},
+            ).all()
+            assert rows, "the staging schema has sequences to check"
+
+            for table, column, sequence in rows:
+                highest = connection.execute(
+                    text(f'SELECT max("{column}") FROM "{STAGING}"."{table}"')
+                ).scalar()
+                if highest is None:
+                    continue
+                nxt = connection.execute(text(f"SELECT nextval('{sequence}')")).scalar()
+                assert nxt > highest, f"{table}.{column} would reissue an existing id"
+
+            transaction.rollback()
+
+    def test_purging_one_provider_leaves_the_other_intact(self) -> None:
+        """The cycle in one test: seed, purge the refreshing source, and find
+        every other provider still there."""
+        from pipelines.load.prepare_staging import prepare
+
+        with get_engine().connect() as connection, connection.begin() as transaction:
+            prepare(connection)
+
+            others = {
+                table: int(
+                    connection.execute(
+                        text(
+                            f'SELECT count(*) FROM "{STAGING}"."{table}" '
+                            f"WHERE source <> 'footystats'"
+                        )
+                    ).scalar()
+                    or 0
+                )
+                for table in ("fact_market_value", "fact_transfer")
+            }
+
+            for table in ("fact_player_season_stats", "fact_market_value", "fact_transfer"):
+                connection.execute(
+                    text(f'DELETE FROM "{STAGING}"."{table}" WHERE source = :s'),
+                    {"s": "footystats"},
+                )
+
+            after = {
+                table: int(
+                    connection.execute(text(f'SELECT count(*) FROM "{STAGING}"."{table}"')).scalar()
+                    or 0
+                )
+                for table in ("fact_market_value", "fact_transfer")
+            }
+            assert after == others, (
+                "purging the refreshing provider took the other one's rows with it"
+            )
+
+            transaction.rollback()
+
+    def test_the_seed_is_not_the_leftover_from_the_last_promotion(self) -> None:
+        """Why staging is rebuilt rather than inherited.
+
+        The swap leaves the previous production in staging, which is correct
+        exactly once. Refresh FootyStats to F2 and publish, then refresh
+        Transfermarkt from that staging, and production becomes F1 + T2 - the
+        one combination that must never exist. Seeding from *current*
+        production is what makes the second refresh start from the first one's
+        result.
+        """
+        import inspect
+
+        from pipelines.load import prepare_staging
+
+        source = inspect.getsource(prepare_staging.prepare)
+        assert "TRUNCATE" in source, "staging is emptied before the copy, not appended to"
+        assert 'FROM "{SERVING}"' in source or "SERVING" in source
+
+
+class TestAFailedPublicationIsRetriedRatherThanRefetched:
+    """Thirteen hours of API budget, discarded because a step had a bad minute.
+
+    A generation whose fetch finished but whose publication failed used to be
+    indistinguishable from no generation at all, so the next cadence run
+    started a fresh one and refetched every player.
+    """
+
+    def test_a_generation_whose_promotion_failed_stays_publishable(self) -> None:
+        """Which is what makes the retry possible: the status only moves inside
+        the promotion transaction, so a promotion that did not commit leaves
+        the generation exactly where it was."""
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.load.resolve_source import CONTINUE_ONLY, START
+
+        for mode in (START, CONTINUE_ONLY):
+            decision = decide_from_state(mode, [("20260907T040000Z", "COMPLETE")])
+            assert decision.action is Action.PUBLISH_READY, mode
+            assert not decision.action.fetches, "the fetch is already done"
+
+    def test_a_validated_generation_is_retried_too(self) -> None:
+        """It passed every check and the swap is all that is left."""
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.load.resolve_source import START
+
+        decision = decide_from_state(START, [("20260907T040000Z", "VALIDATED")])
+        assert decision.action is Action.PUBLISH_READY
+
+    def test_a_published_generation_is_not_retried(self) -> None:
+        """It is finished. Picking it up again would republish yesterday."""
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.load.resolve_source import CONTINUE_ONLY, START
+
+        assert decide_from_state(START, []).action is Action.START_NEW
+        assert decide_from_state(CONTINUE_ONLY, []).action is Action.NOOP
+
+    def test_two_live_generations_stop_rather_than_guess(self) -> None:
+        """Continuing the wrong one interleaves two universes, which is the
+        failure generations exist to prevent."""
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.load.resolve_source import START
+
+        decision = decide_from_state(
+            START, [("20260901T040000Z", "IN_PROGRESS"), ("20260907T040000Z", "COMPLETE")]
+        )
+        assert decision.action is Action.NOOP
+        assert "needs attention" in decision.reason

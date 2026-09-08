@@ -66,6 +66,21 @@ class SnapshotReader:
             for path in self._directory.glob("season-*.jsonl.gz")
         )
 
+    def _clubs(self, season_id: str) -> list[dict[str, Any]]:
+        """The competition's clubs as the fetch recorded them."""
+        path = self._directory / f"season-{season_id}.clubs.json"
+        if not path.exists():
+            return []
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            log.warning("footystats_clubs_unreadable", season_id=season_id)
+            return []
+        rows = parsed.get("clubs") if isinstance(parsed, dict) else None
+        if not isinstance(rows, list):
+            return []
+        return [r for r in rows if isinstance(r, dict) and r.get("id") is not None]
+
     def _generation_roster(self, season_id: str) -> list[dict[str, Any]]:
         """The roster file beside the snapshot, when this is a generation.
 
@@ -214,10 +229,23 @@ class SnapshotReader:
             return {"data": self._players[player_id]}
 
         if path == "/league-teams":
-            # Clubs are not snapshotted: the roster carries `club_team_id` and
-            # the loader resolves names from Transfermarkt, which knows them
-            # better. Returning empty is honest; inventing names would not be.
-            return {"data": []}
+            # THIS USED TO RETURN NOTHING.
+            #
+            # The reasoning was that the roster carries `club_team_id` and
+            # Transfermarkt knows club names better. Both true, and together
+            # they left the loader with an id it could not resolve to a club,
+            # which it therefore dropped - so every FootyStats player arrived
+            # with no club, and the 3,442 who match no Transfermarkt player
+            # had none to gain one from.
+            #
+            # The matcher scores club agreement and could never see it from
+            # this side. Serving the recorded response is what lets it.
+            #
+            # Still empty when the fetch did not record them - a snapshot from
+            # before clubs were captured, or a competition whose club request
+            # failed. Empty is honest; inventing names would not be.
+            season_id = str(params.get("season_id") or "")
+            return {"data": self._clubs(season_id)}
 
         if path == "/test-call":
             return {"success": True, "data": "snapshot"}

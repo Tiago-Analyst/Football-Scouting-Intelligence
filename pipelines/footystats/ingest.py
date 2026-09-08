@@ -256,6 +256,45 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _record_clubs(provider: Any, season_id: str, generation: Generation | None, log: Any) -> None:
+    """Store the competition's clubs alongside its roster.
+
+    WHY THIS IS WORTH ONE MORE REQUEST
+
+    The roster gives every player a `club_team_id` and nothing that turns it
+    into a club. So the loader had no clubs to create, dropped the reference
+    it could not resolve, and every FootyStats player arrived with no club at
+    all: 3,442 of them unmatched, none carrying the one signal that separates
+    two players with the same name and no date of birth.
+
+    The matcher has scored club agreement all along - `exact_name+dob+club`
+    reaches 1.00 - and could never see it from this side. One request per
+    competition, once per generation, is what it costs to let it.
+
+    Never fatal. A competition whose clubs cannot be fetched still has its
+    players fetched; identity resolution then works from name, date of birth
+    and nationality as it did before, which is worse than with clubs and much
+    better than nothing.
+    """
+    if generation is None:
+        return
+
+    path = generation.clubs_path(season_id)
+    if path.exists():
+        return
+
+    try:
+        body = provider._get("/league-teams", season_id=season_id)
+    except Exception as exc:  # the clubs are an enrichment, not the fetch
+        log.warning("footystats_clubs_unavailable", season_id=season_id, error=type(exc).__name__)
+        return
+
+    rows = body.get("data") if isinstance(body, dict) else None
+    clubs = [r for r in (rows or []) if isinstance(r, dict) and r.get("id") is not None]
+    path.write_text(json.dumps({"clubs": clubs}, ensure_ascii=False), encoding="utf-8")
+    log.info("footystats_clubs_recorded", season_id=season_id, clubs=len(clubs))
+
+
 def ingest_competition(
     provider: Any,
     season_id: str,
@@ -335,6 +374,8 @@ def ingest_competition(
             [row for row in roster if row.get("id") is not None and str(row["id"]) in wanted],
         )
         player_ids = generation.expected_players(season_id) or player_ids
+
+    _record_clubs(provider, season_id, generation, log)
 
     result.players = len(player_ids)
 
