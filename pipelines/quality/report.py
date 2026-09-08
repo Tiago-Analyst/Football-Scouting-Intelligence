@@ -363,6 +363,47 @@ def ownership_checks(session: Session) -> list[Check]:
         )
     )
 
+    # -- Provider minute discrepancies ----------------------------------------
+    #
+    # `recorded_minutes > minutes` used to be forbidden by a check constraint
+    # and clamped by the loader to satisfy it. Both were wrong: the provider's
+    # detailed per-90 figures reproduce against the recorded figure even when
+    # it is the larger one, so clamping inflated every detailed rate for those
+    # players.
+    #
+    # The raw value is now kept, which means this counts rather than prevents.
+    # A warning, not a failure: it is a fact about the provider, and the
+    # interface already explains it where it shows.
+    discrepant = (
+        session.scalar(
+            select(func.count())
+            .select_from(FactPlayerSeasonStats)
+            .where(
+                FactPlayerSeasonStats.recorded_minutes.is_not(None),
+                FactPlayerSeasonStats.minutes.is_not(None),
+                FactPlayerSeasonStats.recorded_minutes > FactPlayerSeasonStats.minutes,
+            )
+        )
+        or 0
+    )
+    total_rows = session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
+    share = discrepant / total_rows if total_rows else 0.0
+    checks.append(
+        Check(
+            "fact_player_season_stats",
+            "recorded_minutes_exceeds_played_minutes",
+            # Warn only. Provider values are preserved deliberately; this
+            # reports how often it happens, not that something is broken.
+            _verdict(share < 0.10, warn_only=True),
+            discrepant,
+            (
+                f"{share:.1%} of player-seasons report more detailed recorded minutes "
+                f"than minutes played. Provider values are preserved; per-90 figures "
+                f"follow the validated denominator per metric family."
+            ),
+        )
+    )
+
     # -- A bridge row naming a player that is gone ----------------------------
     dangling = (
         session.scalar(

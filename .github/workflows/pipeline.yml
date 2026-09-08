@@ -292,6 +292,16 @@ jobs:
         # this one and for the cache to be written.
         env:
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
+          # For the progress projection only. The fetch writes where it has got
+          # to into `fact_refresh_generation` so /data-quality can show it - the
+          # site cannot see this job's filesystem, and the snapshots live in its
+          # cache. Best-effort: a fetch that cannot reach the database has still
+          # fetched, and losing the display is not worth losing the progress.
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: python -m pipelines.footystats.ingest --resume --max-runtime-minutes 45
 
       - name: Report that the refresh is not finished yet

@@ -27,6 +27,7 @@ from app.models import (
     DimPlayer,
     FactDataQuality,
     FactPlayerSeasonStats,
+    FactRefreshGeneration,
     FactSourceLoad,
 )
 from app.providers.registry import build_performance_provider
@@ -306,4 +307,88 @@ def volumes(session: Session) -> Volumes:
         competitions=session.scalar(select(func.count()).select_from(DimCompetition)) or 0,
         clubs=session.scalar(select(func.count()).select_from(DimClub)) or 0,
         player_seasons=session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Refresh generations
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GenerationSummary:
+    """One generation, reduced to what a public page may show."""
+
+    generation_id: str
+    status: str
+    created_at: str | None
+    last_updated_at: str | None
+    published_at: str | None
+    total_expected_players: int
+    completed_players: int
+    failed_players: int
+    completion_pct: float
+    competitions_complete: int
+    competitions_expected: int
+    complete: bool
+
+
+@dataclass(frozen=True)
+class RefreshStatus:
+    state: str
+    published: GenerationSummary | None
+    current: GenerationSummary | None
+
+
+def refresh_status(session: Session) -> RefreshStatus | None:
+    """Where the FootyStats refresh has got to, if anything has recorded it.
+
+    Reads `fact_refresh_generation`, which the pipeline writes as it goes. Not
+    the generation directory: the fetch runs in CI with its snapshots in the
+    job cache, and this process cannot see that filesystem. Reading the disk
+    would show full progress in development and nothing in production.
+
+    `None` when nothing has been recorded - a database loaded before
+    generations existed. The page then hides the panel rather than showing an
+    empty progress bar implying a stalled refresh.
+    """
+    rows = session.scalars(
+        select(FactRefreshGeneration)
+        .where(FactRefreshGeneration.source == "footystats")
+        .order_by(FactRefreshGeneration.generation_id)
+    ).all()
+    if not rows:
+        return None
+
+    published = next((r for r in reversed(rows) if r.status == "PUBLISHED"), None)
+    current = next((r for r in reversed(rows) if r.status in {"IN_PROGRESS", "COMPLETE"}), None)
+
+    state = "Idle"
+    if current is not None:
+        state = "In progress" if current.status == "IN_PROGRESS" else "Validating"
+    elif rows[-1].status == "FAILED":
+        state = "Failed"
+
+    return RefreshStatus(
+        state=state,
+        published=_summarise(published) if published else None,
+        current=_summarise(current) if current else None,
+    )
+
+
+def _summarise(row: FactRefreshGeneration) -> GenerationSummary:
+    expected = row.total_expected_players
+    return GenerationSummary(
+        generation_id=row.generation_id,
+        status=row.status,
+        created_at=row.created_at.isoformat() if row.created_at else None,
+        last_updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        published_at=row.published_at.isoformat() if row.published_at else None,
+        total_expected_players=expected,
+        completed_players=row.completed_players,
+        failed_players=row.failed_players,
+        completion_pct=round(100.0 * row.completed_players / expected, 1) if expected else 0.0,
+        competitions_complete=row.competitions_complete,
+        competitions_expected=row.competitions_expected,
+        complete=row.complete,
     )

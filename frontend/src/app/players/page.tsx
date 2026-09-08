@@ -169,13 +169,13 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
               label={
                 <>
                   Minimum minutes
-                  <Tooltip label="Why does minutes played matter?">
-                    Per-90 figures are volatile over short spells. Minutes do not determine
-                    eligibility: every player with a valid rate is listed, ranked and compared,
-                    and shapes the population everyone else is measured against. Each row
-                    carries a sample label saying how much playing-time evidence is behind its
-                    figures. This filter is yours to set if you want a floor; there is none by
-                    default.
+                  <Tooltip label="Does this exclude players by default?">
+                    Optional filter. All players are eligible by default regardless of
+                    minutes played — every player with a valid rate is listed, ranked and
+                    compared, and shapes the population everyone else is measured against.
+                    Per-90 figures are volatile over short spells, so each row carries a
+                    sample label saying how much playing-time evidence is behind its
+                    figures. Set a floor here only if you want one.
                   </Tooltip>
                 </>
               }

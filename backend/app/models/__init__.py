@@ -17,6 +17,7 @@ from app.models.facts import (
     FactDataQuality,
     FactMarketValue,
     FactPlayerSeasonStats,
+    FactRefreshGeneration,
     FactSourceLoad,
     FactTransfer,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "FactDataQuality",
     "FactMarketValue",
     "FactPlayerSeasonStats",
+    "FactRefreshGeneration",
     "FactSourceLoad",
     "FactTransfer",
     "Shortlist",

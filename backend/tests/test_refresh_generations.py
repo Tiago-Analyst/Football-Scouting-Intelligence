@@ -436,3 +436,98 @@ class TestTheIngestHonoursGenerations:
 
         assert first.snapshot_path("16504").read_bytes() == before
         assert store.latest_published().generation_id == first.generation_id
+
+
+# ---------------------------------------------------------------------------
+# The projection the site reads
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestTheDatabaseProjection:
+    """The generation lives on disk; the site cannot see that disk.
+
+    The fetch runs in CI with its snapshots in the job cache, and the API runs
+    elsewhere. Reading the generation directory from the serving layer would
+    show full progress in development and nothing at all in production, which
+    is worse than showing nothing in both.
+    """
+
+    def test_it_records_and_updates_one_row_per_generation(
+        self, store: GenerationStore, db_session
+    ) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.footystats.publish_status import record
+        from sqlalchemy import text
+
+        generation = store.resolve(resume=True, now=at(4))
+        generation.record_roster("16504", ["A", "B", "C", "D"])
+        generation.refresh_counts(completed=2, failed=["C"])
+        generation.save()
+
+        assert record(generation) is True
+
+        rows = db_session.execute(
+            text(
+                "SELECT status, total_expected_players, completed_players, failed_players, "
+                "complete FROM fact_refresh_generation WHERE generation_id = :g"
+            ),
+            {"g": generation.generation_id},
+        ).all()
+        assert rows == [("IN_PROGRESS", 4, 2, 1, False)]
+
+        # Progress moves; the row is updated rather than duplicated.
+        generation.refresh_counts(completed=4, failed=[])
+        generation.mark_competition_complete("16504")
+        generation.evaluate_completeness()
+        generation.set_status(GenerationStatus.COMPLETE)
+        assert record(generation) is True
+
+        rows = db_session.execute(
+            text(
+                "SELECT status, completed_players, failed_players, complete "
+                "FROM fact_refresh_generation WHERE generation_id = :g"
+            ),
+            {"g": generation.generation_id},
+        ).all()
+        assert rows == [("COMPLETE", 4, 0, True)]
+
+    def test_it_records_a_count_rather_than_the_failed_player_ids(
+        self, store: GenerationStore, db_session
+    ) -> None:  # type: ignore[no-untyped-def]
+        """A public page has no reason to name which players a provider
+        failed to return."""
+        from sqlalchemy import inspect
+
+        from app.models import FactRefreshGeneration
+
+        columns = {c.key for c in inspect(FactRefreshGeneration).columns}
+        assert "failed_players" in columns
+        assert not any("id" in c and "failed" in c for c in columns if c != "generation_id")
+
+    def test_the_service_reads_it_back(self, store: GenerationStore, db_session) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.footystats.publish_status import record
+
+        from app.services import quality_service as svc
+
+        generation = store.resolve(resume=True, now=at(4))
+        generation.record_roster("16504", [str(i) for i in range(100)])
+        generation.refresh_counts(completed=68, failed=[])
+        generation.save()
+        record(generation)
+
+        status = svc.refresh_status(db_session)
+        assert status is not None
+        assert status.state == "In progress"
+        assert status.current is not None
+        assert status.current.completion_pct == pytest.approx(68.0)
+        assert status.published is None
+
+    def test_nothing_recorded_means_no_panel(self, db_session) -> None:  # type: ignore[no-untyped-def]
+        """Rather than an empty progress bar implying a stalled refresh."""
+        from sqlalchemy import text
+
+        from app.services import quality_service as svc
+
+        db_session.execute(text("DELETE FROM fact_refresh_generation"))
+        db_session.flush()
+        assert svc.refresh_status(db_session) is None

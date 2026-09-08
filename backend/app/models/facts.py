@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -333,4 +334,56 @@ class FactSourceLoad(Base):
     __table_args__ = (
         CheckConstraint("rows_loaded >= 0", name="source_load_rows_non_negative"),
         Index("ix_source_load_source_time", "source", "loaded_at"),
+    )
+
+
+class FactRefreshGeneration(Base):
+    """Where a provider refresh has got to, visible to the serving layer.
+
+    WHY THIS IS IN THE DATABASE
+
+    A generation's own state lives on disk, beside its snapshots, which is the
+    right place for it: the fetch runs outside the service, over many runs, and
+    the disk is what survives between them.
+
+    The serving layer cannot see that disk. The fetch happens in CI and the
+    snapshots live in its cache; the API runs elsewhere entirely. So a
+    /data-quality page reading the generation directory would show nothing in
+    production and everything in development, which is the worst of both.
+
+    This is the projection: the pipeline writes where it has got to, the API
+    reads it, and neither needs the other's filesystem.
+
+    One row per generation, updated as it progresses, so "how long did the last
+    refresh take" stays answerable.
+    """
+
+    __tablename__ = "fact_refresh_generation"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    #: `20260907T040000Z`. Unique per source.
+    generation_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: IN_PROGRESS | COMPLETE | VALIDATED | PUBLISHED | FAILED.
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    total_expected_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: A count, not the ids. A public page has no reason to name which players
+    #: a provider failed to return.
+    failed_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    competitions_expected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    competitions_complete: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        UniqueConstraint("source", "generation_id", name="uq_refresh_generation"),
+        CheckConstraint("total_expected_players >= 0", name="generation_expected_non_negative"),
+        CheckConstraint("completed_players >= 0", name="generation_completed_non_negative"),
+        CheckConstraint("failed_players >= 0", name="generation_failed_non_negative"),
+        Index("ix_refresh_generation_source_time", "source", "updated_at"),
     )

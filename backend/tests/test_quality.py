@@ -336,6 +336,10 @@ class TestQualityEndpoint:
             "average_detailed_coverage_pct",
             "unavailable_metrics",
             "analytics",
+            # Where the FootyStats refresh has got to. `None` when no
+            # generation exists yet, so the key is always present and the
+            # value is what varies.
+            "refresh",
         }
         assert body["volumes"]["players"] > 0
 

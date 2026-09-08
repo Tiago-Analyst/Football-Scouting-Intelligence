@@ -596,6 +596,7 @@ def main(argv: list[str] | None = None) -> int:
     from app.core.config import get_settings
     from app.core.logging import configure_logging, get_logger
     from app.providers.footystats import REQUESTS_PER_HOUR, FootyStatsProvider
+    from pipelines.footystats import publish_status
     from pipelines.footystats.generations import (
         GenerationError,
         GenerationStatus,
@@ -710,6 +711,10 @@ def main(argv: list[str] | None = None) -> int:
             )
             generation.evaluate_completeness()
             generation.save()
+            # Best-effort: the site cannot see the generation directory, so
+            # progress is projected into the database for it to read. A
+            # failure here is not a failed refresh.
+            publish_status.record(generation)
         report.stopped_early = report.stopped_early or result.stopped_early
         if result.fatal:
             report.unvisited = len(competitions) - position
@@ -744,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
             generation.set_status(GenerationStatus.COMPLETE)
         else:
             generation.save()
+        publish_status.record(generation)
     ledger = update_failure_ledger(report)
     persistent = {pid: e for pid, e in ledger.items() if int(e.get("runs_failed", 0)) >= 3}
     if persistent:

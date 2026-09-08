@@ -10,6 +10,71 @@
 > `docs/architecture.md` records what was built and why; this records what was
 > asked for.
 
+---
+
+# PRODUCT DECISION OVERRIDE
+
+> **This section is not part of the verbatim specification below.** It records
+> decisions taken since, which supersede specific rules in it. The
+> specification text is left exactly as supplied; where the two disagree, this
+> section wins, and the superseded rules are kept because knowing what was
+> originally asked for is worth more than a tidy document.
+
+## Minimum-minute eligibility is superseded
+
+**The original minimum-minute eligibility rules no longer apply.**
+
+All players with mathematically valid metrics are eligible for search,
+percentiles, role scoring, similarity, recruitment and replacement. Minutes are
+used only for informational sample-size labels and for optional, user-defined
+filtering.
+
+Current sample bands, which **label and never exclude**:
+
+| Minutes played | Band |
+| --- | --- |
+| < 180 | Very Low Sample |
+| 180–449 | Low Sample |
+| 450–899 | Developing Sample |
+| >= 900 | Established Sample |
+
+The specification below contains sections headed `>= 900 minutes`, `450-899
+minutes` and `<450 minutes`, and a `Minutes >= 900` rule in the recruitment
+filters. **Those are historical.** They describe an eligibility gate that was
+built, then deliberately removed: it hid entire competitions early in a season,
+when the most-played player in a league might have 360 minutes, and an empty
+page is indistinguishable from having no data at all.
+
+The one remaining rule is arithmetic rather than editorial: a per-90 needs
+minutes to divide by. A player with no minutes behind a metric has no rate for
+it and that metric reads N/A. Nothing is invented to fill the gap, and a zero
+denominator never becomes a zero rate.
+
+**A manual minimum-minutes filter remains available** in player search,
+recruitment, replacements and market opportunities. It defaults to nothing, and
+it is the user's to set.
+
+### Why this section exists
+
+A rule stated in an authoritative document tends to come back. This one already
+did: the 450-minute floor was removed and then re-derived by accident, because
+the specification still asked for it and nothing said otherwise. Anyone - or
+any agent - reading the sections below should read this first.
+
+The current behaviour is documented in
+[`methodology.md`](methodology.md) and asserted in
+`backend/tests/test_no_minutes_eligibility.py`.
+
+## Which minutes a per-90 divides by
+
+The specification does not distinguish the provider's two minute counts. It
+turns out to matter: FootyStats computes its headline counters over minutes
+played and its detailed statistics over detailed recorded minutes, and the
+recorded figure can exceed the played one. Both raw values are preserved. See
+[`footystats_denominator_validation.md`](footystats_denominator_validation.md).
+
+---
+
 You are building a production-quality football scouting and recruitment intelligence web platform.
 
 ## WORKING NAME
@@ -686,6 +751,12 @@ Every mapping must store:
 
 # 7. MINIMUM SAMPLE RULES
 
+> **SUPERSEDED — see PRODUCT DECISION OVERRIDE at the top of this file.**
+> The bands below are kept, as informational labels. The *eligibility* rule is
+> not: no player is excluded from search, percentiles, role scoring,
+> similarity, recruitment or replacement for playing too little. There are four
+> bands now rather than three, split at 180 minutes.
+
 Do not produce misleading player rankings for extremely small samples.
 
 Default rules:
@@ -1350,6 +1421,10 @@ Minutes >= 900
 Market Value <= €5m
 Contract <= 18 months
 ```
+
+> **Note on `Minutes >= 900`.** This is an example of a filter a *user* may
+> choose, and it remains available as one. It is not a default: the recruitment
+> builder ships with no minutes floor. See the override at the top of this file.
 
 Display why each player was identified.
 

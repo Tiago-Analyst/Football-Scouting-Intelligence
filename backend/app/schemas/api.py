@@ -585,6 +585,41 @@ class AnalyticsFreshnessOut(BaseModel):
     is_stale: bool
 
 
+class RefreshGenerationOut(BaseModel):
+    """Where the FootyStats refresh has got to.
+
+    Operational, and deliberately dull: a generation id, a status, and counts.
+    Nothing here names a storage path, a secret or a host - the question this
+    answers is "why is the site still showing last week's figure", and that
+    needs progress, not internals.
+    """
+
+    #: `20260907T040000Z`. A timestamp, and nothing else identifying.
+    generation_id: str
+    #: IN_PROGRESS | COMPLETE | VALIDATED | PUBLISHED | FAILED.
+    status: str
+    created_at: str | None = None
+    last_updated_at: str | None = None
+    published_at: str | None = None
+
+    total_expected_players: int = 0
+    completed_players: int = 0
+    failed_players: int = 0
+    completion_pct: float = 0.0
+    competitions_complete: int = 0
+    competitions_expected: int = 0
+    complete: bool = False
+
+
+class RefreshStatusOut(BaseModel):
+    """The published generation, and whatever is being fetched now."""
+
+    #: Idle | In progress | Complete | Validating | Failed.
+    state: str
+    published: RefreshGenerationOut | None = None
+    current: RefreshGenerationOut | None = None
+
+
 class DataQualityResponse(BaseModel):
     """What was checked, when, and what it found."""
 
@@ -605,3 +640,6 @@ class DataQualityResponse(BaseModel):
     #: demo mode, where everything is fabricated.
     unavailable_metrics: list[str] = Field(default_factory=list)
     analytics: AnalyticsFreshnessOut | None = None
+    #: FootyStats refresh progress. `None` when no generation exists yet,
+    #: which is the normal state of a database loaded before generations.
+    refresh: RefreshStatusOut | None = None

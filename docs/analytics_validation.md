@@ -8,9 +8,9 @@ Every figure below was rebuilt from the raw season totals in
 compared with what the engines produced. A check that asked the same
 code the same question would only prove the code is deterministic.
 
-**171 figures recomputed across 12 players. 0 disagreed.**
+**174 figures recomputed across 12 players. 0 disagreed.**
 
-120 of those compared an actual number on both
+123 of those compared an actual number on both
 sides. The rest are both sides agreeing a figure cannot be computed - a
 correct result, but one that says they agree about absence rather than
 about arithmetic, so it is counted separately.
@@ -53,6 +53,7 @@ about arithmetic, so it is counted separately.
 | Sung-wook Hong (CB) | `one_v_one_threat` | score | 18.1618 | 18.1618 | 3 of 3 components, weights renormalised over 100 of 100 |
 | Sung-wook Hong (CB) | `goal_threat` | score | 29.5108 | 29.5108 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Sung-wook Hong (CB) | `finishing` | score | 34.4580 | 34.4580 | 5 of 5 components, weights renormalised over 100 of 100 |
+| Sung-wook Hong (CB) | `ball_playing_centre_back` | role | 42.5858 | 42.5858 | 4 of 6 components, weights renormalised over 60 of 100 |
 | Sung-wook Hong (CB) | `defensive_stopper` | role | 70.5278 | 70.5278 | 5 of 6 components, weights renormalised over 90 of 100 |
 | Jae-min Seo (CM) | `goals_per90` | per90 | 0.0423 | 0.0423 | 1 / 2130 * 90 |
 | Jae-min Seo (CM) | `goals_per90 percentile` | percentile | 58.6957 | 58.6957 | 13 below + 1 equal of 23 |
@@ -73,6 +74,7 @@ about arithmetic, so it is counted separately.
 | Jae-min Seo (CM) | `goal_threat` | score | 53.3768 | 53.3768 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Jae-min Seo (CM) | `finishing` | score | 59.6642 | 59.6642 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Jae-min Seo (CM) | `ball_winning_midfielder` | role | 48.7213 | 48.7213 | 4 of 6 components (1 of them scores), weights renormalised over 80 of 100 |
+| Jae-min Seo (CM) | `deep_lying_playmaker` | role | 49.2447 | 49.2447 | 5 of 6 components, weights renormalised over 70 of 100 |
 | Jae-min Seo (CM) | `box_to_box_midfielder` | role | 54.1448 | 54.1448 | 7 of 8 components, weights renormalised over 85 of 100 |
 | Jae-min Seo (CM) | `advanced_playmaker` | role | 45.3645 | 45.3645 | 5 of 6 components, weights renormalised over 85 of 100 |
 | Pep Biel (AM) | `goals_per90` | per90 | 0.5389 | 0.5389 | 11 / 1837 * 90 |
@@ -138,6 +140,7 @@ about arithmetic, so it is counted separately.
 | Ashley Westwood (DM) | `goal_threat` | score | 47.0152 | 47.0152 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Ashley Westwood (DM) | `finishing` | score | 75.7083 | 75.7083 | 5 of 5 components, weights renormalised over 100 of 100 |
 | Ashley Westwood (DM) | `ball_winning_midfielder` | role | 29.9479 | 29.9479 | 4 of 6 components (1 of them scores), weights renormalised over 80 of 100 |
+| Ashley Westwood (DM) | `deep_lying_playmaker` | role | 83.9286 | 83.9286 | 5 of 6 components, weights renormalised over 70 of 100 |
 | Ashley Westwood (DM) | `box_to_box_midfielder` | role | 42.7807 | 42.7807 | 7 of 8 components, weights renormalised over 85 of 100 |
 | Chang-geun Lee (GK) | `goals_per90` | per90 | 0.0000 | 0.0000 | 0 / 2250 * 90 |
 | Chang-geun Lee (GK) | `goals_per90 percentile` | percentile | 50.0000 | 50.0000 | 0 below + 17 equal of 17 |

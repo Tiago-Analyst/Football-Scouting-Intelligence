@@ -518,6 +518,28 @@ export interface AnalyticsFreshness {
   is_stale: boolean;
 }
 
+/** Where the FootyStats refresh has got to. Operational, never internal. */
+export interface RefreshGeneration {
+  generation_id: string;
+  status: string;
+  created_at: string | null;
+  last_updated_at: string | null;
+  published_at: string | null;
+  total_expected_players: number;
+  completed_players: number;
+  failed_players: number;
+  completion_pct: number;
+  competitions_complete: number;
+  competitions_expected: number;
+  complete: boolean;
+}
+
+export interface RefreshStatus {
+  state: string;
+  published: RefreshGeneration | null;
+  current: RefreshGeneration | null;
+}
+
 export interface DataQualityResponse {
   /** What these checks do and do not establish. Always rendered with them. */
   meaning: string;
@@ -531,4 +553,6 @@ export interface DataQualityResponse {
   /** What the provider cannot supply at all. Empty in demo mode. */
   unavailable_metrics: string[];
   analytics: AnalyticsFreshness | null;
+  /** Null when no generation exists yet. */
+  refresh?: RefreshStatus | null;
 }

@@ -1,3 +1,4 @@
+import { RefreshProgress } from "@/components/quality/RefreshProgress";
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -152,6 +153,8 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
           </CardBody>
         </Card>
       </div>
+
+      {report.refresh ? <RefreshProgress refresh={report.refresh} /> : null}
 
       {report.analytics ? (
         <Card>

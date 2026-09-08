@@ -20,6 +20,8 @@ from app.schemas.api import (
     DataQualityResponse,
     IdentityCoverageOut,
     QualityCheckOut,
+    RefreshGenerationOut,
+    RefreshStatusOut,
     SourceFreshnessOut,
     VolumesOut,
 )
@@ -77,6 +79,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             built_at=view.built_at,
             is_stale=view_is_stale(),
         ),
+        refresh=_refresh_out(svc.refresh_status(db)),
         meaning=QUALITY_MEANING,
         notice=None if checks else NO_CHECKS_YET,
         volumes=VolumesOut(
@@ -111,4 +114,33 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             )
             for item in checks
         ],
+    )
+
+
+def _generation_out(summary) -> RefreshGenerationOut:  # type: ignore[no-untyped-def]
+    return RefreshGenerationOut(
+        generation_id=summary.generation_id,
+        status=summary.status,
+        created_at=summary.created_at,
+        last_updated_at=summary.last_updated_at,
+        published_at=summary.published_at,
+        total_expected_players=summary.total_expected_players,
+        completed_players=summary.completed_players,
+        failed_players=summary.failed_players,
+        completion_pct=summary.completion_pct,
+        competitions_complete=summary.competitions_complete,
+        competitions_expected=summary.competitions_expected,
+        complete=summary.complete,
+    )
+
+
+def _refresh_out(status) -> RefreshStatusOut | None:  # type: ignore[no-untyped-def]
+    """`None` stays `None`: no generation directory means nothing to show, and
+    an empty progress bar would imply a stalled refresh."""
+    if status is None:
+        return None
+    return RefreshStatusOut(
+        state=status.state,
+        published=_generation_out(status.published) if status.published else None,
+        current=_generation_out(status.current) if status.current else None,
     )
