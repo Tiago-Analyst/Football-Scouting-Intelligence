@@ -74,25 +74,67 @@ class TestNothingClampsTheProviderValue:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def own_row(db_session: Session):  # type: ignore[no-untyped-def]
+    """A player, competition and season these tests alone own.
+
+    The first version borrowed whatever `dim_player`, `dim_competition` and
+    `dim_season` happened to hold, via `SELECT ... LIMIT 1`. That works only
+    while the arbitrary triple it lands on has no player-season row yet - true
+    of the locally loaded data and false of the demo dataset CI builds, where
+    it collided with `uq_player_competition_season`.
+
+    Worse, the failure was silent in the other direction: the negative-minutes
+    test expects an `IntegrityError`, and a unique violation is one, so it
+    would have passed while proving nothing about the check constraint it
+    exists to test.
+
+    So these rows are created here. The whole session is rolled back
+    afterwards, and nothing depends on what is loaded.
+    """
+    from app.models import DimCompetition, DimPlayer, DimSeason
+    from app.schemas.canonical import PositionGroup
+
+    competition = DimCompetition(
+        competition_id="test:recorded-minutes",
+        name="Recorded Minutes Test League",
+        country="Nowhere",
+        source="test",
+    )
+    season = DimSeason(season_id="test:2026-2027", name="2026/27", start_year=2026, end_year=2027)
+    player = DimPlayer(
+        full_name="Recorded Minutes Test Player",
+        normalized_name="recorded minutes test player",
+        date_of_birth=dt.date(1998, 3, 12),
+        nationality="Portugal",
+        position_group=PositionGroup.CM,
+    )
+    db_session.add_all([competition, season, player])
+    db_session.flush()
+    return db_session, player.player_id, competition.competition_id, season.season_id
+
+
 @pytest.mark.integration
 class TestTheDatabaseAcceptsIt:
-    def test_recorded_above_played_is_storable(self, db_session: Session) -> None:
+    def test_recorded_above_played_is_storable(self, own_row) -> None:  # type: ignore[no-untyped-def]
         """The literal case from the brief: 326 played, 416 recorded."""
-        db_session.execute(
+        session, player_id, competition_id, season_id = own_row
+        session.execute(
             text("""
                 INSERT INTO fact_player_season_stats
                     (player_id, competition_id, season_id, minutes, recorded_minutes, source)
-                SELECT p.player_id, c.competition_id, s.season_id, 326, 416, 'test_unclamped'
-                FROM dim_player p, dim_competition c, dim_season s
-                LIMIT 1
-            """)
+                VALUES (:p, :c, :s, 326, 416, 'test_unclamped')
+            """),
+            {"p": player_id, "c": competition_id, "s": season_id},
         )
-        db_session.flush()
-        row = db_session.execute(
+        session.flush()
+
+        row = session.execute(
             text(
                 "SELECT minutes, recorded_minutes FROM fact_player_season_stats "
-                "WHERE source = 'test_unclamped'"
-            )
+                "WHERE player_id = :p AND competition_id = :c AND season_id = :s"
+            ),
+            {"p": player_id, "c": competition_id, "s": season_id},
         ).one()
         assert row == (326, 416)
 
@@ -105,25 +147,31 @@ class TestTheDatabaseAcceptsIt:
         ).scalar()
         assert present == 0
 
-    def test_negative_minutes_are_still_refused(self, db_session: Session) -> None:
+    def test_negative_minutes_are_still_refused(self, own_row) -> None:  # type: ignore[no-untyped-def]
         """Dropping the editorial rule does not drop the arithmetic ones.
 
         A negative minute count is not a provider opinion worth preserving; it
         is corrupt, and the database should go on saying so.
+
+        Asserted on the specific constraint rather than on `IntegrityError`,
+        because any integrity failure would satisfy the broader assertion - a
+        unique violation from a borrowed row would have passed this test while
+        telling us nothing about the check.
         """
         from sqlalchemy.exc import IntegrityError
 
-        with pytest.raises(IntegrityError):
-            db_session.execute(
+        session, player_id, competition_id, season_id = own_row
+        with pytest.raises(IntegrityError) as excinfo:
+            session.execute(
                 text("""
                     INSERT INTO fact_player_season_stats
                         (player_id, competition_id, season_id, minutes, recorded_minutes, source)
-                    SELECT p.player_id, c.competition_id, s.season_id, 90, -5, 'test_negative'
-                    FROM dim_player p, dim_competition c, dim_season s
-                    LIMIT 1
-                """)
+                    VALUES (:p, :c, :s, 90, -5, 'test_negative')
+                """),
+                {"p": player_id, "c": competition_id, "s": season_id},
             )
-            db_session.flush()
+            session.flush()
+        assert "recorded_minutes_non_negative" in str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
