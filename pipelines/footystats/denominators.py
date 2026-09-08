@@ -170,6 +170,14 @@ class Evidence:
     ambiguous: int = 0
     #: Players inspected with a usable minute gap and all three numbers present.
     considered: int = 0
+    #: Of the decisive records, those where the provider reported MORE
+    #: detail-minutes than played-minutes. Counted separately because they are
+    #: the evidence that settled whether to preserve such values or clamp them:
+    #: if the detailed metrics reproduce against the larger figure, then the
+    #: larger figure is what the provider meant, and clamping destroys it.
+    decisive_recorded_exceeds: int = 0
+    #: Of those, the ones that agreed with the recorded denominator.
+    exceeds_agreeing_with_recorded: int = 0
     examples: list[str] = field(default_factory=list)
 
     @property
@@ -269,9 +277,14 @@ def examine(records) -> dict[str, Evidence]:
                 entry.ambiguous += 1
             elif by_playing:
                 entry.playing += 1
+                if recorded > playing:
+                    entry.decisive_recorded_exceeds += 1
                 _remember(entry, season, record, total, published, playing, recorded)
             elif by_recorded:
                 entry.recorded += 1
+                if recorded > playing:
+                    entry.decisive_recorded_exceeds += 1
+                    entry.exceeds_agreeing_with_recorded += 1
                 _remember(entry, season, record, total, published, playing, recorded)
             else:
                 entry.neither += 1
@@ -400,6 +413,45 @@ def render(evidence: dict[str, Evidence], *, players: int, differing: int) -> st
                 "provider-supplied per-90 is preferred where one exists."
             )
         add("")
+
+    add("## Records where the provider recorded more than was played")
+    add("")
+    add(
+        "The canonical model once clamped `recorded_minutes` down to `minutes`, and a "
+        "database constraint enforced it. Both encoded a true statement about football "
+        "and a false one about this provider."
+    )
+    add("")
+    add(
+        "These are the records that settle it: the provider reported more detail-minutes "
+        "than played-minutes, so the two hypotheses give clearly different answers and "
+        "the provider's own published figure says which it used."
+    )
+    add("")
+    add("| Canonical metric | Decisive records with recorded > played | Agreed with recorded |")
+    add("| --- | ---: | ---: |")
+    for metric in UNDER_TEST:
+        entry = evidence[metric.canonical]
+        if not entry.decisive_recorded_exceeds:
+            continue
+        add(
+            f"| `{metric.canonical}` | {entry.decisive_recorded_exceeds} "
+            f"| {entry.exceeds_agreeing_with_recorded} |"
+        )
+    add("")
+    add(
+        "Where a detailed metric appears here, its rate reproduces against the larger "
+        "figure - which is the evidence that the larger figure is what the provider "
+        "meant. Clamping it would have inflated every detailed per-90 for those players "
+        "in proportion to the gap."
+    )
+    add("")
+    add(
+        "The clamp and the constraint were both removed. The raw provider values are "
+        "stored; the interface caps the coverage percentage it displays at 100% and "
+        "names the discrepancy rather than showing an impossible ratio."
+    )
+    add("")
 
     add("## What was done with this")
     add("")

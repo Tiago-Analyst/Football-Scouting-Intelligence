@@ -14,11 +14,17 @@ live in the `detailed` object of `/player-stats`, which takes one request per
 player. A whole competition is therefore one roster call plus one call per
 player, and the rate limiter below exists because of it.
 
-**Rates divide by `recorded_minutes`, not `minutes`.** FootyStats records
-detailed statistics for a subset of matches and computes its own per-90 figures
-over those minutes. 87% of player-seasons have full coverage; the worst measured
-had 82 recorded minutes against 303 played, where dividing by total minutes
-would report 27% of the true rate. The canonical model carries both.
+**The per-90 denominator depends on the metric family.** FootyStats carries
+two minute counts and uses different ones for different statistics: its
+headline counters (goals, assists, goals conceded) divide by minutes played,
+while its detailed action counts divide by the detailed recorded minutes. That
+is not a convention chosen here - it is what reproduces the provider's own
+published per-90 fields, metric by metric, in
+`docs/footystats_denominator_validation.md`. `app.analytics.denominators` holds
+the routing.
+
+Recorded minutes can exceed played minutes in real responses, and the raw value
+is preserved when it does.
 
 **Position group is usually unknown.** FootyStats reports four positions -
 Goalkeeper, Defender, Midfielder, Forward - where the canonical model has eight
@@ -464,8 +470,28 @@ class FootyStatsProvider(PerformanceDataProvider):
         if penalty_goals is not None and penalty_misses is not None:
             values[CanonicalMetric.PENALTIES_TAKEN.value] = penalty_goals + penalty_misses
 
-        # Recorded minutes cannot exceed minutes played; the schema enforces it
-        # and a provider that says otherwise is misunderstood, not merely noisy.
+        # WHAT THIS USED TO DO, AND WHY IT WAS WRONG
+        #
+        # It clamped `recorded_minutes` down to `minutes` whenever the provider
+        # reported more detail-minutes than played-minutes, on the reasoning
+        # that the statistics cannot cover more football than was played.
+        #
+        # That reasoning is sound about football and wrong about this provider.
+        # The denominator validation established, against the provider's own
+        # published per-90 figures, that detailed metrics really are computed
+        # over the recorded figure - including where it exceeds the played one.
+        # One sampled player has 326 played and 416 recorded, and their
+        # detailed rates reproduce only when divided by 416. Clamping to 326
+        # would have silently inflated every detailed per-90 that player has.
+        #
+        # So the raw value is kept. It is not our number to correct: a provider
+        # value that looks impossible is evidence about the provider, and the
+        # place to handle it is the data-quality layer and the interface, both
+        # of which now say so. Rewriting it here would destroy the evidence and
+        # leave a figure nobody could reproduce from the source.
+        #
+        # The warning stays. Somebody should know it happens; nothing should
+        # act on it here.
         minutes = values.get(CanonicalMetric.MINUTES.value)
         recorded = values.get(CanonicalMetric.RECORDED_MINUTES.value)
         if minutes is not None and recorded is not None and recorded > minutes:
@@ -474,8 +500,8 @@ class FootyStatsProvider(PerformanceDataProvider):
                 source_player_id=source_player_id,
                 minutes=minutes,
                 recorded=recorded,
+                note="provider value preserved; see docs/footystats_denominator_validation.md",
             )
-            values[CanonicalMetric.RECORDED_MINUTES.value] = minutes
 
         return PlayerSeasonStats(
             source_player_id=source_player_id,

@@ -175,13 +175,20 @@ class FactPlayerSeasonStats(Base):
             "appearances IS NULL OR minutes IS NULL OR minutes <= appearances * 120",
             name="minutes_within_appearances",
         ),
-        CheckConstraint(
-            # The statistics cannot cover more minutes than were played. A
-            # provider returning otherwise is misunderstood, not merely noisy,
-            # and every per-90 built on it would be wrong.
-            "recorded_minutes IS NULL OR minutes IS NULL OR recorded_minutes <= minutes",
-            name="recorded_minutes_within_minutes",
-        ),
+        # NO CONSTRAINT BETWEEN THE TWO MINUTE COUNTS. Deliberate, and removed
+        # in 0007 rather than never written.
+        #
+        # `recorded_minutes <= minutes` is true about football and false about
+        # this provider. FootyStats computes its detailed per-90 figures over
+        # the recorded count, and real records carry a recorded count larger
+        # than the played one - 326 played against 416 recorded in one sampled
+        # player, whose detailed rates reproduce only when divided by 416.
+        #
+        # The constraint forced the loader to clamp, and clamping 416 to 326
+        # inflates every detailed rate that player has. A rule meant to prevent
+        # corruption was causing it. The relationship is now measured and
+        # reported by the data-quality suite instead, where an unexpected value
+        # is evidence rather than an error.
         Index("ix_stats_competition_season", "competition_id", "season_id"),
         Index("ix_stats_player_season", "player_id", "season_id"),
         # Almost every ranking filters on minutes first; indexing it keeps the

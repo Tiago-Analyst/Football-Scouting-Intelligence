@@ -280,14 +280,19 @@ def build_view(settings: Settings) -> AnalyticsView:
             market_value_eur=loaded.market_value_eur,
             contract_expires=loaded.contract_expires,
             minutes=loaded.stats.minutes,
-            # Classified on the minutes the statistics cover, not on time on
-            # the pitch. The sample-size rule exists to stop a ranking being
-            # built on too little evidence, and the evidence is those minutes.
-            sample_band=classify_minutes(
-                loaded.stats.recorded_minutes
-                if loaded.stats.recorded_minutes is not None
-                else loaded.stats.minutes
-            ),
+            # Time on the pitch, not the minutes the detailed feed covers.
+            #
+            # These are two questions and the band answers only one of them:
+            # how much football is behind this player's season. A player with
+            # 1,200 minutes played and 300 recorded in detail has an
+            # established sample and a limited detailed record, and collapsing
+            # that into one figure told the reader neither.
+            #
+            # It used to divide by recorded minutes, which made the band a
+            # statement about the provider's coverage wearing the name of a
+            # statement about the player. Detailed coverage is reported
+            # separately, beside it, by `app.analytics.coverage`.
+            sample_band=classify_minutes(loaded.stats.minutes),
             stats=loaded.stats,
             metrics=metrics,
             comparable_season=loaded.comparable_season or loaded.stats.season_id,

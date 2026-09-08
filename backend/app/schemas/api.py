@@ -132,8 +132,20 @@ class SampleOut(BaseModel):
     #: denominator of every per-90 here. Absent when the provider said nothing,
     #: which is not the same as nought.
     recorded_minutes: int | None = None
-    #: recorded / played, as a percentage. `None` when it cannot be computed.
+    #: recorded / played, as a percentage, capped at 100 for display.
+    #:
+    #: Capped because the raw ratio can exceed 100 - the provider sometimes
+    #: reports more detail-minutes than played-minutes - and "127% Excellent
+    #: coverage" reads as a broken site rather than as the provider anomaly it
+    #: is. `detailed_coverage_raw_pct` carries the uncapped figure.
     detailed_coverage_pct: float | None = None
+    #: The uncapped ratio, for data quality and debugging. May exceed 100.
+    detailed_coverage_raw_pct: float | None = None
+    #: True when the provider reported more detail-minutes than played-minutes.
+    provider_minutes_inconsistent: bool = False
+    #: Why, when it did.
+    minutes_discrepancy_label: str | None = None
+    minutes_discrepancy_explanation: str | None = None
     #: excellent | good | partial | limited, or absent with the percentage.
     coverage_band: str | None = None
     coverage_label: str | None = None

@@ -223,6 +223,31 @@ Sample players:
 - Andy Rojas Maroto (season-16504.jsonl): total 3, provider per-90 0.34; /849 min = 0.318, /799 recorded = 0.338
 - Andrés Cubas (season-16504.jsonl): total 19, provider per-90 2.51; /1126 min = 1.519, /681 recorded = 2.511
 
+## Records where the provider recorded more than was played
+
+The canonical model once clamped `recorded_minutes` down to `minutes`, and a database constraint enforced it. Both encoded a true statement about football and a false one about this provider.
+
+These are the records that settle it: the provider reported more detail-minutes than played-minutes, so the two hypotheses give clearly different answers and the provider's own published figure says which it used.
+
+| Canonical metric | Decisive records with recorded > played | Agreed with recorded |
+| --- | ---: | ---: |
+| `goals_per90` | 11 | 0 |
+| `assists_per90` | 2 | 0 |
+| `goals_conceded_per90` | 30 | 0 |
+| `shots_per90` | 19 | 19 |
+| `shots_on_target_per90` | 12 | 12 |
+| `npxg_per90` | 15 | 15 |
+| `xa_per90` | 16 | 16 |
+| `passes_per90` | 26 | 26 |
+| `completed_passes_per90` | 26 | 26 |
+| `key_passes_per90` | 15 | 15 |
+| `tackles_per90` | 13 | 13 |
+| `interceptions_per90` | 16 | 16 |
+
+Where a detailed metric appears here, its rate reproduces against the larger figure - which is the evidence that the larger figure is what the provider meant. Clamping it would have inflated every detailed per-90 for those players in proportion to the gap.
+
+The clamp and the constraint were both removed. The raw provider values are stored; the interface caps the coverage percentage it displays at 100% and names the discrepancy rather than showing an impossible ratio.
+
 ## What was done with this
 
 `backend/app/analytics/denominators.py` holds the routing table this report justifies, and `compute_derived` asks it per metric rather than dividing everything by one figure. A metric this report cannot settle keeps the denominator it already had, and the table records that it is unconfirmed rather than pretending otherwise.

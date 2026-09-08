@@ -187,7 +187,14 @@ export interface Sample {
    */
   recorded_minutes: number | null;
   /** recorded / played, as a percentage. Null when it cannot be computed. */
+  /** recorded / played as a percentage, capped at 100 for display. */
   detailed_coverage_pct: number | null;
+  /** The uncapped ratio. May exceed 100; for data quality, not for display. */
+  detailed_coverage_raw_pct?: number | null;
+  /** True when the provider reported more detail-minutes than played-minutes. */
+  provider_minutes_inconsistent?: boolean;
+  minutes_discrepancy_label?: string | null;
+  minutes_discrepancy_explanation?: string | null;
   coverage_band: CoverageBand | null;
   coverage_label: string | null;
   coverage_explanation: string | null;
