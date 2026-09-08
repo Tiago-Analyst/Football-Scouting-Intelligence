@@ -677,6 +677,20 @@ def purge(session: Session, source: str) -> None:
     session.execute(delete(FactDataQuality).where(FactDataQuality.source == source))
 
 
+def _newest_loadable_generation():  # type: ignore[no-untyped-def]
+    """The newest generation that has finished fetching, or None.
+
+    None means "no generation directory", not "nothing is ready": a store
+    holding only an IN_PROGRESS generation returns None here and the caller
+    falls back to the flat layout, which is empty on a fresh checkout and so
+    fails loudly rather than loading half a season.
+    """
+    from pipelines.footystats.generations import GenerationStore
+
+    loadable = [g for g in GenerationStore().all() if g.status.is_publishable]
+    return loadable[-1] if loadable else None
+
+
 def build_loader(session: Session, source: str) -> ProviderLoader:
     if source == "demo":
         return ProviderLoader(
@@ -693,11 +707,34 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
         from app.providers.footystats import FootyStatsProvider
         from app.providers.footystats_snapshot import SnapshotReader, SnapshotUnavailableError
 
-        reader = SnapshotReader()
+        # WHICH GENERATION THIS LOADS FROM
+        #
+        # The newest one that finished fetching. A generation still
+        # IN_PROGRESS is a partial universe: loading it would replace a whole
+        # season with a subset of itself, and every percentile would be
+        # measured against a population missing entire leagues.
+        #
+        # `is_publishable` is the gate, and it is deliberately narrow -
+        # COMPLETE, VALIDATED or PUBLISHED. The load's own `--verify` decides
+        # whether what it finds is good enough to keep; this decides only that
+        # it is finished.
+        generation = _newest_loadable_generation()
+        if generation is not None:
+            reader = SnapshotReader(generation.directory)
+            print(
+                f"Loading FootyStats generation {generation.generation_id} "
+                f"({generation.status.value})."
+            )
+        else:
+            # The flat layout, for a database fetched before generations
+            # existed or by a local `--flat` run.
+            reader = SnapshotReader()
+
         available = reader.available_seasons()
         if not available:
             raise SnapshotUnavailableError(
-                "No FootyStats snapshots found. Run `python -m pipelines.footystats.ingest` first."
+                "No FootyStats snapshots found. Run `python -m pipelines.footystats.ingest` "
+                "first, and let a generation reach COMPLETE before loading."
             )
 
         performance = FootyStatsProvider(get_settings())

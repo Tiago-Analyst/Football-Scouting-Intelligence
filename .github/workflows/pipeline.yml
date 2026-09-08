@@ -33,8 +33,23 @@ on:
     # Transfermarkt: Sundays 05:00 UTC. Matches refresh.transfermarkt.cron.
     - cron: "0 5 * * 0"
     # FootyStats: Mon/Wed/Fri 04:00 UTC. Matches refresh.footystats.cron.
-    # Skipped at runtime while no API key exists.
+    # This is the CADENCE - when a new refresh generation may begin.
     - cron: "0 4 * * 1,3,5"
+    # FootyStats continuation: hourly. Matches
+    # refresh.footystats.continuation_cron.
+    #
+    # A complete refresh is ~23,500 requests, about fourteen hours at the
+    # account's rate limit, and a job fetches for ~45 minutes - so a generation
+    # needs roughly nineteen productive runs. On the cadence alone that is
+    # three weeks per refresh, publishing data older than the interval that
+    # produced it.
+    #
+    # These runs do nothing unless a generation is open: the gate below stops
+    # them before the database checks and the fetch, so a quiet hour costs
+    # about a minute of setup. When one is open, a refresh finishes in roughly
+    # a day instead of three weeks. Budget: ~720 no-op minutes a month against
+    # the 2,000 included with a private repository - see docs/deployment.md.
+    - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
       source:
@@ -45,7 +60,14 @@ on:
 
 concurrency:
   # Two loads writing the same tables at once is the one way to get a
-  # half-published dataset past a transactional loader.
+  # half-published dataset past a transactional loader. And with an hourly
+  # continuation cron, two fetches interleaving into the same generation is now
+  # a real possibility rather than a theoretical one - a long run overlapping
+  # the next hour's trigger.
+  #
+  # `cancel-in-progress: false` matters as much as the group: cancelling a
+  # fetch mid-flight would kill it without flushing its snapshot, losing the
+  # progress the whole design exists to preserve. A queued run simply waits.
   group: data-pipeline
   cancel-in-progress: false
 
@@ -93,6 +115,31 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
         run: |
           python -m pipelines.load.resolve_source
+
+      - name: Decide whether this run has anything to do
+        id: gate
+        # Two crons mean two different things. The cadence may begin a refresh;
+        # the hourly continuation may only carry an unfinished one forward, and
+        # does nothing when none is open - which is most hours.
+        #
+        # Runs before the database checks and the fetch, so a quiet hour
+        # stops here. It needs the install above, so the floor on a no-op run
+        # is the setup cost - about a minute - rather than nothing at all.
+        if: steps.resolve_source.outputs.source == 'footystats'
+        env:
+          REFRESH_MODE: ${{ steps.resolve_source.outputs.mode }}
+        run: python -m pipelines.footystats.gate
+
+      - name: Report that there is no refresh to continue
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.proceed == 'false'
+        run: |
+          {
+            echo "### No FootyStats work this run"
+            echo
+            echo "${{ steps.gate.outputs.reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # -- Is there anywhere to publish to? ---------------------------------
       #
@@ -213,7 +260,8 @@ jobs:
         # worst case is waiting.
         if: >-
           steps.preflight.outputs.footystats == 'true' &&
-          steps.resolve_source.outputs.source == 'footystats'
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.proceed == 'true'
         uses: actions/cache@v4
         with:
           path: data/raw/footystats/snapshots
@@ -224,7 +272,8 @@ jobs:
         id: fetch
         if: >-
           steps.preflight.outputs.footystats == 'true' &&
-          steps.resolve_source.outputs.source == 'footystats'
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.proceed == 'true'
         # A full fetch is one request per player - roughly 23,500 across the 47
         # configured competitions, or thirteen hours at the account's rate
         # limit. It cannot finish inside a job, and it does not need to:
@@ -326,18 +375,36 @@ jobs:
         # which market values belong to a covered player, and the answer is
         # wrong while the sources are still two separate populations.
         #
-        # Non-fatal on purpose. Resolution failing leaves the two providers
-        # unmatched, which is a degraded site rather than a corrupt one, and
-        # stopping the run here would also stop the analytics reload - so a
-        # refresh that loaded and verified correctly would never reach readers.
-        continue-on-error: true
+        # NOT `continue-on-error`. It was, and that was wrong.
+        #
+        # The reasoning behind it: unmatched players are an ordinary outcome,
+        # so a resolution step that "fails" should not stop a good load
+        # reaching readers. The first half is true and the second does not
+        # follow, because the process failing and the matching being imperfect
+        # are different events with the same exit code only if nobody
+        # separates them.
+        #
+        # They are separated at the source. `resolve.py` exits 0 with matched,
+        # ambiguous and unmatched counts in its summary: unmatched is a
+        # data-quality state, ambiguous is a manual-review state, and neither
+        # is an error. A non-zero exit means the process itself failed - a
+        # database error, a source that loaded nothing, an unhandled
+        # exception - and that leaves the two providers unjoined.
+        #
+        # Publishing then is worse than not publishing. Market values, contract
+        # data and every cross-source figure hang off that join, so a site
+        # served from a database where it silently came apart shows FootyStats
+        # performance beside no Transfermarkt anything, and looks like a data
+        # outage rather than a pipeline fault.
         id: identity
         run: |
           set -o pipefail
           python -m pipelines.identity_resolution.resolve --apply 2>&1 | tee pipeline-identity.log
 
       - name: Drop market history nothing can reach
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -355,7 +422,9 @@ jobs:
           python -m pipelines.load.prune --apply 2>&1 | tee pipeline-prune.log
 
       - name: Record the quality report
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -372,7 +441,9 @@ jobs:
           python -m pipelines.quality.report --persist 2>&1 | tee pipeline-quality.log
 
       - name: Measure what the loaded data can produce
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -390,7 +461,9 @@ jobs:
           python -m pipelines.quality.derived_coverage             --source "${{ steps.resolve_source.outputs.source }}" 2>&1 | tee pipeline-derived.log
 
       - name: Recompute sample players independently
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -420,7 +493,9 @@ jobs:
         # Both are told, in that order. `success()` matters: a run whose
         # validation failed must leave the previous data live rather than
         # publish something that did not reproduce.
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           API_ORIGIN: ${{ secrets.API_ORIGIN }}
           SITE_ORIGIN: ${{ secrets.SITE_ORIGIN }}

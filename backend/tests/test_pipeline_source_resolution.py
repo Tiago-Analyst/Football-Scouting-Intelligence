@@ -169,7 +169,7 @@ class TestTheWorkflowAndTheConfigAgree:
     ) -> None:
         triggers = workflow.get("on") or workflow.get(True)
         scheduled = {" ".join(entry["cron"].split()) for entry in triggers["schedule"]}
-        for cron, source in cron_map(config).items():
+        for cron, (source, _mode) in cron_map(config).items():
             enabled = (config["refresh"][source] or {}).get("enabled")
             if enabled:
                 assert cron in scheduled, (
@@ -266,12 +266,150 @@ class TestIdentityResolutionRunsOnEveryRefresh:
         step = _step(workflow, "Resolve identities across providers")
         assert "steps.load.outcome == 'success'" in str(step["if"])
 
-    def test_a_failure_to_resolve_does_not_block_publication(self, workflow: dict) -> None:
-        """Unmatched providers is a degraded site; not publishing is a stale one.
+    def test_a_failure_to_resolve_blocks_publication(self, workflow: dict) -> None:
+        """A reversed decision, and the reasoning that was wrong.
 
-        The load already verified inside its own transaction, so the data is
-        sound. Letting resolution failure stop the analytics reload would keep
-        correct data off the site to punish a separate problem.
+        The step was `continue-on-error: true`, on the argument that unmatched
+        players are an ordinary outcome and a "failing" resolution step should
+        not keep a good load off the site. The first half is true; the second
+        does not follow. The process failing and the matching being imperfect
+        are different events, and they share an exit code only if nobody
+        separates them.
+
+        They are separated at the source: `resolve.py` exits 0 with matched,
+        ambiguous and unmatched counts in its summary. A non-zero exit means
+        the process itself failed, which leaves the two providers unjoined -
+        and every market value, contract date and cross-source figure hangs off
+        that join.
         """
         step = _step(workflow, "Resolve identities across providers")
-        assert step.get("continue-on-error") is True
+        assert "continue-on-error" not in step, (
+            "identity resolution is advisory again, so a refresh can publish a "
+            "database where the two providers came apart"
+        )
+
+    def test_everything_downstream_requires_it(self, workflow: dict) -> None:
+        """Including the publish, which is what readers actually see."""
+        for name in (
+            "Drop market history nothing can reach",
+            "Record the quality report",
+            "Recompute sample players independently",
+            "Publish the refreshed data to the live site",
+        ):
+            condition = " ".join(str(_step(workflow, name)["if"]).split())
+            assert "steps.identity.outcome" in condition, name
+
+    def test_a_transfermarkt_run_is_not_blocked_by_a_skipped_step(self, workflow: dict) -> None:
+        """`skipped` is not `failure`.
+
+        Identity resolution runs only after a successful load. A run where it
+        was skipped for an unrelated reason must not be treated as one where it
+        broke, or the gate would stop every refresh it does not apply to.
+        """
+        condition = " ".join(
+            str(_step(workflow, "Publish the refreshed data to the live site")["if"]).split()
+        )
+        assert "skipped" in condition
+
+
+class TestTheContinuationSchedule:
+    """A refresh takes about fourteen hours of fetching; a job manages forty-five
+    minutes. On the cadence cron alone that is three weeks per refresh, which
+    publishes data older than the interval that produced it.
+    """
+
+    def test_the_hourly_cron_exists_and_is_claimed(self, workflow: dict, config: dict) -> None:
+        triggers = workflow.get("on") or workflow.get(True)
+        scheduled = {" ".join(entry["cron"].split()) for entry in triggers["schedule"]}
+        assert "0 * * * *" in scheduled
+        assert cron_map(config)["0 * * * *"] == ("footystats", "continue_only")
+
+    def test_the_cadence_cron_may_start_a_generation(self, config: dict) -> None:
+        assert cron_map(config)["0 4 * * 1,3,5"] == ("footystats", "start")
+
+    def test_a_manual_run_may_start_one(self, config: dict) -> None:
+        from pipelines.load.resolve_source import START, resolve_with_mode
+
+        _, mode = resolve_with_mode(
+            event_name="workflow_dispatch",
+            schedule=None,
+            input_source="footystats",
+            config=config,
+        )
+        assert mode == START
+
+    def test_the_gate_runs_before_the_fetch(self, workflow: dict) -> None:
+        names = [s.get("name") or s.get("uses") for s in _steps(workflow)]
+        assert names.index("Decide whether this run has anything to do") < names.index(
+            "Retrieve FootyStats data"
+        )
+
+    def test_the_fetch_is_gated_on_it(self, workflow: dict) -> None:
+        condition = " ".join(str(_step(workflow, "Retrieve FootyStats data")["if"]).split())
+        assert "steps.gate.outputs.proceed == 'true'" in condition
+
+    def test_concurrent_runs_are_queued_rather_than_cancelled(self, workflow: dict) -> None:
+        """Cancelling a fetch mid-flight loses the progress it had not flushed."""
+        concurrency = workflow["concurrency"]
+        assert concurrency["cancel-in-progress"] is False
+        assert concurrency["group"]
+
+
+class TestTheGateDecision:
+    def test_an_hourly_run_with_nothing_open_does_nothing(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.footystats.gate import decide
+        from pipelines.footystats.generations import GenerationStore
+        from pipelines.load.resolve_source import CONTINUE_ONLY
+
+        proceed, reason = decide(CONTINUE_ONLY, GenerationStore(root=tmp_path / "g"))
+        assert proceed is False
+        assert "nothing to continue" in reason
+
+    def test_an_hourly_run_continues_an_open_generation(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.footystats.gate import decide
+        from pipelines.footystats.generations import GenerationStore
+        from pipelines.load.resolve_source import CONTINUE_ONLY
+
+        store = GenerationStore(root=tmp_path / "g")
+        store.create()
+        proceed, reason = decide(CONTINUE_ONLY, store)
+        assert proceed is True
+        assert "continuing generation" in reason
+
+    def test_the_cadence_starts_one_when_none_is_open(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.footystats.gate import decide
+        from pipelines.footystats.generations import GenerationStore
+        from pipelines.load.resolve_source import START
+
+        proceed, reason = decide(START, GenerationStore(root=tmp_path / "g"))
+        assert proceed is True
+        assert "starting a new" in reason
+
+    def test_the_cadence_does_not_start_a_second_one(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """A refresh still running on Wednesday is continued, not restarted."""
+        from pipelines.footystats.gate import decide
+        from pipelines.footystats.generations import GenerationStore
+        from pipelines.load.resolve_source import START
+
+        store = GenerationStore(root=tmp_path / "g")
+        store.create()
+        proceed, reason = decide(START, store)
+        assert proceed is True
+        assert "continuing it rather than starting another" in reason
+
+    def test_a_broken_generation_state_stops_the_run(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """Rather than guessing between two open generations."""
+        from pipelines.footystats.gate import decide
+        from pipelines.footystats.generations import GenerationStore
+        from pipelines.load.resolve_source import CONTINUE_ONLY
+
+        store = GenerationStore(root=tmp_path / "g")
+        first = store.create()
+        (store.root / "20200101T000000Z").mkdir(parents=True)
+        (store.root / "20200101T000000Z" / "metadata.json").write_text(
+            first.metadata_path.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        proceed, reason = decide(CONTINUE_ONLY, store)
+        assert proceed is False
+        assert "needs attention" in reason

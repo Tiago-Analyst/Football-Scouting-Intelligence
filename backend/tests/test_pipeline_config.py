@@ -48,7 +48,15 @@ class TestCadence:
         """The one that would silently rot: someone changes the config, the
         schedule does not move, and the pipeline keeps its old cadence while
         the file says otherwise."""
-        configured = {entry["cron"] for entry in competitions["refresh"].values()}
+        configured = {
+            cron
+            for entry in competitions["refresh"].values()
+            # A source may declare two: `cron` is the cadence, when a new
+            # refresh generation may begin, and `continuation_cron` is when an
+            # unfinished one may carry on.
+            for key in ("cron", "continuation_cron")
+            if (cron := entry.get(key))
+        }
         scheduled = {entry["cron"] for entry in workflow["triggers"]["schedule"]}
         assert configured == scheduled
 
