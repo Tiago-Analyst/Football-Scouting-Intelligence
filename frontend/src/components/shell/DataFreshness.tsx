@@ -1,5 +1,5 @@
 import { formatDate } from "@/lib/format";
-import type { SourceLoad } from "@/types/api";
+import type { SourcePublication } from "@/types/api";
 
 /**
  * How current each source is, said separately.
@@ -10,13 +10,16 @@ import type { SourceLoad } from "@/types/api";
  * deciding whether to trust a market value needs to know when the market data
  * arrived, not when anything did.
  *
- * These are load times, not check times. A quality check running against a
- * fortnight-old load is routine, and reading one as the other would make the
- * site claim a freshness it does not have.
+ * These are publication times: when the dataset on screen became the dataset
+ * on screen. Not check times — a quality check running against a fortnight-old
+ * dataset is routine. And not load times either, now that a refresh loads into
+ * a staging schema first: a load that fails its checks never reaches anybody,
+ * and dating this line from one would make every page claim a freshness the
+ * figures beneath it do not have.
  *
- * Nothing is shown when nothing is known. An empty list means no load has been
- * recorded yet or the database was unreachable, and a missing line is a
- * smaller lie than an invented date.
+ * Nothing is shown when nothing is known. An empty list means no publication
+ * has been recorded yet or the database was unreachable, and a missing line is
+ * a smaller lie than an invented date.
  */
 const SOURCE_LABELS: Record<string, string> = {
   footystats: "Performance data",
@@ -24,7 +27,7 @@ const SOURCE_LABELS: Record<string, string> = {
   demo: "Demo data",
 };
 
-export function DataFreshness({ sources }: { sources: SourceLoad[] }) {
+export function DataFreshness({ sources }: { sources: SourcePublication[] }) {
   if (sources.length === 0) return null;
 
   return (
@@ -33,7 +36,9 @@ export function DataFreshness({ sources }: { sources: SourceLoad[] }) {
         <div key={entry.source} className="flex gap-1.5">
           <dt>{SOURCE_LABELS[entry.source] ?? entry.source} updated</dt>
           <dd className="font-medium text-muted">
-            <time dateTime={entry.last_loaded_at}>{formatDate(entry.last_loaded_at)}</time>
+            <time dateTime={entry.last_published_at}>
+              {formatDate(entry.last_published_at)}
+            </time>
           </dd>
         </div>
       ))}

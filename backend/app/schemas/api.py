@@ -529,11 +529,23 @@ class QualityCheckOut(BaseModel):
 class SourceFreshnessOut(BaseModel):
     """How current one source is, and how its last checks went.
 
-    Two timestamps, and they answer different questions. `last_checked_at` is
-    when the automated checks last ran; `last_loaded_at` is when this source's
-    data was last replaced. A check running against a fortnight-old load is a
-    perfectly ordinary event, and reading the first as the second would let the
-    site announce that the data was updated today.
+    Three timestamps, answering three different questions, and the whole reason
+    they are separate is that conflating any two of them produces a claim the
+    data does not support:
+
+      `last_checked_at`       when the automated checks last ran. They run
+                              against whatever is serving, however old it is.
+      `last_published_at`        when this source's data was last **published** -
+                              the moment the figures on screen became these
+                              figures.
+      `last_load_attempt_at`  when a refresh last loaded this source into
+                              staging, published or not.
+
+    The middle one is the age of what a reader is looking at, and it is the
+    only one that may be presented that way. A refresh that loads at 10:00 and
+    fails its quality gate at 10:20 moves the third and not the second, because
+    production is still yesterday's dataset and saying otherwise would be
+    false in exactly the way somebody would act on.
     """
 
     source: str
@@ -542,10 +554,13 @@ class SourceFreshnessOut(BaseModel):
     checks_run: int
     failures: int
     warnings: int
-    #: `None` for a source loaded before the two were recorded separately.
-    last_loaded_at: datetime | None = None
+    #: `None` for a source published before publications were recorded.
+    last_published_at: datetime | None = None
     data_age_days: int | None = None
-    rows_loaded: int | None = None
+    rows_published: int | None = None
+    #: Operational. A load attempt newer than `last_published_at` means a refresh
+    #: is between staging and production - not that the data has changed.
+    last_load_attempt_at: datetime | None = None
 
 
 class VolumesOut(BaseModel):

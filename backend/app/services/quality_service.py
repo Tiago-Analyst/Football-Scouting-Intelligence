@@ -29,6 +29,7 @@ from app.models import (
     FactPlayerSeasonStats,
     FactRefreshGeneration,
     FactSourceLoad,
+    FactSourcePublication,
 )
 from app.providers.registry import build_performance_provider
 from app.schemas.canonical import CanonicalMetric
@@ -53,11 +54,17 @@ class SourceFreshness:
     checks_run: int
     failures: int
     warnings: int
-    #: When this source's data was last loaded, which is not when it was last
-    #: checked. `None` for a source loaded before the two were told apart.
-    last_loaded_at: datetime | None = None
+    #: When this source's data was last *published* - the moment the dataset a
+    #: reader is looking at became the one being served. Not when a load ran:
+    #: loads write to staging and many of them never reach production.
+    #: `None` for a source published before publications were recorded.
+    last_published_at: datetime | None = None
     data_age_days: int | None = None
-    rows_loaded: int | None = None
+    rows_published: int | None = None
+    #: When this source was last loaded into staging, published or not. Kept
+    #: separate so an operator can see a refresh stuck between the two without
+    #: it being reported to readers as fresh data.
+    last_load_attempt_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -104,13 +111,70 @@ def latest_checks(session: Session, *, limit: int = 200) -> list[CheckRecord]:
     ]
 
 
-def last_loads(session: Session) -> dict[str, tuple[datetime, int]]:
-    """When each source's data was last loaded, and how many rows arrived.
+def last_publications(session: Session) -> dict[str, tuple[datetime, int]]:
+    """When each source's data last reached readers, and how much of it.
 
-    Deliberately separate from `freshness` below, which reports when checks
-    last *ran*. Those are different facts and conflating them lets the site
-    tell somebody the performance data was updated today because a check ran
-    against a fortnight-old load.
+    THREE FACTS, NOT ONE
+    --------------------
+
+    A check ran. A load ran. A dataset was published. They were the same event
+    once and none of them are now:
+
+      - a check runs against whatever is serving, however old
+      - a load writes to `analytics_staging`, and a staging load that fails
+        identity resolution or a quality gate never becomes production
+      - a publication is the schema swap, and only that
+
+    This reads publications, because "how old is what I am looking at" is the
+    question the freshness panel answers. Reading loads instead would let the
+    site report a 10:00 refresh while still serving yesterday's figures - false
+    in precisely the way a reader would act on.
+    """
+    newest = (
+        select(
+            FactSourcePublication.source,
+            func.max(FactSourcePublication.published_at).label("latest"),
+        )
+        .group_by(FactSourcePublication.source)
+        .subquery()
+    )
+    rows = session.execute(
+        select(
+            FactSourcePublication.source,
+            FactSourcePublication.published_at,
+            FactSourcePublication.rows_published,
+        )
+        .join(
+            newest,
+            (FactSourcePublication.source == newest.c.source)
+            & (FactSourcePublication.published_at == newest.c.latest),
+        )
+        .order_by(FactSourcePublication.source)
+    ).all()
+    return {source: (published_at, int(rows)) for source, published_at, rows in rows}
+
+
+def last_load_attempts(session: Session) -> dict[str, datetime]:
+    """When each source was last loaded into staging, published or not.
+
+    Operational rather than editorial. It answers "did the refresh run", which
+    is worth knowing when loads happen hourly and nothing is being published;
+    it must never be shown as the age of the data on screen.
+    """
+    rows = session.execute(
+        select(FactSourceLoad.source, func.max(FactSourceLoad.loaded_at)).group_by(
+            FactSourceLoad.source
+        )
+    ).all()
+    return {source: loaded_at for source, loaded_at in rows}
+
+
+def last_loads(session: Session) -> dict[str, tuple[datetime, int]]:
+    """When each source was last loaded into staging, and how many rows arrived.
+
+    The load ledger, unchanged. `/health` reports it because an operator asking
+    "did the pipeline run" wants attempts, including the ones that never
+    published. Readers get `last_publications` instead.
     """
     newest = (
         select(FactSourceLoad.source, func.max(FactSourceLoad.loaded_at).label("latest"))
@@ -154,21 +218,30 @@ def freshness(session: Session) -> list[SourceFreshness]:
     ).all()
 
     now = datetime.now(UTC)
-    loads = last_loads(session)
+    publications = last_publications(session)
+    attempts = last_load_attempts(session)
 
     def with_load(source: str, **fields: object) -> SourceFreshness:
-        entry = loads.get(source)
+        attempted_at = attempts.get(source)
+        entry = publications.get(source)
         if entry is None:
-            # Loaded before this was recorded, or never loaded. Absent rather
-            # than guessed: the check time is not the load time, and filling
-            # one in from the other is the mistake this exists to prevent.
-            return SourceFreshness(source=source, **fields)  # type: ignore[arg-type]
-        loaded_at, row_count = entry
+            # Published before publications were recorded, or never published.
+            # Absent rather than guessed, and specifically not filled in from
+            # the load attempt: a load that was never promoted is not an update
+            # to anything a reader can see, and reporting it as one is the
+            # mistake this separation exists to prevent.
+            return SourceFreshness(
+                source=source,
+                last_load_attempt_at=attempted_at,
+                **fields,  # type: ignore[arg-type]
+            )
+        published_at, row_count = entry
         return SourceFreshness(
             source=source,
-            last_loaded_at=loaded_at,
-            data_age_days=max((now - loaded_at).days, 0),
-            rows_loaded=row_count,
+            last_published_at=published_at,
+            data_age_days=max((now - published_at).days, 0),
+            rows_published=row_count,
+            last_load_attempt_at=attempted_at,
             **fields,  # type: ignore[arg-type]
         )
 

@@ -197,7 +197,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
       <Card>
         <CardHeader
           title="Source freshness"
-          description="When each source's data was last loaded, and when its checks last ran. These are different facts: checks run routinely against data nobody reloaded."
+          description="When each source's data was last published to this site, and when its checks last ran. Three different facts, kept apart: checks run routinely against data nobody replaced, and a refresh can load into staging without ever reaching production."
         />
         <CardBody className="p-0">
           {report.sources.length === 0 ? (
@@ -211,7 +211,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
                 <THead>
                   <TR>
                     <TH>Source</TH>
-                    <TH numeric>Data updated</TH>
+                    <TH numeric>Data published</TH>
                     <TH numeric>Checked</TH>
                     <TH numeric>Checks</TH>
                     <TH numeric>Warnings</TH>
@@ -274,14 +274,19 @@ function SourceRow({ source }: { source: SourceFreshness }) {
     <TR>
       <TD className="font-medium">{source.source}</TD>
       <TD numeric>
-        {/* The load time, which is what a reader means by "how current is
-            this?". Never filled in from the check time beside it. */}
-        {source.last_loaded_at !== null ? (
-          <span className={dataStale ? "text-warning" : undefined} title={source.last_loaded_at}>
-            {formatDate(source.last_loaded_at)}
+        {/* The publication time — when this dataset became the one being
+            served, which is what a reader means by "how current is this?".
+            Never filled in from the check time beside it, and never from a
+            staging load that may not have reached production. */}
+        {source.last_published_at !== null ? (
+          <span className={dataStale ? "text-warning" : undefined} title={source.last_published_at}>
+            {formatDate(source.last_published_at)}
           </span>
         ) : (
-          <span className="text-subtle" title="Loaded before load times were recorded">
+          <span
+            className="text-subtle"
+            title="Published before publication times were recorded, or never published"
+          >
             unknown
           </span>
         )}

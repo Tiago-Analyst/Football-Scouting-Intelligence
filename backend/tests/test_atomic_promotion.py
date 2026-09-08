@@ -31,6 +31,8 @@ because losing it silently would make every other test in this file a lie.
 
 from __future__ import annotations
 
+import pathlib
+
 # ruff: noqa: S608 - every interpolated name here is a module constant
 # naming a schema, never a value from outside this file.
 import pytest
@@ -59,6 +61,7 @@ OPERATIONAL = {
     "alembic_version",
     "fact_data_quality",
     "fact_source_load",
+    "fact_source_publication",
     "fact_refresh_generation",
     "shortlist",
     "shortlist_entry",
@@ -345,14 +348,35 @@ class TestRollbackIsTheSameOperation:
         assert main(["--rollback"]) == 0
         assert "swap back" in capsys.readouterr().out.lower()
 
-    def test_promotion_of_the_same_empty_staging_is_refused(
-        self, capsys: pytest.CaptureFixture
-    ) -> None:
-        """The contrast that makes the test above meaningful."""
+    def test_promotion_of_an_empty_staging_is_refused(self) -> None:
+        """The contrast that makes the test above meaningful.
+
+        Asserted against `check` rather than by driving `main`: a `--apply`
+        that got past the refusal would really promote, and a test that only
+        passes while the developer's staging schema happens to be empty is a
+        test that swaps their database the day it stops being.
+        """
+        from pipelines.load.promote import SchemaCounts, check
+
+        production = SchemaCounts(players=9_000, player_seasons=17_000, competitions=40)
+        empty = SchemaCounts(players=0, player_seasons=0, competitions=0)
+
+        reasons = check(production, empty)
+        assert reasons
+        assert "nothing to promote" in reasons[0]
+
+    def test_promotion_without_a_source_is_refused(self, capsys: pytest.CaptureFixture) -> None:
+        """A promotion advances one provider's freshness and only one.
+
+        Publishing a Transfermarkt refresh must not restamp FootyStats: the
+        performance figures in that dataset are the ones published a fortnight
+        ago. Which provider is new cannot be inferred from row counts, so a
+        promotion that does not say is refused rather than guessed.
+        """
         from pipelines.load.promote import main
 
-        assert main(["--apply"]) == 1
-        assert "untouched" in capsys.readouterr().err.lower()
+        assert main(["--apply"]) == 2
+        assert "--source is required" in capsys.readouterr().err
 
     def test_the_previous_dataset_lands_in_staging(self) -> None:
         """Which is what makes one swap a complete recovery."""
@@ -488,13 +512,25 @@ class TestMigrationsDefaultToPublic:
 
         A no-op migration is invisible: the schema is unchanged and so is the
         version table, so re-running does the same nothing.
+
+        Compared against whatever alembic's scripts say is head, rather than a
+        revision written down here: pinning the id would make this fail on
+        every new migration for a reason that has nothing to do with what it
+        is testing.
         """
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        backend = pathlib.Path(__file__).resolve().parents[1]
+        head = ScriptDirectory.from_config(Config(str(backend / "alembic.ini"))).get_current_head()
+
         with get_engine().connect() as connection:
             version = connection.execute(
                 text("SELECT version_num FROM public.alembic_version")
             ).scalar()
-        assert version == "0009_analytics_schema", (
-            f"the database is at {version}; migrations are not being committed"
+        assert version == head, (
+            f"the database is at {version} and the scripts are at {head}; "
+            f"migrations are not being committed"
         )
 
     def test_the_version_table_is_operational(self) -> None:
@@ -502,3 +538,185 @@ class TestMigrationsDefaultToPublic:
         with get_engine().connect() as connection:
             assert "alembic_version" in tables_in(connection, "public")
             assert "alembic_version" not in tables_in(connection, SERVING)
+
+
+class TestPublicationIsPartOfThePromotion:
+    """`fact_source_load` stopped being able to answer "is this live?".
+
+    The loader writes it, and the loader writes to staging. A refresh that
+    loads at 10:00 and fails identity resolution at 10:20 leaves a load row
+    stamped 10:00 while production still serves yesterday - and the site
+    footer, reading that ledger, announced 10:00 on every page.
+
+    So publication is recorded by the promotion instead, in the promotion's own
+    transaction. These tests are about that transaction rather than about the
+    row: a publication row that can be written without the swap, or a swap that
+    can commit without the row, puts the two facts back out of step.
+    """
+
+    GENERATION = "29990101T000000Z"
+    SOURCE = "a_test_provider"
+
+    @pytest.fixture
+    def a_complete_generation(self):  # type: ignore[no-untyped-def]
+        """A generation waiting to be published, cleaned up afterwards.
+
+        Its own row rather than a borrowed one: the generations in a developer's
+        database are real refreshes, and a test that flipped one to PUBLISHED
+        would change what the gate does on the next local run.
+        """
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_refresh_generation "
+                    "(generation_id, source, status, created_at, updated_at, complete, "
+                    " total_expected_players, completed_players, failed_players, "
+                    " competitions_expected, competitions_complete) "
+                    "VALUES (:g, :s, 'COMPLETE', now(), now(), true, 0, 0, 0, 0, 0)"
+                ),
+                {"g": self.GENERATION, "s": self.SOURCE},
+            )
+        yield self.GENERATION
+        with get_engine().begin() as connection:
+            connection.execute(
+                text("DELETE FROM public.fact_source_publication WHERE source = :s"),
+                {"s": self.SOURCE},
+            )
+            connection.execute(
+                text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                {"s": self.SOURCE},
+            )
+
+    def _publications(self, connection) -> list[tuple]:  # type: ignore[no-untyped-def]
+        return connection.execute(
+            text(
+                "SELECT generation_id, rows_published FROM public.fact_source_publication "
+                "WHERE source = :s"
+            ),
+            {"s": self.SOURCE},
+        ).all()
+
+    def _status(self, connection) -> str | None:  # type: ignore[no-untyped-def]
+        return connection.execute(
+            text("SELECT status FROM public.fact_refresh_generation WHERE source = :s"),
+            {"s": self.SOURCE},
+        ).scalar()
+
+    def test_a_promotion_that_rolls_back_publishes_nothing(
+        self, a_complete_generation: str
+    ) -> None:
+        """The property the whole design rests on.
+
+        If the swap is undone, the claim that something was published has to go
+        with it - otherwise the site reports a dataset that never reached it.
+        """
+        from pipelines.load.promote import record_publication, swap
+
+        with get_engine().connect() as connection, connection.begin():
+            swap(connection)
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=17_000,
+            )
+            assert self._publications(connection), "written inside the transaction"
+            assert self._status(connection) == "PUBLISHED"
+            connection.rollback()
+
+        with get_engine().connect() as connection:
+            assert self._publications(connection) == [], "and gone with it"
+            assert self._status(connection) == "COMPLETE", "the generation is unpublished too"
+
+    def test_publishing_moves_the_generation_to_published(self, a_complete_generation: str) -> None:
+        from pipelines.load.promote import record_publication
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=17_000,
+            )
+
+        with get_engine().connect() as connection:
+            assert self._publications(connection) == [(a_complete_generation, 17_000)]
+            assert self._status(connection) == "PUBLISHED"
+
+    def test_a_rollback_retracts_the_publication(self, a_complete_generation: str) -> None:
+        """A rollback really does un-publish.
+
+        Leaving the row in place would make freshness report the retracted
+        dataset, which is the same lie by a different route. The generation
+        goes back to VALIDATED so the gate offers it again rather than treating
+        it as finished.
+        """
+        from pipelines.load.promote import record_publication, retract_publication
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=17_000,
+            )
+
+        with get_engine().begin() as connection:
+            retracted = retract_publication(connection)
+
+        assert retracted == (self.SOURCE, a_complete_generation)
+        with get_engine().connect() as connection:
+            assert self._publications(connection) == []
+            assert self._status(connection) == "VALIDATED"
+
+    def test_a_failed_generation_is_not_dragged_back_to_life(
+        self, a_complete_generation: str
+    ) -> None:
+        """Publishing is guarded on the current status rather than set blindly.
+
+        A generation abandoned as FAILED has no business becoming PUBLISHED
+        because somebody re-ran the promotion, and a publication row is still
+        written: something *was* promoted, and the record of it is separate
+        from which generation gets the credit.
+        """
+        from pipelines.load.promote import record_publication
+
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE public.fact_refresh_generation SET status = 'FAILED' WHERE source = :s"
+                ),
+                {"s": self.SOURCE},
+            )
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=17_000,
+            )
+
+        with get_engine().connect() as connection:
+            assert self._status(connection) == "FAILED"
+            assert self._publications(connection) == [(a_complete_generation, 17_000)]
+
+    def test_a_provider_without_a_generation_still_publishes(self) -> None:
+        """Transfermarkt is a dataset download, not a resumable fetch.
+
+        `None` is an ordinary answer here, and refusing to record a publication
+        without one would leave the market data with no freshness at all.
+        """
+        from pipelines.load.promote import record_publication
+
+        try:
+            with get_engine().begin() as connection:
+                record_publication(
+                    connection, source=self.SOURCE, generation_id=None, rows_published=80_000
+                )
+            with get_engine().connect() as connection:
+                assert self._publications(connection) == [(None, 80_000)]
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_source_publication WHERE source = :s"),
+                    {"s": self.SOURCE},
+                )

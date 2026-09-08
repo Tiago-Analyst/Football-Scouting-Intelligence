@@ -19,6 +19,7 @@ from app.models.facts import (
     FactPlayerSeasonStats,
     FactRefreshGeneration,
     FactSourceLoad,
+    FactSourcePublication,
     FactTransfer,
 )
 from app.models.shortlists import Shortlist, ShortlistEntry
@@ -34,6 +35,7 @@ __all__ = [
     "FactPlayerSeasonStats",
     "FactRefreshGeneration",
     "FactSourceLoad",
+    "FactSourcePublication",
     "FactTransfer",
     "Shortlist",
     "ShortlistEntry",

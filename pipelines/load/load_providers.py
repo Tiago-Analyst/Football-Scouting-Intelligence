@@ -597,13 +597,27 @@ def _normalize(name: str) -> str:
 
 #: Pairs the canonical model holds to be subset-and-total, mirroring the CHECK
 #: constraints on `fact_player_season_stats`.
+#:
+#: WHY `recorded_minutes`/`minutes` IS NOT HERE
+#:
+#: It was, and it was the same mistake as the database constraint dropped in
+#: migration 0007 - worse, in fact, because this does not clamp, it nulls
+#: *both* halves. A player with 326 minutes played and 416 recorded lost both
+#: figures on the way in, so the un-clamping work upstream had no effect at
+#: all: the provider's value survived the mapping and was then discarded here.
+#:
+#: The pairs below are genuine subset relationships - a completed pass is a
+#: pass, a won duel is a duel - and a provider contradicting one of those is
+#: contradicting itself. The two minute counts are not a subset relationship.
+#: They are two different measurements of two different things, and FootyStats
+#: computes its detailed per-90 figures over the larger one. See
+#: `docs/footystats_denominator_validation.md`.
 CONTAINMENT_PAIRS: tuple[tuple[str, str], ...] = (
     ("passes_completed", "passes"),
     ("shots_on_target", "shots"),
     ("duels_won", "duels"),
     ("aerial_duels_won", "aerial_duels"),
     ("non_penalty_goals", "goals"),
-    ("recorded_minutes", "minutes"),
 )
 
 

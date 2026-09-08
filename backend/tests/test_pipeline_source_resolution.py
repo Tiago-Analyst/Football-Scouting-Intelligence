@@ -350,13 +350,44 @@ class TestTheContinuationSchedule:
 
     def test_the_gate_runs_before_the_fetch(self, workflow: dict) -> None:
         names = [s.get("name") or s.get("uses") for s in _steps(workflow)]
-        assert names.index("Decide whether this run has anything to do") < names.index(
+        assert names.index("Decide what this run should do") < names.index(
             "Retrieve FootyStats data"
         )
 
-    def test_the_fetch_is_gated_on_it(self, workflow: dict) -> None:
+    def test_the_gate_runs_before_the_cache_rather_than_after_it(self, workflow: dict) -> None:
+        """The ordering that made hourly continuation impossible.
+
+        The gate used to read the filesystem, and a fresh runner has no
+        generation directory until the cache is restored - so it saw nothing,
+        answered NOOP, and the cache was never restored. The gate reads the
+        database instead, decides first, and the cache is restored only when
+        the answer needs local files.
+        """
+        names = [s.get("name") or s.get("uses") for s in _steps(workflow)]
+        assert names.index("Decide what this run should do") < names.index(
+            "Restore the refresh generation"
+        )
+
+    def test_the_cache_restores_the_generations_directory(self, workflow: dict) -> None:
+        """It cached the retired flat snapshot layout, so nothing was ever
+        resumable: every runner started with no generation state."""
+        step = _step(workflow, "Restore the refresh generation")
+        paths = str(step["with"]["path"])
+        assert "data/raw/footystats/generations" in paths
+
+    def test_the_fetch_is_gated_on_the_action_not_merely_on_proceeding(
+        self, workflow: dict
+    ) -> None:
+        """A PUBLISH_READY run proceeds and must not fetch.
+
+        Its generation's fetch is already finished; refetching would discard
+        fourteen hours of API budget because a downstream step had a bad
+        minute, which is the whole reason the action exists.
+        """
         condition = " ".join(str(_step(workflow, "Retrieve FootyStats data")["if"]).split())
-        assert "steps.gate.outputs.proceed == 'true'" in condition
+        assert "steps.gate.outputs.action == 'FETCH'" in condition
+        assert "steps.gate.outputs.action == 'START_NEW'" in condition
+        assert "steps.gate.outputs.proceed" not in condition
 
     def test_concurrent_runs_are_queued_rather_than_cancelled(self, workflow: dict) -> None:
         """Cancelling a fetch mid-flight loses the progress it had not flushed."""
@@ -405,7 +436,26 @@ class TestTheGateDecision:
         store.create()
         proceed, reason = decide(START, store)
         assert proceed is True
-        assert "continuing it rather than starting another" in reason
+        assert "rather than starting another" in reason
+
+    def test_a_publication_ready_generation_is_retried_rather_than_refetched(
+        self,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """The expensive gap this closes.
+
+        A generation whose fetch finished but whose publication failed used to
+        be indistinguishable from no generation at all, so the next cadence run
+        started a fresh one and refetched every player.
+        """
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.load.resolve_source import START
+
+        decision = decide_from_state(START, [("20260907T040000Z", "COMPLETE")])
+        assert decision.action is Action.PUBLISH_READY
+        assert not decision.action.fetches, "nothing to refetch"
+        assert decision.action.needs_local_state, "but its files are still needed"
+        assert decision.generation_id == "20260907T040000Z"
 
     def test_a_broken_generation_state_stops_the_run(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
         """Rather than guessing between two open generations."""

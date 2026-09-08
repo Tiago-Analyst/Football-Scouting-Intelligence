@@ -49,12 +49,12 @@ class DataSourceStatus(BaseModel):
     notes: str | None = None
 
 
-class SourceLoadOut(BaseModel):
-    """When one source's data was last loaded.
+class SourcePublicationOut(BaseModel):
+    """When one source's data was last published.
 
     Keyed by the loader's own source name rather than by a provider class, so
-    nothing has to be inferred: this is a record of what was written, under the
-    name it was written as.
+    nothing has to be inferred: this is a record of what was published, under
+    the name it was published as.
 
     Reported per source and never summed into one date. The performance and
     market pipelines run on different schedules, so a single "updated today"
@@ -63,8 +63,13 @@ class SourceLoadOut(BaseModel):
     """
 
     source: str
-    last_loaded_at: datetime
-    rows_loaded: int
+    #: When this source's data was **published** - the moment what a reader is
+    #: looking at became these figures. Not when a load ran: loads write to
+    #: `analytics_staging`, and a staging load that fails its checks never
+    #: reaches production, so reporting one here would put a date on the footer
+    #: that the served data does not have.
+    last_published_at: datetime
+    rows_published: int
 
 
 class MetaResponse(BaseModel):
@@ -82,7 +87,7 @@ class MetaResponse(BaseModel):
     #: recorded, or when the database could not be reached. Absent rather
     #: than guessed from when the checks last ran, which is a different
     #: fact and would read as a fresher claim than the data supports.
-    data_freshness: list[SourceLoadOut] = Field(default_factory=list)
+    data_freshness: list[SourcePublicationOut] = Field(default_factory=list)
     #: Whether this caller's build token was accepted.
     #:
     #: Asked by the deploy before it commits to rendering every profile ahead

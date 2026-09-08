@@ -387,3 +387,48 @@ class FactRefreshGeneration(Base):
         CheckConstraint("failed_players >= 0", name="generation_failed_non_negative"),
         Index("ix_refresh_generation_source_time", "source", "updated_at"),
     )
+
+
+class FactSourcePublication(Base):
+    """When a source's data last reached readers, and how much of it.
+
+    WHY THIS IS NOT `fact_source_load`
+    ----------------------------------
+
+    That records a load. Until the staging schema existed the two were the same
+    event, and they no longer are.
+
+    A refresh loads FootyStats into `analytics_staging` at 10:00 and identity
+    resolution fails at 10:20. Production is still yesterday's dataset and the
+    site is still serving it - but `fact_source_load` has a row stamped 10:00,
+    so the freshness panel announces that performance data was updated at 10:00.
+    The figures on screen are yesterday's. Saying otherwise is worse than saying
+    nothing.
+
+    A row here is written inside the promotion transaction, alongside the schema
+    swap, so it cannot exist for a dataset that never reached production and
+    cannot be missing for one that did.
+
+    History rather than one row per source, for the same reason as the load
+    ledger: "how often does this actually change" needs the previous answers
+    kept, and now it can be asked about publications rather than attempts.
+    """
+
+    __tablename__ = "fact_source_publication"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: Null for a provider with no generation model. Transfermarkt is a dataset
+    #: download rather than a resumable fetch, so it has nothing to name here.
+    generation_id: Mapped[str | None] = mapped_column(String(32))
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    #: Player-seasons serving after the swap. What a reader is looking at, not
+    #: what a load wrote.
+    rows_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        CheckConstraint("rows_published >= 0", name="publication_rows_non_negative"),
+        Index("ix_source_publication_source_time", "source", "published_at"),
+    )

@@ -336,8 +336,40 @@ class TestContradictions:
             "aerial_duels_won": 2,
             "goals": 1,
             "non_penalty_goals": 2,
-            "minutes": 1,
-            "recorded_minutes": 2,
         }
-        assert len(reconcile_contradictions(row)) == 6
+        assert len(reconcile_contradictions(row)) == 5
         assert all(value is None for value in row.values())
+
+    def test_the_two_minute_counts_are_not_a_containment_pair(self) -> None:
+        """They were, and it silently undid the un-clamping work.
+
+        A subset relationship is a provider contradicting itself: a completed
+        pass is a pass, a won duel is a duel. The two minute counts are two
+        different measurements of two different things, and FootyStats computes
+        its detailed per-90 figures over the larger one.
+
+        Worse than the database constraint dropped in 0009, because this does
+        not clamp - it nulls *both* halves. The provider's 326/416 survived the
+        mapping and was discarded here, so the row reached PostgreSQL with no
+        minutes at all and every per-90 for that player became N/A.
+        """
+        row: dict[str, object] = {"minutes": 326, "recorded_minutes": 416}
+
+        assert reconcile_contradictions(row) == []
+        assert row == {"minutes": 326, "recorded_minutes": 416}
+
+    def test_a_genuine_contradiction_beside_them_still_blanks_only_its_pair(
+        self,
+    ) -> None:
+        """The minute counts must not be collateral damage either."""
+        row: dict[str, object] = {
+            "minutes": 326,
+            "recorded_minutes": 416,
+            "shots": 1,
+            "shots_on_target": 2,
+        }
+
+        assert reconcile_contradictions(row) == ["shots_on_target>shots"]
+        assert row["minutes"] == 326
+        assert row["recorded_minutes"] == 416
+        assert row["shots"] is None and row["shots_on_target"] is None

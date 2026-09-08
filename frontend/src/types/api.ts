@@ -41,11 +41,16 @@ export interface DataSourceStatus {
   notes: string | null;
 }
 
-export interface SourceLoad {
+export interface SourcePublication {
   /** The loader's own source name: `footystats`, `transfermarkt`, `demo`. */
   source: string;
-  last_loaded_at: string;
-  rows_loaded: number;
+  /**
+   * When this source's data was published — the moment what the reader is
+   * looking at became these figures. Not when a load ran: loads write to a
+   * staging schema, and one that fails its checks never reaches production.
+   */
+  last_published_at: string;
+  rows_published: number;
 }
 
 export interface MetaResponse {
@@ -65,7 +70,7 @@ export interface MetaResponse {
    * or when the database could not be reached. Never inferred from when the
    * checks last ran: that is a different fact and a fresher-sounding one.
    */
-  data_freshness: SourceLoad[];
+  data_freshness: SourcePublication[];
   /** Whether the caller's build token was accepted. False for everyone else. */
   build_access: boolean;
 }
@@ -483,13 +488,19 @@ export interface SourceFreshness {
   failures: number;
   warnings: number;
   /**
-   * When this source's data was last loaded — a different fact from the check
-   * time, and the one a reader means by "how current is this?".
-   * Null for a source loaded before the two were recorded separately.
+   * When this source's data was last *published* — a different fact from the
+   * check time, and the one a reader means by "how current is this?".
+   * Null for a source published before publications were recorded.
    */
-  last_loaded_at: string | null;
+  last_published_at: string | null;
   data_age_days: number | null;
-  rows_loaded: number | null;
+  rows_published: number | null;
+  /**
+   * When a refresh last loaded this source into staging, published or not.
+   * Operational: newer than `last_published_at` means a refresh is stuck between
+   * staging and production, not that the data on screen has changed.
+   */
+  last_load_attempt_at: string | null;
 }
 
 export interface Volumes {

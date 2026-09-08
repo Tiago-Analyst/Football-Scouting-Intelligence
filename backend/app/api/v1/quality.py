@@ -96,9 +96,10 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
                 checks_run=item.checks_run,
                 failures=item.failures,
                 warnings=item.warnings,
-                last_loaded_at=item.last_loaded_at,
+                last_published_at=item.last_published_at,
                 data_age_days=item.data_age_days,
-                rows_loaded=item.rows_loaded,
+                rows_published=item.rows_published,
+                last_load_attempt_at=item.last_load_attempt_at,
             )
             for item in sources
         ],
