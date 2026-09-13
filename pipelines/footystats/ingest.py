@@ -526,6 +526,7 @@ def emit_completion(
     failed_count: int = 0,
     fatal: bool = False,
     generation_id: str | None = None,
+    checkpoint_revision: int | None = None,
 ) -> None:
     """Tell the caller whether the whole refresh is now on disk.
 
@@ -546,6 +547,14 @@ def emit_completion(
     }
     if generation_id:
         values["generation_id"] = generation_id
+    if checkpoint_revision is not None:
+        # Zero-padded so the keys sort the way they read. GitHub restores the
+        # most recently *created* cache matching a prefix rather than the
+        # lexically greatest, so the padding is not what makes the newest win
+        # - `--verify-restored` comparing the revision against the database
+        # is. The padding makes the key list legible to whoever is reading it
+        # when that check fails.
+        values["checkpoint_revision"] = f"{checkpoint_revision:04d}"
     for key, value in values.items():
         print(f"{key}={value}")
 
@@ -618,6 +627,15 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Continue the current refresh generation. Without it, an open "
             "generation is refused rather than abandoned."
+        ),
+    )
+    parser.add_argument(
+        "--expect-generation",
+        metavar="GENERATION_ID",
+        default=None,
+        help=(
+            "The generation the database says is IN_PROGRESS. The run resumes exactly "
+            "that one or stops: never another open generation, never a new one."
         ),
     )
     parser.add_argument(
@@ -715,7 +733,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.flat:
         try:
             store = GenerationStore()
-            if args.only_resume:
+            if args.expect_generation:
+                # The database named the generation. Resume that one or stop.
+                # A disk that disagrees has restored the wrong cache or none,
+                # and either way the fetch must not proceed into a universe
+                # the database is not tracking.
+                generation = store.resolve(resume=True, expected_id=args.expect_generation)
+            elif args.only_resume:
                 # Defence in depth behind the workflow gate. The gate decides
                 # whether to run at all; this makes it impossible for a
                 # continuation run to start a refresh even if it does run -
@@ -823,9 +847,23 @@ def main(argv: list[str] | None = None) -> int:
             generation.set_status(GenerationStatus.FAILED, reason=str(report.fatal_reason))
         elif generation.metadata.complete:
             generation.set_status(GenerationStatus.COMPLETE)
-        else:
-            generation.save()
-        publish_status.record(generation)
+        # One checkpoint per run, after everything this run will write has
+        # been written. It is the number the cache is saved under and the
+        # number the database will expect the next restore to be at - so it
+        # has to be the last thing the files say, and it has to reach the
+        # database, which `record` does below.
+        revision = generation.checkpoint()
+        recorded = publish_status.record(generation)
+        print(f"Checkpoint {revision} of generation {generation.generation_id} saved.")
+        if not recorded:
+            # The cache will still be saved under this revision. The next
+            # gate will read an older revision from the database, and the
+            # verifier allows a newer local one for exactly this reason.
+            print(
+                "::warning::could not record the checkpoint in the database; the "
+                "next run will find a newer local checkpoint than expected, which "
+                "is allowed."
+            )
     ledger = update_failure_ledger(report)
     persistent = {pid: e for pid, e in ledger.items() if int(e.get("runs_failed", 0)) >= 3}
     if persistent:
@@ -863,6 +901,7 @@ def main(argv: list[str] | None = None) -> int:
         failed_count=failed,
         fatal=report.fatal,
         generation_id=generation.generation_id if generation else None,
+        checkpoint_revision=generation.metadata.checkpoint_revision if generation else None,
     )
 
     log.info(

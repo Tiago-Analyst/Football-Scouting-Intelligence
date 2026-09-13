@@ -17,6 +17,7 @@ from fastapi import APIRouter
 from app.api.deps import SessionDep, SettingsDep
 from app.schemas.api import (
     AnalyticsFreshnessOut,
+    CandidateChecksOut,
     DataQualityResponse,
     IdentityCoverageOut,
     QualityCheckOut,
@@ -57,6 +58,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
     at all. Nothing here exposes a connection string, a credential or a log.
     """
     checks = svc.latest_checks(db)
+    candidates = svc.candidate_checks(db)
     sources = svc.freshness(db)
     counts = svc.volumes(db)
     identity = svc.identity_coverage(db)
@@ -103,18 +105,31 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             )
             for item in sources
         ],
-        checks=[
-            QualityCheckOut(
-                source=item.source,
-                entity=item.entity,
-                check_name=item.check_name,
-                status=item.status,  # type: ignore[arg-type]
-                record_count=item.record_count,
-                detail=item.detail,
-                executed_at=item.executed_at,
+        checks=[_check_out(item) for item in checks],
+        published_generation_id=svc.published_generation_id(db),
+        candidate=[
+            CandidateChecksOut(
+                source=group.source,
+                generation_id=group.generation_id,
+                executed_at=group.executed_at,
+                checks=[_check_out(item) for item in group.checks],
             )
-            for item in checks
+            for group in candidates
         ],
+    )
+
+
+def _check_out(item) -> QualityCheckOut:  # type: ignore[no-untyped-def]
+    return QualityCheckOut(
+        source=item.source,
+        entity=item.entity,
+        check_name=item.check_name,
+        status=item.status,
+        record_count=item.record_count,
+        detail=item.detail,
+        executed_at=item.executed_at,
+        generation_id=item.generation_id,
+        context=item.context,
     )
 
 

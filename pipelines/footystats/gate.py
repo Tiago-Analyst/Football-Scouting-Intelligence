@@ -46,8 +46,30 @@ work but costs a large download every quiet hour.
 
 So the database decides *what* to do, and the cache is restored only when the
 answer needs local files. `verify_local_state` then checks that what was
-restored is the generation the database named: a stale cache holding an older
-generation must not be resumed against a newer database record.
+restored is the generation the database named, at a checkpoint no older than
+the one the database recorded.
+
+WHAT A MISMATCH DOES
+====================
+
+Stops the run. Not a warning: `--verify-restored` exits non-zero, the workflow
+step fails, and every generation-dependent step after it is skipped. The three
+cases and why each one stops:
+
+    expected G5, restored G5 at the expected revision   continue
+    expected G5, restored G4                            STOP - two universes
+    expected G5, restored nothing                       STOP - see below
+    expected G5, restored G5 at an older revision       STOP - stale checkpoint
+
+Nothing restored for a live generation is the case that wants spelling out.
+The fetch *could* rebuild from an empty directory, and an earlier version of
+this let it, with a warning. That is the wrong call: a runner with no state
+for G5 would start a fresh fetch under G5's name, refetching every player the
+lost checkpoint had, and the database would go on describing a generation
+whose files no longer match it. So it stops, says what happened, and names the
+recovery - restore the cache, or abandon the generation explicitly with
+`python -m pipelines.footystats.generations --abandon <id>`. Never
+automatically.
 """
 
 from __future__ import annotations
@@ -95,6 +117,9 @@ class Decision:
     reason: str
     #: The generation this run works on, when one already exists.
     generation_id: str | None = None
+    #: The checkpoint the database recorded for it. What the restore is
+    #: checked against.
+    expected_revision: int | None = None
 
     @property
     def proceed(self) -> bool:
@@ -115,6 +140,9 @@ LIVE_STATUSES = (
 
 def active_generations(session) -> list[tuple[str, str]]:  # type: ignore[no-untyped-def]
     """Every generation the database considers live, as `(id, status)`.
+
+    `expected_revision_for` fetches the checkpoint separately: the decision
+    itself is pure over `(id, status)` and tested as such.
 
     A list rather than the newest one, because "there are two" is an answer
     that has to reach the caller. Silently taking the newest would resume one
@@ -180,29 +208,79 @@ def decide_from_state(mode: str, live: list[tuple[str, str]]) -> Decision:
     return Decision(Action.NOOP, f"unknown mode {mode!r}")
 
 
-def verify_local_state(store: GenerationStore, expected_id: str) -> tuple[bool, str]:
+@dataclass(frozen=True)
+class Verdict:
+    """What the verification found. `ok` is the only thing the workflow acts
+    on; the rest is for the person reading why it stopped."""
+
+    ok: bool
+    reason: str
+    local_revision: int | None = None
+
+
+def verify_local_state(
+    store: GenerationStore,
+    expected_id: str,
+    *,
+    expected_revision: int | None = None,
+) -> Verdict:
     """Whether the restored cache holds the generation the database named.
 
-    A cache restored from `restore-keys` can be an older generation's, and
-    resuming that against a newer database record would interleave two
-    universes - the exact failure generations exist to prevent. Better to
-    rebuild than to continue into the wrong one.
+    Three ways to fail, none of them recoverable by continuing:
+
+    - the wrong generation: resuming it against a newer database record would
+      interleave two universes, the failure generations exist to prevent;
+    - no generation: the fetch would start G5 again from nothing under G5's
+      name, and the database would go on describing files that no longer
+      exist. Stop, say so, name the recovery;
+    - the right generation at an older checkpoint than the database recorded:
+      resuming it refetches what the newer checkpoint already had and cannot
+      know which players the failure ledger has since retired. Progress is
+      monotonic or it is not progress.
+
+    A local revision *newer* than the database's is allowed. It means the last
+    run saved its cache and then could not reach the database to say so, and
+    the disk is the truth in that case.
     """
     try:
-        found = {g.generation_id for g in store.all()}
+        generations = {g.generation_id: g for g in store.all()}
     except GenerationError as exc:
-        return False, f"generation state on disk is unreadable: {exc}"
+        return Verdict(False, f"generation state on disk is unreadable: {exc}")
 
-    if expected_id in found:
-        return True, f"restored cache holds generation {expected_id}"
-    if not found:
-        return False, (
+    generation = generations.get(expected_id)
+    if generation is None:
+        if not generations:
+            return Verdict(
+                False,
+                f"generation {expected_id} is live in the database but its local checkpoint "
+                f"state could not be restored. Nothing was resumed and nothing was started. "
+                f"Recover by restoring its cache, or abandon it explicitly: "
+                f"python -m pipelines.footystats.generations --abandon {expected_id}",
+            )
+        return Verdict(
+            False,
             f"the database expects generation {expected_id} and the restored cache holds "
-            f"none. The fetch will start it again from whatever is on disk."
+            f"{sorted(generations)}. Refusing to resume into the wrong generation.",
         )
-    return False, (
-        f"the database expects generation {expected_id} and the restored cache holds "
-        f"{sorted(found)}. Refusing to resume into the wrong generation."
+
+    local = generation.metadata.checkpoint_revision
+    if expected_revision is not None and local < expected_revision:
+        return Verdict(
+            False,
+            f"generation {expected_id} was restored at checkpoint {local} but the database "
+            f"recorded checkpoint {expected_revision}. A newer checkpoint exists and was not "
+            f"restored; resuming from this one would regress progress. Nothing was resumed.",
+            local,
+        )
+    return Verdict(
+        True,
+        f"restored cache holds generation {expected_id} at checkpoint {local}"
+        + (
+            f" (database recorded {expected_revision})"
+            if expected_revision is not None and expected_revision != local
+            else ""
+        ),
+        local,
     )
 
 
@@ -234,6 +312,14 @@ def _live_from_disk(store: GenerationStore) -> list[tuple[str, str]]:
     ]
 
 
+def expected_revision_for(generation_id: str) -> int | None:
+    """The checkpoint the database recorded for this generation, if reachable."""
+    from pipelines.footystats.publish_status import expected_state
+
+    state = expected_state(generation_id)
+    return state[1] if state else None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -245,30 +331,67 @@ def main(argv: list[str] | None = None) -> int:
         "--verify-restored",
         metavar="GENERATION_ID",
         help=(
-            "Check that the restored cache holds this generation. Run after the "
-            "cache step, with the id the earlier gate reported."
+            "Check that the restored cache holds this generation at a checkpoint no "
+            "older than the database recorded. Exits non-zero otherwise: the workflow "
+            "must not continue past a mismatch."
         ),
+    )
+    parser.add_argument(
+        "--expected-revision",
+        type=int,
+        default=None,
+        help="The checkpoint the database recorded. Read from the database when omitted.",
     )
     args = parser.parse_args(argv)
 
     if args.verify_restored:
-        ok, reason = verify_local_state(GenerationStore(), args.verify_restored)
-        print(f"cache_matches={'true' if ok else 'false'}")
-        print(f"reason={reason}")
-        _emit({"cache_matches": "true" if ok else "false", "reason": reason})
-        if not ok:
-            print(f"::warning::{reason}", file=sys.stderr)
-        # Never fatal. A mismatched cache is recoverable by fetching again;
-        # failing the job would turn a slow refresh into a stopped one.
+        expected = args.expected_revision
+        if expected is None:
+            expected = expected_revision_for(args.verify_restored)
+        verdict = verify_local_state(
+            GenerationStore(), args.verify_restored, expected_revision=expected
+        )
+        print(f"cache_matches={'true' if verdict.ok else 'false'}")
+        print(
+            f"local_revision={verdict.local_revision if verdict.local_revision is not None else ''}"
+        )
+        print(f"reason={verdict.reason}")
+        _emit(
+            {
+                "cache_matches": "true" if verdict.ok else "false",
+                "local_revision": (
+                    str(verdict.local_revision) if verdict.local_revision is not None else ""
+                ),
+                "reason": verdict.reason,
+            }
+        )
+        if not verdict.ok:
+            # FATAL, deliberately. An earlier version warned and continued,
+            # on the grounds that a fetch could rebuild what was missing.
+            # It could - under the wrong generation's name, refetching
+            # everything the lost checkpoint held. See the module docstring.
+            print(f"::error::{verdict.reason}", file=sys.stderr)
+            return 1
         return 0
 
     live = _live_from_state()
     decision = decide_from_state(args.mode, live)
+    if decision.generation_id and decision.expected_revision is None:
+        decision = Decision(
+            decision.action,
+            decision.reason,
+            decision.generation_id,
+            expected_revision_for(decision.generation_id),
+        )
 
+    # Padded the same way the fetch pads it, so the exact cache key the
+    # restore asks for is the key the last save wrote.
+    revision = "" if decision.expected_revision is None else f"{decision.expected_revision:04d}"
     print(f"action={decision.action.value}")
     print(f"proceed={'true' if decision.proceed else 'false'}")
     print(f"needs_local_state={'true' if decision.action.needs_local_state else 'false'}")
     print(f"generation_id={decision.generation_id or ''}")
+    print(f"expected_revision={revision}")
     print(f"reason={decision.reason}")
     _emit(
         {
@@ -276,6 +399,7 @@ def main(argv: list[str] | None = None) -> int:
             "proceed": "true" if decision.proceed else "false",
             "needs_local_state": "true" if decision.action.needs_local_state else "false",
             "generation_id": decision.generation_id or "",
+            "expected_revision": revision,
             "reason": decision.reason,
         }
     )

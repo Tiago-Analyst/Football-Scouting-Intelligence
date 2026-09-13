@@ -473,3 +473,97 @@ class TestTheGateDecision:
         proceed, reason = decide(CONTINUE_ONLY, store)
         assert proceed is False
         assert "needs attention" in reason
+
+
+class TestTheCacheIsSavedRightAfterTheFetch:
+    """Sections 1, 2, 3 and 6 of the brief, asserted against pipeline.yml.
+
+    The cache used to be one `actions/cache` step: restore at its position,
+    save in a post-step at the end of the job. A START_NEW run restored
+    nothing, so the post-step never registered and the generation was lost;
+    and the post-step ran after every failure-prone step, so a bad minute
+    downstream could lose the hour before it.
+    """
+
+    def test_restore_and_save_are_separate_actions(self, workflow: dict) -> None:
+        restore = _step(workflow, "Restore the refresh generation")
+        save = _step(workflow, "Save the refresh generation")
+        assert restore["uses"].startswith("actions/cache/restore@")
+        assert save["uses"].startswith("actions/cache/save@")
+        assert not any(
+            str(s.get("uses", "")).startswith("actions/cache@") for s in _steps(workflow)
+        ), "the combined action would save in a post-step, after everything that can fail"
+
+    def test_the_save_follows_the_fetch_immediately(self, workflow: dict) -> None:
+        names = [s.get("name") or s.get("uses") for s in _steps(workflow)]
+        fetch = names.index("Retrieve FootyStats data")
+        save = names.index("Save the refresh generation")
+        assert save == fetch + 1
+        for later in (
+            "Seed staging from current production",
+            "Load and verify",
+            "Resolve identities across providers",
+            "Record the quality report",
+            "Recompute sample players independently",
+            "Promote the staged dataset",
+        ):
+            assert names.index(later) > save, f"{later} runs before the cache is saved"
+
+    def test_the_save_runs_for_start_new_and_for_a_failed_fetch(self, workflow: dict) -> None:
+        """`always()` so a failed fetch step still saves what it wrote; keyed
+        by the fetch's own outputs so a START_NEW run, whose generation did
+        not exist when the gate ran, is saved too."""
+        save = _step(workflow, "Save the refresh generation")
+        condition = " ".join(str(save["if"]).split())
+        assert "always()" in condition
+        assert "steps.fetch.outputs.generation_id != ''" in condition
+        assert "steps.fetch.outputs.generation_id" in str(save["with"]["key"])
+        assert "steps.fetch.outputs.checkpoint_revision" in str(save["with"]["key"])
+        assert "steps.gate.outputs.generation_id" not in str(save["with"]["key"])
+
+    def test_the_restore_never_falls_back_to_another_generation(self, workflow: dict) -> None:
+        restore = _step(workflow, "Restore the refresh generation")
+        restore_keys = [
+            k.strip() for k in str(restore["with"]["restore-keys"]).splitlines() if k.strip()
+        ]
+        assert restore_keys == ["footystats-gen-${{ steps.gate.outputs.generation_id }}-"]
+        assert "footystats-gen-\n" not in str(restore["with"]["restore-keys"])
+        assert not any(k == "footystats-gen-" for k in restore_keys)
+
+    def test_the_restore_asks_for_the_expected_checkpoint(self, workflow: dict) -> None:
+        restore = _step(workflow, "Restore the refresh generation")
+        assert "steps.gate.outputs.expected_revision" in str(restore["with"]["key"])
+
+    def test_the_verification_is_a_step_that_can_fail(self, workflow: dict) -> None:
+        verify = _step(workflow, "Check the restored generation is the expected one")
+        assert verify["id"] == "verify"
+        assert "--verify-restored" in verify["run"]
+        assert "--expected-revision" in verify["run"]
+        assert "continue-on-error" not in verify
+
+    def test_the_fetch_is_gated_on_the_verification(self, workflow: dict) -> None:
+        condition = " ".join(str(_step(workflow, "Retrieve FootyStats data")["if"]).split())
+        assert "steps.verify.outcome == 'success'" in condition
+        assert "--expect-generation" in _step(workflow, "Retrieve FootyStats data")["run"]
+
+    def test_the_candidate_pipeline_names_the_generation(self, workflow: dict) -> None:
+        """Section 4: no step chooses "the newest"; every step is told which."""
+        for name in ("Load and verify", "Record the quality report", "Promote the staged dataset"):
+            assert "--generation-id" in _step(workflow, name)["run"], name
+            assert "steps.generation.outputs.id" in _step(workflow, name)["run"], name
+
+    def test_validated_sits_between_validation_and_promotion(self, workflow: dict) -> None:
+        names = [s.get("name") or s.get("uses") for s in _steps(workflow)]
+        validation = names.index("Recompute sample players independently")
+        validated = names.index("Mark the generation VALIDATED")
+        promote = names.index("Promote the staged dataset")
+        assert validation < validated < promote
+        step = _step(workflow, "Mark the generation VALIDATED")
+        assert "--mark-validated" in step["run"]
+        condition = " ".join(str(step["if"]).split())
+        for required in ("steps.load", "steps.identity", "steps.quality", "steps.validation"):
+            assert f"{required}.outcome == 'success'" in condition
+
+    def test_promotion_requires_validated_for_footystats(self, workflow: dict) -> None:
+        condition = " ".join(str(_step(workflow, "Promote the staged dataset")["if"]).split())
+        assert "steps.validated.outcome == 'success'" in condition

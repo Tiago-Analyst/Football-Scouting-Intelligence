@@ -187,12 +187,14 @@ def swap(connection) -> None:  # type: ignore[no-untyped-def]
 
 
 def rows_for_source(connection, schema: str, source: str) -> int:  # type: ignore[no-untyped-def]
-    """How many rows in `schema` this provider supplied.
+    """Total source-owned relational rows in `schema` for this provider.
 
-    Summed across the tables that carry a `source` column, which is a count of
-    what the provider contributed rather than of the dataset as a whole. The
-    dataset total is already in the log line above it; this is the figure that
-    changes when a refresh actually worked.
+    Summed across every table that carries a `source` column - competitions,
+    clubs, bridges, player-seasons, market values, transfers. A volume, and
+    only that: it is the figure that changes when a refresh actually worked.
+    It is *not* a player-season count, and was being read as one; that number
+    is `player_seasons_for_source`, kept apart so one column cannot carry two
+    meanings.
     """
     from sqlalchemy import text
 
@@ -206,6 +208,37 @@ def rows_for_source(connection, schema: str, source: str) -> int:  # type: ignor
             or 0
         )
     return total
+
+
+def player_seasons_for_source(connection, schema: str, source: str) -> int:  # type: ignore[no-untyped-def]
+    """Player-seasons this provider supplied. The number a reader means by
+    "how many players", which `rows_for_source` is not."""
+    from sqlalchemy import text
+
+    return int(
+        connection.execute(
+            text(
+                f'SELECT count(*) FROM "{schema}"."fact_player_season_stats" '  # noqa: S608
+                f"WHERE source = :s"
+            ),
+            {"s": source},
+        ).scalar()
+        or 0
+    )
+
+
+def generation_status(connection, source: str, generation_id: str) -> str | None:  # type: ignore[no-untyped-def]
+    """What the database says this generation's status is, or None."""
+    from sqlalchemy import text
+
+    row = connection.execute(
+        text(
+            "SELECT status FROM public.fact_refresh_generation "
+            "WHERE source = :s AND generation_id = :g"
+        ),
+        {"s": source, "g": generation_id},
+    ).first()
+    return str(row[0]) if row else None
 
 
 def publishable_generation(connection, source: str) -> str | None:
@@ -234,29 +267,52 @@ def record_publication(  # type: ignore[no-untyped-def]
     source: str,
     generation_id: str | None,
     rows_published: int,
+    player_seasons_published: int | None = None,
 ) -> None:
-    """Write the two records that make the promotion visible to readers.
+    """Write the records that make the promotion visible to readers.
 
     Caller owns the transaction, and that is the entire point: called from
     anywhere else, these become claims that can outlive a swap that never
     happened.
 
-    Both tables live in `public`, so the schema renames above do not move them
-    and the writes here are unaffected by which schema is currently serving.
+    Three writes:
+
+      - the publication row, which freshness reads;
+      - the generation's status, COMPLETE or VALIDATED -> PUBLISHED;
+      - the generation's quality rows, CANDIDATE -> PUBLISHED, so the public
+        page can show the checks that validated the dataset now serving and
+        stop showing them as a candidate's.
+
+    All three tables live in `public`, so the schema renames above do not
+    move them and the writes here are unaffected by which schema is serving.
     """
     from sqlalchemy import text
 
     connection.execute(
         text(
             "INSERT INTO public.fact_source_publication "
-            "(source, generation_id, published_at, rows_published) "
-            "VALUES (:source, :generation_id, now(), :rows)"
+            "(source, generation_id, published_at, rows_published, player_seasons_published) "
+            "VALUES (:source, :generation_id, now(), :rows, :player_seasons)"
         ),
-        {"source": source, "generation_id": generation_id, "rows": rows_published},
+        {
+            "source": source,
+            "generation_id": generation_id,
+            "rows": rows_published,
+            "player_seasons": player_seasons_published,
+        },
     )
 
     if generation_id is None:
         return
+
+    connection.execute(
+        text(
+            "UPDATE public.fact_data_quality SET context = 'PUBLISHED' "
+            "WHERE source = :source AND generation_id = :generation_id "
+            "AND context = 'CANDIDATE'"
+        ),
+        {"source": source, "generation_id": generation_id},
+    )
 
     # COMPLETE or VALIDATED -> PUBLISHED. Guarded on the current status rather
     # than set unconditionally: re-running a promotion must not drag a FAILED
@@ -311,6 +367,17 @@ def retract_publication(connection) -> tuple[str, str | None] | None:  # type: i
                 "SET status = 'VALIDATED', published_at = NULL, updated_at = now() "
                 "WHERE source = :source AND generation_id = :generation_id "
                 "AND status = 'PUBLISHED'"
+            ),
+            {"source": source, "generation_id": generation_id},
+        )
+        # Its checks describe a candidate again. Leaving them PUBLISHED would
+        # put the retracted generation's checks on the public page above the
+        # dataset that is actually serving.
+        connection.execute(
+            text(
+                "UPDATE public.fact_data_quality SET context = 'CANDIDATE' "
+                "WHERE source = :source AND generation_id = :generation_id "
+                "AND context = 'PUBLISHED'"
             ),
             {"source": source, "generation_id": generation_id},
         )
@@ -428,15 +495,31 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     with engine.begin() as connection:
+        if args.generation_id:
+            # Named by the workflow from the database. Verified against the
+            # database again here, inside the promotion's own transaction:
+            # the one thing a promotion must never do is publish a
+            # generation the database is not expecting to be published.
+            status = generation_status(connection, args.source, args.generation_id)
+            if status not in PUBLISHABLE_STATUSES:
+                print(
+                    f"REFUSED: generation {args.generation_id} is "
+                    f"{status or 'unknown to the database'}, not one of "
+                    f"{', '.join(PUBLISHABLE_STATUSES)}. Production is untouched.",
+                    file=sys.stderr,
+                )
+                return 1
         # Counted before the swap, while the new dataset is still in staging.
         generation_id = args.generation_id or publishable_generation(connection, args.source)
         published_rows = rows_for_source(connection, STAGING, args.source)
+        published_player_seasons = player_seasons_for_source(connection, STAGING, args.source)
         swap(connection)
         record_publication(
             connection,
             source=args.source,
             generation_id=generation_id,
             rows_published=published_rows,
+            player_seasons_published=published_player_seasons,
         )
 
     print(
@@ -444,8 +527,9 @@ def main(argv: list[str] | None = None) -> int:
         f"{staged.competitions:,} competitions are now serving."
     )
     print(
-        f"{args.source}: {published_rows:,} rows published"
-        + (f" from generation {generation_id}." if generation_id else ".")
+        f"{args.source}: {published_rows:,} source-owned rows published, "
+        f"{published_player_seasons:,} of them player-seasons"
+        + (f", from generation {generation_id}." if generation_id else ".")
     )
     if generation_id is None:
         print(f"No open generation for {args.source}; the publication is recorded without one.")
@@ -458,6 +542,7 @@ def main(argv: list[str] | None = None) -> int:
         player_seasons=staged.player_seasons,
         competitions=staged.competitions,
         published_rows=published_rows,
+        published_player_seasons=published_player_seasons,
         replaced_player_seasons=production.player_seasons,
     )
     return 0

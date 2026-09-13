@@ -450,9 +450,28 @@ def run(session: Session, *, source: str | None = None) -> list[Check]:
     ]
 
 
-def persist(session: Session, checks: list[Check], *, source: str) -> None:
+def persist(
+    session: Session,
+    checks: list[Check],
+    *,
+    source: str,
+    generation_id: str | None = None,
+) -> None:
     """Record this run, so a check that never ran is distinguishable from one
-    that passed."""
+    that passed.
+
+    WHICH DATASET THE ROWS DESCRIBE
+
+    With a generation, the rows are CANDIDATE: they ran against staging,
+    about data nobody is being served yet. The promotion flips them to
+    PUBLISHED in its own transaction if that generation reaches production,
+    and leaves them CANDIDATE forever if it does not - so the public page can
+    show G4's checks beside G4's data while G5 sits checked and unpublished.
+
+    Without a generation - a Transfermarkt refresh, a local run - the rows
+    carry no context, which the page reads as "describes whatever is serving",
+    the meaning every row had before contexts existed.
+    """
     session.add_all(
         FactDataQuality(
             source=source,
@@ -461,6 +480,8 @@ def persist(session: Session, checks: list[Check], *, source: str) -> None:
             status=check.status,
             record_count=check.count,
             detail=check.detail,
+            generation_id=generation_id,
+            context="CANDIDATE" if generation_id else None,
         )
         for check in checks
     )
@@ -473,6 +494,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--persist", action="store_true", help="Write the results to fact_data_quality."
     )
+    parser.add_argument(
+        "--generation-id",
+        default=None,
+        help="The refresh generation these checks describe. Rows are recorded as CANDIDATE.",
+    )
     args = parser.parse_args(argv)
 
     configure_logging(get_settings())
@@ -481,7 +507,12 @@ def main(argv: list[str] | None = None) -> int:
     with factory() as session:
         checks = run(session, source=args.source)
         if args.persist:
-            persist(session, checks, source=args.source or "all")
+            persist(
+                session,
+                checks,
+                source=args.source or "all",
+                generation_id=args.generation_id,
+            )
 
     width = max(len(f"{c.entity}.{c.name}") for c in checks)
     symbols = {"pass": "ok  ", "warn": "warn", "fail": "FAIL"}

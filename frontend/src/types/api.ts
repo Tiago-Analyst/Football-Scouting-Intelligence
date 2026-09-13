@@ -9,7 +9,8 @@ import type { CoverageBand, SampleBand } from "@/lib/sample";
 
 export type AppMode = "demo" | "production";
 
-export type DependencyState = "ok" | "degraded" | "unavailable" | "not_configured";
+export type DependencyState =
+  "ok" | "degraded" | "unavailable" | "not_configured";
 
 export interface DependencyStatus {
   name: string;
@@ -479,6 +480,26 @@ export interface QualityCheck {
   record_count: number;
   detail: string | null;
   executed_at: string;
+  /**
+   * The refresh generation this check describes, and whether that generation
+   * was a candidate in staging or is the dataset being served. Null on rows
+   * recorded before generations carried context.
+   */
+  generation_id?: string | null;
+  context?: "CANDIDATE" | "PUBLISHED" | null;
+}
+
+/**
+ * Checks describing a refresh nobody is being served yet — one between
+ * staging and production, or one that failed to reach it. Kept apart from
+ * `checks` because the page used to mix them: production serving G4, a G5
+ * candidate checked and then failed at promotion, every tick describing G5.
+ */
+export interface CandidateChecks {
+  source: string;
+  generation_id: string;
+  executed_at: string;
+  checks: QualityCheck[];
 }
 
 export interface SourceFreshness {
@@ -560,7 +581,12 @@ export interface DataQualityResponse {
   notice: string | null;
   volumes: Volumes;
   sources: SourceFreshness[];
+  /** The most recent checks describing the dataset being served. */
   checks: QualityCheck[];
+  /** The generation `checks` describe, when the publication ledger names one. */
+  published_generation_id?: string | null;
+  /** Checks about a refresh that has not reached readers. Never about the data on screen. */
+  candidate?: CandidateChecks[];
   identity: IdentityCoverage | null;
   average_detailed_coverage_pct: number | null;
   /** What the provider cannot supply at all. Empty in demo mode. */

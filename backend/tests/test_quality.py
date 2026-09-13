@@ -340,6 +340,12 @@ class TestQualityEndpoint:
             # generation exists yet, so the key is always present and the
             # value is what varies.
             "refresh",
+            # Which generation `checks` describe, and the checks of any
+            # candidate that has not reached readers - kept apart so the page
+            # cannot show a staging generation's ticks above production's
+            # data.
+            "published_generation_id",
+            "candidate",
         }
         assert body["volumes"]["players"] > 0
 

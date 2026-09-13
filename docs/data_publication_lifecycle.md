@@ -35,9 +35,13 @@ earned the right to.
   PRUNE, DATA QUALITY, ANALYTICS VALIDATION   against staging
         |                 <-- a figure that does not reproduce stops the run
         v
+  VALIDATED      the generation's status moves; its checks are CANDIDATE rows
+        |        <-- a promotion that fails leaves this behind, and the next
+        |            run retries publication without refetching
+        v
   PROMOTE        three schema renames, one transaction, and in the same
-        |        transaction: a `fact_source_publication` row and the
-        |        generation moving to PUBLISHED
+        |        transaction: a `fact_source_publication` row, the generation
+        |        moving to PUBLISHED, and its quality rows CANDIDATE -> PUBLISHED
         |        <-- the first and only moment readers are affected
         v
   ANALYTICS RELOAD     the API rebuilds its in-memory view
@@ -62,6 +66,61 @@ It is correct exactly once. Refresh FootyStats to F2 and publish, then refresh
 Transfermarkt from that staging, and production becomes `F1 + T2` — the one
 combination that must never exist. Seeding from *current* production is what
 makes each refresh start from the last one's result.
+
+## Generation states, and who moves them
+
+```
+IN_PROGRESS -> COMPLETE     the fetch, when every expected player is on disk
+IN_PROGRESS -> FAILED       the fetch, for a structural reason only
+COMPLETE    -> VALIDATED    the workflow, after load + identity + quality +
+                            analytics validation all passed against staging
+VALIDATED   -> PUBLISHED    the promotion, in the same transaction as the swap
+COMPLETE    -> PUBLISHED    a promotion run by hand; allowed, verified against
+                            the database inside the transaction
+PUBLISHED   -> VALIDATED    a rollback, which really does un-publish
+any live    -> FAILED       a person, through `generations --abandon`
+```
+
+What does **not** move a generation:
+
+- a validation failure. It stays `COMPLETE`; the snapshots are intact, and
+  the next run re-derives staging from them and tries again.
+- a promotion failure. It stays `VALIDATED`; the next gate answers
+  `PUBLISH_READY` and retries. No refetch. Staging is re-derived from the
+  snapshots because it is rebuilt from production at the start of every run
+  — minutes, against hours for a fetch.
+- a missing cache. Nothing is created, resumed or failed automatically. See
+  `docs/generation_checkpoints.md`.
+
+The gate's answers, by state:
+
+| Live generation | Cadence cron (`start`) | Hourly cron (`continue_only`) |
+| --- | --- | --- |
+| `IN_PROGRESS` | `FETCH` | `FETCH` |
+| `COMPLETE` | `PUBLISH_READY` | `PUBLISH_READY` |
+| `VALIDATED` | `PUBLISH_READY` | `PUBLISH_READY` |
+| none (`PUBLISHED`/`FAILED` only) | `START_NEW` | `NOOP` |
+| more than one | `NOOP`, needs attention | `NOOP`, needs attention |
+
+A new generation is never started while a `COMPLETE` or `VALIDATED` one is
+waiting to be published.
+
+## Whose checks are these?
+
+`fact_data_quality` rows carry `generation_id` and `context`. The quality
+report and the loader write them as `CANDIDATE` — they ran against staging,
+about a generation nobody is being served. The promotion flips them to
+`PUBLISHED` in its own transaction; a rollback flips them back.
+
+`/data-quality` shows two things and labels both: **Published dataset checks**,
+the most recent rows describing the served dataset (`PUBLISHED`, or written
+before contexts existed), and **Latest candidate refresh checks**, the newest
+`CANDIDATE` run whose generation has not been promoted. Production serving G4
+with a G5 candidate checked and then stuck at promotion shows G4's checks as
+production's and G5's as a candidate's, and never the other way round.
+
+"Checked" on the freshness table means the served dataset was checked. A
+candidate run today does not make it "checked today".
 
 ## Three timestamps, and none of them is the others
 
@@ -89,6 +148,13 @@ A promotion writes a publication row for **one** source — the provider that wa
 refreshed, named by `--source`. Publishing a Transfermarkt refresh must not
 restamp FootyStats: the performance figures in that dataset are the ones
 published a fortnight ago.
+
+The row carries two counts and they mean different things. `rows_published`
+is the **total source-owned relational rows** published — competitions, clubs,
+bridges, player-seasons, market values, transfers — a volume, the figure that
+changes when a refresh actually worked. `player_seasons_published` is the
+player-season count on its own. One column used to carry both meanings and was
+read as the second.
 
 ## Where "visible" actually happens
 

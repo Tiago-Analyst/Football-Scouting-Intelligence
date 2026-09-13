@@ -48,6 +48,46 @@ untouched until a new generation reaches PUBLISHED, so a half-fetched
 generation cannot replace a working season - which is the property the whole
 design exists to protect.
 
+TRANSITIONS, AND WHO MAKES THEM
+===============================
+
+    IN_PROGRESS -> COMPLETE     the fetch, when every expected player is on disk
+    IN_PROGRESS -> FAILED       the fetch, for a structural reason only: a
+                                refused key, an unreadable roster
+    COMPLETE    -> VALIDATED    the workflow, after the staging load, identity
+                                resolution, the quality report and the
+                                independent analytics validation all passed
+    VALIDATED   -> PUBLISHED    the promotion, in the same transaction as the
+                                schema swap
+    COMPLETE    -> PUBLISHED    also allowed: a promotion run by hand against a
+                                generation nobody marked VALIDATED first
+    PUBLISHED   -> VALIDATED    a rollback, which really does un-publish
+    any         -> FAILED       a person, explicitly, through `--abandon`
+
+What does NOT move a generation:
+
+  - a validation failure. The generation stays COMPLETE; its snapshots are
+    intact and the next run re-derives staging from them and tries again.
+  - a promotion failure. The generation stays VALIDATED and the next run
+    retries publication without refetching.
+  - a missing cache. Nothing is created, resumed or failed automatically;
+    see `verify_local_state` in `gate.py`.
+
+CHECKPOINT REVISIONS
+====================
+
+`checkpoint_revision` counts the runs that saved progress for a generation.
+It exists because the GitHub Actions cache is immutable: a key, once written,
+is never overwritten, so a generation that grows over nineteen hourly runs
+cannot be saved under one key nineteen times. Each run saves under
+`footystats-gen-<id>-<revision>` and the restore asks for the newest key with
+the `footystats-gen-<id>-` prefix - within that generation, never outside it.
+
+The database holds the revision the last run reached. A restore that comes
+back with an older one is reported and refused: resuming from it would refetch
+what the newer checkpoint already had, and could not know which players the
+failure ledger has since retired.
+
 WHAT A TRANSIENT FAILURE DOES NOT DO
 ====================================
 
@@ -151,6 +191,12 @@ class GenerationMetadata:
     published_at: str | None = None
     #: Why, when the status is FAILED.
     failure_reason: str | None = None
+
+    #: How many runs have saved progress for this generation. Bumped once per
+    #: run that checkpoints, so the cache key each run saves under is new and
+    #: the database can say which checkpoint is the latest. See the module
+    #: docstring, CHECKPOINT REVISIONS.
+    checkpoint_revision: int = 0
 
     @property
     def pending_players(self) -> int:
@@ -257,6 +303,27 @@ class Generation:
         if status is GenerationStatus.FAILED:
             self.metadata.failure_reason = reason
         self.save()
+
+    def checkpoint(self) -> int:
+        """Bump the revision and save. Returns the new revision.
+
+        Once per run, after the run has done whatever fetching it will do.
+        Not after every competition: a revision is the unit a cache is saved
+        under, and a run saves once.
+        """
+        self.metadata.checkpoint_revision += 1
+        self.save()
+        return self.metadata.checkpoint_revision
+
+    def abandon(self, reason: str) -> None:
+        """Mark FAILED. Explicit, by a person, never by the pipeline guessing.
+
+        The one route to FAILED that is not a structural fetch failure. What
+        it is for: a generation whose cache has been lost and cannot be
+        restored, where the honest choice is to say so and start again rather
+        than to let a scheduled job quietly do it.
+        """
+        self.set_status(GenerationStatus.FAILED, reason=reason)
 
     def record_roster(self, season_id: str, players: Sequence[Mapping[str, Any] | str]) -> None:
         """Store this generation's expected players for one competition.
@@ -473,7 +540,20 @@ class GenerationStore:
         generation.save()
         return generation
 
-    def resolve(self, *, resume: bool, now: datetime | None = None) -> Generation:
+    def get(self, generation_id: str) -> Generation | None:
+        """One generation by id, or None. Never the nearest one."""
+        for generation in self.all():
+            if generation.generation_id == generation_id:
+                return generation
+        return None
+
+    def resolve(
+        self,
+        *,
+        resume: bool,
+        now: datetime | None = None,
+        expected_id: str | None = None,
+    ) -> Generation:
         """The generation this run should work on.
 
         The decision the whole module exists for:
@@ -486,8 +566,30 @@ class GenerationStore:
         `resume=False` is an explicit request for a new generation and will
         still refuse to abandon an open one - use `--new-generation` semantics
         deliberately rather than by forgetting a flag.
+
+        `expected_id` is what the database says the open generation is. When
+        it is given, this returns that generation or raises: never another
+        open one, never a new one. A runner whose disk disagrees with the
+        database has restored the wrong cache or none, and either way the
+        fetch must not proceed into a universe the database is not tracking.
         """
         open_one = self.in_progress()
+
+        if expected_id is not None:
+            if open_one is None:
+                raise GenerationError(
+                    f"generation {expected_id} is IN_PROGRESS in the database but its local "
+                    f"checkpoint state could not be restored. Nothing was resumed and nothing "
+                    f"was started. Recover by restoring its cache, or abandon it explicitly: "
+                    f"python -m pipelines.footystats.generations --abandon {expected_id}"
+                )
+            if open_one.generation_id != expected_id:
+                raise GenerationError(
+                    f"the database expects generation {expected_id} and the disk holds "
+                    f"{open_one.generation_id}. Refusing to resume into the wrong generation."
+                )
+            return open_one
+
         if open_one is not None:
             if not resume:
                 raise GenerationError(
@@ -496,3 +598,69 @@ class GenerationStore:
                 )
             return open_one
         return self.create(now=now)
+
+
+# ---------------------------------------------------------------------------
+# Administrative entry point
+# ---------------------------------------------------------------------------
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m pipelines.footystats.generations --abandon <id> --reason "..."`.
+
+    The one thing this does is the one thing the pipeline must never do on its
+    own: give up on a generation. It marks the generation FAILED on disk and,
+    when a database is reachable, in `fact_refresh_generation` - so the next
+    gate sees nothing live and the next cadence run starts fresh.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("--abandon", metavar="GENERATION_ID", help="Mark this generation FAILED.")
+    parser.add_argument(
+        "--reason",
+        default="abandoned by an operator",
+        help="Recorded against the generation. Say why.",
+    )
+    parser.add_argument("--list", action="store_true", help="Show every generation on disk.")
+    args = parser.parse_args(argv)
+
+    store = GenerationStore()
+
+    if args.list:
+        for generation in store.all():
+            meta = generation.metadata
+            print(
+                f"{generation.generation_id}  {meta.status:<12} "
+                f"rev {meta.checkpoint_revision:<4} "
+                f"{meta.completed_players:>6}/{meta.total_expected_players:<6} players"
+            )
+        return 0
+
+    if not args.abandon:
+        parser.print_help()
+        return 2
+
+    generation = store.get(args.abandon)
+    if generation is None:
+        # Not on disk. It may still be live in the database - the cache-lost
+        # case, which is the case this command exists for - so the database
+        # record is updated on its own.
+        print(f"generation {args.abandon} is not on disk; marking it FAILED in the database only.")
+        from pipelines.footystats import publish_status
+
+        if not publish_status.mark_failed(args.abandon, reason=args.reason):
+            print("could not reach the database; nothing was changed")
+            return 1
+        return 0
+
+    generation.abandon(args.reason)
+    from pipelines.footystats import publish_status
+
+    publish_status.record(generation)
+    print(f"generation {args.abandon} is FAILED: {args.reason}")
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

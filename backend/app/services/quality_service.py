@@ -44,6 +44,27 @@ class CheckRecord:
     record_count: int
     detail: str | None
     executed_at: datetime
+    #: Which refresh generation the check describes, and whether that
+    #: generation was a candidate in staging or is the dataset being served.
+    #: Both None for rows written before contexts existed.
+    generation_id: str | None = None
+    context: str | None = None
+
+
+@dataclass(frozen=True)
+class CandidateChecks:
+    """The newest checks that describe a generation nobody is being served.
+
+    Kept apart from the published checks on purpose. Production serving G4
+    while a G5 candidate was checked and then failed at promotion used to put
+    G5's checks on the public page above G4's data - every tick describing a
+    dataset the reader could not see.
+    """
+
+    source: str
+    generation_id: str
+    executed_at: datetime
+    checks: list[CheckRecord]
 
 
 @dataclass(frozen=True)
@@ -75,14 +96,40 @@ class Volumes:
     player_seasons: int
 
 
+#: Rows that describe the dataset being served: flipped to PUBLISHED by a
+#: promotion, or written before contexts existed and therefore about whatever
+#: was serving at the time. CANDIDATE rows are excluded - they describe a
+#: staging generation, and the whole point of the column is that a reader
+#: must not take them for the data on screen.
+_DESCRIBES_SERVING = (FactDataQuality.context.is_(None)) | (FactDataQuality.context == "PUBLISHED")
+
+
+def _record(row: FactDataQuality) -> CheckRecord:
+    return CheckRecord(
+        source=row.source,
+        entity=row.entity,
+        check_name=row.check_name,
+        status=row.status,
+        record_count=row.record_count,
+        detail=row.detail,
+        executed_at=row.executed_at,
+        generation_id=row.generation_id,
+        context=row.context,
+    )
+
+
 def latest_checks(session: Session, *, limit: int = 200) -> list[CheckRecord]:
-    """The most recent run's checks, per source.
+    """The most recent run's checks per source, about the dataset being served.
 
     Only the newest run of each source: showing every historical run would bury
     the current state, which is the question a reader actually has.
+
+    Never a CANDIDATE run. Those describe a staging generation that may never
+    reach readers; `candidate_checks` reports them, separately and labelled.
     """
     newest = (
         select(FactDataQuality.source, func.max(FactDataQuality.executed_at).label("latest"))
+        .where(_DESCRIBES_SERVING)
         .group_by(FactDataQuality.source)
         .subquery()
     )
@@ -93,22 +140,63 @@ def latest_checks(session: Session, *, limit: int = 200) -> list[CheckRecord]:
             (FactDataQuality.source == newest.c.source)
             & (FactDataQuality.executed_at == newest.c.latest),
         )
+        .where(_DESCRIBES_SERVING)
+        .order_by(FactDataQuality.source, FactDataQuality.entity, FactDataQuality.check_name)
+        .limit(limit)
+    ).scalars()
+    return [_record(row) for row in rows]
+
+
+def candidate_checks(session: Session, *, limit: int = 200) -> list[CandidateChecks]:
+    """The newest CANDIDATE run per source, if its generation is still unpublished.
+
+    A candidate whose generation has since been promoted has no CANDIDATE
+    rows left - the promotion flipped them - so what remains here is exactly
+    the set of checks that describe data nobody is being served: a refresh
+    between staging and production, or one that failed to get there.
+    """
+    newest = (
+        select(FactDataQuality.source, func.max(FactDataQuality.executed_at).label("latest"))
+        .where(FactDataQuality.context == "CANDIDATE")
+        .group_by(FactDataQuality.source)
+        .subquery()
+    )
+    rows = session.execute(
+        select(FactDataQuality)
+        .join(
+            newest,
+            (FactDataQuality.source == newest.c.source)
+            & (FactDataQuality.executed_at == newest.c.latest),
+        )
+        .where(FactDataQuality.context == "CANDIDATE")
         .order_by(FactDataQuality.source, FactDataQuality.entity, FactDataQuality.check_name)
         .limit(limit)
     ).scalars()
 
+    grouped: dict[str, list[CheckRecord]] = {}
+    for row in rows:
+        grouped.setdefault(row.source, []).append(_record(row))
+
     return [
-        CheckRecord(
-            source=row.source,
-            entity=row.entity,
-            check_name=row.check_name,
-            status=row.status,
-            record_count=row.record_count,
-            detail=row.detail,
-            executed_at=row.executed_at,
+        CandidateChecks(
+            source=source,
+            generation_id=records[0].generation_id or "",
+            executed_at=records[0].executed_at,
+            checks=records,
         )
-        for row in rows
+        for source, records in grouped.items()
+        if records and records[0].generation_id
     ]
+
+
+def published_generation_id(session: Session, *, source: str = "footystats") -> str | None:
+    """The generation whose data this source is serving, per the publication ledger."""
+    return session.scalar(
+        select(FactSourcePublication.generation_id)
+        .where(FactSourcePublication.source == source)
+        .order_by(FactSourcePublication.published_at.desc(), FactSourcePublication.id.desc())
+        .limit(1)
+    )
 
 
 def last_publications(session: Session) -> dict[str, tuple[datetime, int]]:
@@ -194,9 +282,15 @@ def last_loads(session: Session) -> dict[str, tuple[datetime, int]]:
 
 
 def freshness(session: Session) -> list[SourceFreshness]:
-    """When each source was last checked, and how that run went."""
+    """When each source was last checked, and how that run went.
+
+    "Checked" means the dataset being served was checked. A candidate run
+    against staging does not count: reporting it here would say the served
+    data was checked today when what was checked today never reached readers.
+    """
     newest = (
         select(FactDataQuality.source, func.max(FactDataQuality.executed_at).label("latest"))
+        .where(_DESCRIBES_SERVING)
         .group_by(FactDataQuality.source)
         .subquery()
     )
@@ -213,6 +307,7 @@ def freshness(session: Session) -> list[SourceFreshness]:
             (FactDataQuality.source == newest.c.source)
             & (FactDataQuality.executed_at == newest.c.latest),
         )
+        .where(_DESCRIBES_SERVING)
         .group_by(FactDataQuality.source, newest.c.latest)
         .order_by(FactDataQuality.source)
     ).all()

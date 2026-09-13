@@ -259,6 +259,9 @@ class TestTheGenerationFormatIsCanonical:
         from pipelines.load import load_providers
 
         source = inspect.getsource(load_providers.build_loader)
-        assert "_newest_loadable_generation" in source
+        # Through `_generation_to_load`, which takes the named generation when
+        # the workflow names one and falls back to the newest only for a
+        # local run that cannot.
+        assert "_generation_to_load" in source
         assert "::warning::" in source
         assert "migrate_snapshots" in source

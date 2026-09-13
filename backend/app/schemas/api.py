@@ -524,6 +524,27 @@ class QualityCheckOut(BaseModel):
     record_count: int
     detail: str | None
     executed_at: datetime
+    #: The refresh generation this check describes, and whether it was a
+    #: candidate in staging or is the dataset being served. Null on rows
+    #: recorded before generations carried context.
+    generation_id: str | None = None
+    context: Literal["CANDIDATE", "PUBLISHED"] | None = None
+
+
+class CandidateChecksOut(BaseModel):
+    """Checks that describe a refresh nobody is being served yet.
+
+    A separate object rather than rows mixed into `checks`, because the page
+    used to mix them: production serving G4, a G5 candidate checked and then
+    failed at promotion, and every tick on the page describing G5. These say
+    what they are about, and the published checks say what they are about,
+    and a reader is never asked to tell them apart.
+    """
+
+    source: str
+    generation_id: str
+    executed_at: datetime
+    checks: list[QualityCheckOut]
 
 
 class SourceFreshnessOut(BaseModel):
@@ -646,7 +667,13 @@ class DataQualityResponse(BaseModel):
     notice: str | None
     volumes: VolumesOut
     sources: list[SourceFreshnessOut]
+    #: The most recent checks describing the dataset being served.
     checks: list[QualityCheckOut]
+    #: The generation `checks` describe, when the publication ledger names one.
+    published_generation_id: str | None = None
+    #: Checks describing a refresh between staging and production, or one that
+    #: failed to reach it. Never about the data on screen.
+    candidate: list[CandidateChecksOut] = Field(default_factory=list)
     identity: IdentityCoverageOut | None = None
     #: Mean share of played minutes carrying detailed statistics, across every
     #: loaded player-season that has both figures. `None` when unmeasurable.

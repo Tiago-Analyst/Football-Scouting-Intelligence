@@ -898,3 +898,316 @@ class TestAFailedPublicationIsRetriedRatherThanRefetched:
         )
         assert decision.action is Action.NOOP
         assert "needs attention" in decision.reason
+
+
+class TestTheValidatedStateIsUsed:
+    """Section 7 and 18. COMPLETE -> VALIDATED after every check; a promotion
+    that fails leaves VALIDATED behind, and the next run retries from there."""
+
+    GENERATION = "29990102T000000Z"
+    SOURCE = "a_validated_provider"
+
+    @pytest.fixture
+    def a_complete_generation(self):  # type: ignore[no-untyped-def]
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_refresh_generation "
+                    "(generation_id, source, status, created_at, updated_at, complete, "
+                    " total_expected_players, completed_players, failed_players, "
+                    " competitions_expected, competitions_complete) "
+                    "VALUES (:g, :s, 'COMPLETE', now(), now(), true, 0, 0, 0, 0, 0)"
+                ),
+                {"g": self.GENERATION, "s": self.SOURCE},
+            )
+        yield self.GENERATION
+        with get_engine().begin() as connection:
+            connection.execute(
+                text("DELETE FROM public.fact_source_publication WHERE source = :s"),
+                {"s": self.SOURCE},
+            )
+            connection.execute(
+                text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                {"s": self.SOURCE},
+            )
+
+    def _status(self) -> str | None:
+        with get_engine().connect() as connection:
+            return connection.execute(
+                text("SELECT status FROM public.fact_refresh_generation WHERE source = :s"),
+                {"s": self.SOURCE},
+            ).scalar()
+
+    def test_complete_becomes_validated(self, a_complete_generation: str) -> None:
+        from pipelines.footystats.publish_status import mark_validated
+
+        assert mark_validated(a_complete_generation, source=self.SOURCE) is True
+        assert self._status() == "VALIDATED"
+
+    def test_marking_validated_twice_is_harmless(self, a_complete_generation: str) -> None:
+        """A retried run reaches the step again."""
+        from pipelines.footystats.publish_status import mark_validated
+
+        mark_validated(a_complete_generation, source=self.SOURCE)
+        assert mark_validated(a_complete_generation, source=self.SOURCE) is False
+        assert self._status() == "VALIDATED"
+
+    def test_a_published_generation_is_not_dragged_back(self, a_complete_generation: str) -> None:
+        from pipelines.footystats.publish_status import mark_validated
+        from pipelines.load.promote import record_publication
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=1,
+            )
+        assert self._status() == "PUBLISHED"
+        assert mark_validated(a_complete_generation, source=self.SOURCE) is False
+        assert self._status() == "PUBLISHED"
+
+    def test_a_failed_promotion_leaves_validated_and_the_gate_retries(
+        self, a_complete_generation: str
+    ) -> None:
+        """The retry, end to end at the database level.
+
+        Validated; the promotion transaction rolls back; the status is still
+        VALIDATED; the gate answers PUBLISH_READY without fetching; the retry
+        succeeds and the generation is PUBLISHED.
+        """
+        from pipelines.footystats.gate import Action, decide_from_state
+        from pipelines.footystats.publish_status import mark_validated
+        from pipelines.load.promote import record_publication, swap
+
+        mark_validated(a_complete_generation, source=self.SOURCE)
+
+        # The promotion fails transiently: everything it did is undone.
+        with get_engine().connect() as connection, connection.begin():
+            swap(connection)
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=1,
+            )
+            connection.rollback()
+        assert self._status() == "VALIDATED", "validation state survived the failed promotion"
+
+        decision = decide_from_state("continue_only", [(a_complete_generation, "VALIDATED")])
+        assert decision.action is Action.PUBLISH_READY
+        assert not decision.action.fetches, "no refetch"
+
+        # The retry.
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=a_complete_generation,
+                rows_published=1,
+            )
+        assert self._status() == "PUBLISHED"
+
+    def test_the_promotion_refuses_a_generation_the_database_does_not_expect(
+        self, a_complete_generation: str
+    ) -> None:
+        """Section 4: the named generation is verified against the database
+        inside the promotion, not trusted from the command line."""
+        from pipelines.load.promote import generation_status
+
+        with get_engine().connect() as connection:
+            assert generation_status(connection, self.SOURCE, a_complete_generation) == "COMPLETE"
+            assert generation_status(connection, self.SOURCE, "29990909T000000Z") is None
+
+
+class TestQualityChecksCarryTheirContext:
+    """Section 9, 10 and 19. Production is G4; G5 was checked and failed to
+    publish. The public page must say G4's checks are G4's and G5's are a
+    candidate's, and never the other way round."""
+
+    SOURCE = "a_contextual_provider"
+    G4 = "29990104T000000Z"
+    G5 = "29990105T000000Z"
+
+    @pytest.fixture
+    def two_generations(self):  # type: ignore[no-untyped-def]
+        with get_engine().begin() as connection:
+            for gid, status in ((self.G4, "PUBLISHED"), (self.G5, "COMPLETE")):
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete) "
+                        "VALUES (:g, :s, :st, now(), now(), true, 0, 0, 0, 0, 0)"
+                    ),
+                    {"g": gid, "s": self.SOURCE, "st": status},
+                )
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_source_publication "
+                    "(source, generation_id, published_at, rows_published) "
+                    "VALUES (:s, :g, now() - interval '2 days', 10)"
+                ),
+                {"s": self.SOURCE, "g": self.G4},
+            )
+            for gid, context, when, status in (
+                (self.G4, "PUBLISHED", "now() - interval '2 days'", "pass"),
+                (self.G5, "CANDIDATE", "now()", "warn"),
+            ):
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_data_quality "
+                        "(source, entity, check_name, status, record_count, detail, executed_at, "
+                        " generation_id, context) "
+                        f"VALUES (:s, 'player', 'a_check', :st, 1, NULL, {when}, :g, :c)"
+                    ),
+                    {"s": self.SOURCE, "st": status, "g": gid, "c": context},
+                )
+        yield
+        with get_engine().begin() as connection:
+            for table in (
+                "fact_data_quality",
+                "fact_source_publication",
+                "fact_refresh_generation",
+            ):
+                connection.execute(
+                    text(f"DELETE FROM public.{table} WHERE source = :s"),
+                    {"s": self.SOURCE},
+                )
+
+    def test_the_published_checks_are_the_published_generations(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import latest_checks, published_generation_id
+
+        with Session(get_engine()) as session:
+            mine = [c for c in latest_checks(session) if c.source == self.SOURCE]
+            assert [c.generation_id for c in mine] == [self.G4]
+            assert mine[0].context == "PUBLISHED"
+            assert mine[0].status == "pass", "G5's warning is not shown as production's"
+            assert published_generation_id(session, source=self.SOURCE) == self.G4
+
+    def test_the_candidate_checks_are_reported_separately(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import candidate_checks
+
+        with Session(get_engine()) as session:
+            mine = [c for c in candidate_checks(session) if c.source == self.SOURCE]
+            assert len(mine) == 1
+            assert mine[0].generation_id == self.G5
+            assert [c.status for c in mine[0].checks] == ["warn"]
+
+    def test_freshness_reports_the_published_check_time(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        """ "Checked today" about a candidate would say the served data was
+        checked today. It was checked two days ago."""
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import freshness
+
+        with Session(get_engine()) as session:
+            entry = next(f for f in freshness(session) if f.source == self.SOURCE)
+            assert entry.age_days == 2
+            assert entry.warnings == 0
+
+    def test_promotion_flips_the_candidate_rows_to_published(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.load.promote import record_publication
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import candidate_checks, latest_checks
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection, source=self.SOURCE, generation_id=self.G5, rows_published=12
+            )
+
+        with Session(get_engine()) as session:
+            mine = [c for c in latest_checks(session) if c.source == self.SOURCE]
+            assert [c.generation_id for c in mine] == [self.G5]
+            assert not [c for c in candidate_checks(session) if c.source == self.SOURCE]
+
+    def test_rollback_makes_them_a_candidate_again(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        from pipelines.load.promote import record_publication, retract_publication
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import candidate_checks, latest_checks
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection, source=self.SOURCE, generation_id=self.G5, rows_published=12
+            )
+        with get_engine().begin() as connection:
+            assert retract_publication(connection) == (self.SOURCE, self.G5)
+
+        with Session(get_engine()) as session:
+            mine = [c for c in latest_checks(session) if c.source == self.SOURCE]
+            assert [c.generation_id for c in mine] == [self.G4], "G4 is serving again"
+            candidates = [c for c in candidate_checks(session) if c.source == self.SOURCE]
+            assert [c.generation_id for c in candidates] == [self.G5]
+
+    def test_rows_without_context_still_describe_the_served_data(self, two_generations) -> None:  # type: ignore[no-untyped-def]
+        """Rows written before contexts existed. They were always about
+        whatever was serving, and a page that dropped them would go blank for
+        every source that has not been refreshed since."""
+        from sqlalchemy.orm import Session
+
+        from app.services.quality_service import latest_checks
+
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_data_quality "
+                    "(source, entity, check_name, status, record_count, executed_at) "
+                    "VALUES (:s, 'club', 'legacy_check', 'pass', 1, now() + interval '1 hour')"
+                ),
+                {"s": self.SOURCE},
+            )
+        with Session(get_engine()) as session:
+            mine = [c for c in latest_checks(session) if c.source == self.SOURCE]
+            assert [c.check_name for c in mine] == ["legacy_check"]
+            assert mine[0].context is None
+
+
+class TestPublishedRowsMeanWhatTheySay:
+    """Section 11. `rows_published` is a volume; `player_seasons_published`
+    is a player count. One column carried both and was read as the second."""
+
+    def test_the_two_figures_are_recorded_separately(self) -> None:
+        from pipelines.load.promote import player_seasons_for_source, rows_for_source
+
+        with get_engine().connect() as connection:
+            rows = rows_for_source(connection, SERVING, "footystats")
+            seasons = player_seasons_for_source(connection, SERVING, "footystats")
+        assert seasons <= rows
+        if seasons:
+            assert rows > seasons, "bridges and competitions are rows too; the volume is larger"
+
+    def test_the_publication_row_carries_both(self) -> None:
+        from pipelines.load.promote import record_publication
+
+        source = "a_counted_provider"
+        try:
+            with get_engine().begin() as connection:
+                record_publication(
+                    connection,
+                    source=source,
+                    generation_id=None,
+                    rows_published=1_000,
+                    player_seasons_published=250,
+                )
+            with get_engine().connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT rows_published, player_seasons_published "
+                        "FROM public.fact_source_publication WHERE source = :s"
+                    ),
+                    {"s": source},
+                ).one()
+            assert row == (1_000, 250)
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_source_publication WHERE source = :s"),
+                    {"s": source},
+                )

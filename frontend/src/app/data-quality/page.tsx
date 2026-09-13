@@ -6,14 +6,23 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
-import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import {
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  TableWrap,
+} from "@/components/ui/Table";
 import { formatCount, formatDate } from "@/lib/format";
 import { getDataQuality } from "@/lib/system";
 import type { CheckStatus, QualityCheck, SourceFreshness } from "@/types/api";
 
 export const metadata: Metadata = {
   title: "Data quality",
-  description: "Source freshness, coverage and the automated checks run on every load.",
+  description:
+    "Source freshness, coverage and the automated checks run on every load.",
 };
 
 const TONE: Record<CheckStatus, BadgeTone> = {
@@ -51,7 +60,11 @@ export default async function DataQualityPage() {
   );
 }
 
-async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>> }) {
+async function Report({
+  report,
+}: {
+  report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>>;
+}) {
   const failing = report.checks.filter((c) => c.status === "fail");
   const warning = report.checks.filter((c) => c.status === "warn");
 
@@ -65,15 +78,22 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Players" value={formatCount(report.volumes.players)} />
-        <StatTile label="Player seasons" value={formatCount(report.volumes.player_seasons)} />
+        <StatTile
+          label="Player seasons"
+          value={formatCount(report.volumes.player_seasons)}
+        />
         <StatTile label="Clubs" value={formatCount(report.volumes.clubs)} />
-        <StatTile label="Competitions" value={formatCount(report.volumes.competitions)} />
+        <StatTile
+          label="Competitions"
+          value={formatCount(report.volumes.competitions)}
+        />
       </div>
 
       {failing.length > 0 ? (
         <Callout tone="caution" title={`${failing.length} check(s) failing`}>
-          A failing check means the loaded data violates something the system relies on.
-          Figures derived from it may be wrong, not merely incomplete.
+          A failing check means the loaded data violates something the system
+          relies on. Figures derived from it may be wrong, not merely
+          incomplete.
         </Callout>
       ) : null}
 
@@ -125,7 +145,8 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               </p>
             ) : (
               <p className="text-sm text-muted">
-                Not measurable: no loaded player-season carries both minute counts.
+                Not measurable: no loaded player-season carries both minute
+                counts.
               </p>
             )}
           </CardBody>
@@ -175,7 +196,9 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               <StatTile
                 label="View built"
                 value={
-                  report.analytics.built_at ? formatDate(report.analytics.built_at) : "–"
+                  report.analytics.built_at
+                    ? formatDate(report.analytics.built_at)
+                    : "–"
                 }
                 hint={
                   report.analytics.is_stale
@@ -185,9 +208,13 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               />
             </div>
             {report.analytics.is_stale ? (
-              <Callout tone="note" title="The database has changed since this view was built">
-                A refreshed load reaches readers when the pipeline asks the API to rebuild.
-                Until then the previous figures are served — consistent, and behind.
+              <Callout
+                tone="note"
+                title="The database has changed since this view was built"
+              >
+                A refreshed load reaches readers when the pipeline asks the API
+                to rebuild. Until then the previous figures are served —
+                consistent, and behind.
               </Callout>
             ) : null}
           </CardBody>
@@ -231,33 +258,40 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
 
       <Card>
         <CardHeader
-          title="Automated checks"
-          description={`Most recent run per source. ${report.checks.length - failing.length - warning.length} passing, ${warning.length} warning, ${failing.length} failing.`}
+          title="Published dataset checks"
+          description={`The most recent checks describing the data this site is serving${
+            report.published_generation_id
+              ? ` (generation ${report.published_generation_id})`
+              : ""
+          }. ${report.checks.length - failing.length - warning.length} passing, ${warning.length} warning, ${failing.length} failing.`}
         />
         <CardBody className="p-0">
           {report.checks.length === 0 ? (
             <EmptyState title="No checks recorded" />
           ) : (
-            <TableWrap className="rounded-none border-0">
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>Check</TH>
-                    <TH>Source</TH>
-                    <TH numeric>Count</TH>
-                    <TH>Status</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {report.checks.map((check) => (
-                    <CheckRow key={`${check.source}-${check.entity}-${check.check_name}`} check={check} />
-                  ))}
-                </TBody>
-              </Table>
-            </TableWrap>
+            <ChecksTable checks={report.checks} />
           )}
         </CardBody>
       </Card>
+
+      {(report.candidate ?? []).map((candidate) => (
+        <Card key={`${candidate.source}-${candidate.generation_id}`}>
+          <CardHeader
+            title={
+              <span className="flex items-center gap-2">
+                Latest candidate refresh checks
+                <Badge tone="neutral">not published</Badge>
+              </span>
+            }
+            description={`Generation ${candidate.generation_id} of ${candidate.source}, checked ${formatDate(
+              candidate.executed_at,
+            )} against a staging copy that has not reached readers. Nothing here describes the data on this site; it describes what the next dataset would be if it were promoted.`}
+          />
+          <CardBody className="p-0">
+            <ChecksTable checks={candidate.checks} />
+          </CardBody>
+        </Card>
+      ))}
 
       <Callout tone="note" title="What these checks do and do not tell you">
         {report.meaning}
@@ -279,7 +313,10 @@ function SourceRow({ source }: { source: SourceFreshness }) {
             Never filled in from the check time beside it, and never from a
             staging load that may not have reached production. */}
         {source.last_published_at !== null ? (
-          <span className={dataStale ? "text-warning" : undefined} title={source.last_published_at}>
+          <span
+            className={dataStale ? "text-warning" : undefined}
+            title={source.last_published_at}
+          >
             {formatDate(source.last_published_at)}
           </span>
         ) : (
@@ -298,12 +335,45 @@ function SourceRow({ source }: { source: SourceFreshness }) {
       </TD>
       <TD numeric>{source.checks_run}</TD>
       <TD numeric>
-        {source.warnings > 0 ? <Badge tone="warning">{source.warnings}</Badge> : "—"}
+        {source.warnings > 0 ? (
+          <Badge tone="warning">{source.warnings}</Badge>
+        ) : (
+          "—"
+        )}
       </TD>
       <TD numeric>
-        {source.failures > 0 ? <Badge tone="danger">{source.failures}</Badge> : "—"}
+        {source.failures > 0 ? (
+          <Badge tone="danger">{source.failures}</Badge>
+        ) : (
+          "—"
+        )}
       </TD>
     </TR>
+  );
+}
+
+function ChecksTable({ checks }: { checks: QualityCheck[] }) {
+  return (
+    <TableWrap className="rounded-none border-0">
+      <Table>
+        <THead>
+          <TR>
+            <TH>Check</TH>
+            <TH>Source</TH>
+            <TH numeric>Count</TH>
+            <TH>Status</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {checks.map((check) => (
+            <CheckRow
+              key={`${check.source}-${check.entity}-${check.check_name}`}
+              check={check}
+            />
+          ))}
+        </TBody>
+      </Table>
+    </TableWrap>
   );
 }
 
@@ -313,7 +383,9 @@ function CheckRow({ check }: { check: QualityCheck }) {
       <TD>
         <span className="font-medium">{check.check_name}</span>
         <span className="mt-0.5 block text-xs text-subtle">{check.entity}</span>
-        {check.detail ? <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p> : null}
+        {check.detail ? (
+          <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p>
+        ) : null}
       </TD>
       <TD className="text-xs text-muted">{check.source}</TD>
       <TD numeric>{formatCount(check.record_count)}</TD>

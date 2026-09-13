@@ -112,11 +112,15 @@ class ProviderLoader:
         source: str,
         performance: PerformanceDataProvider | None,
         market: MarketDataProvider | None,
+        generation_id: str | None = None,
     ) -> None:
         self.session = session
         self.source = source
         self.performance = performance
         self.market = market
+        #: Which refresh generation this load's rows and checks describe.
+        #: None for a provider with no generation model.
+        self.generation_id = generation_id
         self.report = LoadReport(source=source)
         # Provider player id -> internal player_id, built as players are loaded.
         self._player_ids: dict[str, int] = {}
@@ -544,6 +548,10 @@ class ProviderLoader:
                     "status": status,
                     "record_count": count,
                     "detail": detail,
+                    # Written against staging, about a generation that has not
+                    # been promoted. The promotion flips these to PUBLISHED.
+                    "generation_id": self.generation_id,
+                    "context": "CANDIDATE" if self.generation_id else None,
                 }
                 for entity, name, status, count, detail in self.report.checks
             ],
@@ -695,6 +703,11 @@ def purge(session: Session, source: str) -> None:
 def _newest_loadable_generation():  # type: ignore[no-untyped-def]
     """The newest generation that has finished fetching, or None.
 
+    For a local run with no database to name one. The workflow never uses
+    this: it names the generation, and `_generation_to_load` refuses any
+    other. "Newest" is a guess, and the one time the guess is wrong it
+    publishes an old COMPLETE generation over a newer one.
+
     None means "no generation directory", not "nothing is ready": a store
     holding only an IN_PROGRESS generation returns None here and the caller
     falls back to the flat layout, which is empty on a fresh checkout and so
@@ -706,7 +719,38 @@ def _newest_loadable_generation():  # type: ignore[no-untyped-def]
     return loadable[-1] if loadable else None
 
 
-def build_loader(session: Session, source: str) -> ProviderLoader:
+def _generation_to_load(expected_id: str | None):  # type: ignore[no-untyped-def]
+    """The generation this load reads from: the named one, or - unnamed - the
+    newest finished one.
+
+    Named is the workflow's path. The gate read the database, the database
+    said which generation is awaiting publication, and that is the one to
+    load - not the newest directory on a runner whose cache may hold several.
+    A named generation that is missing, or not finished, stops the load: it
+    would otherwise read a partial universe or a different one.
+    """
+    from pipelines.footystats.generations import GenerationStore
+
+    if expected_id is None:
+        return _newest_loadable_generation()
+
+    generation = GenerationStore().get(expected_id)
+    if generation is None:
+        raise LookupError(
+            f"generation {expected_id} is not on disk. The database expects it and the "
+            f"restored cache does not hold it; nothing was loaded."
+        )
+    if not generation.status.is_publishable:
+        raise LookupError(
+            f"generation {expected_id} is {generation.status.value}, not finished; "
+            f"a partial universe is never loaded."
+        )
+    return generation
+
+
+def build_loader(
+    session: Session, source: str, *, generation_id: str | None = None
+) -> ProviderLoader:
     if source == "demo":
         return ProviderLoader(
             session,
@@ -727,16 +771,18 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
 
         # WHICH GENERATION THIS LOADS FROM
         #
-        # The newest one that finished fetching. A generation still
-        # IN_PROGRESS is a partial universe: loading it would replace a whole
-        # season with a subset of itself, and every percentile would be
-        # measured against a population missing entire leagues.
+        # The one the caller named, when it named one - the workflow always
+        # does, from the database. Otherwise the newest that finished
+        # fetching. A generation still IN_PROGRESS is a partial universe:
+        # loading it would replace a whole season with a subset of itself,
+        # and every percentile would be measured against a population
+        # missing entire leagues.
         #
         # `is_publishable` is the gate, and it is deliberately narrow -
         # COMPLETE, VALIDATED or PUBLISHED. The load's own `--verify` decides
         # whether what it finds is good enough to keep; this decides only that
         # it is finished.
-        generation = _newest_loadable_generation()
+        generation = _generation_to_load(generation_id)
         if generation is not None:
             reader = SnapshotReader(generation.directory)
             print(
@@ -784,6 +830,7 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
             performance=performance,
             # Market data comes from Transfermarkt, loaded as its own source.
             market=None,
+            generation_id=generation.generation_id if generation is not None else None,
         )
 
     if source == "transfermarkt":
@@ -819,6 +866,15 @@ def main(argv: list[str] | None = None) -> int:
             "back if any check fails. Use in scheduled pipelines."
         ),
     )
+    parser.add_argument(
+        "--generation-id",
+        default=None,
+        help=(
+            "FootyStats only. Load exactly this generation, which the database named. "
+            "Without it the newest finished generation on disk is used - for local "
+            "runs; the workflow always names one."
+        ),
+    )
     args = parser.parse_args(argv)
 
     from app.core.config import get_settings
@@ -836,7 +892,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Purged source '{args.source}'. Nothing was loaded.")
             return 0
 
-        loader = build_loader(session, args.source)
+        try:
+            loader = build_loader(session, args.source, generation_id=args.generation_id)
+        except LookupError as exc:
+            session.rollback()
+            print(f"::error::{exc}", file=sys.stderr)
+            return 1
         report = loader.run()
 
         if report.failed:

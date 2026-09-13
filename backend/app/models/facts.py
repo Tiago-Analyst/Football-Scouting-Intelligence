@@ -289,10 +289,30 @@ class FactDataQuality(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    #: WHICH DATASET THIS DESCRIBES
+    #:
+    #: The report runs against staging, and a staging generation can be checked
+    #: and then never promoted. Without these two columns, production serving
+    #: G4 and a G5 candidate that failed at promotion put G5's checks on the
+    #: public page above G4's data.
+    #:
+    #: `context` is CANDIDATE when the row was written against staging and
+    #: PUBLISHED once the promotion has flipped it - in the promotion's own
+    #: transaction, so a row cannot say PUBLISHED about a swap that did not
+    #: commit. Null on both for rows written before contexts existed, or by a
+    #: run with no generation (a local demo load).
+    generation_id: Mapped[str | None] = mapped_column(String(32))
+    context: Mapped[str | None] = mapped_column(String(16))
+
     __table_args__ = (
         CheckConstraint("status IN ('pass', 'warn', 'fail')", name="data_quality_status_valid"),
         CheckConstraint("record_count >= 0", name="data_quality_count_non_negative"),
+        CheckConstraint(
+            "context IS NULL OR context IN ('CANDIDATE', 'PUBLISHED')",
+            name="data_quality_context_valid",
+        ),
         Index("ix_data_quality_executed", "executed_at"),
+        Index("ix_data_quality_generation", "source", "generation_id", "context"),
     )
 
 
@@ -380,8 +400,17 @@ class FactRefreshGeneration(Base):
     competitions_complete: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    #: The checkpoint the last run saved. The Actions cache is immutable per
+    #: key, so each run saves under a new key carrying this number, and a
+    #: restore that comes back with an older one is refused rather than
+    #: resumed into. See `pipelines.footystats.generations`.
+    checkpoint_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
     __table_args__ = (
         UniqueConstraint("source", "generation_id", name="uq_refresh_generation"),
+        CheckConstraint("checkpoint_revision >= 0", name="generation_revision_non_negative"),
         CheckConstraint("total_expected_players >= 0", name="generation_expected_non_negative"),
         CheckConstraint("completed_players >= 0", name="generation_completed_non_negative"),
         CheckConstraint("failed_players >= 0", name="generation_failed_non_negative"),
@@ -424,11 +453,21 @@ class FactSourcePublication(Base):
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    #: Player-seasons serving after the swap. What a reader is looking at, not
-    #: what a load wrote.
+    #: Total source-owned relational rows published: every row this provider
+    #: contributed across competitions, clubs, bridges, player-seasons, market
+    #: values and transfers. A volume, not a player count - the figure that
+    #: changes when a refresh actually worked, and nothing more specific.
     rows_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Player-seasons this provider contributed, separately. It was being read
+    #: off `rows_published`, which is a different number; one column carrying
+    #: two meanings is how that happened.
+    player_seasons_published: Mapped[int | None] = mapped_column(Integer)
 
     __table_args__ = (
         CheckConstraint("rows_published >= 0", name="publication_rows_non_negative"),
+        CheckConstraint(
+            "player_seasons_published IS NULL OR player_seasons_published >= 0",
+            name="publication_player_seasons_non_negative",
+        ),
         Index("ix_source_publication_source_time", "source", "published_at"),
     )
