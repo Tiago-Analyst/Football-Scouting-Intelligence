@@ -530,9 +530,43 @@ class TestTheCacheIsSavedRightAfterTheFetch:
         assert "footystats-gen-\n" not in str(restore["with"]["restore-keys"])
         assert not any(k == "footystats-gen-" for k in restore_keys)
 
-    def test_the_restore_asks_for_the_expected_checkpoint(self, workflow: dict) -> None:
+    def test_the_restore_asks_for_a_key_that_cannot_exist(self, workflow: dict) -> None:
+        """So that only the prefix matches and the newest checkpoint wins.
+
+        Asking for the database's revision exactly was the bug: with `-0004`
+        and `-0005` both saved and the database still saying 4, the exact hit
+        won and checkpoint 5 was silently discarded.
+        """
         restore = _step(workflow, "Restore the refresh generation")
-        assert "steps.gate.outputs.expected_revision" in str(restore["with"]["key"])
+        key = str(restore["with"]["key"])
+        assert "restore-${{ github.run_id }}" in key
+        assert "expected_revision" not in key
+
+    def test_the_candidate_pipeline_names_the_source_and_the_refresh(self, workflow: dict) -> None:
+        """Rows written as `all` can never be flipped to PUBLISHED; rows
+        without `--candidate` read as production's."""
+        for name in ("Load and verify", "Record the quality report"):
+            run = _step(workflow, name)["run"]
+            assert "--candidate" in run, name
+            assert "--refresh-id" in run, name
+            assert "steps.generation.outputs.refresh_id" in run, name
+        quality = _step(workflow, "Record the quality report")["run"]
+        assert '--source "${{ steps.resolve_source.outputs.source }}"' in quality
+        assert "--refresh-id" in _step(workflow, "Promote the staged dataset")["run"]
+
+    def test_the_refresh_is_named_for_every_provider(self, workflow: dict) -> None:
+        step = _step(workflow, "Name the refresh this run publishes")
+        assert "refresh_id=" in step["run"]
+        assert "github.run_id" in step["run"], "Transfermarkt refreshes are named by the run"
+        assert step["if"] == "steps.preflight.outputs.database == 'true'"
+
+    def test_the_gate_runs_in_production_mode(self, workflow: dict) -> None:
+        """Which is what makes it fail closed without its database."""
+        gate = _step(workflow, "Decide what this run should do")
+        assert gate["env"]["APP_ENV"] == "production"
+        assert "ALLOW_LOCAL_GATE_FALLBACK" not in gate.get("env", {})
+        text = WORKFLOW.read_text(encoding="utf-8")
+        assert "ALLOW_LOCAL_GATE_FALLBACK" not in text
 
     def test_the_verification_is_a_step_that_can_fail(self, workflow: dict) -> None:
         verify = _step(workflow, "Check the restored generation is the expected one")

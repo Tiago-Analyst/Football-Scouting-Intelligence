@@ -47,24 +47,55 @@ class CheckRecord:
     #: Which refresh generation the check describes, and whether that
     #: generation was a candidate in staging or is the dataset being served.
     #: Both None for rows written before contexts existed.
+    refresh_id: str | None = None
     generation_id: str | None = None
     context: str | None = None
 
 
 @dataclass(frozen=True)
 class CandidateChecks:
-    """The newest checks that describe a generation nobody is being served.
+    """The newest checks that describe a refresh nobody is being served.
 
     Kept apart from the published checks on purpose. Production serving G4
     while a G5 candidate was checked and then failed at promotion used to put
     G5's checks on the public page above G4's data - every tick describing a
     dataset the reader could not see.
+
+    Keyed by refresh rather than generation: Transfermarkt has no generation
+    and its staging checks are candidates all the same.
     """
 
     source: str
-    generation_id: str
+    refresh_id: str
+    generation_id: str | None
     executed_at: datetime
     checks: list[CheckRecord]
+
+
+@dataclass(frozen=True)
+class PublishedChecks:
+    """The checks that validated the dataset this source is serving."""
+
+    source: str
+    refresh_id: str | None
+    generation_id: str | None
+    published_at: datetime | None
+    executed_at: datetime | None
+    checks: list[CheckRecord]
+
+
+@dataclass(frozen=True)
+class ProviderQuality:
+    """One source, two datasets: what is serving and what is waiting.
+
+    The shape `/data-quality` renders. `published` is about the data on
+    screen; `candidate` is about a refresh between staging and production, or
+    one that failed to reach it, and is None when nothing is waiting.
+    """
+
+    source: str
+    published: PublishedChecks | None
+    candidate: CandidateChecks | None
 
 
 @dataclass(frozen=True)
@@ -113,6 +144,7 @@ def _record(row: FactDataQuality) -> CheckRecord:
         record_count=row.record_count,
         detail=row.detail,
         executed_at=row.executed_at,
+        refresh_id=row.refresh_id,
         generation_id=row.generation_id,
         context=row.context,
     )
@@ -180,12 +212,13 @@ def candidate_checks(session: Session, *, limit: int = 200) -> list[CandidateChe
     return [
         CandidateChecks(
             source=source,
-            generation_id=records[0].generation_id or "",
+            refresh_id=records[0].refresh_id or "",
+            generation_id=records[0].generation_id,
             executed_at=records[0].executed_at,
             checks=records,
         )
         for source, records in grouped.items()
-        if records and records[0].generation_id
+        if records and records[0].refresh_id
     ]
 
 
@@ -197,6 +230,64 @@ def published_generation_id(session: Session, *, source: str = "footystats") -> 
         .order_by(FactSourcePublication.published_at.desc(), FactSourcePublication.id.desc())
         .limit(1)
     )
+
+
+def _latest_publication(session: Session, source: str) -> FactSourcePublication | None:
+    return session.scalar(
+        select(FactSourcePublication)
+        .where(FactSourcePublication.source == source)
+        .order_by(FactSourcePublication.published_at.desc(), FactSourcePublication.id.desc())
+        .limit(1)
+    )
+
+
+def provider_quality(session: Session, *, limit: int = 200) -> list[ProviderQuality]:
+    """Per source: the checks that validated what is serving, and the checks
+    of whatever is waiting to be served. Never the two mixed.
+
+    Every source that has either is listed. The published block comes from
+    `latest_checks`, which excludes candidates by construction; the candidate
+    block from `candidate_checks`. The publication ledger supplies when the
+    served dataset was published and which refresh it was.
+    """
+    published_by_source: dict[str, list[CheckRecord]] = {}
+    for record in latest_checks(session, limit=limit):
+        published_by_source.setdefault(record.source, []).append(record)
+    candidate_by_source = {c.source: c for c in candidate_checks(session, limit=limit)}
+
+    sources = sorted(set(published_by_source) | set(candidate_by_source))
+    result: list[ProviderQuality] = []
+    for source in sources:
+        published_records = published_by_source.get(source, [])
+        publication = _latest_publication(session, source)
+        published = (
+            PublishedChecks(
+                source=source,
+                refresh_id=(
+                    published_records[0].refresh_id
+                    if published_records and published_records[0].refresh_id
+                    else (publication.refresh_id if publication else None)
+                ),
+                generation_id=(
+                    published_records[0].generation_id
+                    if published_records and published_records[0].generation_id
+                    else (publication.generation_id if publication else None)
+                ),
+                published_at=publication.published_at if publication else None,
+                executed_at=published_records[0].executed_at if published_records else None,
+                checks=published_records,
+            )
+            if published_records or publication
+            else None
+        )
+        result.append(
+            ProviderQuality(
+                source=source,
+                published=published,
+                candidate=candidate_by_source.get(source),
+            )
+        )
+    return result
 
 
 def last_publications(session: Session) -> dict[str, tuple[datetime, int]]:

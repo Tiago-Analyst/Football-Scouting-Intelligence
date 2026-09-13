@@ -1,5 +1,6 @@
 import { RefreshProgress } from "@/components/quality/RefreshProgress";
 import type { Metadata } from "next";
+import type React from "react";
 
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
@@ -17,7 +18,12 @@ import {
 } from "@/components/ui/Table";
 import { formatCount, formatDate } from "@/lib/format";
 import { getDataQuality } from "@/lib/system";
-import type { CheckStatus, QualityCheck, SourceFreshness } from "@/types/api";
+import type {
+  CheckStatus,
+  ProviderQuality,
+  QualityCheck,
+  SourceFreshness,
+} from "@/types/api";
 
 export const metadata: Metadata = {
   title: "Data quality",
@@ -65,8 +71,9 @@ async function Report({
 }: {
   report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>>;
 }) {
+  // `checks` is the published set - candidates are excluded by the service -
+  // so a failure here is a failure in the data readers are being served.
   const failing = report.checks.filter((c) => c.status === "fail");
-  const warning = report.checks.filter((c) => c.status === "warn");
 
   return (
     <>
@@ -256,42 +263,21 @@ async function Report({
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Published dataset checks"
-          description={`The most recent checks describing the data this site is serving${
-            report.published_generation_id
-              ? ` (generation ${report.published_generation_id})`
-              : ""
-          }. ${report.checks.length - failing.length - warning.length} passing, ${warning.length} warning, ${failing.length} failing.`}
-        />
-        <CardBody className="p-0">
-          {report.checks.length === 0 ? (
-            <EmptyState title="No checks recorded" />
-          ) : (
-            <ChecksTable checks={report.checks} />
-          )}
-        </CardBody>
-      </Card>
+      {(report.providers ?? []).map((provider) => (
+        <ProviderCard key={provider.source} provider={provider} />
+      ))}
 
-      {(report.candidate ?? []).map((candidate) => (
-        <Card key={`${candidate.source}-${candidate.generation_id}`}>
+      {(report.providers ?? []).length === 0 ? (
+        <Card>
           <CardHeader
-            title={
-              <span className="flex items-center gap-2">
-                Latest candidate refresh checks
-                <Badge tone="neutral">not published</Badge>
-              </span>
-            }
-            description={`Generation ${candidate.generation_id} of ${candidate.source}, checked ${formatDate(
-              candidate.executed_at,
-            )} against a staging copy that has not reached readers. Nothing here describes the data on this site; it describes what the next dataset would be if it were promoted.`}
+            title="Automated checks"
+            description="Nothing has recorded a check yet."
           />
-          <CardBody className="p-0">
-            <ChecksTable checks={candidate.checks} />
+          <CardBody>
+            <EmptyState title="No checks recorded" />
           </CardBody>
         </Card>
-      ))}
+      ) : null}
 
       <Callout tone="note" title="What these checks do and do not tell you">
         {report.meaning}
@@ -352,9 +338,147 @@ function SourceRow({ source }: { source: SourceFreshness }) {
   );
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  footystats: "Performance data (FootyStats)",
+  transfermarkt: "Market data (Transfermarkt)",
+  demo: "Demo data",
+};
+
+function summarise(checks: QualityCheck[]): string {
+  const failing = checks.filter((c) => c.status === "fail").length;
+  const warning = checks.filter((c) => c.status === "warn").length;
+  return `${checks.length - failing - warning} passing, ${warning} warning, ${failing} failing`;
+}
+
+/**
+ * One provider, two datasets, never confused.
+ *
+ * The left column is the dataset this site is serving and the checks that
+ * validated it. The right column is whatever is waiting - a refresh between
+ * staging and production, or one that failed to get there - and it says so.
+ * The page used to show one list, and the list was whichever run was newest,
+ * which is how a candidate's ticks ended up above production's data.
+ */
+function ProviderCard({ provider }: { provider: ProviderQuality }) {
+  const { published, candidate } = provider;
+  return (
+    <Card>
+      <CardHeader
+        title={PROVIDER_LABELS[provider.source] ?? provider.source}
+        description="The published dataset and, separately, any refresh that has not reached readers."
+      />
+      <CardBody className="space-y-6">
+        <section className="space-y-3">
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+            Published dataset
+            <Badge tone="neutral">serving</Badge>
+          </h3>
+          {published ? (
+            <>
+              <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+                <Field label="Last published">
+                  {published.published_at
+                    ? formatDate(published.published_at)
+                    : "unknown"}
+                </Field>
+                <Field label="Refresh">
+                  <span className="font-mono text-xs">
+                    {published.refresh_id ?? "—"}
+                  </span>
+                </Field>
+                {published.generation_id ? (
+                  <Field label="Generation">
+                    <span className="font-mono text-xs">
+                      {published.generation_id}
+                    </span>
+                  </Field>
+                ) : null}
+                <Field label="Quality">{summarise(published.checks)}</Field>
+              </dl>
+              {published.checks.length > 0 ? (
+                <TableWrap>
+                  <ChecksTable checks={published.checks} />
+                </TableWrap>
+              ) : (
+                <p className="text-sm text-muted">
+                  Published before checks carried a refresh identity; no checks
+                  are attributable to this dataset.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Nothing from this source has been published.
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+            Latest candidate refresh
+            {candidate ? <Badge tone="neutral">not published</Badge> : null}
+          </h3>
+          {candidate ? (
+            <>
+              <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+                <Field label="Status">Checked, awaiting publication</Field>
+                <Field label="Refresh">
+                  <span className="font-mono text-xs">
+                    {candidate.refresh_id}
+                  </span>
+                </Field>
+                {candidate.generation_id ? (
+                  <Field label="Generation">
+                    <span className="font-mono text-xs">
+                      {candidate.generation_id}
+                    </span>
+                  </Field>
+                ) : null}
+                <Field label="Last validation">
+                  {formatDate(candidate.executed_at)}
+                </Field>
+                <Field label="Quality">{summarise(candidate.checks)}</Field>
+              </dl>
+              <p className="text-xs text-muted">
+                Checked against a staging copy that has not reached readers.
+                Nothing here describes the data on this site; it describes what
+                the next dataset would be if it were promoted.
+              </p>
+              <TableWrap>
+                <ChecksTable checks={candidate.checks} />
+              </TableWrap>
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Idle — no candidate refresh is waiting.
+            </p>
+          )}
+        </section>
+      </CardBody>
+    </Card>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] tracking-wide text-subtle uppercase">
+        {label}
+      </dt>
+      <dd className="font-medium">{children}</dd>
+    </div>
+  );
+}
+
 function ChecksTable({ checks }: { checks: QualityCheck[] }) {
   return (
-    <TableWrap className="rounded-none border-0">
+    <>
       <Table>
         <THead>
           <TR>
@@ -373,7 +497,7 @@ function ChecksTable({ checks }: { checks: QualityCheck[] }) {
           ))}
         </TBody>
       </Table>
-    </TableWrap>
+    </>
   );
 }
 

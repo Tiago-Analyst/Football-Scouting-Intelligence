@@ -268,6 +268,7 @@ def record_publication(  # type: ignore[no-untyped-def]
     generation_id: str | None,
     rows_published: int,
     player_seasons_published: int | None = None,
+    refresh_id: str | None = None,
 ) -> None:
     """Write the records that make the promotion visible to readers.
 
@@ -278,41 +279,48 @@ def record_publication(  # type: ignore[no-untyped-def]
     Three writes:
 
       - the publication row, which freshness reads;
-      - the generation's status, COMPLETE or VALIDATED -> PUBLISHED;
-      - the generation's quality rows, CANDIDATE -> PUBLISHED, so the public
-        page can show the checks that validated the dataset now serving and
-        stop showing them as a candidate's.
+      - this refresh's quality rows, CANDIDATE -> PUBLISHED, by `source +
+        refresh_id` - never by source alone, which would promote every older
+        candidate of the provider, and never by generation, which Transfermarkt
+        does not have;
+      - for FootyStats, the generation's status, COMPLETE or VALIDATED ->
+        PUBLISHED.
 
     All three tables live in `public`, so the schema renames above do not
     move them and the writes here are unaffected by which schema is serving.
     """
     from sqlalchemy import text
 
+    refresh = refresh_id or generation_id
+
     connection.execute(
         text(
             "INSERT INTO public.fact_source_publication "
-            "(source, generation_id, published_at, rows_published, player_seasons_published) "
-            "VALUES (:source, :generation_id, now(), :rows, :player_seasons)"
+            "(source, refresh_id, generation_id, published_at, rows_published, "
+            " player_seasons_published) "
+            "VALUES (:source, :refresh_id, :generation_id, now(), :rows, :player_seasons)"
         ),
         {
             "source": source,
+            "refresh_id": refresh,
             "generation_id": generation_id,
             "rows": rows_published,
             "player_seasons": player_seasons_published,
         },
     )
 
+    if refresh is not None:
+        connection.execute(
+            text(
+                "UPDATE public.fact_data_quality SET context = 'PUBLISHED' "
+                "WHERE source = :source AND refresh_id = :refresh_id "
+                "AND context = 'CANDIDATE'"
+            ),
+            {"source": source, "refresh_id": refresh},
+        )
+
     if generation_id is None:
         return
-
-    connection.execute(
-        text(
-            "UPDATE public.fact_data_quality SET context = 'PUBLISHED' "
-            "WHERE source = :source AND generation_id = :generation_id "
-            "AND context = 'CANDIDATE'"
-        ),
-        {"source": source, "generation_id": generation_id},
-    )
 
     # COMPLETE or VALIDATED -> PUBLISHED. Guarded on the current status rather
     # than set unconditionally: re-running a promotion must not drag a FAILED
@@ -353,13 +361,25 @@ def retract_publication(connection) -> tuple[str, str | None] | None:  # type: i
             "DELETE FROM public.fact_source_publication WHERE id = "
             "(SELECT id FROM public.fact_source_publication "
             " ORDER BY published_at DESC, id DESC LIMIT 1) "
-            "RETURNING source, generation_id"
+            "RETURNING source, generation_id, refresh_id"
         )
     ).first()
     if row is None:
         return None
 
-    source, generation_id = row
+    source, generation_id, refresh_id = row
+    if refresh_id is not None:
+        # Its checks describe a candidate again. Leaving them PUBLISHED would
+        # put the retracted refresh's checks on the public page above the
+        # dataset that is actually serving.
+        connection.execute(
+            text(
+                "UPDATE public.fact_data_quality SET context = 'CANDIDATE' "
+                "WHERE source = :source AND refresh_id = :refresh_id "
+                "AND context = 'PUBLISHED'"
+            ),
+            {"source": source, "refresh_id": refresh_id},
+        )
     if generation_id is not None:
         connection.execute(
             text(
@@ -367,17 +387,6 @@ def retract_publication(connection) -> tuple[str, str | None] | None:  # type: i
                 "SET status = 'VALIDATED', published_at = NULL, updated_at = now() "
                 "WHERE source = :source AND generation_id = :generation_id "
                 "AND status = 'PUBLISHED'"
-            ),
-            {"source": source, "generation_id": generation_id},
-        )
-        # Its checks describe a candidate again. Leaving them PUBLISHED would
-        # put the retracted generation's checks on the public page above the
-        # dataset that is actually serving.
-        connection.execute(
-            text(
-                "UPDATE public.fact_data_quality SET context = 'CANDIDATE' "
-                "WHERE source = :source AND generation_id = :generation_id "
-                "AND context = 'PUBLISHED'"
             ),
             {"source": source, "generation_id": generation_id},
         )
@@ -413,6 +422,14 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "The generation being published. Normally resolved from the "
             "database; pass it to publish a specific one."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-id",
+        default=None,
+        help=(
+            "The refresh being published - the identity its quality rows carry. "
+            "Defaults to the generation id. The workflow always passes it."
         ),
     )
     parser.add_argument(
@@ -520,6 +537,7 @@ def main(argv: list[str] | None = None) -> int:
             generation_id=generation_id,
             rows_published=published_rows,
             player_seasons_published=published_player_seasons,
+            refresh_id=args.refresh_id or generation_id,
         )
 
     print(

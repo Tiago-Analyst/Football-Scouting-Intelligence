@@ -107,10 +107,25 @@ waiting to be published.
 
 ## Whose checks are these?
 
-`fact_data_quality` rows carry `generation_id` and `context`. The quality
-report and the loader write them as `CANDIDATE` — they ran against staging,
-about a generation nobody is being served. The promotion flips them to
-`PUBLISHED` in its own transaction; a rollback flips them back.
+Every staging refresh has a `refresh_id`, whatever the provider: the
+generation id for FootyStats, `<source>-<run_id>` minted by the workflow for
+Transfermarkt. `fact_data_quality` rows carry `refresh_id`, `context`, and —
+for FootyStats only — `generation_id`. The quality report and the loader
+write them as `CANDIDATE` because they are told to (`--candidate`), never
+because a generation id happens to be present: Transfermarkt has no
+generation and its staging checks are candidates all the same. The promotion
+flips exactly `source + refresh_id` to `PUBLISHED` in its own transaction — not
+by source alone, which would promote every older abandoned candidate of the
+provider — and a rollback flips them back.
+
+Quality rows are validation history. The provider purge does not touch them:
+it removes the provider's *data* from the candidate schema, and history
+accumulates independently. G4's PUBLISHED rows survive a G5 refresh that
+fails, because production is still G4 and the page has to be able to say what
+validated it. If history ever needs a retention policy — last N published
+refreshes per source, failed candidates for N days — that is an explicit
+maintenance decision, not a side effect of refreshing a provider. None is
+implemented.
 
 `/data-quality` shows two things and labels both: **Published dataset checks**,
 the most recent rows describing the served dataset (`PUBLISHED`, or written

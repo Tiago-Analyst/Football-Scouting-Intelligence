@@ -49,6 +49,20 @@ answer needs local files. `verify_local_state` then checks that what was
 restored is the generation the database named, at a checkpoint no older than
 the one the database recorded.
 
+WHO IS AUTHORITATIVE
+====================
+
+    PostgreSQL `fact_refresh_generation`   generation identity, status, and the
+                                           checkpoint revision last recorded
+    GitHub Actions cache                   checkpoint payload storage, nothing more
+    the runner's filesystem                a restored working copy, nothing more
+
+A cache or a filesystem may never override the database on *which* generation
+is live. They may legitimately hold a newer checkpoint of the *same* generation
+- the last run saved its cache and then could not reach the database - and
+that is reconciled forward, never backward. When the database cannot be read
+in production the gate fails closed: no decision, no fetch, no new generation.
+
 WHAT A MISMATCH DOES
 ====================
 
@@ -56,10 +70,22 @@ Stops the run. Not a warning: `--verify-restored` exits non-zero, the workflow
 step fails, and every generation-dependent step after it is skipped. The three
 cases and why each one stops:
 
-    expected G5, restored G5 at the expected revision   continue
-    expected G5, restored G4                            STOP - two universes
-    expected G5, restored nothing                       STOP - see below
-    expected G5, restored G5 at an older revision       STOP - stale checkpoint
+    same generation, local == database revision    continue
+    same generation, local >  database revision    continue; the database is
+                                                   advanced to the local
+                                                   revision after an
+                                                   integrity check
+    same generation, local <  database revision    STOP - stale checkpoint
+    same generation, files do not match metadata   STOP - partial restore
+    different generation                           STOP - two universes
+    nothing                                        STOP - see below
+
+The restore itself asks GitHub for a key that does not exist
+(`footystats-gen-<id>-restore-<run_id>`) so that only the restore-keys prefix
+matches, and GitHub returns the newest cache for the generation. Asking for
+the database's revision exactly was the bug: with `-0004` and `-0005` both
+saved and the database still saying 4, the exact hit won and checkpoint 5 was
+silently discarded.
 
 Nothing restored for a live generation is the case that wants spelling out.
 The fetch *could* rebuild from an empty directory, and an earlier version of
@@ -272,15 +298,29 @@ def verify_local_state(
             f"restored; resuming from this one would regress progress. Nothing was resumed.",
             local,
         )
+
+    problems = generation.integrity_problems()
+    if problems:
+        # Newer or not, a checkpoint whose files do not match its metadata is
+        # not a state to continue from, and certainly not one to tell the
+        # database to trust.
+        return Verdict(
+            False,
+            f"generation {expected_id} was restored at checkpoint {local} but its files do "
+            f"not match its metadata: {'; '.join(problems)}. Nothing was resumed.",
+            local,
+        )
+
+    if expected_revision is not None and local > expected_revision:
+        return Verdict(
+            True,
+            f"restored cache holds generation {expected_id} at checkpoint {local}, newer than "
+            f"the database's {expected_revision}: the last run saved its cache and could not "
+            f"record it. Intact; the database will be advanced to {local}.",
+            local,
+        )
     return Verdict(
-        True,
-        f"restored cache holds generation {expected_id} at checkpoint {local}"
-        + (
-            f" (database recorded {expected_revision})"
-            if expected_revision is not None and expected_revision != local
-            else ""
-        ),
-        local,
+        True, f"restored cache holds generation {expected_id} at checkpoint {local}", local
     )
 
 
@@ -372,9 +412,32 @@ def main(argv: list[str] | None = None) -> int:
             # everything the lost checkpoint held. See the module docstring.
             print(f"::error::{verdict.reason}", file=sys.stderr)
             return 1
+        if (
+            expected is not None
+            and verdict.local_revision is not None
+            and verdict.local_revision > expected
+        ):
+            # Forward, and only forward. The disk is newer and intact; the
+            # database catches up so the next run's exact key names this
+            # checkpoint rather than the one before it.
+            from pipelines.footystats.publish_status import reconcile_revision
+
+            if reconcile_revision(args.verify_restored, verdict.local_revision):
+                print(f"database checkpoint advanced {expected} -> {verdict.local_revision}")
+            else:
+                print(
+                    "::warning::could not advance the database checkpoint; the next run "
+                    "will restore the newest checkpoint for this generation regardless"
+                )
         return 0
 
-    live = _live_from_state()
+    try:
+        live = _live_from_state()
+    except AuthoritativeStateUnavailable as exc:
+        # FAIL CLOSED. No action, no outputs that a later step could act on.
+        print(f"::error::{exc}", file=sys.stderr)
+        _emit({"action": "", "proceed": "false", "needs_local_state": "false"})
+        return 1
     decision = decide_from_state(args.mode, live)
     if decision.generation_id and decision.expected_revision is None:
         decision = Decision(
@@ -408,17 +471,60 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+class AuthoritativeStateUnavailable(RuntimeError):
+    """The database could not be read and nothing else is allowed to decide."""
+
+
+def local_fallback_allowed() -> bool:
+    """Whether a run may decide from the filesystem when the database is down.
+
+    Never in production. The database is authoritative for generation state,
+    and a fresh runner that cannot reach it has an empty disk - which reads
+    as "no generation", which reads as START_NEW, which starts a fourteen-hour
+    fetch beside the one the database knows is IN_PROGRESS. Failing closed
+    costs one hourly run; failing open costs the refresh.
+
+    Allowed for local development and tests, where there may be no database
+    at all, when either:
+
+      - `ALLOW_LOCAL_GATE_FALLBACK=true` is set explicitly, or
+      - the environment is not production and the run is not on GitHub
+        Actions.
+
+    GitHub Actions is detected by the `GITHUB_ACTIONS` variable the runner
+    sets. A production-mode local run stays closed: there is no reason to
+    decide from the disk against a production database, and one good reason
+    not to.
+    """
+    if os.environ.get("ALLOW_LOCAL_GATE_FALLBACK", "").lower() in {"1", "true", "yes"}:
+        return True
+    if os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+        return False
+    return os.environ.get("APP_ENV", "development").lower() != "production"
+
+
 def _live_from_state() -> list[tuple[str, str]]:
-    """The database when it is reachable, the filesystem when it is not."""
+    """The database, which is authoritative. The filesystem only where that
+    is explicitly allowed - see `local_fallback_allowed`."""
     try:
         from app.core.database import get_session_factory
 
         with get_session_factory()() as session:
             return active_generations(session)
-    except Exception as exc:  # a local run without a database reaches here
+    except Exception as exc:
+        if not local_fallback_allowed():
+            raise AuthoritativeStateUnavailable(
+                f"could not read generation state from the database "
+                f"({type(exc).__name__}). The database is authoritative and this run may "
+                f"not decide from the local filesystem: a fresh runner with no database "
+                f"would see no generation and start a new one beside the one in progress. "
+                f"Nothing was decided, fetched, started or published. Set "
+                f"ALLOW_LOCAL_GATE_FALLBACK=true only for local development."
+            ) from exc
         print(
             f"Could not read generation state from the database "
-            f"({type(exc).__name__}); falling back to the local filesystem.",
+            f"({type(exc).__name__}); falling back to the local filesystem, which is "
+            f"allowed outside production.",
             file=sys.stderr,
         )
         return _live_from_disk(GenerationStore())

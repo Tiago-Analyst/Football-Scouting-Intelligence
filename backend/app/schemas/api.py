@@ -524,9 +524,11 @@ class QualityCheckOut(BaseModel):
     record_count: int
     detail: str | None
     executed_at: datetime
-    #: The refresh generation this check describes, and whether it was a
+    #: The refresh this check describes - a FootyStats generation, or an id
+    #: the workflow minted for a Transfermarkt refresh - and whether it was a
     #: candidate in staging or is the dataset being served. Null on rows
-    #: recorded before generations carried context.
+    #: recorded before refreshes carried context.
+    refresh_id: str | None = None
     generation_id: str | None = None
     context: Literal["CANDIDATE", "PUBLISHED"] | None = None
 
@@ -542,9 +544,31 @@ class CandidateChecksOut(BaseModel):
     """
 
     source: str
-    generation_id: str
+    refresh_id: str
+    #: FootyStats only. Null for a provider with no generation model.
+    generation_id: str | None = None
     executed_at: datetime
     checks: list[QualityCheckOut]
+
+
+class PublishedChecksOut(BaseModel):
+    """The checks that validated the dataset this source is serving."""
+
+    source: str
+    refresh_id: str | None = None
+    generation_id: str | None = None
+    published_at: datetime | None = None
+    executed_at: datetime | None = None
+    checks: list[QualityCheckOut]
+
+
+class ProviderQualityOut(BaseModel):
+    """One source, two datasets, kept apart: what is serving and what waits."""
+
+    source: str
+    published: PublishedChecksOut | None = None
+    #: None when no refresh is between staging and production.
+    candidate: CandidateChecksOut | None = None
 
 
 class SourceFreshnessOut(BaseModel):
@@ -674,6 +698,9 @@ class DataQualityResponse(BaseModel):
     #: Checks describing a refresh between staging and production, or one that
     #: failed to reach it. Never about the data on screen.
     candidate: list[CandidateChecksOut] = Field(default_factory=list)
+    #: The same facts arranged per source: published beside candidate, which
+    #: is how the page shows them.
+    providers: list[ProviderQualityOut] = Field(default_factory=list)
     identity: IdentityCoverageOut | None = None
     #: Mean share of played minutes carrying detailed statistics, across every
     #: loaded player-season that has both figures. `None` when unmeasurable.

@@ -291,16 +291,24 @@ class FactDataQuality(Base):
 
     #: WHICH DATASET THIS DESCRIBES
     #:
-    #: The report runs against staging, and a staging generation can be checked
-    #: and then never promoted. Without these two columns, production serving
-    #: G4 and a G5 candidate that failed at promotion put G5's checks on the
+    #: The report runs against staging, and a staging refresh can be checked
+    #: and then never promoted. Without these columns, production serving G4
+    #: and a G5 candidate that failed at promotion put G5's checks on the
     #: public page above G4's data.
     #:
+    #: `refresh_id` is the identity every staging refresh has, whatever the
+    #: provider: the generation id for FootyStats, an id the workflow mints
+    #: for Transfermarkt. `generation_id` is the FootyStats-specific detail
+    #: and is null for anything else - which is why context must never be
+    #: inferred from it. A Transfermarkt candidate has no generation and is
+    #: still a candidate.
+    #:
     #: `context` is CANDIDATE when the row was written against staging and
-    #: PUBLISHED once the promotion has flipped it - in the promotion's own
-    #: transaction, so a row cannot say PUBLISHED about a swap that did not
-    #: commit. Null on both for rows written before contexts existed, or by a
-    #: run with no generation (a local demo load).
+    #: PUBLISHED once the promotion has flipped it by `source + refresh_id` -
+    #: in the promotion's own transaction, so a row cannot say PUBLISHED about
+    #: a swap that did not commit. Null on rows written before contexts
+    #: existed, which described whatever was serving at the time.
+    refresh_id: Mapped[str | None] = mapped_column(String(64))
     generation_id: Mapped[str | None] = mapped_column(String(32))
     context: Mapped[str | None] = mapped_column(String(16))
 
@@ -313,6 +321,8 @@ class FactDataQuality(Base):
         ),
         Index("ix_data_quality_executed", "executed_at"),
         Index("ix_data_quality_generation", "source", "generation_id", "context"),
+        Index("ix_data_quality_source_context_time", "source", "context", "executed_at"),
+        Index("ix_data_quality_refresh", "source", "refresh_id", "context"),
     )
 
 
@@ -447,6 +457,9 @@ class FactSourcePublication(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: The refresh this publication is of - the identity the quality rows
+    #: carry, for every provider. Null only on rows written before it existed.
+    refresh_id: Mapped[str | None] = mapped_column(String(64))
     #: Null for a provider with no generation model. Transfermarkt is a dataset
     #: download rather than a resumable fetch, so it has nothing to name here.
     generation_id: Mapped[str | None] = mapped_column(String(32))

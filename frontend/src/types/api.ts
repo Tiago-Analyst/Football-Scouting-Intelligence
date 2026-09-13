@@ -485,6 +485,8 @@ export interface QualityCheck {
    * was a candidate in staging or is the dataset being served. Null on rows
    * recorded before generations carried context.
    */
+  /** The refresh this check describes: a FootyStats generation, or an id minted for a Transfermarkt refresh. */
+  refresh_id?: string | null;
   generation_id?: string | null;
   context?: "CANDIDATE" | "PUBLISHED" | null;
 }
@@ -497,9 +499,29 @@ export interface QualityCheck {
  */
 export interface CandidateChecks {
   source: string;
-  generation_id: string;
+  refresh_id: string;
+  /** FootyStats only. Null for a provider with no generation model. */
+  generation_id?: string | null;
   executed_at: string;
   checks: QualityCheck[];
+}
+
+/** The checks that validated the dataset this source is serving. */
+export interface PublishedChecks {
+  source: string;
+  refresh_id: string | null;
+  generation_id: string | null;
+  published_at: string | null;
+  executed_at: string | null;
+  checks: QualityCheck[];
+}
+
+/** One source, two datasets, kept apart: what is serving and what waits. */
+export interface ProviderQuality {
+  source: string;
+  published: PublishedChecks | null;
+  /** Null when no refresh is between staging and production. */
+  candidate: CandidateChecks | null;
 }
 
 export interface SourceFreshness {
@@ -587,6 +609,8 @@ export interface DataQualityResponse {
   published_generation_id?: string | null;
   /** Checks about a refresh that has not reached readers. Never about the data on screen. */
   candidate?: CandidateChecks[];
+  /** The same facts per source, published beside candidate. */
+  providers?: ProviderQuality[];
   identity: IdentityCoverage | null;
   average_detailed_coverage_pct: number | null;
   /** What the provider cannot supply at all. Empty in demo mode. */

@@ -20,6 +20,8 @@ from app.schemas.api import (
     CandidateChecksOut,
     DataQualityResponse,
     IdentityCoverageOut,
+    ProviderQualityOut,
+    PublishedChecksOut,
     QualityCheckOut,
     RefreshGenerationOut,
     RefreshStatusOut,
@@ -59,6 +61,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
     """
     checks = svc.latest_checks(db)
     candidates = svc.candidate_checks(db)
+    providers = svc.provider_quality(db)
     sources = svc.freshness(db)
     counts = svc.volumes(db)
     identity = svc.identity_coverage(db)
@@ -107,15 +110,36 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
         ],
         checks=[_check_out(item) for item in checks],
         published_generation_id=svc.published_generation_id(db),
-        candidate=[
-            CandidateChecksOut(
-                source=group.source,
-                generation_id=group.generation_id,
-                executed_at=group.executed_at,
-                checks=[_check_out(item) for item in group.checks],
+        candidate=[_candidate_out(group) for group in candidates],
+        providers=[
+            ProviderQualityOut(
+                source=item.source,
+                published=(
+                    PublishedChecksOut(
+                        source=item.published.source,
+                        refresh_id=item.published.refresh_id,
+                        generation_id=item.published.generation_id,
+                        published_at=item.published.published_at,
+                        executed_at=item.published.executed_at,
+                        checks=[_check_out(c) for c in item.published.checks],
+                    )
+                    if item.published
+                    else None
+                ),
+                candidate=_candidate_out(item.candidate) if item.candidate else None,
             )
-            for group in candidates
+            for item in providers
         ],
+    )
+
+
+def _candidate_out(group) -> CandidateChecksOut:  # type: ignore[no-untyped-def]
+    return CandidateChecksOut(
+        source=group.source,
+        refresh_id=group.refresh_id,
+        generation_id=group.generation_id,
+        executed_at=group.executed_at,
+        checks=[_check_out(item) for item in group.checks],
     )
 
 
@@ -128,6 +152,7 @@ def _check_out(item) -> QualityCheckOut:  # type: ignore[no-untyped-def]
         record_count=item.record_count,
         detail=item.detail,
         executed_at=item.executed_at,
+        refresh_id=item.refresh_id,
         generation_id=item.generation_id,
         context=item.context,
     )

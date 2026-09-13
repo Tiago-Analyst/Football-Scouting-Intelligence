@@ -65,14 +65,21 @@ A generation grows over nineteen runs, so one key cannot hold nineteen states.
 save key        footystats-gen-<generation_id>-<checkpoint_revision>
                 footystats-gen-20260907T040000Z-0007
 
-restore, exact  footystats-gen-<generation_id>-<expected_revision>
+restore, exact  footystats-gen-<generation_id>-restore-<run_id>   (never exists)
 restore, prefix footystats-gen-<generation_id>-
 ```
 
-Each run's checkpoint is a new key. The restore asks first for the checkpoint
-the database recorded, then for the newest key within the same generation —
-GitHub returns the most recently created match for a prefix — and then for
-nothing. There is no `footystats-gen-` fallback and there must never be one.
+Each run's checkpoint is a new key. The restore asks for an exact key that
+deliberately cannot exist, so only the prefix matches and GitHub returns the
+most recently created cache for the generation — the newest checkpoint. There
+is no `footystats-gen-` fallback and there must never be one.
+
+**Why the exact key must not name the database's revision.** It did. With
+`-0004` and `-0005` both saved and the database still saying 4 — checkpoint 5
+was written and cached, and the database update failed transiently — the
+exact hit wins over the newer prefix match, so checkpoint 4 was restored and
+checkpoint 5's work refetched. Silently: nothing failed, the run was merely
+slower and the API budget merely smaller.
 
 The revision is zero-padded to four digits so the keys sort the way they read.
 The padding is not what makes the newest win; the verification step is.
@@ -88,15 +95,41 @@ After a restore, `gate --verify-restored <id> --expected-revision <n>` compares:
 
 | Disk holds | Verdict |
 | --- | --- |
-| the expected generation, at the expected revision | continue |
-| the expected generation, at a **newer** revision | continue — the last run saved its cache and then could not reach the database; the disk is the truth |
-| the expected generation, at an **older** revision | **stop** — a newer checkpoint exists and was not restored; resuming would refetch what it had and could not know which players the failure ledger has since retired |
+| the expected generation, `local == db` | continue |
+| the expected generation, `local > db` | continue — after an integrity check (every complete competition has its snapshot, every expected one its roster), the database is **advanced** to the local revision; forward only, by `WHERE checkpoint_revision < local` |
+| the expected generation, `local < db` | **stop** — a newer checkpoint exists and was not restored; resuming would refetch what it had and could not know which players the failure ledger has since retired |
+| the expected generation, files not matching metadata | **stop** — a partial restore, whatever its revision |
 | a different generation | **stop** — two universes |
 | nothing | **stop** — see below |
 
 Progress is monotonic. `test_generation_checkpoints.py` runs the lifecycle on
 a stand-in cache with immutable keys and asserts completed-player counts never
 regress across accepted checkpoints.
+
+## Who is authoritative
+
+```
+PostgreSQL fact_refresh_generation   generation identity, status, and the
+                                     checkpoint revision last recorded
+GitHub Actions cache                 checkpoint payload storage, nothing more
+the runner's filesystem              a restored working copy, nothing more
+```
+
+A cache or a filesystem may never override the database on *which*
+generation is live. They may hold a newer checkpoint of the *same* generation
+— reconciled forward, as above — but never a different generation, and never
+an older checkpoint.
+
+When the database cannot be read, the gate **fails closed** in production: no
+decision, no outputs, no fetch, no new generation. A fresh runner that cannot
+reach it has an empty disk, and an empty disk reads as "no generation", which
+reads as `START_NEW` beside the generation the database knows is in
+progress. Failing closed costs one hourly run; failing open costs the refresh.
+
+Production is detected by `APP_ENV=production` (set on the gate step) or by
+`GITHUB_ACTIONS=true` (set by every runner). Local development and tests, with
+no database at all, may decide from the disk; `ALLOW_LOCAL_GATE_FALLBACK=true`
+forces that anywhere and is never set in the workflow.
 
 ## A missing cache
 
@@ -157,7 +190,10 @@ store and ingest.
 - expected G5 with G4 on disk: stops, nothing fetched, G5 not created, database untouched
 - expected G5 with nothing on disk: stops, names `--abandon G5`, nothing refetched
 - an older checkpoint than the database recorded: stops
-- a newer local checkpoint: allowed
+- a newer local checkpoint: allowed, and the database is advanced to it
+- checkpoints 4 and 5 both saved, database saying 4: 5 is restored, not 4
+- a newer checkpoint with a missing snapshot: refused
+- the database unreachable in production: the gate stops with no decision
 - completed-player counts never regress
 - three runs, three keys, no key reused
 

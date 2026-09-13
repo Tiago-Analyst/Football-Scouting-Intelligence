@@ -152,6 +152,47 @@ def _transition(
         return False
 
 
+def reconcile_revision(
+    generation_id: str, local_revision: int, *, source: str = "footystats"
+) -> bool:
+    """Advance the database's checkpoint revision to a newer local one.
+
+    The case: the last run wrote checkpoint 5, saved its cache, and could not
+    reach the database, which still says 4. The restore brought back 5, the
+    verifier found it newer and intact, and the database should now say 5 -
+    otherwise the next run's exact key asks for 4 again.
+
+    Strictly forward. `WHERE checkpoint_revision < :local` means a stale
+    caller can never move it back, and a concurrent one can never move it
+    past what is on disk. Returns whether a row changed.
+    """
+    try:
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+
+        from sqlalchemy import update
+
+        from app.core.database import get_session_factory
+        from app.models import FactRefreshGeneration
+
+        with get_session_factory()() as session:
+            result = session.execute(
+                update(FactRefreshGeneration)
+                .where(
+                    FactRefreshGeneration.source == source,
+                    FactRefreshGeneration.generation_id == generation_id,
+                    FactRefreshGeneration.checkpoint_revision < local_revision,
+                )
+                .values(checkpoint_revision=local_revision, updated_at=datetime.now(UTC))
+            )
+            session.commit()
+            return bool(result.rowcount)
+    except Exception:
+        return False
+
+
 def mark_validated(generation_id: str, *, source: str = "footystats") -> bool:
     """COMPLETE -> VALIDATED, after every candidate check has passed.
 

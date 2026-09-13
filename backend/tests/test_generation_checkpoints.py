@@ -91,7 +91,12 @@ class FakeCache:
         self.order.append(key)
 
     def restore(self, exact: str, prefix: str, into: pathlib.Path) -> str | None:
-        """Exact key first, else the newest key with the prefix, else nothing."""
+        """Exact key first, else the newest key with the prefix, else nothing.
+
+        Exactly GitHub's rule, including the part that was the bug: an exact
+        hit wins even when a newer key with the prefix exists. The workflow
+        therefore asks for an exact key that cannot exist.
+        """
         if exact in self.store:
             chosen = exact
         else:
@@ -151,6 +156,12 @@ def prefix_for(generation_id: str) -> str:
     return f"footystats-gen-{generation_id}-"
 
 
+def restore_key_for(generation_id: str, run_id: str) -> str:
+    """What the workflow asks for: a key that deliberately never exists, so
+    only the prefix matches and the newest checkpoint wins."""
+    return f"footystats-gen-{generation_id}-restore-{run_id}"
+
+
 @dataclass
 class Runner:
     """One workflow run, on a fresh disk."""
@@ -178,16 +189,16 @@ class Runner:
         if not decision.proceed:
             return outcome
 
-        # 7. restore - only within the expected generation
+        # 7. restore - only within the expected generation, newest first
         if decision.action.needs_local_state:
             assert decision.generation_id is not None
             expected_rev = self.db.revision(decision.generation_id) or 0
             outcome["restored"] = self.cache.restore(
-                key_for(decision.generation_id, expected_rev),
+                restore_key_for(decision.generation_id, self.disk.name),
                 prefix_for(decision.generation_id),
                 self.generations,
             )
-            # 8. verify - fatal
+            # 8. verify - fatal; a newer intact checkpoint advances the database
             verdict = verify_local_state(
                 GenerationStore(root=self.generations),
                 decision.generation_id,
@@ -197,6 +208,10 @@ class Runner:
             if not verdict.ok:
                 outcome["stopped"] = verdict.reason
                 return outcome
+            if verdict.local_revision is not None and verdict.local_revision > expected_rev:
+                status, _ = self.db.rows[decision.generation_id]
+                self.db.rows[decision.generation_id] = (status, verdict.local_revision)
+                outcome["reconciled"] = verdict.local_revision
 
         if not decision.action.fetches:
             return outcome
@@ -580,3 +595,211 @@ class TestTheVerifyCommandStopsTheJob:
             ["--verify-restored", generation.generation_id, "--expected-revision", "3"]
         )
         assert code == 1
+
+
+# ---------------------------------------------------------------------------
+# The newest checkpoint wins
+# ---------------------------------------------------------------------------
+
+
+class TestTheNewestCheckpointWins:
+    """Section 1 to 3 of the brief.
+
+    Checkpoint 5 was written, its cache saved, and the database update failed.
+    The database says 4. Asking GitHub for `-0004` exactly would get `-0004`,
+    because an exact hit beats a newer prefix match - and checkpoint 5's work
+    would be refetched. So the restore asks for a key that cannot exist.
+    """
+
+    def _two_checkpoints_db_behind(self, world: dict[str, Any]) -> tuple[RosterProvider, str]:
+        provider = RosterProvider([str(i) for i in range(1, 31)])
+        run1 = fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        run2 = fresh_runner(world, "r2", provider, "continue_only").run(at=at(1, 5), budget=10)
+        gid = run1["generation_id"]
+        assert run2["revision"] == 2
+        # The database never heard about checkpoint 2.
+        status, _ = world["db"].rows[gid]
+        world["db"].rows[gid] = (status, 1)
+        return provider, gid
+
+    def test_the_exact_key_would_have_restored_the_stale_checkpoint(
+        self, world: dict[str, Any]
+    ) -> None:
+        """The bug, demonstrated on the stand-in before the fix is asserted."""
+        _, gid = self._two_checkpoints_db_behind(world)
+        chosen = world["cache"].restore(key_for(gid, 1), prefix_for(gid), world["tmp"] / "x")
+        assert chosen == key_for(gid, 1), "an exact hit wins over the newer prefix match"
+
+    def test_the_never_existing_key_restores_the_newest(self, world: dict[str, Any]) -> None:
+        _, gid = self._two_checkpoints_db_behind(world)
+        chosen = world["cache"].restore(
+            restore_key_for(gid, "run-3"), prefix_for(gid), world["tmp"] / "y"
+        )
+        assert chosen == key_for(gid, 2)
+
+    def test_the_run_resumes_from_five_and_advances_the_database(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider, gid = self._two_checkpoints_db_behind(world)
+        fetched_before = len(provider.fetched)
+
+        run3 = fresh_runner(world, "r3", provider, "continue_only").run(at=at(1, 6), budget=5)
+
+        assert run3["restored"] == key_for(gid, 2), "checkpoint 2, not the database's 1"
+        assert run3["verify"].ok
+        assert run3["reconciled"] == 2, "the database was advanced before the fetch"
+        assert run3["revision"] == 3, "and the run checkpointed on from there"
+        assert len(provider.fetched) == fetched_before + 5, "nothing already fetched was refetched"
+        assert world["db"].rows[gid] == ("IN_PROGRESS", 3)
+
+    def test_the_database_is_never_moved_backwards(self, tmp_path: pathlib.Path) -> None:
+        """The reconciliation is forward-only by its WHERE clause; asserted on
+        the verifier's verdict, which is what drives it."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()  # 1
+        older = verify_local_state(store, generation.generation_id, expected_revision=3)
+        assert older.ok is False, "an older local checkpoint is refused, not reconciled to"
+
+    def test_a_newer_checkpoint_with_missing_files_is_refused(self, tmp_path: pathlib.Path) -> None:
+        """Newer is not enough. A partial restore of checkpoint 5 is not a
+        state to continue from, and not one to tell the database to trust."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.record_roster("16504", ["1", "2"])
+        generation.mark_competition_complete("16504")
+        generation.checkpoint()
+        generation.checkpoint()  # 2, and the snapshot never made it
+        assert not generation.snapshot_path("16504").exists()
+
+        verdict = verify_local_state(store, generation.generation_id, expected_revision=1)
+        assert verdict.ok is False
+        assert "do not match its metadata" in verdict.reason
+        assert "no snapshot" in verdict.reason
+
+    def test_the_acceptance_rules_in_one_table(self, tmp_path: pathlib.Path) -> None:
+        """Section 2, as a table."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        generation.checkpoint()  # local = 2
+        gid = generation.generation_id
+
+        assert verify_local_state(store, gid, expected_revision=2).ok is True  # equal
+        assert verify_local_state(store, gid, expected_revision=1).ok is True  # local newer
+        assert verify_local_state(store, gid, expected_revision=3).ok is False  # local older
+        assert verify_local_state(store, "29990101T000000Z", expected_revision=2).ok is False
+
+
+# ---------------------------------------------------------------------------
+# The gate fails closed without its database
+# ---------------------------------------------------------------------------
+
+
+class TestTheGateFailsClosedWithoutTheDatabase:
+    """Section 14, 15 and 21. The database is authoritative; a fresh runner
+    that cannot reach it has an empty disk, and an empty disk reads as
+    START_NEW beside the generation the database knows is IN_PROGRESS."""
+
+    @pytest.fixture
+    def unreachable_database(self, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+        import pipelines.footystats.gate as gate
+
+        def boom() -> Any:
+            raise ConnectionError("PostgreSQL is not answering")
+
+        monkeypatch.setattr(gate, "active_generations", lambda session: boom())
+        monkeypatch.setattr(
+            "app.core.database.get_session_factory", lambda: lambda: _RaisingSession()
+        )
+        return gate
+
+    def test_production_on_actions_stops_with_no_decision(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        # A disk that would say START_NEW if anyone asked it.
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+
+        code = gate.main(["--mode", "start"])
+
+        assert code == 1
+        err = capsys.readouterr().err
+        assert "::error::" in err and "authoritative" in err
+        out = capsys.readouterr().out
+        assert "action=START_NEW" not in out
+        assert not (tmp_path / "g").exists(), "no generation was created"
+
+    def test_production_off_actions_also_stops(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "continue_only"]) == 1
+
+    def test_actions_never_falls_back_even_outside_production(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "start"]) == 1
+
+    def test_local_development_may_fall_back(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        store = GenerationStore(root=tmp_path / "g")
+        store.create(now=at(1))
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+
+        assert gate.main(["--mode", "continue_only"]) == 0
+        assert "action=FETCH" in capsys.readouterr().out
+
+    def test_the_explicit_override_allows_it_anywhere(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        """For a person running the gate by hand against a dead database and
+        knowing it. Never set in the workflow."""
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("ALLOW_LOCAL_GATE_FALLBACK", "true")
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "continue_only"]) == 0
+
+
+class _RaisingSession:
+    def __enter__(self) -> Any:
+        raise ConnectionError("PostgreSQL is not answering")
+
+    def __exit__(self, *args: object) -> None:
+        return None

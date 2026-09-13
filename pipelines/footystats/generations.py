@@ -315,6 +315,24 @@ class Generation:
         self.save()
         return self.metadata.checkpoint_revision
 
+    def integrity_problems(self) -> list[str]:
+        """What is wrong with this checkpoint's files, if anything.
+
+        Run on a restored checkpoint before the database is told to trust it.
+        Cheap and structural: every competition the metadata calls complete
+        must have its snapshot on disk, and every competition it expects must
+        have its roster. A checkpoint that fails this is not a newer state to
+        reconcile forward to; it is a partial restore.
+        """
+        problems: list[str] = []
+        for season_id in self.metadata.competitions_complete:
+            if not self.snapshot_path(season_id).exists():
+                problems.append(f"competition {season_id} is marked complete and has no snapshot")
+        for season_id in self.metadata.competitions_expected:
+            if not self.roster_path(season_id).exists():
+                problems.append(f"competition {season_id} is expected and has no roster")
+        return problems
+
     def abandon(self, reason: str) -> None:
         """Mark FAILED. Explicit, by a person, never by the pipeline guessing.
 

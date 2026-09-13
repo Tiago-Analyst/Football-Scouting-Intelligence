@@ -206,8 +206,18 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/raw/footystats/generations
+          # THE EXACT KEY DELIBERATELY NEVER EXISTS.
+          #
+          # It used to name the database's checkpoint. With `-0004` and
+          # `-0005` both saved and the database still saying 4 - the last run
+          # saved its cache and then could not record it - the exact hit won
+          # and checkpoint 5 was silently discarded. A key carrying the run id
+          # matches nothing, so only the restore-keys prefix matches, and
+          # GitHub returns the newest cache for the generation. The verify
+          # step then checks it is at least the database's revision and
+          # advances the database if it is newer.
           key: >-
-            footystats-gen-${{ steps.gate.outputs.generation_id }}-${{ steps.gate.outputs.expected_revision }}
+            footystats-gen-${{ steps.gate.outputs.generation_id }}-restore-${{ github.run_id }}
           restore-keys: |
             footystats-gen-${{ steps.gate.outputs.generation_id }}-
 
@@ -444,18 +454,27 @@ jobs:
           key: >-
             footystats-gen-${{ steps.fetch.outputs.generation_id }}-${{ steps.fetch.outputs.checkpoint_revision }}
 
-      - name: Name the generation this run publishes
-        # One place that answers "which generation" for every step below.
+      - name: Name the refresh this run publishes
+        # One place that answers "which refresh" for every step below.
         #
-        # A run that just finished the fetch names the fetch's generation. A
-        # PUBLISH_READY run - retrying publication of a generation fetched
-        # earlier - names the one the gate read from the database. Both are
-        # the same value the database holds; this only settles which step to
-        # read it from.
+        # Every staging refresh has an identity, whatever the provider, and
+        # the quality rows carry it so the promotion can flip exactly that
+        # refresh's rows to PUBLISHED. For FootyStats it is the generation: a
+        # run that just finished the fetch names the fetch's, a PUBLISH_READY
+        # run names the one the gate read from the database. Transfermarkt
+        # has no generation, so its refresh is named by this run - a retry is
+        # a new download and a new candidate, which is what it is.
         id: generation
-        if: steps.resolve_source.outputs.source == 'footystats'
+        if: steps.preflight.outputs.database == 'true'
         run: |
-          echo "id=${{ steps.fetch.outputs.generation_id || steps.gate.outputs.generation_id }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.resolve_source.outputs.source }}" = "footystats" ]; then
+            gen="${{ steps.fetch.outputs.generation_id || steps.gate.outputs.generation_id }}"
+            echo "id=$gen" >> "$GITHUB_OUTPUT"
+            echo "refresh_id=$gen" >> "$GITHUB_OUTPUT"
+          else
+            echo "id=" >> "$GITHUB_OUTPUT"
+            echo "refresh_id=${{ steps.resolve_source.outputs.source }}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Report that the refresh is not finished yet
         if: >-
@@ -553,6 +572,8 @@ jobs:
             --source "${{ steps.resolve_source.outputs.source }}" \
             --replace \
             --verify \
+            --candidate \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
             ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
             2>&1 | tee pipeline-load.log
 
@@ -650,12 +671,17 @@ jobs:
           # schema. The served one is not written to at all, which is what
           # makes a failure here harmless to readers.
           ANALYTICS_SCHEMA: analytics_staging
-        # Persisted so /data-quality shows this run. Warnings do not fail the
-        # job: staleness and absent metrics are facts about a source, not
-        # faults in the refresh.
+        # Persisted as CANDIDATE rows for this refresh, with the source named
+        # explicitly - rows written as "all" can never be flipped to PUBLISHED
+        # by a promotion, which flips by source and refresh id. Warnings do
+        # not fail the job: staleness and absent metrics are facts about a
+        # source, not faults in the refresh.
         run: |
           set -o pipefail
           python -m pipelines.quality.report --persist \
+            --source "${{ steps.resolve_source.outputs.source }}" \
+            --candidate \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
             ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
             2>&1 | tee pipeline-quality.log
 
@@ -782,6 +808,7 @@ jobs:
           set -o pipefail
           python -m pipelines.load.promote --apply \
             --source "${{ steps.resolve_source.outputs.source }}" \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
             ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
             2>&1 | tee pipeline-promote.log
 

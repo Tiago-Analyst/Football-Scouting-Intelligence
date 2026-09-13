@@ -113,14 +113,22 @@ class ProviderLoader:
         performance: PerformanceDataProvider | None,
         market: MarketDataProvider | None,
         generation_id: str | None = None,
+        refresh_id: str | None = None,
+        candidate: bool = False,
     ) -> None:
         self.session = session
         self.source = source
         self.performance = performance
         self.market = market
-        #: Which refresh generation this load's rows and checks describe.
-        #: None for a provider with no generation model.
+        #: Which FootyStats generation this load reads, when it reads one.
         self.generation_id = generation_id
+        #: The identity of this refresh, whatever the provider. Equal to the
+        #: generation id for FootyStats; minted by the workflow for the rest.
+        self.refresh_id = refresh_id or generation_id
+        #: Whether this load writes to staging, about data nobody is served.
+        #: Explicit, because it was inferred from `generation_id` being set,
+        #: which made every Transfermarkt candidate look published.
+        self.candidate = candidate
         self.report = LoadReport(source=source)
         # Provider player id -> internal player_id, built as players are loaded.
         self._player_ids: dict[str, int] = {}
@@ -548,10 +556,12 @@ class ProviderLoader:
                     "status": status,
                     "record_count": count,
                     "detail": detail,
-                    # Written against staging, about a generation that has not
-                    # been promoted. The promotion flips these to PUBLISHED.
+                    # Written against staging, about a refresh that has not
+                    # been promoted. The promotion flips these to PUBLISHED by
+                    # source + refresh_id.
+                    "refresh_id": self.refresh_id,
                     "generation_id": self.generation_id,
-                    "context": "CANDIDATE" if self.generation_id else None,
+                    "context": "CANDIDATE" if self.candidate else None,
                 }
                 for entity, name, status, count, detail in self.report.checks
             ],
@@ -697,7 +707,18 @@ def purge(session: Session, source: str) -> None:
     session.execute(delete(BridgePlayerSource).where(BridgePlayerSource.source == source))
     session.execute(delete(DimClub).where(DimClub.source == source))
     session.execute(delete(DimCompetition).where(DimCompetition.source == source))
-    session.execute(delete(FactDataQuality).where(FactDataQuality.source == source))
+    # NOT `fact_data_quality`.
+    #
+    # It was on this list. Quality rows are validation history, kept in
+    # `public` beside the publication ledger, and they describe datasets -
+    # including the one production is serving right now. Purging them with the
+    # provider meant: G4 published and its checks recorded; G5 starts, the
+    # purge deletes G4's PUBLISHED rows; G5 fails at promotion; production is
+    # still G4 and nothing on the public page can say what validated it.
+    #
+    # A purge removes the provider's *data* from the candidate schema. History
+    # accumulates independently, and if it ever needs a retention policy that
+    # is a maintenance decision, not a side effect of refreshing a provider.
 
 
 def _newest_loadable_generation():  # type: ignore[no-untyped-def]
@@ -749,7 +770,12 @@ def _generation_to_load(expected_id: str | None):  # type: ignore[no-untyped-def
 
 
 def build_loader(
-    session: Session, source: str, *, generation_id: str | None = None
+    session: Session,
+    source: str,
+    *,
+    generation_id: str | None = None,
+    refresh_id: str | None = None,
+    candidate: bool = False,
 ) -> ProviderLoader:
     if source == "demo":
         return ProviderLoader(
@@ -831,6 +857,8 @@ def build_loader(
             # Market data comes from Transfermarkt, loaded as its own source.
             market=None,
             generation_id=generation.generation_id if generation is not None else None,
+            refresh_id=refresh_id or (generation.generation_id if generation is not None else None),
+            candidate=candidate,
         )
 
     if source == "transfermarkt":
@@ -841,6 +869,8 @@ def build_loader(
             source="transfermarkt",
             performance=None,
             market=TransfermarktDatasetProvider(),
+            refresh_id=refresh_id,
+            candidate=candidate,
         )
     raise ValueError(f"unknown source: {source}")
 
@@ -875,6 +905,23 @@ def main(argv: list[str] | None = None) -> int:
             "runs; the workflow always names one."
         ),
     )
+    parser.add_argument(
+        "--refresh-id",
+        default=None,
+        help=(
+            "The identity of this refresh, for the quality rows it writes. Defaults to "
+            "the generation id for FootyStats; the workflow mints one for Transfermarkt."
+        ),
+    )
+    parser.add_argument(
+        "--candidate",
+        action="store_true",
+        help=(
+            "This load writes to the staging schema, about data nobody is being served. "
+            "Its quality rows are recorded as CANDIDATE and flipped to PUBLISHED by the "
+            "promotion. The workflow always passes this."
+        ),
+    )
     args = parser.parse_args(argv)
 
     from app.core.config import get_settings
@@ -893,7 +940,13 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         try:
-            loader = build_loader(session, args.source, generation_id=args.generation_id)
+            loader = build_loader(
+                session,
+                args.source,
+                generation_id=args.generation_id,
+                refresh_id=args.refresh_id,
+                candidate=args.candidate,
+            )
         except LookupError as exc:
             session.rollback()
             print(f"::error::{exc}", file=sys.stderr)

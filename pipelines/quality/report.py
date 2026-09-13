@@ -455,22 +455,30 @@ def persist(
     checks: list[Check],
     *,
     source: str,
+    refresh_id: str | None = None,
     generation_id: str | None = None,
+    candidate: bool = False,
 ) -> None:
     """Record this run, so a check that never ran is distinguishable from one
     that passed.
 
     WHICH DATASET THE ROWS DESCRIBE
 
-    With a generation, the rows are CANDIDATE: they ran against staging,
-    about data nobody is being served yet. The promotion flips them to
-    PUBLISHED in its own transaction if that generation reaches production,
-    and leaves them CANDIDATE forever if it does not - so the public page can
-    show G4's checks beside G4's data while G5 sits checked and unpublished.
+    `candidate=True` means the checks ran against staging, about data nobody
+    is being served yet. The rows are CANDIDATE, keyed by `source +
+    refresh_id`; the promotion flips exactly those to PUBLISHED in its own
+    transaction if that refresh reaches production, and leaves them CANDIDATE
+    forever if it does not - so the public page can show G4's checks beside
+    G4's data while G5 sits checked and unpublished.
 
-    Without a generation - a Transfermarkt refresh, a local run - the rows
-    carry no context, which the page reads as "describes whatever is serving",
-    the meaning every row had before contexts existed.
+    Explicit rather than inferred from a generation id. It was inferred, and
+    Transfermarkt has no generation, so every Transfermarkt staging check
+    carried no context and read as published - a T2 candidate stuck at
+    promotion showed its checks as production's.
+
+    Without `candidate` - a report run by hand against production - the rows
+    carry no context, which the page reads as "describes whatever is
+    serving", the meaning every row had before contexts existed.
     """
     session.add_all(
         FactDataQuality(
@@ -480,8 +488,9 @@ def persist(
             status=check.status,
             record_count=check.count,
             detail=check.detail,
+            refresh_id=refresh_id or generation_id,
             generation_id=generation_id,
-            context="CANDIDATE" if generation_id else None,
+            context="CANDIDATE" if candidate else None,
         )
         for check in checks
     )
@@ -497,7 +506,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--generation-id",
         default=None,
-        help="The refresh generation these checks describe. Rows are recorded as CANDIDATE.",
+        help="The FootyStats generation these checks describe, when there is one.",
+    )
+    parser.add_argument(
+        "--refresh-id",
+        default=None,
+        help="The refresh these checks describe. Defaults to the generation id.",
+    )
+    parser.add_argument(
+        "--candidate",
+        action="store_true",
+        help=(
+            "The checks ran against the staging schema. Rows are recorded as CANDIDATE "
+            "and flipped to PUBLISHED by the promotion. The workflow always passes this."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -507,11 +529,18 @@ def main(argv: list[str] | None = None) -> int:
     with factory() as session:
         checks = run(session, source=args.source)
         if args.persist:
+            if args.candidate and not args.source:
+                # Rows written as "all" can never be flipped by a promotion,
+                # which flips by source. A candidate run has a source.
+                print("::error::--candidate requires --source", file=sys.stderr)
+                return 2
             persist(
                 session,
                 checks,
                 source=args.source or "all",
+                refresh_id=args.refresh_id,
                 generation_id=args.generation_id,
+                candidate=args.candidate,
             )
 
     width = max(len(f"{c.entity}.{c.name}") for c in checks)

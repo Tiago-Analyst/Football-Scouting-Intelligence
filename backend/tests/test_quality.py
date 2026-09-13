@@ -346,6 +346,9 @@ class TestQualityEndpoint:
             # data.
             "published_generation_id",
             "candidate",
+            # Per source: published beside candidate, which is how the page
+            # renders them.
+            "providers",
         }
         assert body["volumes"]["players"] > 0
 
