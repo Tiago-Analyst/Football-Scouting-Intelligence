@@ -180,16 +180,45 @@ def latest_checks(session: Session, *, limit: int = 200) -> list[CheckRecord]:
 
 
 def candidate_checks(session: Session, *, limit: int = 200) -> list[CandidateChecks]:
-    """The newest CANDIDATE run per source, if its generation is still unpublished.
+    """The newest CANDIDATE run per source that is genuinely still waiting.
 
-    A candidate whose generation has since been promoted has no CANDIDATE
-    rows left - the promotion flipped them - so what remains here is exactly
-    the set of checks that describe data nobody is being served: a refresh
-    between staging and production, or one that failed to get there.
+    "Still waiting" has two conditions, and the first was missing:
+
+    - newer than the source's latest publication. R2 checked at 10:00 and
+      stuck; R3 checked at 11:00 and published at 12:00. R2's rows stay
+      CANDIDATE forever - they are history, and history is not deleted - but
+      after R3's promotion the newest CANDIDATE row for the source is R2
+      again, and the page announced "latest candidate refresh: R2" about a
+      refresh older than what it was serving.
+    - for a FootyStats refresh, its generation is not FAILED or PUBLISHED.
+      An abandoned G5's checks stay for audit; they are not a candidate.
+
+    A refresh between staging and production, or one that failed to get
+    there *since the last publication*, is what this returns. Nothing older.
     """
+    latest_publication = (
+        select(
+            FactSourcePublication.source,
+            func.max(FactSourcePublication.published_at).label("published_at"),
+        )
+        .group_by(FactSourcePublication.source)
+        .subquery()
+    )
+    still_live = (FactDataQuality.generation_id.is_(None)) | (
+        FactDataQuality.generation_id.in_(
+            select(FactRefreshGeneration.generation_id).where(
+                FactRefreshGeneration.source == FactDataQuality.source,
+                FactRefreshGeneration.status.in_(["IN_PROGRESS", "COMPLETE", "VALIDATED"]),
+            )
+        )
+    )
+    newer_than_serving = (latest_publication.c.published_at.is_(None)) | (
+        FactDataQuality.executed_at > latest_publication.c.published_at
+    )
     newest = (
         select(FactDataQuality.source, func.max(FactDataQuality.executed_at).label("latest"))
-        .where(FactDataQuality.context == "CANDIDATE")
+        .outerjoin(latest_publication, FactDataQuality.source == latest_publication.c.source)
+        .where(FactDataQuality.context == "CANDIDATE", newer_than_serving, still_live)
         .group_by(FactDataQuality.source)
         .subquery()
     )

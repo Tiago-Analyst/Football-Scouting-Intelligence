@@ -13,6 +13,7 @@ losing the progress.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from pipelines.footystats.generations import Generation
@@ -150,6 +151,115 @@ def _transition(
             return bool(result.rowcount)
     except Exception:
         return False
+
+
+#: How far along a status is. A reconciliation may move a row up this ladder
+#: and never down it. FAILED is off the ladder: a local checkpoint marked
+#: FAILED by the fetch (a refused key, an unreadable roster) is a real,
+#: terminal fact and is carried forward from any live status; nothing carries
+#: a row *out* of FAILED, and nothing here ever writes PUBLISHED - that is the
+#: promotion's transaction and no cache can claim it.
+STATUS_RANK = {"IN_PROGRESS": 0, "COMPLETE": 1, "VALIDATED": 2}
+
+
+@dataclass(frozen=True)
+class Reconciliation:
+    changed: bool
+    #: The status the database holds afterwards, when it could be read.
+    status: str | None
+    summary: str
+
+
+def reconcile_forward(generation: Generation, *, source: str = "footystats") -> Reconciliation:
+    """Bring the database up to a newer local checkpoint - all of it.
+
+    The case: the last run fetched the final players, marked the generation
+    COMPLETE, checkpointed at 5, saved its cache, and could not reach the
+    database - which still says IN_PROGRESS at 4. Advancing only the revision
+    left the status behind, the next gate answered FETCH, the fetch had
+    nothing to do, and the generation sat one step from publication.
+
+    So the counts and flags move with the revision, and the status moves up
+    the ladder when the disk is further along. What never happens:
+
+      - the revision goes down (`WHERE checkpoint_revision < :local`)
+      - the status goes down (VALIDATED in the database beside COMPLETE on
+        disk stays VALIDATED: the checks passed, the disk simply does not know)
+      - PUBLISHED is written (only the promotion does that)
+      - a different generation is touched (`WHERE generation_id = :id`)
+    """
+    meta = generation.metadata
+    local_status = meta.status
+    try:
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+
+        from sqlalchemy import select, update
+
+        from app.core.database import get_session_factory
+        from app.models import FactRefreshGeneration
+
+        with get_session_factory()() as session:
+            row = session.execute(
+                select(
+                    FactRefreshGeneration.status, FactRefreshGeneration.checkpoint_revision
+                ).where(
+                    FactRefreshGeneration.source == source,
+                    FactRefreshGeneration.generation_id == meta.generation_id,
+                )
+            ).first()
+            if row is None:
+                return Reconciliation(False, None, "no such generation in the database")
+            db_status, db_revision = str(row[0]), int(row[1])
+
+            if db_status == "PUBLISHED":
+                # Finished. Nothing on a disk describes it better.
+                return Reconciliation(False, db_status, "already PUBLISHED; nothing to reconcile")
+            if db_revision >= meta.checkpoint_revision:
+                return Reconciliation(
+                    False, db_status, f"database checkpoint {db_revision} is not behind"
+                )
+
+            new_status = db_status
+            if local_status == "FAILED":
+                new_status = "FAILED"
+            elif STATUS_RANK.get(local_status, -1) > STATUS_RANK.get(db_status, -1):
+                new_status = local_status
+
+            values = {
+                "checkpoint_revision": int(meta.checkpoint_revision),
+                "total_expected_players": meta.total_expected_players,
+                "completed_players": meta.completed_players,
+                "failed_players": len(meta.failed_players),
+                "competitions_expected": len(meta.competitions_expected),
+                "competitions_complete": len(meta.competitions_complete),
+                "complete": bool(meta.complete),
+                "status": new_status,
+                "updated_at": datetime.now(UTC),
+            }
+            result = session.execute(
+                update(FactRefreshGeneration)
+                .where(
+                    FactRefreshGeneration.source == source,
+                    FactRefreshGeneration.generation_id == meta.generation_id,
+                    FactRefreshGeneration.checkpoint_revision < meta.checkpoint_revision,
+                )
+                .values(**values)
+            )
+            session.commit()
+            changed = bool(result.rowcount)
+    except Exception as exc:
+        return Reconciliation(False, None, f"database unreachable ({type(exc).__name__})")
+
+    moved = f"{db_status} -> {new_status}" if new_status != db_status else f"status {db_status}"
+    return Reconciliation(
+        changed,
+        new_status if changed else db_status,
+        f"checkpoint {db_revision} -> {meta.checkpoint_revision}, {moved}, "
+        f"{meta.completed_players}/{meta.total_expected_players} players",
+    )
 
 
 def reconcile_revision(

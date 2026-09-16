@@ -30,12 +30,18 @@ them could cost the hour of fetching before it.
 ## The flow now
 
 ```
-gate            reads fact_refresh_generation: which generation, which checkpoint
+gate            reads fact_refresh_generation in ONE query: generation,
+   |            status, checkpoint. ERROR (exit 1) if two are live or the
+   |            checkpoint cannot be read - never a green NOOP
    |
 restore         actions/cache/restore, keyed to THAT generation only
    |
-verify          FATAL if the disk holds another generation, nothing,
-   |            or an older checkpoint than the database recorded
+verify          FATAL if the disk holds another generation, nothing, or an
+   |            older checkpoint; a NEWER intact checkpoint reconciles the
+   |            database forward - status, counts, flags, revision - and
+   |            emits the action the reconciled state calls for
+   |
+settle          action = verify's when it ran, the gate's otherwise
    |
 fetch           START_NEW creates; FETCH resumes exactly the expected id
    |
@@ -84,6 +90,11 @@ slower and the API budget merely smaller.
 The revision is zero-padded to four digits so the keys sort the way they read.
 The padding is not what makes the newest win; the verification step is.
 
+**The expected revision is never substituted.** The gate reads it from the
+same row as the status and refuses (`ERROR`, exit 1) when it cannot; the
+verify step fails when it is given none and cannot read one. `0` is a new
+generation's real revision and is never used to mean "unknown".
+
 ## Checkpoint revisions
 
 `checkpoint_revision` on the generation's metadata counts the runs that saved
@@ -96,7 +107,7 @@ After a restore, `gate --verify-restored <id> --expected-revision <n>` compares:
 | Disk holds | Verdict |
 | --- | --- |
 | the expected generation, `local == db` | continue |
-| the expected generation, `local > db` | continue — after an integrity check (every complete competition has its snapshot, every expected one its roster), the database is **advanced** to the local revision; forward only, by `WHERE checkpoint_revision < local` |
+| the expected generation, `local > db` | continue — after an integrity check (every complete competition has its snapshot, every expected one its roster), the database is **reconciled forward from the whole checkpoint**: revision, completed and expected players, failed count, competitions expected and complete, the `complete` flag, and the status up the ladder `IN_PROGRESS → COMPLETE → VALIDATED` (never down; never to `PUBLISHED`, which only the promotion writes; a local `FAILED` is carried forward as the terminal fact it is). The verify step then emits the action the reconciled status calls for: `IN_PROGRESS → FETCH`, `COMPLETE`/`VALIDATED → PUBLISH_READY`. A gate that said `FETCH` because the database was behind is not acted on. |
 | the expected generation, `local < db` | **stop** — a newer checkpoint exists and was not restored; resuming would refetch what it had and could not know which players the failure ledger has since retired |
 | the expected generation, files not matching metadata | **stop** — a partial restore, whatever its revision |
 | a different generation | **stop** — two universes |
@@ -109,16 +120,21 @@ regress across accepted checkpoints.
 ## Who is authoritative
 
 ```
-PostgreSQL fact_refresh_generation   generation identity, status, and the
-                                     checkpoint revision last recorded
-GitHub Actions cache                 checkpoint payload storage, nothing more
-the runner's filesystem              a restored working copy, nothing more
+1. PostgreSQL fact_refresh_generation   generation identity, status, the latest
+   + fact_source_publication            accepted checkpoint, publication state
+2. GitHub Actions cache                 the expensive payload and its checkpoint
+                                        metadata; may be NEWER than PostgreSQL
+                                        only for the SAME generation, when a
+                                        database update failed after a local
+                                        checkpoint succeeded
+3. the runner's filesystem              a restored working copy, nothing more
 ```
 
-A cache or a filesystem may never override the database on *which*
-generation is live. They may hold a newer checkpoint of the *same* generation
-— reconciled forward, as above — but never a different generation, and never
-an older checkpoint.
+A newer same-generation cache may reconcile the database **forward** after
+integrity verification. It may never change the generation identity, regress
+a status, regress a revision, mark anything PUBLISHED, or override a
+conflicting authoritative generation. Two live generations, or a live one with
+no readable checkpoint, are `ERROR` — a red run — not a quiet `NOOP`.
 
 When the database cannot be read, the gate **fails closed** in production: no
 decision, no outputs, no fetch, no new generation. A fresh runner that cannot
@@ -194,6 +210,9 @@ store and ingest.
 - checkpoints 4 and 5 both saved, database saying 4: 5 is restored, not 4
 - a newer checkpoint with a missing snapshot: refused
 - the database unreachable in production: the gate stops with no decision
+- the final fetch completed and the database never heard: reconciled to COMPLETE, PUBLISH_READY, no API call
+- a live generation with no readable checkpoint: ERROR, no restore, no fetch
+- two live generations: ERROR, exit 1
 - completed-player counts never regress
 - three runs, three keys, no key reused
 

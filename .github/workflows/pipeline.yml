@@ -261,9 +261,29 @@ jobs:
           APP_MODE: production
           APP_ENV: production
         run: |
+          # An empty expected revision is not 0. The gate refuses to proceed
+          # without one, so this cannot be empty here; if it ever is, the
+          # empty string fails argparse and the step, which is correct.
           python -m pipelines.footystats.gate \
             --verify-restored "${{ steps.gate.outputs.generation_id }}" \
-            --expected-revision "${{ steps.gate.outputs.expected_revision || 0 }}"
+            --expected-revision "${{ steps.gate.outputs.expected_revision }}"
+
+      - name: Settle what this run should do
+        # The gate decided from the database. The restore may have brought
+        # back a newer checkpoint of the same generation, and the verify step
+        # may have reconciled the database forward to it - including its
+        # status. A gate that said FETCH because the database said
+        # IN_PROGRESS is stale the moment the restored files say COMPLETE:
+        # the fetch would spend a run finding nothing to do, and the
+        # generation would sit one step from publication.
+        #
+        # So the action every later step reads is the verify step's when it
+        # ran, and the gate's when it did not (START_NEW and NOOP restore
+        # nothing and are not verified).
+        id: action
+        if: steps.resolve_source.outputs.source == 'footystats'
+        run: |
+          echo "action=${{ steps.verify.outputs.action || steps.gate.outputs.action }}" >> "$GITHUB_OUTPUT"
 
       # -- Is there anywhere to publish to? ---------------------------------
       #
@@ -383,8 +403,8 @@ jobs:
           steps.preflight.outputs.footystats == 'true' &&
           steps.resolve_source.outputs.source == 'footystats' &&
           (
-            (steps.gate.outputs.action == 'FETCH' && steps.verify.outcome == 'success') ||
-            steps.gate.outputs.action == 'START_NEW'
+            (steps.action.outputs.action == 'FETCH' && steps.verify.outcome == 'success') ||
+            steps.action.outputs.action == 'START_NEW'
           )
         # A full fetch is one request per player - roughly 23,500 across the 47
         # configured competitions, or thirteen hours at the account's rate
@@ -425,7 +445,7 @@ jobs:
             --resume \
             --max-runtime-minutes 45 \
             ${{ steps.resolve_source.outputs.mode == 'continue_only' && '--only-resume' || '' }} \
-            ${{ steps.gate.outputs.action == 'FETCH' && format('--expect-generation {0}', steps.gate.outputs.generation_id) || '' }}
+            ${{ steps.action.outputs.action == 'FETCH' && format('--expect-generation {0}', steps.gate.outputs.generation_id) || '' }}
 
       - name: Save the refresh generation
         # IMMEDIATELY AFTER THE FETCH, BEFORE ANYTHING THAT CAN FAIL.
@@ -520,7 +540,7 @@ jobs:
           (
             steps.resolve_source.outputs.source != 'footystats' ||
             steps.fetch.outputs.complete == 'true' ||
-            (steps.gate.outputs.action == 'PUBLISH_READY' && steps.verify.outcome == 'success')
+            (steps.action.outputs.action == 'PUBLISH_READY' && steps.verify.outcome == 'success')
           )
         id: seed
         env:

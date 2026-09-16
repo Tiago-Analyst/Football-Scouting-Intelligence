@@ -118,6 +118,21 @@ flips exactly `source + refresh_id` to `PUBLISHED` in its own transaction — no
 by source alone, which would promote every older abandoned candidate of the
 provider — and a rollback flips them back.
 
+**Which candidate is "latest".** Only one that is genuinely waiting: checked
+*after* the source's latest publication, and — for FootyStats — belonging to a
+generation that is still `IN_PROGRESS`, `COMPLETE` or `VALIDATED`. R2 checked
+at 10:00 and stuck, R3 checked at 11:00 and published at 12:00: R2's rows stay
+`CANDIDATE` forever as history, and the page shows no candidate until R4
+arrives. An abandoned G5's rows likewise stay and are never shown as waiting.
+
+**Once per refresh.** The promotion checks `fact_source_publication` for
+`source + refresh_id` before swapping and stops — exit 0, nothing touched — if
+that refresh is already published. A job re-run after the first attempt
+committed would otherwise swap the previous dataset back into production. A
+rollback deletes the retracted row, so "published then rolled back" is not
+"already published" and a deliberate republish still works; the partial unique
+index `uq_source_publication_refresh` enforces the same rule from the database.
+
 Quality rows are validation history. The provider purge does not touch them:
 it removes the provider's *data* from the candidate schema, and history
 accumulates independently. G4's PUBLISHED rows survive a G5 refresh that

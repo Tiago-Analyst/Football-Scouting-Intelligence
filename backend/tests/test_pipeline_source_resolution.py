@@ -385,8 +385,12 @@ class TestTheContinuationSchedule:
         minute, which is the whole reason the action exists.
         """
         condition = " ".join(str(_step(workflow, "Retrieve FootyStats data")["if"]).split())
-        assert "steps.gate.outputs.action == 'FETCH'" in condition
-        assert "steps.gate.outputs.action == 'START_NEW'" in condition
+        # The *settled* action: the verify step's when it ran, the gate's
+        # when it did not. A gate that said FETCH is stale once the restored
+        # checkpoint proves the generation COMPLETE.
+        assert "steps.action.outputs.action == 'FETCH'" in condition
+        assert "steps.action.outputs.action == 'START_NEW'" in condition
+        assert "steps.gate.outputs.action ==" not in condition
         assert "steps.gate.outputs.proceed" not in condition
 
     def test_concurrent_runs_are_queued_rather_than_cancelled(self, workflow: dict) -> None:
@@ -472,7 +476,7 @@ class TestTheGateDecision:
 
         proceed, reason = decide(CONTINUE_ONLY, store)
         assert proceed is False
-        assert "needs attention" in reason
+        assert "manual intervention" in reason
 
 
 class TestTheCacheIsSavedRightAfterTheFetch:

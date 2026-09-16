@@ -38,7 +38,10 @@ from typing import Any
 import pytest
 from pipelines.footystats.gate import (
     Action,
+    Decision,
+    LiveGeneration,
     Verdict,
+    action_for_status,
     decide_from_state,
     verify_local_state,
 )
@@ -112,7 +115,13 @@ class FakeCache:
 
 @dataclass
 class FakeDatabase:
-    """`fact_refresh_generation`, reduced to status and revision."""
+    """`fact_refresh_generation`, reduced to status and revision.
+
+    `reconcile_forward` mirrors `publish_status.reconcile_forward`: the same
+    ladder, the same refusal to go down it. The real one is tested against
+    PostgreSQL in `test_atomic_promotion.py`; this one lets the lifecycle be
+    simulated without a database.
+    """
 
     rows: dict[str, tuple[str, int]] = field(default_factory=dict)
 
@@ -123,16 +132,31 @@ class FakeDatabase:
                 generation.metadata.checkpoint_revision,
             )
 
-    def live(self) -> list[tuple[str, str]]:
+    def live(self) -> list[LiveGeneration]:
         return [
-            (gid, status)
-            for gid, (status, _) in sorted(self.rows.items())
+            LiveGeneration(gid, status, revision)
+            for gid, (status, revision) in sorted(self.rows.items())
             if status in {"IN_PROGRESS", "COMPLETE", "VALIDATED"}
         ]
 
     def revision(self, generation_id: str) -> int | None:
         row = self.rows.get(generation_id)
         return row[1] if row else None
+
+    def reconcile_forward(self, generation: Any) -> str:
+        from pipelines.footystats.publish_status import STATUS_RANK
+
+        db_status, db_revision = self.rows[generation.generation_id]
+        local = generation.metadata
+        if db_status == "PUBLISHED" or db_revision >= local.checkpoint_revision:
+            return db_status
+        status = db_status
+        if local.status == "FAILED":
+            status = "FAILED"
+        elif STATUS_RANK.get(local.status, -1) > STATUS_RANK.get(db_status, -1):
+            status = local.status
+        self.rows[generation.generation_id] = (status, local.checkpoint_revision)
+        return status
 
 
 class BudgetOf:
@@ -208,10 +232,17 @@ class Runner:
             if not verdict.ok:
                 outcome["stopped"] = verdict.reason
                 return outcome
+            status = self.db.rows[decision.generation_id][0]
             if verdict.local_revision is not None and verdict.local_revision > expected_rev:
-                status, _ = self.db.rows[decision.generation_id]
-                self.db.rows[decision.generation_id] = (status, verdict.local_revision)
+                restored = GenerationStore(root=self.generations).get(decision.generation_id)
+                assert restored is not None
+                status = self.db.reconcile_forward(restored)
                 outcome["reconciled"] = verdict.local_revision
+            # 9. settle - the verify step's action, not the gate's
+            decision = Decision(
+                action_for_status(status), decision.reason, decision.generation_id, expected_rev
+            )
+        outcome["effective_action"] = decision.action
 
         if not decision.action.fetches:
             return outcome
@@ -803,3 +834,312 @@ class _RaisingSession:
 
     def __exit__(self, *args: object) -> None:
         return None
+
+
+# ---------------------------------------------------------------------------
+# The final fetch completes and the database never hears about it
+# ---------------------------------------------------------------------------
+
+
+class TestTheFinalCheckpointIsReconciledInFull:
+    """Section 16. Mandatory.
+
+    The last run fetched the final players, marked G5 COMPLETE, checkpointed
+    at 5 and saved the cache. The database update failed: it still says
+    IN_PROGRESS at 4. The next run's gate says FETCH. The restore brings back
+    COMPLETE at 5. Advancing only the revision left the status behind, and
+    the run would have spent itself fetching nothing.
+    """
+
+    def _complete_on_disk_in_progress_in_db(
+        self, world: dict[str, Any]
+    ) -> tuple[RosterProvider, str]:
+        provider = RosterProvider([str(i) for i in range(1, 21)])
+        run1 = fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        run2 = fresh_runner(world, "r2", provider, "continue_only").run(at=at(1, 5))
+        gid = run1["generation_id"]
+        assert run2["complete"] is True and run2["revision"] == 2
+        assert world["db"].rows[gid] == ("COMPLETE", 2)
+        # The database never heard about run 2.
+        world["db"].rows[gid] = ("IN_PROGRESS", 1)
+        return provider, gid
+
+    def test_the_run_reconciles_and_publishes_rather_than_fetching(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider, gid = self._complete_on_disk_in_progress_in_db(world)
+        fetched_before = len(provider.fetched)
+
+        run3 = fresh_runner(world, "r3", provider, "continue_only").run(at=at(1, 6))
+
+        assert run3["action"] is Action.FETCH, "the stale gate decision"
+        assert run3["restored"] == key_for(gid, 2)
+        assert run3["verify"].ok, "integrity passed"
+        assert run3["reconciled"] == 2
+        assert world["db"].rows[gid] == ("COMPLETE", 2), "status and revision, not revision alone"
+        assert run3["effective_action"] is Action.PUBLISH_READY, "re-evaluated after reconciling"
+        assert len(provider.fetched) == fetched_before, "the player API was not called"
+        assert "generation_id" not in run3, "no fetch ran at all"
+
+    def test_the_real_reconciliation_moves_every_field(self, tmp_path: pathlib.Path) -> None:
+        """`reconcile_forward` against PostgreSQL. The simulation above
+        mirrors it; this is the thing itself."""
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        gid = generation.generation_id
+        source = "a_reconciled_provider"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'IN_PROGRESS', now(), now(), false, 20, 10, 0, 1, 0, 1)"
+                    ),
+                    {"g": gid, "s": source},
+                )
+            # The disk is at checkpoint 2, COMPLETE, every player fetched.
+            generation.record_roster("16504", [str(i) for i in range(1, 21)])
+            generation.mark_competition_complete("16504")
+            generation.refresh_counts(completed=20, failed=[])
+            generation.evaluate_completeness()
+            generation.set_status(GenerationStatus.COMPLETE)
+            generation.checkpoint()
+            generation.checkpoint()
+
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed
+            assert outcome.status == "COMPLETE"
+
+            with get_engine().connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT status, checkpoint_revision, completed_players, "
+                        "total_expected_players, competitions_complete, complete "
+                        "FROM public.fact_refresh_generation WHERE source = :s"
+                    ),
+                    {"s": source},
+                ).one()
+            assert tuple(row) == ("COMPLETE", 2, 20, 20, 1, True)
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_a_status_is_never_moved_down(self, tmp_path: pathlib.Path) -> None:
+        """VALIDATED in the database beside COMPLETE on disk stays VALIDATED:
+        the checks passed and the disk simply does not know."""
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        gid = generation.generation_id
+        source = "a_validated_provider_2"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'VALIDATED', now(), now(), true, 5, 5, 0, 1, 1, 1)"
+                    ),
+                    {"g": gid, "s": source},
+                )
+            generation.set_status(GenerationStatus.COMPLETE)
+            generation.checkpoint()
+            generation.checkpoint()
+
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed, "the revision moved"
+            assert outcome.status == "VALIDATED", "the status did not move down"
+
+            with get_engine().connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT status, checkpoint_revision FROM public.fact_refresh_generation "
+                        "WHERE source = :s"
+                    ),
+                    {"s": source},
+                ).one()
+            assert tuple(row) == ("VALIDATED", 2)
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_a_published_generation_is_not_touched(self, tmp_path: pathlib.Path) -> None:
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        source = "a_published_provider_2"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'PUBLISHED', now(), now(), true, 5, 5, 0, 1, 1, 1)"
+                    ),
+                    {"g": generation.generation_id, "s": source},
+                )
+            generation.checkpoint()
+            generation.checkpoint()
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed is False
+            assert outcome.status == "PUBLISHED"
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_the_verify_command_emits_the_reconciled_action(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """What the workflow reads: `action=PUBLISH_READY` from the verify
+        step, overriding the gate's FETCH."""
+        import pipelines.footystats.gate as gate
+        import pipelines.footystats.publish_status as publish_status
+        from pipelines.footystats.publish_status import Reconciliation
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.set_status(GenerationStatus.COMPLETE)
+        generation.checkpoint()
+        generation.checkpoint()  # local 2, COMPLETE
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+        monkeypatch.setattr(
+            publish_status, "expected_state", lambda gid, source="footystats": ("IN_PROGRESS", 1)
+        )
+        monkeypatch.setattr(
+            publish_status,
+            "reconcile_forward",
+            lambda g, source="footystats": Reconciliation(True, "COMPLETE", "reconciled"),
+        )
+
+        code = gate.main(
+            ["--verify-restored", generation.generation_id, "--expected-revision", "1"]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "action=PUBLISH_READY" in out
+        assert "status=COMPLETE" in out
+
+
+# ---------------------------------------------------------------------------
+# The authority must be readable, and single
+# ---------------------------------------------------------------------------
+
+
+class TestTheAuthorityMustBeReadableAndSingle:
+    """Sections 4 to 8, 17 and 18."""
+
+    def test_the_gate_reads_status_and_revision_in_one_query(self) -> None:
+        import inspect
+
+        import pipelines.footystats.gate as gate
+
+        source = inspect.getsource(gate.active_generations)
+        assert "checkpoint_revision" in source, "the revision comes from the same row"
+        assert not hasattr(gate, "expected_revision_for"), "no second, best-effort lookup"
+
+    def test_a_live_generation_without_a_revision_is_an_error(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 17. The generation is known; its checkpoint is not. 0 is a
+        real value and not this."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(
+            gate,
+            "_live_from_state",
+            lambda: [LiveGeneration("29990101T000000Z", "IN_PROGRESS", None)],
+        )
+        code = gate.main(["--mode", "continue_only"])
+        assert code == 1
+        captured = capsys.readouterr()
+        assert "could not be read" in captured.err
+        assert "action=FETCH" not in captured.out
+        assert "action=START_NEW" not in captured.out
+
+    def test_the_verify_command_fails_without_an_authoritative_revision(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 6. No `--expected-revision`, database unreachable: stop."""
+        import pipelines.footystats.gate as gate
+        import pipelines.footystats.publish_status as publish_status
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+        monkeypatch.setattr(publish_status, "expected_state", lambda gid, source="footystats": None)
+
+        code = gate.main(["--verify-restored", generation.generation_id])
+        assert code == 1
+        assert "cannot be trusted on its own" in capsys.readouterr().err
+
+    def test_the_workflow_never_substitutes_zero(self) -> None:
+        text = (
+            pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "pipeline.yml"
+        ).read_text(encoding="utf-8")
+        assert "expected_revision || 0" not in text
+
+    def test_two_live_generations_fail_the_gate(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 18. Red, not a green NOOP."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(
+            gate,
+            "_live_from_state",
+            lambda: [
+                LiveGeneration("29990105T000000Z", "IN_PROGRESS", 3),
+                LiveGeneration("29990106T000000Z", "COMPLETE", 7),
+            ],
+        )
+        code = gate.main(["--mode", "start"])
+        assert code == 1
+        captured = capsys.readouterr()
+        assert "multiple live FootyStats generations" in captured.err
+        assert "29990105T000000Z" in captured.err and "29990106T000000Z" in captured.err
+        assert "action=ERROR" in captured.out
+        assert "proceed=false" in captured.out
+        assert "needs_local_state=false" in captured.out, "no cache restore"
+
+    def test_a_quiet_hour_is_still_a_quiet_hour(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 8. The valid NOOP keeps exit 0."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(gate, "_live_from_state", lambda: [])
+        assert gate.main(["--mode", "continue_only"]) == 0
+        assert "action=NOOP" in capsys.readouterr().out

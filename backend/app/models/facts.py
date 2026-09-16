@@ -29,6 +29,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -481,6 +482,16 @@ class FactSourcePublication(Base):
         CheckConstraint(
             "player_seasons_published IS NULL OR player_seasons_published >= 0",
             name="publication_player_seasons_non_negative",
+        ),
+        # One publication per named refresh. A rollback deletes the row, so
+        # republishing after a rollback is allowed and republishing by
+        # accident is not.
+        Index(
+            "uq_source_publication_refresh",
+            "source",
+            "refresh_id",
+            unique=True,
+            postgresql_where=text("refresh_id IS NOT NULL"),
         ),
         Index("ix_source_publication_source_time", "source", "published_at"),
     )

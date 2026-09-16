@@ -58,6 +58,17 @@ reader the figures on screen are today's when they are not.
 A publication row exists only if the swap committed, and the swap cannot commit
 without it.
 
+ONCE PER REFRESH
+================
+
+Before swapping, the promotion asks the ledger whether `source + refresh_id`
+is already published, and stops - exit 0, nothing touched - if it is. A job
+re-run after the first attempt committed would otherwise swap the previous
+dataset back into production and record a second publication of the new one.
+`--rollback` deletes the retracted row, so a refresh published and then rolled
+back can be published again on purpose; the partial unique index
+`uq_source_publication_refresh` says the same thing from the database side.
+
 ONE SOURCE, NOT ALL OF THEM
 ===========================
 
@@ -239,6 +250,34 @@ def generation_status(connection, source: str, generation_id: str) -> str | None
         {"s": source, "g": generation_id},
     ).first()
     return str(row[0]) if row else None
+
+
+def already_published(connection, source: str, refresh_id: str | None) -> bool:  # type: ignore[no-untyped-def]
+    """Whether this exact refresh has a publication row that has not been
+    retracted.
+
+    The check that makes a promotion safe to run twice. A job re-run after
+    the first attempt committed, an operator invoking it twice, a connection
+    lost after the commit but before the job recorded success: the second
+    swap would put the previous dataset back and write a second row saying
+    the new one was published again.
+
+    A rollback deletes the row, so "published then rolled back" is not
+    "already published" and a deliberate republish still works.
+    """
+    from sqlalchemy import text
+
+    if refresh_id is None:
+        return False
+    return bool(
+        connection.execute(
+            text(
+                "SELECT 1 FROM public.fact_source_publication "
+                "WHERE source = :s AND refresh_id = :r LIMIT 1"
+            ),
+            {"s": source, "r": refresh_id},
+        ).first()
+    )
 
 
 def publishable_generation(connection, source: str) -> str | None:
@@ -512,6 +551,19 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     with engine.begin() as connection:
+        refresh_id = args.refresh_id or args.generation_id
+        if already_published(connection, args.source, refresh_id):
+            # Safe no-op. Not a refusal: the thing the run exists to do has
+            # been done, and a red job over a published dataset would send
+            # somebody to re-run it a third time.
+            print(
+                f"Refresh {refresh_id} of {args.source} is already published. "
+                f"Nothing to do; production is untouched."
+            )
+            log.info(
+                "analytics_promotion_already_published", source=args.source, refresh_id=refresh_id
+            )
+            return 0
         if args.generation_id:
             # Named by the workflow from the database. Verified against the
             # database again here, inside the promotion's own transaction:
@@ -537,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
             generation_id=generation_id,
             rows_published=published_rows,
             player_seasons_published=published_player_seasons,
-            refresh_id=args.refresh_id or generation_id,
+            refresh_id=refresh_id or generation_id,
         )
 
     print(

@@ -23,6 +23,9 @@ THE ACTIONS
                    published. Retry publication - do not fetch anything.
     START_NEW      Nothing is open and the cadence fired. Begin a generation.
     NOOP           Nothing is open and the hourly cron fired. Do nothing.
+    ERROR          The authoritative state cannot be acted on: two live
+                   generations, or a live one with no readable checkpoint.
+                   Exit 1. A quiet hour is a NOOP; this is not a quiet hour.
 
 `PUBLISH_READY` is the one that was missing, and its absence was expensive.
 A generation whose fetch finished but whose publication failed - identity
@@ -121,6 +124,11 @@ class Action(StrEnum):
     PUBLISH_READY = "PUBLISH_READY"
     START_NEW = "START_NEW"
     NOOP = "NOOP"
+    #: The authoritative state is one no run may act on: two live
+    #: generations, or a live generation with no readable checkpoint. Not a
+    #: NOOP - a NOOP is a quiet hour, exit 0, and this is a broken production
+    #: state that must turn the workflow red.
+    ERROR = "ERROR"
 
     @property
     def needs_local_state(self) -> bool:
@@ -149,7 +157,22 @@ class Decision:
 
     @property
     def proceed(self) -> bool:
-        return self.action is not Action.NOOP
+        return self.action not in {Action.NOOP, Action.ERROR}
+
+
+@dataclass(frozen=True)
+class LiveGeneration:
+    """One authoritative row, read in one query: identity, status, checkpoint.
+
+    The three arrive together on purpose. Reading the status in one query and
+    the revision in a second, best-effort one left a gap in which the second
+    could fail and the decision proceed with `expected_revision=None` - which
+    the workflow then turned into 0, a real value meaning "a new generation".
+    """
+
+    generation_id: str
+    status: str
+    checkpoint_revision: int | None = None
 
 
 #: Statuses that mean "fetching is finished; publication has not succeeded".
@@ -164,11 +187,13 @@ LIVE_STATUSES = (
 )
 
 
-def active_generations(session) -> list[tuple[str, str]]:  # type: ignore[no-untyped-def]
-    """Every generation the database considers live, as `(id, status)`.
+def active_generations(session) -> list[LiveGeneration]:  # type: ignore[no-untyped-def]
+    """Every generation the database considers live, with its checkpoint.
 
-    `expected_revision_for` fetches the checkpoint separately: the decision
-    itself is pure over `(id, status)` and tested as such.
+    One query. Identity, status and checkpoint revision come from the same
+    row read at the same instant, so the decision cannot be made from a
+    status and then verified against a revision read after something changed
+    - or not read at all.
 
     A list rather than the newest one, because "there are two" is an answer
     that has to reach the caller. Silently taking the newest would resume one
@@ -180,46 +205,82 @@ def active_generations(session) -> list[tuple[str, str]]:  # type: ignore[no-unt
     from app.models import FactRefreshGeneration
 
     rows = session.execute(
-        select(FactRefreshGeneration.generation_id, FactRefreshGeneration.status)
+        select(
+            FactRefreshGeneration.generation_id,
+            FactRefreshGeneration.status,
+            FactRefreshGeneration.checkpoint_revision,
+        )
         .where(FactRefreshGeneration.source == "footystats")
         .order_by(FactRefreshGeneration.generation_id)
     ).all()
-    return [(generation_id, status) for generation_id, status in rows if status in LIVE_STATUSES]
+    return [
+        LiveGeneration(generation_id, status, int(revision) if revision is not None else None)
+        for generation_id, status, revision in rows
+        if status in LIVE_STATUSES
+    ]
 
 
-def decide_from_state(mode: str, live: list[tuple[str, str]]) -> Decision:
+def _as_live(entry: LiveGeneration | tuple[str, str]) -> LiveGeneration:
+    """Accept the older `(id, status)` shape too; tests and the disk fallback
+    use it, and neither has a revision to offer."""
+    if isinstance(entry, LiveGeneration):
+        return entry
+    generation_id, status = entry
+    return LiveGeneration(generation_id, status)
+
+
+def action_for_status(status: str) -> Action:
+    """What a run does with a generation in this status. Used by the gate and,
+    after a reconciliation may have moved the status, by the verifier."""
+    if status == GenerationStatus.IN_PROGRESS.value:
+        return Action.FETCH
+    if status in {GenerationStatus.COMPLETE.value, GenerationStatus.VALIDATED.value}:
+        return Action.PUBLISH_READY
+    return Action.NOOP
+
+
+def decide_from_state(mode: str, live: list[LiveGeneration] | list[tuple[str, str]]) -> Decision:
     """The decision itself, given the mode and whatever is live.
 
     Pure: no database, no filesystem. Every branch below is a test in
-    `test_pipeline_source_resolution.py`.
+    `test_pipeline_source_resolution.py` or `test_generation_checkpoints.py`.
     """
-    if len(live) > 1:
+    generations = [_as_live(entry) for entry in live]
+
+    if len(generations) > 1:
         # Two open universes. Which one to continue is a judgement about how
         # they got that way, and a scheduled job guessing wrong wastes days of
-        # API budget interleaving them.
-        names = ", ".join(generation_id for generation_id, _ in live)
+        # API budget interleaving them. ERROR, not NOOP: a NOOP is a quiet
+        # hour and exits 0, and a green run over a broken state is how the
+        # state stays broken.
+        names = ", ".join(g.generation_id for g in generations)
         return Decision(
-            Action.NOOP,
-            f"more than one generation is live ({names}); this needs attention rather than a guess",
+            Action.ERROR,
+            f"multiple live FootyStats generations exist: {names}. Refusing to choose one; "
+            f"manual intervention is required. Abandon all but one with "
+            f"`python -m pipelines.footystats.generations --abandon <id>`.",
         )
 
-    if live:
-        generation_id, status = live[0]
-        if status == GenerationStatus.IN_PROGRESS.value:
+    if generations:
+        current = generations[0]
+        if current.status == GenerationStatus.IN_PROGRESS.value:
             reason = (
-                f"continuing generation {generation_id} rather than starting another"
+                f"continuing generation {current.generation_id} rather than starting another"
                 if mode == START
-                else f"continuing generation {generation_id}"
+                else f"continuing generation {current.generation_id}"
             )
-            return Decision(Action.FETCH, reason, generation_id)
+            return Decision(
+                Action.FETCH, reason, current.generation_id, current.checkpoint_revision
+            )
         # COMPLETE or VALIDATED: fetching is done and publication is not.
         return Decision(
             Action.PUBLISH_READY,
             (
-                f"generation {generation_id} is {status} and unpublished; retrying "
-                f"publication without refetching"
+                f"generation {current.generation_id} is {current.status} and unpublished; "
+                f"retrying publication without refetching"
             ),
-            generation_id,
+            current.generation_id,
+            current.checkpoint_revision,
         )
 
     if mode == START:
@@ -334,7 +395,7 @@ def decide(mode: str, store: GenerationStore) -> tuple[bool, str]:
     return decision.proceed, decision.reason
 
 
-def _live_from_disk(store: GenerationStore) -> list[tuple[str, str]]:
+def _live_from_disk(store: GenerationStore) -> list[LiveGeneration]:
     """What the local generation directory holds, for runs without a database.
 
     An unreadable directory returns nothing rather than raising: on the local
@@ -346,18 +407,10 @@ def _live_from_disk(store: GenerationStore) -> list[tuple[str, str]]:
     except GenerationError:
         return []
     return [
-        (g.generation_id, g.status.value)
+        LiveGeneration(g.generation_id, g.status.value, g.metadata.checkpoint_revision)
         for g in generations
         if g.status is GenerationStatus.IN_PROGRESS or g.status in AWAITING_PUBLICATION
     ]
-
-
-def expected_revision_for(generation_id: str) -> int | None:
-    """The checkpoint the database recorded for this generation, if reachable."""
-    from pipelines.footystats.publish_status import expected_state
-
-    state = expected_state(generation_id)
-    return state[1] if state else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -380,56 +433,15 @@ def main(argv: list[str] | None = None) -> int:
         "--expected-revision",
         type=int,
         default=None,
-        help="The checkpoint the database recorded. Read from the database when omitted.",
+        help=(
+            "The checkpoint the database recorded, as the gate emitted it. Read from "
+            "the database when omitted; the verification fails if neither is available."
+        ),
     )
     args = parser.parse_args(argv)
 
     if args.verify_restored:
-        expected = args.expected_revision
-        if expected is None:
-            expected = expected_revision_for(args.verify_restored)
-        verdict = verify_local_state(
-            GenerationStore(), args.verify_restored, expected_revision=expected
-        )
-        print(f"cache_matches={'true' if verdict.ok else 'false'}")
-        print(
-            f"local_revision={verdict.local_revision if verdict.local_revision is not None else ''}"
-        )
-        print(f"reason={verdict.reason}")
-        _emit(
-            {
-                "cache_matches": "true" if verdict.ok else "false",
-                "local_revision": (
-                    str(verdict.local_revision) if verdict.local_revision is not None else ""
-                ),
-                "reason": verdict.reason,
-            }
-        )
-        if not verdict.ok:
-            # FATAL, deliberately. An earlier version warned and continued,
-            # on the grounds that a fetch could rebuild what was missing.
-            # It could - under the wrong generation's name, refetching
-            # everything the lost checkpoint held. See the module docstring.
-            print(f"::error::{verdict.reason}", file=sys.stderr)
-            return 1
-        if (
-            expected is not None
-            and verdict.local_revision is not None
-            and verdict.local_revision > expected
-        ):
-            # Forward, and only forward. The disk is newer and intact; the
-            # database catches up so the next run's exact key names this
-            # checkpoint rather than the one before it.
-            from pipelines.footystats.publish_status import reconcile_revision
-
-            if reconcile_revision(args.verify_restored, verdict.local_revision):
-                print(f"database checkpoint advanced {expected} -> {verdict.local_revision}")
-            else:
-                print(
-                    "::warning::could not advance the database checkpoint; the next run "
-                    "will restore the newest checkpoint for this generation regardless"
-                )
-        return 0
+        return _verify(args.verify_restored, args.expected_revision)
 
     try:
         live = _live_from_state()
@@ -439,12 +451,16 @@ def main(argv: list[str] | None = None) -> int:
         _emit({"action": "", "proceed": "false", "needs_local_state": "false"})
         return 1
     decision = decide_from_state(args.mode, live)
-    if decision.generation_id and decision.expected_revision is None:
+    if decision.action.needs_local_state and decision.expected_revision is None:
+        # A live generation whose checkpoint the authority cannot state.
+        # Nothing downstream can verify a restore against an unknown, and 0
+        # is not an unknown - it is a new generation's real revision.
         decision = Decision(
-            decision.action,
-            decision.reason,
+            Action.ERROR,
+            f"generation {decision.generation_id} is live but its checkpoint revision could "
+            f"not be read from the database. Nothing can be verified against an unknown; "
+            f"nothing was fetched, started or published.",
             decision.generation_id,
-            expected_revision_for(decision.generation_id),
         )
 
     # Padded the same way the fetch pads it, so the exact cache key the
@@ -466,6 +482,10 @@ def main(argv: list[str] | None = None) -> int:
             "reason": decision.reason,
         }
     )
+    if decision.action is Action.ERROR:
+        # A broken authoritative state, not a quiet hour. Red, so it is seen.
+        print(f"::error::{decision.reason}", file=sys.stderr)
+        return 1
     if not decision.proceed:
         print(f"\nNothing to do: {decision.reason}", file=sys.stderr)
     return 0
@@ -503,7 +523,109 @@ def local_fallback_allowed() -> bool:
     return os.environ.get("APP_ENV", "development").lower() != "production"
 
 
-def _live_from_state() -> list[tuple[str, str]]:
+def _verify(generation_id: str, expected_revision: int | None) -> int:
+    """`--verify-restored`, as a function. Exit code semantics:
+
+        0   the disk holds the expected generation at an acceptable checkpoint;
+            the database has been reconciled forward if the disk was newer;
+            `action` says what the run should now do
+        1   anything else. Nothing was resumed, started or mutated.
+
+    THE AUTHORITY MUST BE READABLE
+
+    The expected revision comes from the gate's outputs, or from the database
+    now. If neither is available the verification fails. It used to treat
+    `None` as "no revision restriction", and the workflow turned an empty
+    output into 0 - a real value meaning "a new generation" - so a database
+    that could not be read became a cache that was trusted on its own say-so.
+    A payload cannot validate itself when the authority is unavailable.
+    """
+    from pipelines.footystats.publish_status import expected_state, reconcile_forward
+
+    expected_status: str | None = None
+    if expected_revision is None:
+        state = expected_state(generation_id)
+        if state is None:
+            print(
+                f"::error::could not read the authoritative checkpoint for generation "
+                f"{generation_id}: the database is unreachable or holds no such generation. "
+                f"The restored cache cannot be trusted on its own; nothing was resumed.",
+                file=sys.stderr,
+            )
+            _emit({"cache_matches": "false", "action": "", "reason": "authority unavailable"})
+            return 1
+        expected_status, expected_revision = state
+    else:
+        state = expected_state(generation_id)
+        if state is not None:
+            expected_status = state[0]
+
+    store = GenerationStore()
+    verdict = verify_local_state(store, generation_id, expected_revision=expected_revision)
+    if not verdict.ok:
+        # FATAL, deliberately. An earlier version warned and continued, on
+        # the grounds that a fetch could rebuild what was missing. It could
+        # - under the wrong generation's name, refetching everything the lost
+        # checkpoint held. See the module docstring.
+        print(f"::error::{verdict.reason}", file=sys.stderr)
+        _emit({"cache_matches": "false", "action": "", "reason": verdict.reason})
+        return 1
+
+    generation = store.get(generation_id)
+    assert generation is not None  # verify_local_state found it  # noqa: S101
+    status = generation.status.value
+    if verdict.local_revision is not None and verdict.local_revision > expected_revision:
+        # THE WHOLE CHECKPOINT MOVES FORWARD, NOT ONLY ITS NUMBER.
+        #
+        # A newer local checkpoint is newer in everything: the final players
+        # fetched, the competition marked complete, the status moved to
+        # COMPLETE. Advancing the revision alone left the database saying
+        # IN_PROGRESS about a generation whose files said COMPLETE, so the
+        # next gate answered FETCH, the fetch found nothing to do, and the
+        # generation was stuck one step from publication with a green run
+        # every hour.
+        outcome = reconcile_forward(generation)
+        if outcome.changed:
+            print(
+                f"database reconciled forward from checkpoint {expected_revision} to "
+                f"{verdict.local_revision}: {outcome.summary}"
+            )
+        else:
+            print(
+                "::warning::could not reconcile the database forward; the next run will "
+                "restore the newest checkpoint for this generation regardless"
+            )
+        status = outcome.status or status
+    elif expected_status is not None:
+        # The database is at least as far along as the disk. Its status is
+        # the one to act on - VALIDATED in the database beside COMPLETE on
+        # disk means the candidate checks passed and only publication is
+        # left.
+        status = expected_status
+
+    # RE-EVALUATE. The gate decided from a status that the reconciliation
+    # may just have moved. A FETCH against a generation that is now COMPLETE
+    # would spend nothing and publish nothing; the run must take the action
+    # the reconciled state calls for.
+    effective = action_for_status(status)
+    print("cache_matches=true")
+    print(f"local_revision={verdict.local_revision}")
+    print(f"status={status}")
+    print(f"action={effective.value}")
+    print(f"reason={verdict.reason}")
+    _emit(
+        {
+            "cache_matches": "true",
+            "local_revision": str(verdict.local_revision),
+            "status": status,
+            "action": effective.value,
+            "reason": verdict.reason,
+        }
+    )
+    return 0
+
+
+def _live_from_state() -> list[LiveGeneration]:
     """The database, which is authoritative. The filesystem only where that
     is explicitly allowed - see `local_fallback_allowed`."""
     try:

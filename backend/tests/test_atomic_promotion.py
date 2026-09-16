@@ -897,8 +897,12 @@ class TestAFailedPublicationIsRetriedRatherThanRefetched:
         decision = decide_from_state(
             START, [("20260901T040000Z", "IN_PROGRESS"), ("20260907T040000Z", "COMPLETE")]
         )
-        assert decision.action is Action.NOOP
-        assert "needs attention" in decision.reason
+        # ERROR, not NOOP. A NOOP is a quiet hour and exits 0; two live
+        # generations is a broken production state that must turn the
+        # workflow red rather than pass every hour in silence.
+        assert decision.action is Action.ERROR
+        assert not decision.proceed
+        assert "manual intervention" in decision.reason
 
 
 class TestTheValidatedStateIsUsed:
@@ -1225,6 +1229,19 @@ class TestProviderPurgeLeavesQualityHistoryAlone:
     @pytest.fixture
     def published_history(self):  # type: ignore[no-untyped-def]
         with get_engine().begin() as connection:
+            # G4 published, G5 still live: a candidate is only a candidate
+            # while its generation is, so the generation rows exist here.
+            for gid, status in ((self.G4, "PUBLISHED"), (self.G5, "COMPLETE")):
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete) "
+                        "VALUES (:g, :s, :st, now(), now(), true, 0, 0, 0, 0, 0)"
+                    ),
+                    {"g": gid, "s": self.SOURCE, "st": status},
+                )
             connection.execute(
                 text(
                     "INSERT INTO public.fact_data_quality "
@@ -1237,9 +1254,11 @@ class TestProviderPurgeLeavesQualityHistoryAlone:
             )
         yield
         with get_engine().begin() as connection:
-            connection.execute(
-                text("DELETE FROM public.fact_data_quality WHERE source = :s"), {"s": self.SOURCE}
-            )
+            for table in ("fact_data_quality", "fact_refresh_generation"):
+                connection.execute(
+                    text(f"DELETE FROM public.{table} WHERE source = :s"),
+                    {"s": self.SOURCE},
+                )
 
     def _rows(self) -> list[tuple[str | None, str | None]]:
         with get_engine().connect() as connection:
@@ -1559,3 +1578,290 @@ class TestFootyStatsCandidatesArePromotedByRefresh:
                 {"s": self.SOURCE},
             ).scalar()
         assert status == "PUBLISHED"
+
+
+class TestAnObsoleteCandidateDoesNotReappear:
+    """Sections 9 to 11, 19 and 20. History stays; the page shows only what
+    is genuinely waiting."""
+
+    SOURCE = "a_lifecycle_provider"
+
+    @pytest.fixture
+    def clean(self):  # type: ignore[no-untyped-def]
+        yield
+        with get_engine().begin() as connection:
+            for table in (
+                "fact_data_quality",
+                "fact_source_publication",
+                "fact_refresh_generation",
+            ):
+                connection.execute(
+                    text(f"DELETE FROM public.{table} WHERE source = :s"),
+                    {"s": self.SOURCE},
+                )
+
+    def _candidate(self, refresh: str, when: str, generation_id: str | None = None) -> None:
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_data_quality "
+                    "(source, entity, check_name, status, record_count, executed_at, "
+                    " refresh_id, generation_id, context) "
+                    f"VALUES (:s, 'player', 'a_check', 'pass', 1, {when}, :r, :g, 'CANDIDATE')"
+                ),
+                {"s": self.SOURCE, "r": refresh, "g": generation_id},
+            )
+
+    def _publish(self, refresh: str, generation_id: str | None = None) -> None:
+        from pipelines.load.promote import record_publication
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=generation_id,
+                refresh_id=refresh,
+                rows_published=1,
+            )
+
+    def _quality(self):  # type: ignore[no-untyped-def]
+        from sqlalchemy.orm import Session as OrmSession
+
+        from app.services.quality_service import provider_quality
+
+        with OrmSession(get_engine()) as session:
+            return next(p for p in provider_quality(session) if p.source == self.SOURCE)
+
+    def test_transfermarkt_r2_does_not_resurface_after_r3_publishes(self, clean) -> None:  # type: ignore[no-untyped-def]
+        """Section 19."""
+        self._candidate("R1", "now() - interval '3 days'")
+        self._publish("R1")
+        self._candidate("R2", "now() - interval '2 hours'")  # stuck at promotion
+        self._candidate("R3", "now() - interval '1 hour'")
+        self._publish("R3")
+
+        mine = self._quality()
+        assert mine.published is not None and mine.published.refresh_id == "R3"
+        assert mine.candidate is None, "R2 is history, not the latest candidate"
+
+        with get_engine().connect() as connection:
+            contexts = dict(
+                connection.execute(
+                    text(
+                        "SELECT refresh_id, context FROM public.fact_data_quality WHERE source = :s"
+                    ),
+                    {"s": self.SOURCE},
+                ).all()
+            )
+        assert contexts["R2"] == "CANDIDATE", "kept, for audit"
+        assert contexts["R3"] == "PUBLISHED"
+
+        # A genuinely new candidate after R3 is shown.
+        self._candidate("R4", "now() + interval '1 minute'")
+        mine = self._quality()
+        assert mine.published is not None and mine.published.refresh_id == "R3"
+        assert mine.candidate is not None and mine.candidate.refresh_id == "R4"
+
+    def test_an_abandoned_footystats_generation_is_not_a_candidate(self, clean) -> None:  # type: ignore[no-untyped-def]
+        """Section 20."""
+        g5, g6 = "29990405T000000Z", "29990406T000000Z"
+        with get_engine().begin() as connection:
+            for gid, status in ((g5, "FAILED"), (g6, "PUBLISHED")):
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete) "
+                        "VALUES (:g, :s, :st, now(), now(), true, 0, 0, 0, 0, 0)"
+                    ),
+                    {"g": gid, "s": self.SOURCE, "st": status},
+                )
+        self._candidate(g5, "now() - interval '2 hours'", g5)
+        self._candidate(g6, "now() - interval '1 hour'", g6)
+        self._publish(g6, g6)
+
+        mine = self._quality()
+        assert mine.published is not None and mine.published.generation_id == g6
+        assert mine.candidate is None, "G5 is FAILED; its rows are history"
+
+    def test_a_failed_generation_is_not_a_candidate_even_before_anything_publishes(
+        self,
+        clean,  # type: ignore[no-untyped-def]
+    ) -> None:
+        g5 = "29990505T000000Z"
+        with get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO public.fact_refresh_generation "
+                    "(generation_id, source, status, created_at, updated_at, complete, "
+                    " total_expected_players, completed_players, failed_players, "
+                    " competitions_expected, competitions_complete) "
+                    "VALUES (:g, :s, 'FAILED', now(), now(), false, 0, 0, 0, 0, 0)"
+                ),
+                {"g": g5, "s": self.SOURCE},
+            )
+        self._candidate(g5, "now()", g5)
+        from sqlalchemy.orm import Session as OrmSession
+
+        from app.services.quality_service import candidate_checks
+
+        with OrmSession(get_engine()) as session:
+            assert not [c for c in candidate_checks(session) if c.source == self.SOURCE]
+
+
+class TestPublicationIsIdempotent:
+    """Sections 12 to 14 and 21. The same source + refresh_id twice: one
+    swap, one row, one publication time."""
+
+    SOURCE = "an_idempotent_provider"
+
+    @pytest.fixture
+    def clean(self):  # type: ignore[no-untyped-def]
+        yield
+        with get_engine().begin() as connection:
+            for table in ("fact_data_quality", "fact_source_publication"):
+                connection.execute(
+                    text(f"DELETE FROM public.{table} WHERE source = :s"),
+                    {"s": self.SOURCE},
+                )
+
+    def test_a_second_promotion_of_the_same_refresh_is_a_no_op(
+        self,
+        clean,
+        capsys: pytest.CaptureFixture,  # type: ignore[no-untyped-def]
+    ) -> None:
+        from pipelines.load.promote import already_published, record_publication
+
+        with get_engine().begin() as connection:
+            assert already_published(connection, self.SOURCE, "R2") is False
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=None,
+                refresh_id="R2",
+                rows_published=5,
+            )
+        with get_engine().connect() as connection:
+            assert already_published(connection, self.SOURCE, "R2") is True
+            first = connection.execute(
+                text(
+                    "SELECT published_at FROM public.fact_source_publication "
+                    "WHERE source = :s AND refresh_id = 'R2'"
+                ),
+                {"s": self.SOURCE},
+            ).scalar()
+
+        # The check the CLI makes before swapping, and the constraint behind
+        # it: a second row for the same refresh is refused by the database.
+        import sqlalchemy.exc
+
+        with pytest.raises(sqlalchemy.exc.IntegrityError), get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=None,
+                refresh_id="R2",
+                rows_published=5,
+            )
+
+        with get_engine().connect() as connection:
+            rows = connection.execute(
+                text(
+                    "SELECT count(*), max(published_at) FROM public.fact_source_publication "
+                    "WHERE source = :s AND refresh_id = 'R2'"
+                ),
+                {"s": self.SOURCE},
+            ).one()
+        assert rows == (1, first), "one row, the original time"
+
+    def test_the_cli_stops_before_the_swap(
+        self,
+        clean,
+        capsys: pytest.CaptureFixture,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """Driven through `main`, which is what the workflow runs.
+
+        The refresh is recorded as published under a real source first, so
+        the CLI finds it and stops: exit 0 - the thing the run exists to do
+        has been done - and the row counts either side of the swap are
+        unchanged. The row is removed again afterwards.
+        """
+        from pipelines.load.promote import SERVING, STAGING, _counts, main, record_publication
+
+        refresh = "test-idempotent-R7"
+        try:
+            with get_engine().begin() as connection:
+                record_publication(
+                    connection,
+                    source="transfermarkt",
+                    generation_id=None,
+                    refresh_id=refresh,
+                    rows_published=1,
+                )
+            with get_engine().connect() as connection:
+                before = (_counts(connection, SERVING), _counts(connection, STAGING))
+
+            code = main(["--apply", "--source", "transfermarkt", "--refresh-id", refresh])
+
+            assert code == 0
+            assert "already published" in capsys.readouterr().out
+            with get_engine().connect() as connection:
+                after = (_counts(connection, SERVING), _counts(connection, STAGING))
+                count = connection.execute(
+                    text(
+                        "SELECT count(*) FROM public.fact_source_publication "
+                        "WHERE source = 'transfermarkt' AND refresh_id = :r"
+                    ),
+                    {"r": refresh},
+                ).scalar()
+            assert after == before, "no swap"
+            assert count == 1, "no second row"
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "DELETE FROM public.fact_source_publication "
+                        "WHERE source = 'transfermarkt' AND refresh_id = :r"
+                    ),
+                    {"r": refresh},
+                )
+
+    def test_rollback_releases_the_identity(self, clean) -> None:  # type: ignore[no-untyped-def]
+        """Section 14. Published, rolled back, published again on purpose."""
+        from pipelines.load.promote import (
+            already_published,
+            record_publication,
+            retract_publication,
+        )
+
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=None,
+                refresh_id="R9",
+                rows_published=2,
+            )
+        with get_engine().begin() as connection:
+            assert retract_publication(connection) == (self.SOURCE, None)
+        with get_engine().connect() as connection:
+            assert already_published(connection, self.SOURCE, "R9") is False, "rolled back"
+        with get_engine().begin() as connection:
+            record_publication(
+                connection,
+                source=self.SOURCE,
+                generation_id=None,
+                refresh_id="R9",
+                rows_published=2,
+            )
+        with get_engine().connect() as connection:
+            assert already_published(connection, self.SOURCE, "R9") is True
+            count = connection.execute(
+                text(
+                    "SELECT count(*) FROM public.fact_source_publication "
+                    "WHERE source = :s AND refresh_id = 'R9'"
+                ),
+                {"s": self.SOURCE},
+            ).scalar()
+        assert count == 1
