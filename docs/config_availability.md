@@ -34,50 +34,50 @@ score, which is what substituting or zero-filling would produce.
 
 Composites of percentiles. `min_coverage` is the share of weight that must survive for the score to be produced at all.
 
-| Score | Configured | Available | Coverage | Missing | Status |
-| --- | ---: | ---: | ---: | --- | --- |
-| Ball Progression | 100 | 55 | 55% | `progressive_passes_per90` | **DISABLED** |
-| Ball Security | 100 | 100 | 100% | - | **OK** |
-| Chance Creation | 100 | 100 | 100% | - | **OK** |
-| Defensive Activity | 100 | 100 | 100% | - | **OK** |
-| Duel Dominance | 100 | 70 | 70% | `aerial_duel_win_percentage` | **DISABLED** |
-| 1v1 Threat | 100 | 100 | 100% | - | **OK** |
-| Goal Threat | 100 | 100 | 100% | - | **OK** |
-| Finishing | 100 | 100 | 100% | - | **OK** |
+| Score | Metrics | Configured wt | Available wt | Coverage | Missing | Status |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Ball Progression | 3 / 4 | 100 | 55 | 55% | `progressive_passes_per90` | **DISABLED** |
+| Ball Security | 4 / 4 | 100 | 100 | 100% | - | **OK** |
+| Chance Creation | 4 / 4 | 100 | 100 | 100% | - | **OK** |
+| Defensive Activity | 4 / 4 | 100 | 100 | 100% | - | **OK** |
+| Duel Dominance | 2 / 3 | 100 | 70 | 70% | `aerial_duel_win_percentage` | **DISABLED** |
+| 1v1 Threat | 3 / 3 | 100 | 100 | 100% | - | **OK** |
+| Goal Threat | 5 / 5 | 100 | 100 | 100% | - | **OK** |
+| Finishing | 5 / 5 | 100 | 100 | 100% | - | **OK** |
 
 ## Player roles
 
 A role component can be a derived metric or a whole intelligence score. A role is disabled when a score it leans on is.
 
-| Role | Configured | Available | Coverage | Missing | Status |
-| --- | ---: | ---: | ---: | --- | --- |
-| Ball-Playing Centre-Back | 100 | 60 | 60% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **LIMITED** |
-| Defensive Stopper | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
-| Defensive Full-Back | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| Attacking Full-Back | 100 | 80 | 80% | `progressive_passes_per90` | **REDUCED** |
-| Ball-Winning Midfielder | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| Deep-Lying Playmaker | 100 | 70 | 70% | `progressive_passes_per90` | **LIMITED** |
-| Box-to-Box Midfielder | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
-| Advanced Playmaker | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
-| Creative Winger | 100 | 100 | 100% | - | **OK** |
-| Direct Winger | 100 | 100 | 100% | - | **OK** |
-| Inside Forward | 100 | 100 | 100% | - | **OK** |
-| Poacher | 100 | 100 | 100% | - | **OK** |
-| Complete Forward | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
-| Target Forward | 100 | 75 | 75% | `aerial_duel_win_percentage` | **REDUCED** |
-| Shot Stopper | 100 | 100 | 100% | - | **OK** |
+| Role | Metrics | Configured wt | Available wt | Coverage | Missing | Status |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Ball-Playing Centre-Back | 4 / 6 | 100 | 60 | 60% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **LIMITED** |
+| Defensive Stopper | 5 / 6 | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
+| Defensive Full-Back | 4 / 6 | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| Attacking Full-Back | 5 / 6 | 100 | 80 | 80% | `progressive_passes_per90` | **REDUCED** |
+| Ball-Winning Midfielder | 4 / 6 | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| Deep-Lying Playmaker | 5 / 6 | 100 | 70 | 70% | `progressive_passes_per90` | **LIMITED** |
+| Box-to-Box Midfielder | 7 / 8 | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
+| Advanced Playmaker | 5 / 6 | 100 | 85 | 85% | `progressive_passes_per90` | **REDUCED** |
+| Creative Winger | 6 / 6 | 100 | 100 | 100% | - | **OK** |
+| Direct Winger | 7 / 7 | 100 | 100 | 100% | - | **OK** |
+| Inside Forward | 6 / 6 | 100 | 100 | 100% | - | **OK** |
+| Poacher | 5 / 5 | 100 | 100 | 100% | - | **OK** |
+| Complete Forward | 8 / 9 | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
+| Target Forward | 6 / 7 | 100 | 75 | 75% | `aerial_duel_win_percentage` | **REDUCED** |
+| Shot Stopper | 4 / 4 | 100 | 100 | 100% | - | **OK** |
 
 ## Similarity vectors
 
 Every feature carries equal weight, so the count is the weight. A vector is never disabled: the engine compares on the features two players share and reports that coverage alongside the index.
 
-| Position group | Configured | Available | Coverage | Missing | Status |
-| --- | ---: | ---: | ---: | --- | --- |
-| AM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| CB | 11 | 8 | 73% | `aerial_duel_win_percentage`, `aerial_duels_per90`, `progressive_passes_per90` | **LIMITED** |
-| CM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| DM | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
-| FB_WB | 11 | 10 | 91% | `progressive_passes_per90` | **REDUCED** |
-| FORWARD | 11 | 10 | 91% | `aerial_duel_win_percentage` | **REDUCED** |
-| GK | 8 | 7 | 88% | `progressive_passes_per90` | **REDUCED** |
-| WINGER | 11 | 10 | 91% | `progressive_passes_per90` | **REDUCED** |
+| Position group | Metrics | Configured wt | Available wt | Coverage | Missing | Status |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| AM | 9 / 11 | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| CB | 8 / 11 | 11 | 8 | 73% | `aerial_duel_win_percentage`, `aerial_duels_per90`, `progressive_passes_per90` | **LIMITED** |
+| CM | 9 / 11 | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| DM | 9 / 11 | 11 | 9 | 82% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| FB_WB | 10 / 11 | 11 | 10 | 91% | `progressive_passes_per90` | **REDUCED** |
+| FORWARD | 10 / 11 | 11 | 10 | 91% | `aerial_duel_win_percentage` | **REDUCED** |
+| GK | 7 / 8 | 8 | 7 | 88% | `progressive_passes_per90` | **REDUCED** |
+| WINGER | 10 / 11 | 11 | 10 | 91% | `progressive_passes_per90` | **REDUCED** |

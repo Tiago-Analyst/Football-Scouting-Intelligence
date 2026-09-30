@@ -19,8 +19,19 @@ version: 1
 # from a file - and a test asserts the two sets match.
 refresh:
   footystats:
-    # Mondays, Wednesdays and Fridays, early morning UTC.
+    # When a NEW refresh generation may start. Mondays, Wednesdays and Fridays,
+    # early morning UTC.
     cron: "0 4 * * 1,3,5"
+    # When an UNFINISHED generation may continue. A complete refresh is ~23,500
+    # requests, about fourteen hours at the account's rate limit, and a job can
+    # only fetch for ~45 minutes - so a generation needs roughly nineteen
+    # productive runs. On the cadence cron alone that is three weeks per
+    # refresh, by which time the data it publishes is older than the interval.
+    #
+    # Hourly runs do nothing unless a generation is open, so this costs a short
+    # no-op most of the time and finishes a refresh in about a day when one is
+    # running.
+    continuation_cron: "0 * * * *"
     enabled: true
   transfermarkt:
     # Sundays. The public dataset is rebuilt on its own schedule; fetching

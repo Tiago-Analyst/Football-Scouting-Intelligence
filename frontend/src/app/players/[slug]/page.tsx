@@ -307,7 +307,7 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         <span
                           className={role.is_limited ? "text-warning" : "text-subtle"}
                           title={
-                            role.caveat ??
+                            role.explanation ??
                             "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
                           }
                         >
@@ -329,10 +329,11 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 all of it, and a reader comparing two rows cannot see that from
                 the numbers. */}
             {[roles?.best, ...(roles?.alternatives ?? [])]
-              .filter((role) => role?.is_limited && role?.caveat)
+              .filter((role) => role?.is_limited && (role?.explanation ?? role?.caveat))
               .map((role) => (
                 <p key={role!.key} className="text-[11px] leading-relaxed">
-                  <span className="font-medium">{role!.label}:</span> {role!.caveat}
+                  <span className="font-medium">{role!.label}:</span>{" "}
+                  {role!.explanation ?? role!.caveat}
                 </p>
               ))}
             <p>{roles?.meaning ?? "Role score measures resemblance to a profile."}</p>

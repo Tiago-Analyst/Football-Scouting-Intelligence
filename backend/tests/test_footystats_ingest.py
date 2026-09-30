@@ -212,6 +212,77 @@ class TestReadingBack:
         recovered = reader("/league-players", season_id="17146")["data"]
         assert recovered, "the roster is the first record and survives truncation"
 
+    def test_the_generation_roster_wins_over_the_snapshot_header(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """The January signing.
+
+        A snapshot's first line is written once, when the file is created, and
+        a full fetch spans days. A player who joins after that can be added to
+        the generation's roster on the next visit and can never reach the
+        header - so the loader, reading the header, expected them, fetched
+        them, and had no roster row to take their club from.
+        """
+        import json
+
+        ingest_competition(FakeProvider(roster(3)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.roster.json").write_text(
+            json.dumps(
+                {
+                    "players": [
+                        *roster(3),
+                        {"id": 4, "known_as": "January Signing", "club_team_id": 99},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-players", season_id="17146")
+        names = [row["known_as"] for row in body["data"]]
+        assert "January Signing" in names
+        assert len(body["data"]) == 4
+
+    def test_the_header_is_used_when_there_is_no_generation_roster(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """A flat local fetch, or a snapshot from before generations, has
+        nothing else to read - and must keep working."""
+        ingest_competition(FakeProvider(roster(3)), "17146", "A League", resume=False)
+        assert not (snapshots_in_tmp / "season-17146.roster.json").exists()
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-players", season_id="17146")
+        assert len(body["data"]) == 3
+
+    def test_a_roster_of_bare_ids_falls_back_rather_than_serving_stubs(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """A generation written before rosters carried records.
+
+        Its roster file holds ids and nothing else. Serving those as roster
+        rows would hand the loader records with no club and no name - so the
+        header, which at least has both, is used instead.
+        """
+        import json
+
+        ingest_competition(FakeProvider(roster(3)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.roster.json").write_text(
+            json.dumps(["1", "2", "3"]), encoding="utf-8"
+        )
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-players", season_id="17146")
+        assert [row["known_as"] for row in body["data"]] == [f"Player {i}" for i in (1, 2, 3)]
+
+    def test_an_unreadable_roster_file_does_not_lose_the_snapshot(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """What an interrupted write leaves behind."""
+        ingest_competition(FakeProvider(roster(3)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.roster.json").write_text("{ truncated", encoding="utf-8")
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-players", season_id="17146")
+        assert len(body["data"]) == 3
+
     def test_an_unsupported_endpoint_is_refused(self, snapshots_in_tmp: Path) -> None:
         with pytest.raises(SnapshotUnavailableError):
             SnapshotReader(snapshots_in_tmp)("/league-list")
@@ -231,4 +302,35 @@ class TestTheLoadNeverCallsTheApi:
         assert reader("/player-stats", player_id="1")["data"]
         # Clubs are deliberately empty rather than invented; Transfermarkt
         # supplies club names.
-        assert reader("/league-teams", season_id="17146")["data"] == []
+        assert reader("/league-teams", season_id="17146")["data"] == [], (
+            "no clubs were recorded for this snapshot, and empty is the honest answer"
+        )
+
+    def test_recorded_clubs_are_served(self, snapshots_in_tmp: Path) -> None:
+        """The link that was missing.
+
+        The roster gives every player a `club_team_id`; this is what turns one
+        into a club. Without it the loader dropped the reference and every
+        FootyStats player arrived with no club, so the matcher - which scores
+        club agreement - had nothing to score from this side.
+        """
+        import json
+
+        ingest_competition(FakeProvider(roster(2)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.clubs.json").write_text(
+            json.dumps({"clubs": [{"id": 59, "name": "Arsenal FC", "country": "England"}]}),
+            encoding="utf-8",
+        )
+
+        body = SnapshotReader(snapshots_in_tmp)("/league-teams", season_id="17146")
+        assert body["data"] == [{"id": 59, "name": "Arsenal FC", "country": "England"}]
+
+    def test_an_unreadable_clubs_file_serves_nothing_rather_than_raising(
+        self, snapshots_in_tmp: Path
+    ) -> None:
+        """What an interrupted write leaves. The players are the load; the
+        clubs are an enrichment, and losing one must not lose the other."""
+        ingest_competition(FakeProvider(roster(2)), "17146", "A League", resume=False)
+        (snapshots_in_tmp / "season-17146.clubs.json").write_text("{ trunc", encoding="utf-8")
+
+        assert SnapshotReader(snapshots_in_tmp)("/league-teams", season_id="17146")["data"] == []

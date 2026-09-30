@@ -57,9 +57,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if TYPE_CHECKING:
+    from pipelines.footystats.generations import Generation
+
 SNAPSHOT_DIR = REPO_ROOT / "data" / "raw" / "footystats" / "snapshots"
 
 #: A competition's file is written whole at the end, but progress is flushed
@@ -180,6 +183,14 @@ class RunReport:
         return any(c.fatal for c in self.competitions)
 
     @property
+    def fatal_reason(self) -> str | None:
+        """What the fatal condition was, for the generation's record."""
+        for competition in self.competitions:
+            if competition.fatal:
+                return competition.error
+        return None
+
+    @property
     def failed_player_ids(self) -> list[str]:
         """Every player whose endpoint failed, across the whole run."""
         return [pid for c in self.competitions for pid in c.failed_player_ids]
@@ -197,24 +208,44 @@ def progress_path(season_id: str) -> Path:
     return SNAPSHOT_DIR / f"season-{season_id}.progress.json"
 
 
-def _load_progress(season_id: str) -> set[str]:
-    """Which players this competition already has. Empty when starting fresh."""
-    path = progress_path(season_id)
+def _read_progress(path: Path) -> set[str]:
+    """Completed player ids from an explicit path.
+
+    Accepts both shapes this file has had: the `{"done": [...]}` object it
+    writes, and a bare list, which is what a generation's roster files look
+    like and what a hand-written fixture tends to be. Reading both costs
+    nothing; guessing wrong costs a re-fetch of a whole competition.
+    """
     if not path.exists():
         return set()
     try:
-        return set(json.loads(path.read_text(encoding="utf-8")).get("done") or [])
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         # A truncated progress file means an interrupted write, not a reason to
         # refuse. Re-fetching a competition is slow, never wrong.
         return set()
+    if isinstance(parsed, dict):
+        return {str(p) for p in (parsed.get("done") or [])}
+    if isinstance(parsed, list):
+        return {str(p) for p in parsed}
+    return set()
 
 
-def _save_progress(season_id: str, done: set[str]) -> None:
-    progress_path(season_id).write_text(
+def _write_progress(path: Path, done: set[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
         json.dumps({"done": sorted(done), "at": datetime.now(UTC).isoformat()}),
         encoding="utf-8",
     )
+
+
+def _load_progress(season_id: str) -> set[str]:
+    """Which players this competition already has, in the flat layout."""
+    return _read_progress(progress_path(season_id))
+
+
+def _save_progress(season_id: str, done: set[str]) -> None:
+    _write_progress(progress_path(season_id), done)
 
 
 def _sha256(path: Path) -> str:
@@ -225,6 +256,45 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _record_clubs(provider: Any, season_id: str, generation: Generation | None, log: Any) -> None:
+    """Store the competition's clubs alongside its roster.
+
+    WHY THIS IS WORTH ONE MORE REQUEST
+
+    The roster gives every player a `club_team_id` and nothing that turns it
+    into a club. So the loader had no clubs to create, dropped the reference
+    it could not resolve, and every FootyStats player arrived with no club at
+    all: 3,442 of them unmatched, none carrying the one signal that separates
+    two players with the same name and no date of birth.
+
+    The matcher has scored club agreement all along - `exact_name+dob+club`
+    reaches 1.00 - and could never see it from this side. One request per
+    competition, once per generation, is what it costs to let it.
+
+    Never fatal. A competition whose clubs cannot be fetched still has its
+    players fetched; identity resolution then works from name, date of birth
+    and nationality as it did before, which is worse than with clubs and much
+    better than nothing.
+    """
+    if generation is None:
+        return
+
+    path = generation.clubs_path(season_id)
+    if path.exists():
+        return
+
+    try:
+        body = provider._get("/league-teams", season_id=season_id)
+    except Exception as exc:  # the clubs are an enrichment, not the fetch
+        log.warning("footystats_clubs_unavailable", season_id=season_id, error=type(exc).__name__)
+        return
+
+    rows = body.get("data") if isinstance(body, dict) else None
+    clubs = [r for r in (rows or []) if isinstance(r, dict) and r.get("id") is not None]
+    path.write_text(json.dumps({"clubs": clubs}, ensure_ascii=False), encoding="utf-8")
+    log.info("footystats_clubs_recorded", season_id=season_id, clubs=len(clubs))
+
+
 def ingest_competition(
     provider: Any,
     season_id: str,
@@ -233,6 +303,7 @@ def ingest_competition(
     resume: bool,
     limit: int | None = None,
     deadline: Deadline | None = None,
+    generation: Generation | None = None,
 ) -> CompetitionResult:
     """Fetch one competition's roster and every player's detail."""
     from app.core.logging import get_logger
@@ -245,8 +316,14 @@ def ingest_competition(
     started = time.monotonic()
     result = CompetitionResult(season_id=season_id, name=name)
 
-    target = snapshot_path(season_id)
-    already = _load_progress(season_id) if resume else set()
+    # Inside a generation when one is supplied, which is how the pipeline runs
+    # it. The flat-directory paths remain for direct calls and older tests, and
+    # they are the layout whose progress state outlived the refresh it belonged
+    # to - see `pipelines.footystats.generations`.
+    target = generation.snapshot_path(season_id) if generation else snapshot_path(season_id)
+    progress = generation.progress_path(season_id) if generation else progress_path(season_id)
+
+    already = _read_progress(progress) if resume else set()
     if already and not target.exists():
         # Progress without a snapshot cannot be trusted; start over.
         already = set()
@@ -272,11 +349,39 @@ def ingest_competition(
     player_ids = [str(row["id"]) for row in roster if row.get("id") is not None]
     if limit is not None:
         player_ids = player_ids[:limit]
+
+    if generation is not None:
+        # THE GENERATION'S OWN UNIVERSE, REFRESHED ON EVERY VISIT.
+        #
+        # The roster used to be the snapshot's first line, written once when
+        # the file was created. A generation that started in September could
+        # therefore never discover a January signing: the roster was fetched
+        # again on resume and the newly-returned players had nowhere to be
+        # recorded, so they were not part of what "complete" meant.
+        #
+        # `record_roster` merges rather than replaces, so a player who has
+        # since left the club stays expected - their season happened, and
+        # dropping them would quietly shrink the thing being measured.
+        #
+        # The records, not the ids. The roster carries `club_team_id`, which is
+        # where a player's club comes from, so a file of ids left the loader
+        # reading the snapshot's immutable header instead - and the January
+        # signing this file exists to capture was expected, fetched, and then
+        # dropped on the way in because the header had never heard of them.
+        wanted = set(player_ids)
+        generation.record_roster(
+            season_id,
+            [row for row in roster if row.get("id") is not None and str(row["id"]) in wanted],
+        )
+        player_ids = generation.expected_players(season_id) or player_ids
+
+    _record_clubs(provider, season_id, generation, log)
+
     result.players = len(player_ids)
 
     # Append so a resumed run adds to what is already there.
     mode = "ab" if (resume and target.exists()) else "wb"
-    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
 
     with gzip.open(target, mode) as handle:
         if mode == "wb":
@@ -323,14 +428,18 @@ def ingest_competition(
                 )
                 continue
 
-            record = {"kind": "player", "player_id": player_id, "data": body.get("data")}
+            record = {
+                "kind": "player",
+                "player_id": player_id,
+                "data": body.get("data"),
+            }
             handle.write((json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8"))
             done.add(player_id)
             result.fetched += 1
 
             if index % CHECKPOINT_EVERY == 0:
                 handle.flush()
-                _save_progress(season_id, done)
+                _write_progress(progress, done)
                 log.info(
                     "footystats_ingest_progress",
                     season_id=season_id,
@@ -338,7 +447,7 @@ def ingest_competition(
                     of=len(player_ids),
                 )
 
-    _save_progress(season_id, done)
+    _write_progress(progress, done)
     result.pending = len([p for p in player_ids if p not in done])
     result.seconds = time.monotonic() - started
     log.info(
@@ -411,7 +520,14 @@ def update_failure_ledger(report: RunReport, *, now: str | None = None) -> dict[
     return ledger
 
 
-def emit_completion(complete: bool, *, failed_count: int = 0, fatal: bool = False) -> None:
+def emit_completion(
+    complete: bool,
+    *,
+    failed_count: int = 0,
+    fatal: bool = False,
+    generation_id: str | None = None,
+    checkpoint_revision: int | None = None,
+) -> None:
     """Tell the caller whether the whole refresh is now on disk.
 
     Printed for a person, and appended to `$GITHUB_OUTPUT` for the workflow,
@@ -429,6 +545,16 @@ def emit_completion(complete: bool, *, failed_count: int = 0, fatal: bool = Fals
         "failed_count": str(failed_count),
         "fatal": "true" if fatal else "false",
     }
+    if generation_id:
+        values["generation_id"] = generation_id
+    if checkpoint_revision is not None:
+        # Zero-padded so the keys sort the way they read. GitHub restores the
+        # most recently *created* cache matching a prefix rather than the
+        # lexically greatest, so the padding is not what makes the newest win
+        # - `--verify-restored` comparing the revision against the database
+        # is. The padding makes the key list legible to whoever is reading it
+        # when that check fails.
+        values["checkpoint_revision"] = f"{checkpoint_revision:04d}"
     for key, value in values.items():
         print(f"{key}={value}")
 
@@ -440,14 +566,18 @@ def emit_completion(complete: bool, *, failed_count: int = 0, fatal: bool = Fals
             handle.write(f"{key}={value}\n")
 
 
-def write_manifest(report: RunReport) -> Path:
+def write_manifest(report: RunReport, generation: Generation | None = None) -> Path:
     """Record what was fetched, when, and the checksum of every file.
 
     A snapshot nobody can verify is a snapshot nobody should reload from.
     """
     entries = []
     for competition in report.competitions:
-        path = snapshot_path(competition.season_id)
+        path = (
+            generation.snapshot_path(competition.season_id)
+            if generation
+            else snapshot_path(competition.season_id)
+        )
         if path.exists():
             entries.append(
                 {
@@ -471,6 +601,7 @@ def write_manifest(report: RunReport) -> Path:
         "finished_at": report.finished_at,
         # The three questions a reader of this file actually has, answered at
         # the top rather than reconstructed by summing the entries below.
+        "generation_id": generation.generation_id if generation else None,
         "complete": report.complete,
         "failed_count": report.failed_count,
         "failed_player_ids": report.failed_player_ids,
@@ -481,7 +612,8 @@ def write_manifest(report: RunReport) -> Path:
             "without calling the API again. Not redistributed."
         ),
     }
-    target = SNAPSHOT_DIR / "manifest.json"
+    target = (generation.directory if generation else SNAPSHOT_DIR) / "manifest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return target
 
@@ -489,7 +621,40 @@ def write_manifest(report: RunReport) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Fetch FootyStats into raw snapshots.")
     parser.add_argument("--season", action="append", help="Only these season ids.")
-    parser.add_argument("--resume", action="store_true", help="Continue an interrupted run.")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Continue the current refresh generation. Without it, an open "
+            "generation is refused rather than abandoned."
+        ),
+    )
+    parser.add_argument(
+        "--expect-generation",
+        metavar="GENERATION_ID",
+        default=None,
+        help=(
+            "The generation the database says is IN_PROGRESS. The run resumes exactly "
+            "that one or stops: never another open generation, never a new one."
+        ),
+    )
+    parser.add_argument(
+        "--only-resume",
+        action="store_true",
+        help=(
+            "Continue an open generation and never start one. What the hourly "
+            "continuation cron passes: it must not begin a fourteen-hour "
+            "refresh every hour."
+        ),
+    )
+    parser.add_argument(
+        "--flat",
+        action="store_true",
+        help=(
+            "Use the old single-directory layout instead of a generation. For "
+            "one-off local fetches; the pipeline never passes it."
+        ),
+    )
     parser.add_argument(
         "--limit", type=int, default=None, help="Players per competition; for testing."
     )
@@ -513,6 +678,12 @@ def main(argv: list[str] | None = None) -> int:
     from app.core.config import get_settings
     from app.core.logging import configure_logging, get_logger
     from app.providers.footystats import REQUESTS_PER_HOUR, FootyStatsProvider
+    from pipelines.footystats import publish_status
+    from pipelines.footystats.generations import (
+        GenerationError,
+        GenerationStatus,
+        GenerationStore,
+    )
 
     settings = get_settings()
     configure_logging(settings)
@@ -552,7 +723,48 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {competition.competition_id:<7} {competition.name:<40} {state}")
         return 0
 
-    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    # WHICH REFRESH THIS RUN BELONGS TO
+    #
+    # A generation is one attempt at a complete universe. Resolving it here is
+    # what stops `--resume` doing the wrong thing after a refresh finishes:
+    # progress belongs to a generation, so a finished one is never resumed and
+    # a new one starts empty. See `pipelines.footystats.generations`.
+    generation = None
+    if not args.flat:
+        try:
+            store = GenerationStore()
+            if args.expect_generation:
+                # The database named the generation. Resume that one or stop.
+                # A disk that disagrees has restored the wrong cache or none,
+                # and either way the fetch must not proceed into a universe
+                # the database is not tracking.
+                generation = store.resolve(resume=True, expected_id=args.expect_generation)
+            elif args.only_resume:
+                # Defence in depth behind the workflow gate. The gate decides
+                # whether to run at all; this makes it impossible for a
+                # continuation run to start a refresh even if it does run -
+                # a fourteen-hour fetch begun by an hourly cron would be
+                # expensive and silent.
+                generation = store.in_progress()
+                if generation is None:
+                    print("No generation is in progress and --only-resume forbids starting one.")
+                    return 0
+            else:
+                generation = store.resolve(resume=args.resume)
+        except GenerationError as exc:
+            print(f"::error::{exc}", file=sys.stderr)
+            return 1
+        print(f"Generation {generation.generation_id} ({generation.status.value}).")
+        log.info(
+            "footystats_generation_resolved",
+            generation_id=generation.generation_id,
+            status=generation.status.value,
+            completed=generation.metadata.completed_players,
+            expected=generation.metadata.total_expected_players,
+        )
+    else:
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
     report = RunReport(started_at=datetime.now(UTC).isoformat())
 
     log.info("footystats_ingest_started", competitions=len(competitions), resume=args.resume)
@@ -582,8 +794,27 @@ def main(argv: list[str] | None = None) -> int:
             resume=args.resume,
             limit=args.limit,
             deadline=deadline,
+            generation=generation,
         )
         report.competitions.append(result)
+        if generation is not None:
+            # After every competition, not only at the end. A run killed
+            # between competitions should leave metadata describing what it
+            # did rather than what it set out to do.
+            if result.complete:
+                generation.mark_competition_complete(result.season_id)
+            else:
+                generation.mark_competition_incomplete(result.season_id)
+            generation.refresh_counts(
+                completed=sum(c.fetched + c.skipped for c in report.competitions),
+                failed=report.failed_player_ids,
+            )
+            generation.evaluate_completeness()
+            generation.save()
+            # Best-effort: the site cannot see the generation directory, so
+            # progress is projected into the database for it to read. A
+            # failure here is not a failed refresh.
+            publish_status.record(generation)
         report.stopped_early = report.stopped_early or result.stopped_early
         if result.fatal:
             report.unvisited = len(competitions) - position
@@ -598,7 +829,41 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     report.finished_at = datetime.now(UTC).isoformat()
-    manifest = write_manifest(report)
+    manifest = write_manifest(report, generation)
+
+    if generation is not None:
+        generation.refresh_counts(
+            completed=sum(c.fetched + c.skipped for c in report.competitions),
+            failed=report.failed_player_ids,
+        )
+        # `report.complete` also accounts for competitions this run never
+        # reached, which the generation's own bookkeeping cannot see.
+        generation.metadata.complete = generation.evaluate_completeness() and report.complete
+        if report.fatal:
+            # Structural, not transient. The generation is abandoned rather
+            # than left open to be resumed into the same wall - and a
+            # transient player failure never reaches here, which is the whole
+            # distinction: one player costs one player, not fourteen hours.
+            generation.set_status(GenerationStatus.FAILED, reason=str(report.fatal_reason))
+        elif generation.metadata.complete:
+            generation.set_status(GenerationStatus.COMPLETE)
+        # One checkpoint per run, after everything this run will write has
+        # been written. It is the number the cache is saved under and the
+        # number the database will expect the next restore to be at - so it
+        # has to be the last thing the files say, and it has to reach the
+        # database, which `record` does below.
+        revision = generation.checkpoint()
+        recorded = publish_status.record(generation)
+        print(f"Checkpoint {revision} of generation {generation.generation_id} saved.")
+        if not recorded:
+            # The cache will still be saved under this revision. The next
+            # gate will read an older revision from the database, and the
+            # verifier allows a newer local one for exactly this reason.
+            print(
+                "::warning::could not record the checkpoint in the database; the "
+                "next run will find a newer local checkpoint than expected, which "
+                "is allowed."
+            )
     ledger = update_failure_ledger(report)
     persistent = {pid: e for pid, e in ledger.items() if int(e.get("runs_failed", 0)) >= 3}
     if persistent:
@@ -631,7 +896,13 @@ def main(argv: list[str] | None = None) -> int:
         print("Nothing should be loaded from a partial universe. Run again to continue.")
     print(f"Manifest: {manifest.relative_to(REPO_ROOT)}")
 
-    emit_completion(complete, failed_count=failed, fatal=report.fatal)
+    emit_completion(
+        complete,
+        failed_count=failed,
+        fatal=report.fatal,
+        generation_id=generation.generation_id if generation else None,
+        checkpoint_revision=generation.metadata.checkpoint_revision if generation else None,
+    )
 
     log.info(
         "footystats_ingest_finished",

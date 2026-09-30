@@ -33,19 +33,55 @@ what the recorded data says they *did*, ranked against comparable players.
 
 | Source | Supplies | Status |
 | --- | --- | --- |
-| FootyStats API | Player performance statistics | **Not connected.** No key, no field verified. |
+| FootyStats API | Player performance statistics | **Connected and live.** Profiled from real responses; 36 metrics mapped, each with recorded evidence. |
 | Transfermarkt public dataset | Identity, club, age, nationality, foot, height, position, market value, transfers, contract expiry | Ingested from `dcaribou/transfermarkt-datasets`. Never scraped. |
-| Mock provider | Fabricated demo data covering every metric | In use, and labelled as fabricated on every page. |
+| Mock provider | Fabricated demo data covering every metric | `APP_MODE=demo` only, for local work, and labelled as fabricated on every page. |
 
-**No FootyStats field is mapped.** Until an API key exists, its responses are
-profiled and a person records the mapping in `config/footystats_mapping.yaml`;
-that file is empty and the provider therefore supplies nothing. Any feature
-depending on an unverified field stays switched off rather than being fed a
-substitute.
+The two are joined by identity resolution, which matches a FootyStats player to
+a Transfermarkt one on name, date of birth, nationality and club together -
+never on name alone. Its outcome counts are published in
+[`identity_resolution_footystats.md`](identity_resolution_footystats.md).
+
+**Every mapped FootyStats field rests on a recorded response.** A person writes
+the mapping in `config/footystats_mapping.yaml` against responses the profiler
+captured, and a CI gate refuses a mapping with no evidence behind it. The
+current state is generated rather than described here, so it cannot drift:
+
+- [`footystats_provider_status.md`](footystats_provider_status.md) — every
+  metric, its field, and what established it. 24 verified arithmetically, 10
+  observed, 2 derived, 8 unavailable.
+- [`config_availability.md`](config_availability.md) — what the role, score and
+  similarity definitions ask for against what the provider grants.
+
+Any feature depending on an unverified field stays switched off rather than
+being fed a substitute.
 
 Two Transfermarkt attributes the specification expected turned out not to exist
 in the dataset, and are reported as absent rather than approximated:
 secondary nationality, and transfer type.
+
+### Which minutes a per-90 divides by
+
+Not one figure for all of them. FootyStats carries two minute counts and uses
+different ones for different statistics, and this was established by
+reproducing the provider's own published per-90 fields rather than by
+assumption:
+
+| Metric family | Denominator |
+| --- | --- |
+| Goals, assists, goals conceded | Minutes played |
+| Shots, xG, xA, passes, tackles, interceptions, and the rest of the detailed feed | Detailed recorded minutes |
+
+The evidence, metric by metric, is in
+[`footystats_denominator_validation.md`](footystats_denominator_validation.md).
+A metric with no provider per-90 to test against is routed by which feed its
+total comes from and marked inferred rather than confirmed.
+
+**Recorded minutes can exceed minutes played.** It happens in real responses,
+and the provider's detailed rates reproduce against the larger figure, so the
+raw values are preserved rather than clamped. Where that occurs, the profile
+shows the coverage as "100%+" with a provider-discrepancy note instead of an
+impossible percentage.
 
 ---
 
@@ -387,8 +423,8 @@ strength, and the caveat travels with every one of them.
 
 ## Fabricated data is never mixed with real data
 
-The demo universe exists so the site can be shown before any provider is
-connected. It must not sit in the same database as real data.
+The demo universe exists so the site can be run locally without provider
+credentials, and it must not sit in the same database as real data.
 
 Percentiles would survive it - they are scoped to a competition, and no
 fabricated player shares one with a real player. Similarity does not: comparing
@@ -475,6 +511,8 @@ Collected here so none of them depends on a reader finding the right page.
 4. Role scores are comparable between players within a role, not between roles.
 5. Similarity ignores magnitude: a similar shape at a lower level scores highly.
 6. Market value is Transfermarkt's estimate, not an expected transfer fee.
-7. No FootyStats metric is currently available; every performance figure shown
-   is fabricated demo data.
+7. Eight configured FootyStats metrics are unavailable from the provider and
+   return N/A rather than a substitute; see
+   [`config_availability.md`](config_availability.md) for which definitions
+   that affects.
 8. `aerial_presence_score` is specified but undefined, and is not implemented.

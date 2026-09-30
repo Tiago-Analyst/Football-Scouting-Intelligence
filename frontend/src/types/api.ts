@@ -9,7 +9,8 @@ import type { CoverageBand, SampleBand } from "@/lib/sample";
 
 export type AppMode = "demo" | "production";
 
-export type DependencyState = "ok" | "degraded" | "unavailable" | "not_configured";
+export type DependencyState =
+  "ok" | "degraded" | "unavailable" | "not_configured";
 
 export interface DependencyStatus {
   name: string;
@@ -41,11 +42,16 @@ export interface DataSourceStatus {
   notes: string | null;
 }
 
-export interface SourceLoad {
+export interface SourcePublication {
   /** The loader's own source name: `footystats`, `transfermarkt`, `demo`. */
   source: string;
-  last_loaded_at: string;
-  rows_loaded: number;
+  /**
+   * When this source's data was published — the moment what the reader is
+   * looking at became these figures. Not when a load ran: loads write to a
+   * staging schema, and one that fails its checks never reaches production.
+   */
+  last_published_at: string;
+  rows_published: number;
 }
 
 export interface MetaResponse {
@@ -65,7 +71,7 @@ export interface MetaResponse {
    * or when the database could not be reached. Never inferred from when the
    * checks last ran: that is a different fact and a fresher-sounding one.
    */
-  data_freshness: SourceLoad[];
+  data_freshness: SourcePublication[];
   /** Whether the caller's build token was accepted. False for everyone else. */
   build_access: boolean;
 }
@@ -144,7 +150,12 @@ export interface Score {
   coverage: number;
   components: ScoreComponent[];
   missing: string[];
+  /** Hand-written, and qualitative only: limits no report can derive. */
   caveat: string | null;
+  /** Roles only. What was missing, generated from what was actually missing. */
+  availability_note?: string | null;
+  /** The two above joined, so they cannot be shown apart or out of order. */
+  explanation?: string | null;
   /**
    * Roles only. Where the raw score stands among every player evaluated for
    * this same role — the comparable figure, and what the best role is chosen
@@ -181,13 +192,22 @@ export interface Sample {
   /** Time on the pitch. */
   minutes: number | null;
   /**
-   * The minutes the provider's detailed counts describe - the denominator of
-   * every per-90 here. Null when the provider said nothing, which is not the
-   * same as nought.
+   * The minutes the provider's detailed counts describe, and the denominator
+   * of the rates built from them — passing, tackling, shooting, npxG, xA.
+   * Not of every per-90: goals, assists and goals conceded are top-level
+   * counters and divide by `minutes`, which is what the provider's own
+   * published per-90 figures for them reproduce against.
+   * Null when the provider said nothing, which is not the same as nought.
    */
   recorded_minutes: number | null;
-  /** recorded / played, as a percentage. Null when it cannot be computed. */
+  /** recorded / played as a percentage, capped at 100 for display. */
   detailed_coverage_pct: number | null;
+  /** The uncapped ratio. May exceed 100; for data quality, not for display. */
+  detailed_coverage_raw_pct?: number | null;
+  /** True when the provider reported more detail-minutes than played-minutes. */
+  provider_minutes_inconsistent?: boolean;
+  minutes_discrepancy_label?: string | null;
+  minutes_discrepancy_explanation?: string | null;
   coverage_band: CoverageBand | null;
   coverage_label: string | null;
   coverage_explanation: string | null;
@@ -460,6 +480,48 @@ export interface QualityCheck {
   record_count: number;
   detail: string | null;
   executed_at: string;
+  /**
+   * The refresh generation this check describes, and whether that generation
+   * was a candidate in staging or is the dataset being served. Null on rows
+   * recorded before generations carried context.
+   */
+  /** The refresh this check describes: a FootyStats generation, or an id minted for a Transfermarkt refresh. */
+  refresh_id?: string | null;
+  generation_id?: string | null;
+  context?: "CANDIDATE" | "PUBLISHED" | null;
+}
+
+/**
+ * Checks describing a refresh nobody is being served yet — one between
+ * staging and production, or one that failed to reach it. Kept apart from
+ * `checks` because the page used to mix them: production serving G4, a G5
+ * candidate checked and then failed at promotion, every tick describing G5.
+ */
+export interface CandidateChecks {
+  source: string;
+  refresh_id: string;
+  /** FootyStats only. Null for a provider with no generation model. */
+  generation_id?: string | null;
+  executed_at: string;
+  checks: QualityCheck[];
+}
+
+/** The checks that validated the dataset this source is serving. */
+export interface PublishedChecks {
+  source: string;
+  refresh_id: string | null;
+  generation_id: string | null;
+  published_at: string | null;
+  executed_at: string | null;
+  checks: QualityCheck[];
+}
+
+/** One source, two datasets, kept apart: what is serving and what waits. */
+export interface ProviderQuality {
+  source: string;
+  published: PublishedChecks | null;
+  /** Null when no refresh is between staging and production. */
+  candidate: CandidateChecks | null;
 }
 
 export interface SourceFreshness {
@@ -471,13 +533,19 @@ export interface SourceFreshness {
   failures: number;
   warnings: number;
   /**
-   * When this source's data was last loaded — a different fact from the check
-   * time, and the one a reader means by "how current is this?".
-   * Null for a source loaded before the two were recorded separately.
+   * When this source's data was last *published* — a different fact from the
+   * check time, and the one a reader means by "how current is this?".
+   * Null for a source published before publications were recorded.
    */
-  last_loaded_at: string | null;
+  last_published_at: string | null;
   data_age_days: number | null;
-  rows_loaded: number | null;
+  rows_published: number | null;
+  /**
+   * When a refresh last loaded this source into staging, published or not.
+   * Operational: newer than `last_published_at` means a refresh is stuck between
+   * staging and production, not that the data on screen has changed.
+   */
+  last_load_attempt_at: string | null;
 }
 
 export interface Volumes {
@@ -506,6 +574,28 @@ export interface AnalyticsFreshness {
   is_stale: boolean;
 }
 
+/** Where the FootyStats refresh has got to. Operational, never internal. */
+export interface RefreshGeneration {
+  generation_id: string;
+  status: string;
+  created_at: string | null;
+  last_updated_at: string | null;
+  published_at: string | null;
+  total_expected_players: number;
+  completed_players: number;
+  failed_players: number;
+  completion_pct: number;
+  competitions_complete: number;
+  competitions_expected: number;
+  complete: boolean;
+}
+
+export interface RefreshStatus {
+  state: string;
+  published: RefreshGeneration | null;
+  current: RefreshGeneration | null;
+}
+
 export interface DataQualityResponse {
   /** What these checks do and do not establish. Always rendered with them. */
   meaning: string;
@@ -513,10 +603,19 @@ export interface DataQualityResponse {
   notice: string | null;
   volumes: Volumes;
   sources: SourceFreshness[];
+  /** The most recent checks describing the dataset being served. */
   checks: QualityCheck[];
+  /** The generation `checks` describe, when the publication ledger names one. */
+  published_generation_id?: string | null;
+  /** Checks about a refresh that has not reached readers. Never about the data on screen. */
+  candidate?: CandidateChecks[];
+  /** The same facts per source, published beside candidate. */
+  providers?: ProviderQuality[];
   identity: IdentityCoverage | null;
   average_detailed_coverage_pct: number | null;
   /** What the provider cannot supply at all. Empty in demo mode. */
   unavailable_metrics: string[];
   analytics: AnalyticsFreshness | null;
+  /** Null when no generation exists yet. */
+  refresh?: RefreshStatus | null;
 }

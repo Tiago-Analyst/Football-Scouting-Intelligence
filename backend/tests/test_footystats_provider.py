@@ -255,17 +255,65 @@ class TestStatistics:
         assert stats.minutes is not None
         assert stats.recorded_minutes is not None
 
-    def test_recorded_minutes_never_exceed_minutes_played(
+    def test_recorded_minutes_above_played_minutes_are_preserved(
         self, provider: FootyStatsProvider
     ) -> None:
-        """The schema forbids it, so a provider reporting otherwise is
-        misunderstood. Clamped and logged rather than written."""
+        """A reversed decision, and the reason matters.
+
+        This used to clamp: recorded minutes were pulled down to minutes
+        played, because statistics cannot describe more football than was
+        played. True about football, false about this provider.
+
+        The denominator validation established, against FootyStats' own
+        published per-90 fields, that its detailed metrics divide by the
+        recorded figure - including where that figure is the larger one. One
+        sampled player has 326 played against 416 recorded and reproduces only
+        against 416. Clamping would have inflated every detailed rate they
+        have by 28%.
+
+        So the raw value is kept. A provider number that looks impossible is
+        evidence about the provider, and destroying it here leaves a figure
+        nobody can reproduce from the source.
+        """
         row = roster_row(1)
         row["detailed"]["detailed_minutes_played_recorded_overall"] = 9999
         stub(provider, player_stats={"data": [row]})
         record = provider.get_player_stats("1", "17146")
         assert record is not None
-        assert record.recorded_minutes == record.minutes
+        assert record.recorded_minutes == 9999
+        assert record.minutes == 1800
+
+    def test_the_realistic_discrepancy_survives_too(self, provider: FootyStatsProvider) -> None:
+        """9,999 is a stress value. This is the shape seen in real data."""
+        row = roster_row(1)
+        row["minutes_played_overall"] = 326
+        row["detailed"]["detailed_minutes_played_recorded_overall"] = 416
+        stub(provider, player_stats={"data": [row]})
+        record = provider.get_player_stats("1", "17146")
+        assert record is not None
+        assert (record.minutes, record.recorded_minutes) == (326, 416)
+
+    def test_recorded_below_played_is_untouched(self, provider: FootyStatsProvider) -> None:
+        """The ordinary case, asserted so the change did not swap one rewrite
+        for another."""
+        row = roster_row(1)
+        row["detailed"]["detailed_minutes_played_recorded_overall"] = 900
+        stub(provider, player_stats={"data": [row]})
+        record = provider.get_player_stats("1", "17146")
+        assert record is not None
+        assert record.recorded_minutes == 900
+        assert record.minutes == 1800
+
+    def test_it_still_says_so_in_the_log(self, provider: FootyStatsProvider, caplog) -> None:  # type: ignore[no-untyped-def]
+        """Preserved is not the same as unremarked. Somebody should know."""
+        import logging
+
+        row = roster_row(1)
+        row["detailed"]["detailed_minutes_played_recorded_overall"] = 9999
+        stub(provider, player_stats={"data": [row]})
+        with caplog.at_level(logging.WARNING):
+            provider.get_player_stats("1", "17146")
+        assert "recorded_minutes_exceed_played" in caplog.text
 
     def test_the_misspelled_dispossessed_field_is_read(self, stats) -> None:  # type: ignore[no-untyped-def]
         """The provider spells it with one 's'. Searching for the correct

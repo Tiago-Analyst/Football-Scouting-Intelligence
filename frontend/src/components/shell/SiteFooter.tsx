@@ -2,9 +2,9 @@ import Link from "next/link";
 
 import { DataFreshness } from "@/components/shell/DataFreshness";
 import { SECONDARY_NAV } from "@/lib/nav";
-import type { SourceLoad } from "@/types/api";
+import type { SourcePublication } from "@/types/api";
 
-export function SiteFooter({ freshness = [] }: { freshness?: SourceLoad[] }) {
+export function SiteFooter({ freshness = [] }: { freshness?: SourcePublication[] }) {
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">

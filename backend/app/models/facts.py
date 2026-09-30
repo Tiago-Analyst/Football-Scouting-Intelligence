@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -28,6 +29,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -175,13 +177,20 @@ class FactPlayerSeasonStats(Base):
             "appearances IS NULL OR minutes IS NULL OR minutes <= appearances * 120",
             name="minutes_within_appearances",
         ),
-        CheckConstraint(
-            # The statistics cannot cover more minutes than were played. A
-            # provider returning otherwise is misunderstood, not merely noisy,
-            # and every per-90 built on it would be wrong.
-            "recorded_minutes IS NULL OR minutes IS NULL OR recorded_minutes <= minutes",
-            name="recorded_minutes_within_minutes",
-        ),
+        # NO CONSTRAINT BETWEEN THE TWO MINUTE COUNTS. Deliberate, and removed
+        # in 0007 rather than never written.
+        #
+        # `recorded_minutes <= minutes` is true about football and false about
+        # this provider. FootyStats computes its detailed per-90 figures over
+        # the recorded count, and real records carry a recorded count larger
+        # than the played one - 326 played against 416 recorded in one sampled
+        # player, whose detailed rates reproduce only when divided by 416.
+        #
+        # The constraint forced the loader to clamp, and clamping 416 to 326
+        # inflates every detailed rate that player has. A rule meant to prevent
+        # corruption was causing it. The relationship is now measured and
+        # reported by the data-quality suite instead, where an unexpected value
+        # is evidence rather than an error.
         Index("ix_stats_competition_season", "competition_id", "season_id"),
         Index("ix_stats_player_season", "player_id", "season_id"),
         # Almost every ranking filters on minutes first; indexing it keeps the
@@ -281,10 +290,40 @@ class FactDataQuality(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    #: WHICH DATASET THIS DESCRIBES
+    #:
+    #: The report runs against staging, and a staging refresh can be checked
+    #: and then never promoted. Without these columns, production serving G4
+    #: and a G5 candidate that failed at promotion put G5's checks on the
+    #: public page above G4's data.
+    #:
+    #: `refresh_id` is the identity every staging refresh has, whatever the
+    #: provider: the generation id for FootyStats, an id the workflow mints
+    #: for Transfermarkt. `generation_id` is the FootyStats-specific detail
+    #: and is null for anything else - which is why context must never be
+    #: inferred from it. A Transfermarkt candidate has no generation and is
+    #: still a candidate.
+    #:
+    #: `context` is CANDIDATE when the row was written against staging and
+    #: PUBLISHED once the promotion has flipped it by `source + refresh_id` -
+    #: in the promotion's own transaction, so a row cannot say PUBLISHED about
+    #: a swap that did not commit. Null on rows written before contexts
+    #: existed, which described whatever was serving at the time.
+    refresh_id: Mapped[str | None] = mapped_column(String(64))
+    generation_id: Mapped[str | None] = mapped_column(String(32))
+    context: Mapped[str | None] = mapped_column(String(16))
+
     __table_args__ = (
         CheckConstraint("status IN ('pass', 'warn', 'fail')", name="data_quality_status_valid"),
         CheckConstraint("record_count >= 0", name="data_quality_count_non_negative"),
+        CheckConstraint(
+            "context IS NULL OR context IN ('CANDIDATE', 'PUBLISHED')",
+            name="data_quality_context_valid",
+        ),
         Index("ix_data_quality_executed", "executed_at"),
+        Index("ix_data_quality_generation", "source", "generation_id", "context"),
+        Index("ix_data_quality_source_context_time", "source", "context", "executed_at"),
+        Index("ix_data_quality_refresh", "source", "refresh_id", "context"),
     )
 
 
@@ -326,4 +365,133 @@ class FactSourceLoad(Base):
     __table_args__ = (
         CheckConstraint("rows_loaded >= 0", name="source_load_rows_non_negative"),
         Index("ix_source_load_source_time", "source", "loaded_at"),
+    )
+
+
+class FactRefreshGeneration(Base):
+    """Where a provider refresh has got to, visible to the serving layer.
+
+    WHY THIS IS IN THE DATABASE
+
+    A generation's own state lives on disk, beside its snapshots, which is the
+    right place for it: the fetch runs outside the service, over many runs, and
+    the disk is what survives between them.
+
+    The serving layer cannot see that disk. The fetch happens in CI and the
+    snapshots live in its cache; the API runs elsewhere entirely. So a
+    /data-quality page reading the generation directory would show nothing in
+    production and everything in development, which is the worst of both.
+
+    This is the projection: the pipeline writes where it has got to, the API
+    reads it, and neither needs the other's filesystem.
+
+    One row per generation, updated as it progresses, so "how long did the last
+    refresh take" stays answerable.
+    """
+
+    __tablename__ = "fact_refresh_generation"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    #: `20260907T040000Z`. Unique per source.
+    generation_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: IN_PROGRESS | COMPLETE | VALIDATED | PUBLISHED | FAILED.
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    total_expected_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completed_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: A count, not the ids. A public page has no reason to name which players
+    #: a provider failed to return.
+    failed_players: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    competitions_expected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    competitions_complete: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    #: The checkpoint the last run saved. The Actions cache is immutable per
+    #: key, so each run saves under a new key carrying this number, and a
+    #: restore that comes back with an older one is refused rather than
+    #: resumed into. See `pipelines.footystats.generations`.
+    checkpoint_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("source", "generation_id", name="uq_refresh_generation"),
+        CheckConstraint("checkpoint_revision >= 0", name="generation_revision_non_negative"),
+        CheckConstraint("total_expected_players >= 0", name="generation_expected_non_negative"),
+        CheckConstraint("completed_players >= 0", name="generation_completed_non_negative"),
+        CheckConstraint("failed_players >= 0", name="generation_failed_non_negative"),
+        Index("ix_refresh_generation_source_time", "source", "updated_at"),
+    )
+
+
+class FactSourcePublication(Base):
+    """When a source's data last reached readers, and how much of it.
+
+    WHY THIS IS NOT `fact_source_load`
+    ----------------------------------
+
+    That records a load. Until the staging schema existed the two were the same
+    event, and they no longer are.
+
+    A refresh loads FootyStats into `analytics_staging` at 10:00 and identity
+    resolution fails at 10:20. Production is still yesterday's dataset and the
+    site is still serving it - but `fact_source_load` has a row stamped 10:00,
+    so the freshness panel announces that performance data was updated at 10:00.
+    The figures on screen are yesterday's. Saying otherwise is worse than saying
+    nothing.
+
+    A row here is written inside the promotion transaction, alongside the schema
+    swap, so it cannot exist for a dataset that never reached production and
+    cannot be missing for one that did.
+
+    History rather than one row per source, for the same reason as the load
+    ledger: "how often does this actually change" needs the previous answers
+    kept, and now it can be asked about publications rather than attempts.
+    """
+
+    __tablename__ = "fact_source_publication"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: The refresh this publication is of - the identity the quality rows
+    #: carry, for every provider. Null only on rows written before it existed.
+    refresh_id: Mapped[str | None] = mapped_column(String(64))
+    #: Null for a provider with no generation model. Transfermarkt is a dataset
+    #: download rather than a resumable fetch, so it has nothing to name here.
+    generation_id: Mapped[str | None] = mapped_column(String(32))
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    #: Total source-owned relational rows published: every row this provider
+    #: contributed across competitions, clubs, bridges, player-seasons, market
+    #: values and transfers. A volume, not a player count - the figure that
+    #: changes when a refresh actually worked, and nothing more specific.
+    rows_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Player-seasons this provider contributed, separately. It was being read
+    #: off `rows_published`, which is a different number; one column carrying
+    #: two meanings is how that happened.
+    player_seasons_published: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (
+        CheckConstraint("rows_published >= 0", name="publication_rows_non_negative"),
+        CheckConstraint(
+            "player_seasons_published IS NULL OR player_seasons_published >= 0",
+            name="publication_player_seasons_non_negative",
+        ),
+        # One publication per named refresh. A rollback deletes the row, so
+        # republishing after a rollback is allowed and republishing by
+        # accident is not.
+        Index(
+            "uq_source_publication_refresh",
+            "source",
+            "refresh_id",
+            unique=True,
+            postgresql_where=text("refresh_id IS NOT NULL"),
+        ),
+        Index("ix_source_publication_source_time", "source", "published_at"),
     )

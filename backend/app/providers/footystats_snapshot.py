@@ -66,6 +66,45 @@ class SnapshotReader:
             for path in self._directory.glob("season-*.jsonl.gz")
         )
 
+    def _clubs(self, season_id: str) -> list[dict[str, Any]]:
+        """The competition's clubs as the fetch recorded them."""
+        path = self._directory / f"season-{season_id}.clubs.json"
+        if not path.exists():
+            return []
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            log.warning("footystats_clubs_unreadable", season_id=season_id)
+            return []
+        rows = parsed.get("clubs") if isinstance(parsed, dict) else None
+        if not isinstance(rows, list):
+            return []
+        return [r for r in rows if isinstance(r, dict) and r.get("id") is not None]
+
+    def _generation_roster(self, season_id: str) -> list[dict[str, Any]]:
+        """The roster file beside the snapshot, when this is a generation.
+
+        Read directly rather than through `pipelines.footystats.generations`:
+        this module is in the serving layer and the pipeline package is not a
+        dependency of it. The file is one JSON object and the format is stated
+        where it is written.
+        """
+        path = self._directory / f"season-{season_id}.roster.json"
+        if not path.exists():
+            return []
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            log.warning("footystats_generation_roster_unreadable", season_id=season_id)
+            return []
+
+        rows = parsed.get("players") if isinstance(parsed, dict) else None
+        if not isinstance(rows, list):
+            # A bare list of ids: a generation from before rosters carried
+            # records. Nothing here to prefer over the header.
+            return []
+        return [r for r in rows if isinstance(r, dict) and r.get("id") is not None]
+
     def _load(self, season_id: str) -> None:
         if season_id in self._loaded:
             return
@@ -77,7 +116,18 @@ class SnapshotReader:
                 f"`python -m pipelines.footystats.ingest --season {season_id}` first."
             )
 
-        roster: list[dict[str, Any]] = []
+        # THE ROSTER COMES FROM THE GENERATION WHEN THERE IS ONE.
+        #
+        # The snapshot's first line is written once, when the file is created,
+        # and a full fetch spans days. A player signed in January is added to
+        # the generation's roster on the next visit and can never reach that
+        # header - so the loader, reading the header, expected them, fetched
+        # them, and then had no roster row to take their club from.
+        #
+        # The header stays as the fallback: a snapshot from before generations,
+        # or a `--flat` local fetch, has nothing else.
+        roster: list[dict[str, Any]] = self._generation_roster(season_id)
+        header_roster: list[dict[str, Any]] = []
         players: dict[str, Any] = {}
         malformed = 0
         incomplete = False
@@ -97,7 +147,9 @@ class SnapshotReader:
                         continue
 
                     if record.get("kind") == "roster":
-                        roster = [r for r in (record.get("data") or []) if isinstance(r, dict)]
+                        header_roster = [
+                            r for r in (record.get("data") or []) if isinstance(r, dict)
+                        ]
                     elif record.get("kind") == "player":
                         players[str(record.get("player_id"))] = record.get("data")
         except (EOFError, gzip.BadGzipFile, OSError):
@@ -117,6 +169,20 @@ class SnapshotReader:
                 players_recovered=len(players),
                 note="players missing from this snapshot load with no statistics",
             )
+
+        if not roster:
+            roster = header_roster
+        elif header_roster:
+            missing = len(
+                {str(r.get("id")) for r in roster} - {str(r.get("id")) for r in header_roster}
+            )
+            if missing:
+                log.info(
+                    "footystats_roster_grew_since_the_snapshot_header",
+                    season_id=season_id,
+                    players_added_after_the_fetch_began=missing,
+                    note="read from the generation roster, which the header cannot grow to hold",
+                )
 
         self._rosters[season_id] = roster
         for player_id, data in players.items():
@@ -163,10 +229,23 @@ class SnapshotReader:
             return {"data": self._players[player_id]}
 
         if path == "/league-teams":
-            # Clubs are not snapshotted: the roster carries `club_team_id` and
-            # the loader resolves names from Transfermarkt, which knows them
-            # better. Returning empty is honest; inventing names would not be.
-            return {"data": []}
+            # THIS USED TO RETURN NOTHING.
+            #
+            # The reasoning was that the roster carries `club_team_id` and
+            # Transfermarkt knows club names better. Both true, and together
+            # they left the loader with an id it could not resolve to a club,
+            # which it therefore dropped - so every FootyStats player arrived
+            # with no club, and the 3,442 who match no Transfermarkt player
+            # had none to gain one from.
+            #
+            # The matcher scores club agreement and could never see it from
+            # this side. Serving the recorded response is what lets it.
+            #
+            # Still empty when the fetch did not record them - a snapshot from
+            # before clubs were captured, or a competition whose club request
+            # failed. Empty is honest; inventing names would not be.
+            season_id = str(params.get("season_id") or "")
+            return {"data": self._clubs(season_id)}
 
         if path == "/test-call":
             return {"success": True, "data": "snapshot"}

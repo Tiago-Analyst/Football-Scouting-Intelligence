@@ -33,8 +33,23 @@ on:
     # Transfermarkt: Sundays 05:00 UTC. Matches refresh.transfermarkt.cron.
     - cron: "0 5 * * 0"
     # FootyStats: Mon/Wed/Fri 04:00 UTC. Matches refresh.footystats.cron.
-    # Skipped at runtime while no API key exists.
+    # This is the CADENCE - when a new refresh generation may begin.
     - cron: "0 4 * * 1,3,5"
+    # FootyStats continuation: hourly. Matches
+    # refresh.footystats.continuation_cron.
+    #
+    # A complete refresh is ~23,500 requests, about fourteen hours at the
+    # account's rate limit, and a job fetches for ~45 minutes - so a generation
+    # needs roughly nineteen productive runs. On the cadence alone that is
+    # three weeks per refresh, publishing data older than the interval that
+    # produced it.
+    #
+    # These runs do nothing unless a generation is open: the gate below stops
+    # them before the database checks and the fetch, so a quiet hour costs
+    # about a minute of setup. When one is open, a refresh finishes in roughly
+    # a day instead of three weeks. Budget: ~720 no-op minutes a month against
+    # the 2,000 included with a private repository - see docs/deployment.md.
+    - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
       source:
@@ -45,7 +60,14 @@ on:
 
 concurrency:
   # Two loads writing the same tables at once is the one way to get a
-  # half-published dataset past a transactional loader.
+  # half-published dataset past a transactional loader. And with an hourly
+  # continuation cron, two fetches interleaving into the same generation is now
+  # a real possibility rather than a theoretical one - a long run overlapping
+  # the next hour's trigger.
+  #
+  # `cancel-in-progress: false` matters as much as the group: cancelling a
+  # fetch mid-flight would kill it without flushing its snapshot, losing the
+  # progress the whole design exists to preserve. A queued run simply waits.
   group: data-pipeline
   cancel-in-progress: false
 
@@ -93,6 +115,175 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
         run: |
           python -m pipelines.load.resolve_source
+
+      - name: Decide what this run should do
+        id: gate
+        # WHY THIS READS THE DATABASE RATHER THAN THE DISK
+        #
+        # Generation state lives in two places: files on disk, which only a
+        # runner that restored the cache can see, and
+        # `fact_refresh_generation`, which every runner can reach.
+        #
+        # Deciding from the filesystem meant deciding from an empty one. A
+        # fresh runner has no generations directory until the cache is
+        # restored, so the gate saw nothing, answered NOOP, and the cache was
+        # never restored - the hourly continuation could not run at all.
+        # Restoring first would work and would cost a large download every
+        # quiet hour, which is most of them.
+        #
+        # So the database decides, and the cache below is restored only when
+        # the answer needs local files.
+        if: steps.resolve_source.outputs.source == 'footystats'
+        env:
+          REFRESH_MODE: ${{ steps.resolve_source.outputs.mode }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: python -m pipelines.footystats.gate
+
+      - name: Report that there is nothing to do
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.proceed == 'false'
+        run: |
+          {
+            echo "### No FootyStats work this run"
+            echo
+            echo "Action: \`${{ steps.gate.outputs.action }}\`"
+            echo
+            echo "${{ steps.gate.outputs.reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore the refresh generation
+        # RESTORE AND SAVE ARE SEPARATE STEPS, AND THE ORDER IS THE POINT.
+        #
+        # `actions/cache` restores here and saves in a post-step at the very
+        # end of the job. Two things were wrong with that:
+        #
+        #   1. A START_NEW run never restored anything - there was nothing
+        #      to restore - so the post-step never registered, and the
+        #      generation it created and fetched for forty-five minutes was
+        #      never saved. The database said IN_PROGRESS; no runner had the
+        #      files. Every first run of every refresh was lost.
+        #
+        #   2. The post-step ran after identity resolution, the quality
+        #      report, validation and promotion. A failure in any of them
+        #      failed the job, and a failed job does not reliably run its
+        #      post-steps - so a bad minute in a downstream step could cost
+        #      the hour of fetching before it.
+        #
+        # So this step only restores. `actions/cache/save` below runs
+        # immediately after the fetch, keyed by what the fetch actually did.
+        #
+        # RESTORE KEYS NEVER LEAVE THE GENERATION.
+        #
+        # The exact key names the checkpoint the database recorded. The
+        # restore-key falls back within the same generation - the newest
+        # checkpoint GitHub has for it, in case the last run saved its cache
+        # and then could not reach the database. It does not fall back to
+        # any generation at all: an earlier version had `footystats-gen-` as a
+        # last resort, which meant "expected G5, G5 missing, here is G4",
+        # and the verification step below had to warn about a situation the
+        # restore should never have produced. Now it cannot.
+        #
+        # IS A CACHE THE RIGHT PLACE FOR THIS?
+        #
+        # It holds the only copy of something expensive: fourteen hours of
+        # rate-limited fetching. GitHub evicts entries unread for seven days
+        # and enforces a 10 GB budget, so in principle it can vanish - and
+        # when it does, the step below stops the run and says what to do
+        # rather than starting the generation again under the same name.
+        # See docs/generation_checkpoints.md for the design and what replaces
+        # it when durability matters more than it does today.
+        id: restore
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.needs_local_state == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/raw/footystats/generations
+          # THE EXACT KEY DELIBERATELY NEVER EXISTS.
+          #
+          # It used to name the database's checkpoint. With `-0004` and
+          # `-0005` both saved and the database still saying 4 - the last run
+          # saved its cache and then could not record it - the exact hit won
+          # and checkpoint 5 was silently discarded. A key carrying the run id
+          # matches nothing, so only the restore-keys prefix matches, and
+          # GitHub returns the newest cache for the generation. The verify
+          # step then checks it is at least the database's revision and
+          # advances the database if it is newer.
+          key: >-
+            footystats-gen-${{ steps.gate.outputs.generation_id }}-restore-${{ github.run_id }}
+          restore-keys: |
+            footystats-gen-${{ steps.gate.outputs.generation_id }}-
+
+      - name: Check the restored generation is the expected one
+        # FATAL. Not a warning.
+        #
+        # It used to warn and continue, on the grounds that the fetch could
+        # rebuild whatever was missing. It could - under the wrong
+        # generation's name, refetching every player the lost checkpoint had,
+        # while the database went on describing files that no longer matched.
+        #
+        # Three ways this stops the job, and what each means:
+        #
+        #   expected G5, restored nothing      the cache is gone. Restore it,
+        #                                      or abandon G5 explicitly with
+        #                                      `generations --abandon G5`.
+        #                                      Never started again on its own.
+        #   expected G5, restored G4           two universes. Cannot happen
+        #                                      through the restore keys above
+        #                                      any more; kept because a runner
+        #                                      is not the only thing that can
+        #                                      put files on a disk.
+        #   expected G5 at checkpoint 7,       an older checkpoint. Resuming it
+        #   restored checkpoint 5              would refetch what 7 had and
+        #                                      could not know which players the
+        #                                      failure ledger has retired.
+        #
+        # Every later step that touches the generation is gated on this one
+        # having succeeded, through `steps.verify.outcome`.
+        id: verify
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.needs_local_state == 'true' &&
+          steps.gate.outputs.generation_id != ''
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: |
+          # An empty expected revision is not 0. The gate refuses to proceed
+          # without one, so this cannot be empty here; if it ever is, the
+          # empty string fails argparse and the step, which is correct.
+          python -m pipelines.footystats.gate \
+            --verify-restored "${{ steps.gate.outputs.generation_id }}" \
+            --expected-revision "${{ steps.gate.outputs.expected_revision }}"
+
+      - name: Settle what this run should do
+        # The gate decided from the database. The restore may have brought
+        # back a newer checkpoint of the same generation, and the verify step
+        # may have reconciled the database forward to it - including its
+        # status. A gate that said FETCH because the database said
+        # IN_PROGRESS is stale the moment the restored files say COMPLETE:
+        # the fetch would spend a run finding nothing to do, and the
+        # generation would sit one step from publication.
+        #
+        # So the action every later step reads is the verify step's when it
+        # ran, and the gate's when it did not (START_NEW and NOOP restore
+        # nothing and are not verified).
+        id: action
+        if: steps.resolve_source.outputs.source == 'footystats'
+        run: |
+          echo "action=${{ steps.verify.outputs.action || steps.gate.outputs.action }}" >> "$GITHUB_OUTPUT"
 
       # -- Is there anywhere to publish to? ---------------------------------
       #
@@ -184,47 +375,37 @@ jobs:
         # changed under us is caught here rather than as a puzzling load error.
         run: python -m pipelines.transfermarkt.profile
 
-      - name: Restore the snapshot cache
-        # IS A CACHE THE RIGHT PLACE FOR THIS?
+      - name: Migrate any legacy flat snapshots
+        # One time, and a no-op thereafter: it stops at a marker file.
         #
-        # It is a cache holding the only copy of something expensive: thirteen
-        # hours of rate-limited fetching. GitHub evicts entries not read for
-        # seven days and enforces a 10 GB repository budget, so in principle
-        # this can vanish - and if it does, the next run starts from nothing
-        # and takes several weeks of scheduled runs to converge again.
-        #
-        # Three things make it acceptable for now. The snapshots compress to a
-        # few hundred megabytes, well inside the budget. The schedule reads
-        # them more often than weekly, so eviction by age does not arise while
-        # the pipeline is running at all. And losing them costs time rather
-        # than correctness: nothing is published from a partial universe, so a
-        # lost cache delays a refresh, it does not corrupt one.
-        #
-        # What made it genuinely unsafe was the previous fetch step relying on
-        # the job timeout to stop it, since a job killed that way is not
-        # guaranteed to persist a cache it created. `--max-runtime-minutes`
-        # removed that: the run now ends normally and the cache is written.
-        #
-        # If this ever needs to be durable rather than merely reliable, the
-        # move is object storage - Cloudflare R2 or Neon's own bucket storage -
-        # with the manifest's checksums verifying each file on restore. That is
-        # paid infrastructure for a problem this project does not yet have, and
-        # introducing it now would be buying insurance against an outcome whose
-        # worst case is waiting.
+        # The flat layout had no notion of which refresh a snapshot belonged
+        # to, which is the defect generations fix. Converting it here rather
+        # than by hand means a deployment whose cache still holds the old
+        # layout is carried across on its next run instead of falling back to
+        # a layout nothing tests any more.
         if: >-
           steps.preflight.outputs.footystats == 'true' &&
-          steps.resolve_source.outputs.source == 'footystats'
-        uses: actions/cache@v4
-        with:
-          path: data/raw/footystats/snapshots
-          key: footystats-snapshots-${{ github.run_id }}
-          restore-keys: footystats-snapshots-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.gate.outputs.needs_local_state == 'true' &&
+          steps.verify.outcome == 'success'
+        run: python -m pipelines.footystats.migrate_snapshots --apply
 
       - name: Retrieve FootyStats data
         id: fetch
+        # Not on `proceed`: a PUBLISH_READY run proceeds and must not fetch.
+        # Its generation's fetch is already complete, and refetching it would
+        # discard fourteen hours of API budget because a downstream step had a
+        # bad minute.
+        # And on the verification for a FETCH: a resume must not run against
+        # a disk the check refused. START_NEW restores nothing and is not
+        # verified - it creates the generation it will work on.
         if: >-
           steps.preflight.outputs.footystats == 'true' &&
-          steps.resolve_source.outputs.source == 'footystats'
+          steps.resolve_source.outputs.source == 'footystats' &&
+          (
+            (steps.action.outputs.action == 'FETCH' && steps.verify.outcome == 'success') ||
+            steps.action.outputs.action == 'START_NEW'
+          )
         # A full fetch is one request per player - roughly 23,500 across the 47
         # configured competitions, or thirteen hours at the account's rate
         # limit. It cannot finish inside a job, and it does not need to:
@@ -243,7 +424,77 @@ jobs:
         # this one and for the cache to be written.
         env:
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
-        run: python -m pipelines.footystats.ingest --resume --max-runtime-minutes 45
+          # For the progress projection only. The fetch writes where it has got
+          # to into `fact_refresh_generation` so /data-quality can show it - the
+          # site cannot see this job's filesystem, and the snapshots live in its
+          # cache. Best-effort: a fetch that cannot reach the database has still
+          # fetched, and losing the display is not worth losing the progress.
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        # `--only-resume` on the hourly cron: the gate above already decided
+        # not to run when no generation is open, and this makes it impossible
+        # for such a run to start one even if the gate is ever wrong.
+        # `--expect-generation` on a FETCH: the database named the generation
+        # and the run resumes exactly that one or stops. Never another open
+        # one, never a new one.
+        run: |
+          python -m pipelines.footystats.ingest \
+            --resume \
+            --max-runtime-minutes 45 \
+            ${{ steps.resolve_source.outputs.mode == 'continue_only' && '--only-resume' || '' }} \
+            ${{ steps.action.outputs.action == 'FETCH' && format('--expect-generation {0}', steps.gate.outputs.generation_id) || '' }}
+
+      - name: Save the refresh generation
+        # IMMEDIATELY AFTER THE FETCH, BEFORE ANYTHING THAT CAN FAIL.
+        #
+        # Runs whenever the fetch ran and named a generation - success or
+        # failure, START_NEW or FETCH - because either way the files on disk
+        # are further along than any cache, and losing them costs API budget
+        # that a later step's failure has no business spending.
+        #
+        # Keyed by the generation and checkpoint the fetch *actually*
+        # produced, not by what the gate expected: a START_NEW run's
+        # generation id did not exist when the gate ran. GitHub cache keys are
+        # immutable, so each run's checkpoint is a new key; the restore above
+        # asks for the newest one within the generation.
+        #
+        # `always()` is what lets this run after a failed fetch step. The
+        # generation_id guard is what stops it running after a skipped one.
+        id: save
+        if: >-
+          always() &&
+          steps.fetch.outcome != 'skipped' &&
+          steps.fetch.outputs.generation_id != ''
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw/footystats/generations
+          key: >-
+            footystats-gen-${{ steps.fetch.outputs.generation_id }}-${{ steps.fetch.outputs.checkpoint_revision }}
+
+      - name: Name the refresh this run publishes
+        # One place that answers "which refresh" for every step below.
+        #
+        # Every staging refresh has an identity, whatever the provider, and
+        # the quality rows carry it so the promotion can flip exactly that
+        # refresh's rows to PUBLISHED. For FootyStats it is the generation: a
+        # run that just finished the fetch names the fetch's, a PUBLISH_READY
+        # run names the one the gate read from the database. Transfermarkt
+        # has no generation, so its refresh is named by this run - a retry is
+        # a new download and a new candidate, which is what it is.
+        id: generation
+        if: steps.preflight.outputs.database == 'true'
+        run: |
+          if [ "${{ steps.resolve_source.outputs.source }}" = "footystats" ]; then
+            gen="${{ steps.fetch.outputs.generation_id || steps.gate.outputs.generation_id }}"
+            echo "id=$gen" >> "$GITHUB_OUTPUT"
+            echo "refresh_id=$gen" >> "$GITHUB_OUTPUT"
+          else
+            echo "id=" >> "$GITHUB_OUTPUT"
+            echo "refresh_id=${{ steps.resolve_source.outputs.source }}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Report that the refresh is not finished yet
         if: >-
@@ -264,6 +515,46 @@ jobs:
             echo "The next scheduled run continues from where this one stopped."
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Seed staging from current production
+        # THE STEP WITHOUT WHICH PROMOTION PUBLISHES HALF A UNIVERSE.
+        #
+        # Production holds two providers and a refresh replaces one. Staging
+        # was empty, so a FootyStats refresh would have loaded performance data
+        # into nothing and promoted it - and production would have lost 79,800
+        # market values and 34,321 transfers silently, because the result is
+        # internally consistent and simply has no Transfermarkt in it.
+        #
+        # Seeding from the schema left behind by the last swap is not a fix
+        # either: it is one cycle old, so the second refresh in a row would
+        # build on stale data and could publish `F1 + T2` - the combination
+        # that must never exist.
+        #
+        # So staging is rebuilt from CURRENT production every time, verified
+        # row for row, and only then does the load purge the one provider it
+        # is replacing.
+        # For FootyStats: only with a finished generation whose files this
+        # runner verified. A PUBLISH_READY run has them from the restore; a
+        # run that just completed the fetch has them from the fetch.
+        if: >-
+          steps.preflight.outputs.database == 'true' &&
+          (
+            steps.resolve_source.outputs.source != 'footystats' ||
+            steps.fetch.outputs.complete == 'true' ||
+            (steps.action.outputs.action == 'PUBLISH_READY' && steps.verify.outcome == 'success')
+          )
+        id: seed
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: |
+          set -o pipefail
+          python -m pipelines.load.prepare_staging --apply 2>&1 | tee pipeline-seed.log
+
       - name: Load and verify
         # Gated on the fetch being finished, when the fetch is what feeds it.
         #
@@ -276,12 +567,7 @@ jobs:
         #
         # A Transfermarkt-sourced run does not read the snapshots, so it is not
         # gated on them.
-        if: >-
-          steps.preflight.outputs.database == 'true' &&
-          (
-            steps.resolve_source.outputs.source != 'footystats' ||
-            steps.fetch.outputs.complete == 'true'
-          )
+        if: steps.seed.outcome == 'success'
         id: load
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
@@ -291,6 +577,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
           LOG_FORMAT: json
         # `--verify` is what makes section 23 rule 11 literally true: the full
         # serving quality suite runs inside the load transaction, and any
@@ -301,7 +591,11 @@ jobs:
           python -m pipelines.load.load_providers \
             --source "${{ steps.resolve_source.outputs.source }}" \
             --replace \
-            --verify 2>&1 | tee pipeline-load.log
+            --verify \
+            --candidate \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
+            ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
+            2>&1 | tee pipeline-load.log
 
       - name: Resolve identities across providers
         if: steps.load.outcome == 'success'
@@ -313,6 +607,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # WHY THIS RUNS ON EVERY REFRESH
         #
         # A load replaces one provider's rows. Purging that source deletes its
@@ -326,18 +624,36 @@ jobs:
         # which market values belong to a covered player, and the answer is
         # wrong while the sources are still two separate populations.
         #
-        # Non-fatal on purpose. Resolution failing leaves the two providers
-        # unmatched, which is a degraded site rather than a corrupt one, and
-        # stopping the run here would also stop the analytics reload - so a
-        # refresh that loaded and verified correctly would never reach readers.
-        continue-on-error: true
+        # NOT `continue-on-error`. It was, and that was wrong.
+        #
+        # The reasoning behind it: unmatched players are an ordinary outcome,
+        # so a resolution step that "fails" should not stop a good load
+        # reaching readers. The first half is true and the second does not
+        # follow, because the process failing and the matching being imperfect
+        # are different events with the same exit code only if nobody
+        # separates them.
+        #
+        # They are separated at the source. `resolve.py` exits 0 with matched,
+        # ambiguous and unmatched counts in its summary: unmatched is a
+        # data-quality state, ambiguous is a manual-review state, and neither
+        # is an error. A non-zero exit means the process itself failed - a
+        # database error, a source that loaded nothing, an unhandled
+        # exception - and that leaves the two providers unjoined.
+        #
+        # Publishing then is worse than not publishing. Market values, contract
+        # data and every cross-source figure hang off that join, so a site
+        # served from a database where it silently came apart shows FootyStats
+        # performance beside no Transfermarkt anything, and looks like a data
+        # outage rather than a pipeline fault.
         id: identity
         run: |
           set -o pipefail
           python -m pipelines.identity_resolution.resolve --apply 2>&1 | tee pipeline-identity.log
 
       - name: Drop market history nothing can reach
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -346,6 +662,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Four fifths of the Transfermarkt valuations belong to players in no
         # covered competition. This refuses to run when nothing looks used,
         # which is what a database that has not been resolved yet looks like,
@@ -355,7 +675,10 @@ jobs:
           python -m pipelines.load.prune --apply 2>&1 | tee pipeline-prune.log
 
       - name: Record the quality report
-        if: steps.load.outcome == 'success'
+        id: quality
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -364,15 +687,28 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
-        # Persisted so /data-quality shows this run. Warnings do not fail the
-        # job: staleness and absent metrics are facts about a source, not
-        # faults in the refresh.
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
+        # Persisted as CANDIDATE rows for this refresh, with the source named
+        # explicitly - rows written as "all" can never be flipped to PUBLISHED
+        # by a promotion, which flips by source and refresh id. Warnings do
+        # not fail the job: staleness and absent metrics are facts about a
+        # source, not faults in the refresh.
         run: |
           set -o pipefail
-          python -m pipelines.quality.report --persist 2>&1 | tee pipeline-quality.log
+          python -m pipelines.quality.report --persist \
+            --source "${{ steps.resolve_source.outputs.source }}" \
+            --candidate \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
+            ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
+            2>&1 | tee pipeline-quality.log
 
       - name: Measure what the loaded data can produce
-        if: steps.load.outcome == 'success'
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -381,6 +717,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Regenerated per run so the published limitations describe the data
         # that is actually live. Absent metrics are a fact about the provider,
         # not a fault in the refresh, so this reports rather than fails - hence
@@ -390,7 +730,10 @@ jobs:
           python -m pipelines.quality.derived_coverage             --source "${{ steps.resolve_source.outputs.source }}" 2>&1 | tee pipeline-derived.log
 
       - name: Recompute sample players independently
-        if: steps.load.outcome == 'success'
+        id: validation
+        if: >-
+          steps.load.outcome == 'success' &&
+          (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
@@ -399,6 +742,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           APP_MODE: production
           APP_ENV: production
+          # Everything from the load to the promotion works on the staging
+          # schema. The served one is not written to at all, which is what
+          # makes a failure here harmless to readers.
+          ANALYTICS_SCHEMA: analytics_staging
         # Rebuilds each figure from the raw season totals without calling the
         # engines, and fails the job on any disagreement. Unlike absent metrics,
         # a percentile that does not reproduce is a fault, not a fact about a
@@ -406,6 +753,84 @@ jobs:
         run: |
           set -o pipefail
           python -m pipelines.quality.validate_analytics --players 12 2>&1             | tee pipeline-validation.log
+
+      - name: Mark the generation VALIDATED
+        # COMPLETE -> VALIDATED, and only here: after the staging load,
+        # identity resolution, the quality report and the independent
+        # analytics validation have all passed against this generation.
+        #
+        # What VALIDATED buys is a different failure. A promotion that fails
+        # after this leaves the generation VALIDATED; the next run's gate
+        # answers PUBLISH_READY, restores the same files, and retries. It
+        # does not refetch - nothing about the snapshots changed - and it
+        # does re-derive staging from them, because staging is rebuilt from
+        # production at the start of every run and the candidate has to be
+        # loaded into it again. That costs minutes; a refetch costs hours.
+        #
+        # A validation failure leaves the generation COMPLETE: its snapshots
+        # are intact and there is nothing structurally wrong with it, so the
+        # next run tries the candidate pipeline again. FAILED is reserved for
+        # the fetch's own structural failures and for a person saying so.
+        id: validated
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.generation.outputs.id != '' &&
+          steps.load.outcome == 'success' &&
+          steps.identity.outcome == 'success' &&
+          steps.quality.outcome == 'success' &&
+          steps.validation.outcome == 'success'
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: |
+          python -m pipelines.footystats.publish_status \
+            --mark-validated "${{ steps.generation.outputs.id }}"
+
+      - name: Promote the staged dataset
+        # THE MOMENT ANYTHING BECOMES PRODUCTION.
+        #
+        # Everything above wrote to and checked `analytics_staging`. Readers
+        # have been served the previous dataset throughout, and would go on
+        # being served it indefinitely if this step never ran.
+        #
+        # Three schema renames in one transaction. PostgreSQL commits them
+        # atomically, so a reader sees the whole previous dataset or the whole
+        # new one - never a mixture and never an empty schema. Renaming does
+        # not rewrite rows, so it costs a lock rather than a copy.
+        #
+        # The schema that was serving becomes the staging schema, which is the
+        # recovery path: `--rollback --apply` is the same swap again.
+        # For FootyStats, also on the generation having been marked
+        # VALIDATED: the promotion verifies the named generation's status
+        # against the database inside its own transaction, and refuses one
+        # that is not COMPLETE or VALIDATED.
+        if: >-
+          steps.load.outcome == 'success' &&
+          steps.identity.outcome == 'success' &&
+          steps.quality.outcome == 'success' &&
+          steps.validation.outcome == 'success' &&
+          (steps.resolve_source.outputs.source != 'footystats' || steps.validated.outcome == 'success')
+        id: promote
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_MODE: production
+          APP_ENV: production
+        run: |
+          set -o pipefail
+          python -m pipelines.load.promote --apply \
+            --source "${{ steps.resolve_source.outputs.source }}" \
+            --refresh-id "${{ steps.generation.outputs.refresh_id }}" \
+            ${{ steps.generation.outputs.id && format('--generation-id {0}', steps.generation.outputs.id) || '' }} \
+            2>&1 | tee pipeline-promote.log
 
       - name: Publish the refreshed data to the live site
         # The last step of a data refresh, and the one that was missing.
@@ -420,7 +845,7 @@ jobs:
         # Both are told, in that order. `success()` matters: a run whose
         # validation failed must leave the previous data live rather than
         # publish something that did not reproduce.
-        if: steps.load.outcome == 'success'
+        if: steps.promote.outcome == 'success'
         env:
           API_ORIGIN: ${{ secrets.API_ORIGIN }}
           SITE_ORIGIN: ${{ secrets.SITE_ORIGIN }}
@@ -458,6 +883,7 @@ jobs:
             echo "| Source | \`${{ steps.resolve_source.outputs.source }}\` |"
             echo "| Load and verify | ${{ steps.load.outcome }} |"
             echo "| Identity resolution | ${{ steps.identity.outcome }} |"
+            echo "| Promotion | ${{ steps.promote.outcome }} |"
             echo ""
             if [ "${{ steps.load.outcome }}" != "success" ]; then
               echo "**Nothing was published.** The load rolled back and the previous"
@@ -478,8 +904,10 @@ jobs:
         with:
           name: pipeline-logs-${{ github.run_id }}
           path: |
+            pipeline-seed.log
             pipeline-load.log
             pipeline-identity.log
+            pipeline-promote.log
             pipeline-quality.log
             docs/transfermarkt_field_availability.md
           if-no-files-found: ignore

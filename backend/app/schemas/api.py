@@ -83,7 +83,18 @@ class ScoreOut(BaseModel):
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
+    #: Hand-written, and deliberately qualitative only: methodological limits
+    #: that no availability report can derive.
     caveat: str | None = None
+    #: Roles only. What was missing, generated from what was actually missing.
+    #:
+    #: Availability claims used to live in `caveat` and went stale exactly as
+    #: one would expect - the Ball-Winning Midfielder apologised for a score
+    #: that had been available for months, and the Direct Winger for a metric
+    #: it was not missing at all.
+    availability_note: str | None = None
+    #: The two above, joined, so the interface cannot show them apart.
+    explanation: str | None = None
     #: Roles only. Where the raw score sits among every player evaluated for
     #: this same role.
     #:
@@ -132,8 +143,20 @@ class SampleOut(BaseModel):
     #: denominator of every per-90 here. Absent when the provider said nothing,
     #: which is not the same as nought.
     recorded_minutes: int | None = None
-    #: recorded / played, as a percentage. `None` when it cannot be computed.
+    #: recorded / played, as a percentage, capped at 100 for display.
+    #:
+    #: Capped because the raw ratio can exceed 100 - the provider sometimes
+    #: reports more detail-minutes than played-minutes - and "127% Excellent
+    #: coverage" reads as a broken site rather than as the provider anomaly it
+    #: is. `detailed_coverage_raw_pct` carries the uncapped figure.
     detailed_coverage_pct: float | None = None
+    #: The uncapped ratio, for data quality and debugging. May exceed 100.
+    detailed_coverage_raw_pct: float | None = None
+    #: True when the provider reported more detail-minutes than played-minutes.
+    provider_minutes_inconsistent: bool = False
+    #: Why, when it did.
+    minutes_discrepancy_label: str | None = None
+    minutes_discrepancy_explanation: str | None = None
     #: excellent | good | partial | limited, or absent with the percentage.
     coverage_band: str | None = None
     coverage_label: str | None = None
@@ -501,16 +524,73 @@ class QualityCheckOut(BaseModel):
     record_count: int
     detail: str | None
     executed_at: datetime
+    #: The refresh this check describes - a FootyStats generation, or an id
+    #: the workflow minted for a Transfermarkt refresh - and whether it was a
+    #: candidate in staging or is the dataset being served. Null on rows
+    #: recorded before refreshes carried context.
+    refresh_id: str | None = None
+    generation_id: str | None = None
+    context: Literal["CANDIDATE", "PUBLISHED"] | None = None
+
+
+class CandidateChecksOut(BaseModel):
+    """Checks that describe a refresh nobody is being served yet.
+
+    A separate object rather than rows mixed into `checks`, because the page
+    used to mix them: production serving G4, a G5 candidate checked and then
+    failed at promotion, and every tick on the page describing G5. These say
+    what they are about, and the published checks say what they are about,
+    and a reader is never asked to tell them apart.
+    """
+
+    source: str
+    refresh_id: str
+    #: FootyStats only. Null for a provider with no generation model.
+    generation_id: str | None = None
+    executed_at: datetime
+    checks: list[QualityCheckOut]
+
+
+class PublishedChecksOut(BaseModel):
+    """The checks that validated the dataset this source is serving."""
+
+    source: str
+    refresh_id: str | None = None
+    generation_id: str | None = None
+    published_at: datetime | None = None
+    executed_at: datetime | None = None
+    checks: list[QualityCheckOut]
+
+
+class ProviderQualityOut(BaseModel):
+    """One source, two datasets, kept apart: what is serving and what waits."""
+
+    source: str
+    published: PublishedChecksOut | None = None
+    #: None when no refresh is between staging and production.
+    candidate: CandidateChecksOut | None = None
 
 
 class SourceFreshnessOut(BaseModel):
     """How current one source is, and how its last checks went.
 
-    Two timestamps, and they answer different questions. `last_checked_at` is
-    when the automated checks last ran; `last_loaded_at` is when this source's
-    data was last replaced. A check running against a fortnight-old load is a
-    perfectly ordinary event, and reading the first as the second would let the
-    site announce that the data was updated today.
+    Three timestamps, answering three different questions, and the whole reason
+    they are separate is that conflating any two of them produces a claim the
+    data does not support:
+
+      `last_checked_at`       when the automated checks last ran. They run
+                              against whatever is serving, however old it is.
+      `last_published_at`        when this source's data was last **published** -
+                              the moment the figures on screen became these
+                              figures.
+      `last_load_attempt_at`  when a refresh last loaded this source into
+                              staging, published or not.
+
+    The middle one is the age of what a reader is looking at, and it is the
+    only one that may be presented that way. A refresh that loads at 10:00 and
+    fails its quality gate at 10:20 moves the third and not the second, because
+    production is still yesterday's dataset and saying otherwise would be
+    false in exactly the way somebody would act on.
     """
 
     source: str
@@ -519,10 +599,13 @@ class SourceFreshnessOut(BaseModel):
     checks_run: int
     failures: int
     warnings: int
-    #: `None` for a source loaded before the two were recorded separately.
-    last_loaded_at: datetime | None = None
+    #: `None` for a source published before publications were recorded.
+    last_published_at: datetime | None = None
     data_age_days: int | None = None
-    rows_loaded: int | None = None
+    rows_published: int | None = None
+    #: Operational. A load attempt newer than `last_published_at` means a refresh
+    #: is between staging and production - not that the data has changed.
+    last_load_attempt_at: datetime | None = None
 
 
 class VolumesOut(BaseModel):
@@ -562,6 +645,41 @@ class AnalyticsFreshnessOut(BaseModel):
     is_stale: bool
 
 
+class RefreshGenerationOut(BaseModel):
+    """Where the FootyStats refresh has got to.
+
+    Operational, and deliberately dull: a generation id, a status, and counts.
+    Nothing here names a storage path, a secret or a host - the question this
+    answers is "why is the site still showing last week's figure", and that
+    needs progress, not internals.
+    """
+
+    #: `20260907T040000Z`. A timestamp, and nothing else identifying.
+    generation_id: str
+    #: IN_PROGRESS | COMPLETE | VALIDATED | PUBLISHED | FAILED.
+    status: str
+    created_at: str | None = None
+    last_updated_at: str | None = None
+    published_at: str | None = None
+
+    total_expected_players: int = 0
+    completed_players: int = 0
+    failed_players: int = 0
+    completion_pct: float = 0.0
+    competitions_complete: int = 0
+    competitions_expected: int = 0
+    complete: bool = False
+
+
+class RefreshStatusOut(BaseModel):
+    """The published generation, and whatever is being fetched now."""
+
+    #: Idle | In progress | Complete | Validating | Failed.
+    state: str
+    published: RefreshGenerationOut | None = None
+    current: RefreshGenerationOut | None = None
+
+
 class DataQualityResponse(BaseModel):
     """What was checked, when, and what it found."""
 
@@ -573,7 +691,16 @@ class DataQualityResponse(BaseModel):
     notice: str | None
     volumes: VolumesOut
     sources: list[SourceFreshnessOut]
+    #: The most recent checks describing the dataset being served.
     checks: list[QualityCheckOut]
+    #: The generation `checks` describe, when the publication ledger names one.
+    published_generation_id: str | None = None
+    #: Checks describing a refresh between staging and production, or one that
+    #: failed to reach it. Never about the data on screen.
+    candidate: list[CandidateChecksOut] = Field(default_factory=list)
+    #: The same facts arranged per source: published beside candidate, which
+    #: is how the page shows them.
+    providers: list[ProviderQualityOut] = Field(default_factory=list)
     identity: IdentityCoverageOut | None = None
     #: Mean share of played minutes carrying detailed statistics, across every
     #: loaded player-season that has both figures. `None` when unmeasurable.
@@ -582,3 +709,6 @@ class DataQualityResponse(BaseModel):
     #: demo mode, where everything is fabricated.
     unavailable_metrics: list[str] = Field(default_factory=list)
     analytics: AnalyticsFreshnessOut | None = None
+    #: FootyStats refresh progress. `None` when no generation exists yet,
+    #: which is the normal state of a database loaded before generations.
+    refresh: RefreshStatusOut | None = None

@@ -49,7 +49,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +70,15 @@ class Line:
     available_weight: float
     missing: list[str]
     min_coverage: float
+    #: Every component this definition asks for, by name. Kept alongside the
+    #: weights because a reader checking a caveat wants to know what a role is
+    #: built from, not only how much of it survived.
+    configured_metrics: list[str] = field(default_factory=list)
+
+    @property
+    def available_metrics(self) -> list[str]:
+        missing = set(self.missing)
+        return [m for m in self.configured_metrics if m not in missing]
 
     @property
     def coverage(self) -> float:
@@ -94,6 +103,7 @@ class Line:
     def cells(self) -> list[str]:
         return [
             self.label,
+            f"{len(self.available_metrics)} / {len(self.configured_metrics)}",
             f"{self.configured_weight:.0f}",
             f"{self.available_weight:.0f}",
             f"{self.coverage * 100:.0f}%",
@@ -135,6 +145,7 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
                 available_weight=sum(w for n, w in weights.items() if n in computable),
                 missing=missing,
                 min_coverage=definition.min_coverage,
+                configured_metrics=sorted(weights),
             )
         )
     disabled_scores = {line.key for line in scores if line.status == "DISABLED"}
@@ -158,6 +169,7 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
                 available_weight=sum(w for n, w in weights.items() if is_available(n)),
                 missing=missing,
                 min_coverage=role.min_coverage,
+                configured_metrics=sorted(weights),
             )
         )
 
@@ -178,6 +190,7 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
                 # A vector is not "disabled": the engine drops absent features
                 # and reports the coverage. See `MINIMUM_FEATURE_COVERAGE`.
                 min_coverage=0.0,
+                configured_metrics=sorted(names),
             )
         )
 
@@ -186,8 +199,10 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
 
 def table(title: str, note: str, lines: list[Line], first_column: str) -> list[str]:
     out = [f"## {title}", "", note, ""]
-    out.append(f"| {first_column} | Configured | Available | Coverage | Missing | Status |")
-    out.append("| --- | ---: | ---: | ---: | --- | --- |")
+    out.append(
+        f"| {first_column} | Metrics | Configured wt | Available wt | Coverage | Missing | Status |"
+    )
+    out.append("| --- | ---: | ---: | ---: | ---: | --- | --- |")
     out += ["| " + " | ".join(line.cells()) + " |" for line in lines]
     out.append("")
     return out

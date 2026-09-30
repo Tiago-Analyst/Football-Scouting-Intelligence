@@ -1,0 +1,1145 @@
+"""The cache is the only copy of fourteen hours of fetching. These are the
+tests that say the pipeline cannot lose it, mistake it, or resume the wrong one.
+
+WHAT WAS WRONG
+==============
+
+Three things, and the first was the expensive one.
+
+A START_NEW run never restored a cache - there was nothing to restore - so the
+`actions/cache` post-step never registered, and the generation it created and
+fetched for forty-five minutes was never saved. The database said IN_PROGRESS;
+no runner had the files. Every first run of every refresh was lost.
+
+The restore keys fell back to `footystats-gen-`, any generation at all, so
+"expected G5, G5 missing" produced G4 - and the check that noticed only
+warned. A fetch then ran against G4's files under G5's name.
+
+And the cache key was immutable while the generation was not: a generation
+grows over nineteen runs, and one key cannot hold nineteen states.
+
+WHAT THESE TESTS SIMULATE
+=========================
+
+The workflow, without GitHub. `FakeCache` stands in for `actions/cache`: it
+saves a generation directory under a key and restores the newest key with a
+prefix, which is what GitHub does. `FakeDatabase` stands in for
+`fact_refresh_generation`: status and checkpoint revision per generation. The
+gate, the verifier, the store and the ingest are the real ones.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import shutil
+from dataclasses import dataclass, field
+from typing import Any
+
+import pytest
+from pipelines.footystats.gate import (
+    Action,
+    Decision,
+    LiveGeneration,
+    Verdict,
+    action_for_status,
+    decide_from_state,
+    verify_local_state,
+)
+from pipelines.footystats.generations import (
+    GenerationError,
+    GenerationStatus,
+    GenerationStore,
+)
+from pipelines.footystats.ingest import ingest_competition
+
+# ---------------------------------------------------------------------------
+# Stand-ins
+# ---------------------------------------------------------------------------
+
+
+class RosterProvider:
+    """A roster and a per-player fetch, with the calls counted."""
+
+    def __init__(self, players: list[str]) -> None:
+        self.players = players
+        self.fetched: list[str] = []
+
+    def _roster(self, season_id: str) -> list[dict[str, object]]:
+        return [{"id": p, "club_team_id": 1} for p in self.players]
+
+    def _get(self, path: str, **params: object) -> object:
+        if path == "/league-teams":
+            return {"data": [{"id": 1, "name": "A Club"}]}
+        player_id = str(params.get("player_id"))
+        self.fetched.append(player_id)
+        return {"data": {"id": player_id}}
+
+
+@dataclass
+class FakeCache:
+    """`actions/cache`, reduced to what matters: immutable keys, prefix restore
+    to the newest key, and nothing else."""
+
+    store: dict[str, pathlib.Path] = field(default_factory=dict)
+    order: list[str] = field(default_factory=list)
+
+    def save(self, key: str, directory: pathlib.Path, into: pathlib.Path) -> None:
+        if key in self.store:
+            # GitHub refuses to overwrite. A pipeline that relied on
+            # overwriting would silently keep the first checkpoint forever.
+            raise RuntimeError(f"cache key {key!r} already exists and is immutable")
+        target = into / key
+        shutil.copytree(directory, target)
+        self.store[key] = target
+        self.order.append(key)
+
+    def restore(self, exact: str, prefix: str, into: pathlib.Path) -> str | None:
+        """Exact key first, else the newest key with the prefix, else nothing.
+
+        Exactly GitHub's rule, including the part that was the bug: an exact
+        hit wins even when a newer key with the prefix exists. The workflow
+        therefore asks for an exact key that cannot exist.
+        """
+        if exact in self.store:
+            chosen = exact
+        else:
+            matches = [k for k in self.order if k.startswith(prefix)]
+            if not matches:
+                return None
+            chosen = matches[-1]
+        if into.exists():
+            shutil.rmtree(into)
+        shutil.copytree(self.store[chosen], into)
+        return chosen
+
+
+@dataclass
+class FakeDatabase:
+    """`fact_refresh_generation`, reduced to status and revision.
+
+    `reconcile_forward` mirrors `publish_status.reconcile_forward`: the same
+    ladder, the same refusal to go down it. The real one is tested against
+    PostgreSQL in `test_atomic_promotion.py`; this one lets the lifecycle be
+    simulated without a database.
+    """
+
+    rows: dict[str, tuple[str, int]] = field(default_factory=dict)
+
+    def record(self, store: GenerationStore) -> None:
+        for generation in store.all():
+            self.rows[generation.generation_id] = (
+                generation.status.value,
+                generation.metadata.checkpoint_revision,
+            )
+
+    def live(self) -> list[LiveGeneration]:
+        return [
+            LiveGeneration(gid, status, revision)
+            for gid, (status, revision) in sorted(self.rows.items())
+            if status in {"IN_PROGRESS", "COMPLETE", "VALIDATED"}
+        ]
+
+    def revision(self, generation_id: str) -> int | None:
+        row = self.rows.get(generation_id)
+        return row[1] if row else None
+
+    def reconcile_forward(self, generation: Any) -> str:
+        from pipelines.footystats.publish_status import STATUS_RANK
+
+        db_status, db_revision = self.rows[generation.generation_id]
+        local = generation.metadata
+        if db_status == "PUBLISHED" or db_revision >= local.checkpoint_revision:
+            return db_status
+        status = db_status
+        if local.status == "FAILED":
+            status = "FAILED"
+        elif STATUS_RANK.get(local.status, -1) > STATUS_RANK.get(db_status, -1):
+            status = local.status
+        self.rows[generation.generation_id] = (status, local.checkpoint_revision)
+        return status
+
+
+class BudgetOf:
+    """`Deadline`, expiring after a number of player fetches rather than
+    minutes. What a forty-five-minute run looks like to the ingest."""
+
+    def __init__(self, provider: RosterProvider, fetches: int | None) -> None:
+        self.provider = provider
+        self.stop_at = None if fetches is None else len(provider.fetched) + fetches
+        self.limit_seconds = None if fetches is None else 1.0
+
+    def expired(self) -> bool:
+        return self.stop_at is not None and len(self.provider.fetched) >= self.stop_at
+
+
+def key_for(generation_id: str, revision: int) -> str:
+    return f"footystats-gen-{generation_id}-{revision:04d}"
+
+
+def prefix_for(generation_id: str) -> str:
+    return f"footystats-gen-{generation_id}-"
+
+
+def restore_key_for(generation_id: str, run_id: str) -> str:
+    """What the workflow asks for: a key that deliberately never exists, so
+    only the prefix matches and the newest checkpoint wins."""
+    return f"footystats-gen-{generation_id}-restore-{run_id}"
+
+
+@dataclass
+class Runner:
+    """One workflow run, on a fresh disk."""
+
+    disk: pathlib.Path
+    cache: FakeCache
+    db: FakeDatabase
+    cache_root: pathlib.Path
+    provider: RosterProvider
+    mode: str
+
+    @property
+    def generations(self) -> pathlib.Path:
+        return self.disk / "generations"
+
+    def run(self, *, at: Any, budget: int | None = None) -> dict[str, Any]:
+        """The steps, in the workflow's order. Returns what each one did."""
+        from pipelines.footystats.generations import new_generation_id
+
+        outcome: dict[str, Any] = {}
+
+        # 5. gate - from the database, never the disk
+        decision = decide_from_state(self.mode, self.db.live())
+        outcome["action"] = decision.action
+        if not decision.proceed:
+            return outcome
+
+        # 7. restore - only within the expected generation, newest first
+        if decision.action.needs_local_state:
+            assert decision.generation_id is not None
+            expected_rev = self.db.revision(decision.generation_id) or 0
+            outcome["restored"] = self.cache.restore(
+                restore_key_for(decision.generation_id, self.disk.name),
+                prefix_for(decision.generation_id),
+                self.generations,
+            )
+            # 8. verify - fatal; a newer intact checkpoint advances the database
+            verdict = verify_local_state(
+                GenerationStore(root=self.generations),
+                decision.generation_id,
+                expected_revision=expected_rev,
+            )
+            outcome["verify"] = verdict
+            if not verdict.ok:
+                outcome["stopped"] = verdict.reason
+                return outcome
+            status = self.db.rows[decision.generation_id][0]
+            if verdict.local_revision is not None and verdict.local_revision > expected_rev:
+                restored = GenerationStore(root=self.generations).get(decision.generation_id)
+                assert restored is not None
+                status = self.db.reconcile_forward(restored)
+                outcome["reconciled"] = verdict.local_revision
+            # 9. settle - the verify step's action, not the gate's
+            decision = Decision(
+                action_for_status(status), decision.reason, decision.generation_id, expected_rev
+            )
+        outcome["effective_action"] = decision.action
+
+        if not decision.action.fetches:
+            return outcome
+
+        # 16. fetch
+        store = GenerationStore(root=self.generations)
+        if decision.action is Action.FETCH:
+            generation = store.resolve(resume=True, expected_id=decision.generation_id)
+        else:
+            self.generations.mkdir(parents=True, exist_ok=True)
+            generation = store.resolve(resume=True, now=at)
+            assert generation.generation_id == new_generation_id(at)
+        result = ingest_competition(
+            self.provider,
+            "16504",
+            "Test",
+            resume=True,
+            deadline=BudgetOf(self.provider, budget),  # type: ignore[arg-type]
+            generation=generation,
+        )
+        if result.complete:
+            generation.mark_competition_complete("16504")
+        generation.refresh_counts(completed=result.fetched + result.skipped, failed=[])
+        generation.evaluate_completeness()
+        if generation.metadata.complete:
+            generation.set_status(GenerationStatus.COMPLETE)
+        revision = generation.checkpoint()
+        outcome["generation_id"] = generation.generation_id
+        outcome["revision"] = revision
+        outcome["complete"] = generation.metadata.complete
+
+        # 17. save - immediately, keyed by what the fetch actually did
+        self.cache.save(
+            key_for(generation.generation_id, revision), self.generations, self.cache_root
+        )
+        self.db.record(store)
+        outcome["saved"] = key_for(generation.generation_id, revision)
+        return outcome
+
+
+@pytest.fixture
+def world(tmp_path: pathlib.Path) -> dict[str, Any]:
+    cache_root = tmp_path / "cache"
+    cache_root.mkdir()
+    return {"cache": FakeCache(), "db": FakeDatabase(), "cache_root": cache_root, "tmp": tmp_path}
+
+
+def fresh_runner(world: dict[str, Any], name: str, provider: RosterProvider, mode: str) -> Runner:
+    """A new runner has a new, empty disk. That is the whole premise."""
+    disk = world["tmp"] / name
+    disk.mkdir()
+    return Runner(
+        disk=disk,
+        cache=world["cache"],
+        db=world["db"],
+        cache_root=world["cache_root"],
+        provider=provider,
+        mode=mode,
+    )
+
+
+def at(day: int, hour: int = 4) -> Any:
+    import datetime as dt
+
+    return dt.datetime(2026, 9, day, hour, 0, 0, tzinfo=dt.UTC)
+
+
+# ---------------------------------------------------------------------------
+# The whole lifecycle, run by run
+# ---------------------------------------------------------------------------
+
+
+class TestTheCacheSurvivesTheLifecycle:
+    """Section 16 of the brief, as a simulation."""
+
+    def test_run_one_start_new_saves_a_cache_nothing_restored(self, world: dict[str, Any]) -> None:
+        """THE run that used to lose everything.
+
+        Nothing to restore, so `actions/cache` never registered a save. The
+        save now keys off the fetch's own outputs and runs regardless.
+        """
+        provider = RosterProvider([str(i) for i in range(1, 101)])
+        run1 = fresh_runner(world, "runner1", provider, "start").run(at=at(1), budget=40)
+
+        assert run1["action"] is Action.START_NEW
+        assert "restored" not in run1, "a new generation has nothing to restore"
+        assert run1["revision"] == 1
+        assert run1["saved"] in world["cache"].store, "and it was saved anyway"
+        assert world["db"].rows[run1["generation_id"]] == ("IN_PROGRESS", 1)
+
+    def test_run_two_restores_verifies_resumes_and_saves_a_new_key(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider = RosterProvider([str(i) for i in range(1, 101)])
+        run1 = fresh_runner(world, "runner1", provider, "start").run(at=at(1), budget=40)
+        run2 = fresh_runner(world, "runner2", provider, "continue_only").run(at=at(1, 5), budget=40)
+
+        assert run2["action"] is Action.FETCH
+        assert run2["restored"] == run1["saved"], "the newest checkpoint of the same generation"
+        assert run2["verify"].ok
+        assert run2["generation_id"] == run1["generation_id"], "resumed, not restarted"
+        assert run2["revision"] == 2
+        assert run2["saved"] != run1["saved"], "an immutable key cannot be reused"
+        # 40 fetched in run one, 40 more in run two: nothing refetched.
+        assert len(provider.fetched) == 80
+
+    def test_run_three_completes_and_is_published_and_run_four_starts_fresh(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider = RosterProvider([str(i) for i in range(1, 101)])
+        r1 = fresh_runner(world, "runner1", provider, "start")
+        run1 = r1.run(at=at(1), budget=40)
+        fresh_runner(world, "runner2", provider, "continue_only").run(at=at(1, 5), budget=40)
+        run3 = fresh_runner(world, "runner3", provider, "continue_only").run(at=at(1, 6))
+
+        assert run3["complete"] is True
+        assert world["db"].rows[run1["generation_id"]] == ("COMPLETE", 3)
+        assert len(provider.fetched) == 100, "every player fetched exactly once"
+
+        # The candidate pipeline: validated, then promoted. Simulated at the
+        # database level; the real transaction is tested in
+        # test_atomic_promotion.
+        gid = run1["generation_id"]
+        world["db"].rows[gid] = ("VALIDATED", 3)
+        assert decide_from_state("continue_only", world["db"].live()).action is Action.PUBLISH_READY
+        world["db"].rows[gid] = ("PUBLISHED", 3)
+
+        # Run four: the cadence fires. Nothing is live, so a new generation.
+        run4 = fresh_runner(world, "runner4", provider, "start").run(at=at(3), budget=10)
+        assert run4["action"] is Action.START_NEW
+        assert run4["generation_id"] != gid, "G1 is finished; this is G2"
+        assert "restored" not in run4, "G1's cache was never offered to G2"
+        assert len(provider.fetched) == 110, "G2 fetches players G1 already had - a refresh"
+        assert run4["revision"] == 1, "G2's own revision, not G1's continued"
+
+    def test_an_hourly_run_with_nothing_live_does_nothing(self, world: dict[str, Any]) -> None:
+        provider = RosterProvider(["1"])
+        run = fresh_runner(world, "runner1", provider, "continue_only").run(at=at(1))
+        assert run["action"] is Action.NOOP
+        assert provider.fetched == []
+
+
+# ---------------------------------------------------------------------------
+# The wrong cache
+# ---------------------------------------------------------------------------
+
+
+class TestTheWrongCacheStopsTheRun:
+    """Section 17. Expected G5, disk holds G4: stop. Not resume, not publish,
+    not create G6, not continue."""
+
+    def test_a_different_generation_on_disk_is_fatal(self, world: dict[str, Any]) -> None:
+        provider = RosterProvider(["1", "2"])
+        # G4: fetched, saved, and then abandoned by hand.
+        run_g4 = fresh_runner(world, "runner1", provider, "start").run(at=at(1), budget=1)
+        g4 = run_g4["generation_id"]
+        world["db"].rows[g4] = ("FAILED", 1)
+        # G5: started on a runner that saved nothing (its cache is lost).
+        r5 = fresh_runner(world, "runner2", provider, "start")
+        run_g5 = r5.run(at=at(2), budget=1)
+        g5 = run_g5["generation_id"]
+        del world["cache"].store[run_g5["saved"]]
+        world["cache"].order.remove(run_g5["saved"])
+
+        # A runner whose disk somehow holds G4 (restored by a stale key, put
+        # there by hand - the restore keys can no longer do it, but a disk is
+        # not only written by restores).
+        runner = fresh_runner(world, "runner3", provider, "continue_only")
+        shutil.copytree(world["cache"].store[run_g4["saved"]], runner.generations)
+        fetched_before = len(provider.fetched)
+
+        run = runner.run(at=at(2, 5))
+
+        assert run["action"] is Action.FETCH, "the database expects G5 to be resumed"
+        assert run["verify"].ok is False
+        assert g4 in run["stopped"] and g5 in run["stopped"]
+        assert "wrong generation" in run["stopped"]
+        assert len(provider.fetched) == fetched_before, "nothing was fetched"
+        assert not (runner.generations / g5).exists(), "G5 was not created on this disk"
+        assert world["db"].rows[g5] == ("IN_PROGRESS", 1), "and the database was not touched"
+
+    def test_the_store_refuses_to_resume_the_wrong_generation_even_if_asked(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """Defence behind the workflow gate: the ingest's own resolution."""
+        store = GenerationStore(root=tmp_path / "g")
+        store.create(now=at(1))
+        with pytest.raises(GenerationError, match="wrong generation"):
+            store.resolve(resume=True, expected_id="29990101T000000Z")
+
+    def test_the_restore_never_falls_back_to_another_generation(
+        self, world: dict[str, Any]
+    ) -> None:
+        """The restore-key contract, on the stand-in that models it."""
+        provider = RosterProvider(["1"])
+        run_g4 = fresh_runner(world, "runner1", provider, "start").run(at=at(1))
+        restored = world["cache"].restore(
+            key_for("29990101T000000Z", 1),
+            prefix_for("29990101T000000Z"),
+            world["tmp"] / "elsewhere",
+        )
+        assert restored is None, f"G4's key {run_g4['saved']} must not satisfy a request for G5"
+
+
+# ---------------------------------------------------------------------------
+# The missing cache
+# ---------------------------------------------------------------------------
+
+
+class TestAMissingCacheStopsTheRunSafely:
+    """Section 5. IN_PROGRESS in the database, nothing on disk: say so, name
+    the recovery, change nothing."""
+
+    def test_nothing_restored_is_fatal_and_names_the_recovery(self, world: dict[str, Any]) -> None:
+        provider = RosterProvider(["1", "2", "3"])
+        run1 = fresh_runner(world, "runner1", provider, "start").run(at=at(1), budget=1)
+        # The cache is evicted.
+        world["cache"].store.clear()
+        world["cache"].order.clear()
+
+        run2 = fresh_runner(world, "runner2", provider, "continue_only").run(at=at(1, 5))
+
+        assert run2["action"] is Action.FETCH
+        assert run2["restored"] is None
+        assert run2["verify"].ok is False
+        assert "could not be restored" in run2["stopped"]
+        assert "--abandon " + run1["generation_id"] in run2["stopped"]
+        assert len(provider.fetched) == 1, "nothing was refetched under G1's name"
+        assert world["db"].rows[run1["generation_id"]] == ("IN_PROGRESS", 1), (
+            "not completed, not failed, not replaced"
+        )
+
+    def test_the_store_says_the_same_thing(self, tmp_path: pathlib.Path) -> None:
+        store = GenerationStore(root=tmp_path / "g")
+        with pytest.raises(GenerationError, match="could not be restored"):
+            store.resolve(resume=True, expected_id="29990101T000000Z")
+
+    def test_abandoning_is_explicit_and_recorded(self, tmp_path: pathlib.Path) -> None:
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.abandon("cache evicted; restarting by hand")
+
+        reread = store.get(generation.generation_id)
+        assert reread is not None
+        assert reread.status is GenerationStatus.FAILED
+        assert reread.metadata.failure_reason == "cache evicted; restarting by hand"
+        assert store.in_progress() is None, "and the next cadence run may start fresh"
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint revisions
+# ---------------------------------------------------------------------------
+
+
+class TestCheckpointRevisions:
+    """Sections 12 to 14. Immutable keys, monotonic progress."""
+
+    def test_every_run_bumps_the_revision(self, tmp_path: pathlib.Path) -> None:
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        assert generation.metadata.checkpoint_revision == 0
+        assert generation.checkpoint() == 1
+        assert generation.checkpoint() == 2
+        reread = store.get(generation.generation_id)
+        assert reread is not None
+        assert reread.metadata.checkpoint_revision == 2, "persisted, not only in memory"
+
+    def test_an_older_checkpoint_than_the_database_recorded_is_refused(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """G5 checkpoint 5 exists and checkpoint 4 was restored. Resuming 4
+        would refetch what 5 had and could not know which players the failure
+        ledger has since retired."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()  # 1
+
+        verdict = verify_local_state(store, generation.generation_id, expected_revision=2)
+        assert verdict.ok is False
+        assert "checkpoint 1" in verdict.reason and "checkpoint 2" in verdict.reason
+        assert "regress" in verdict.reason
+
+    def test_a_newer_local_checkpoint_is_allowed(self, tmp_path: pathlib.Path) -> None:
+        """The last run saved its cache and then could not reach the database.
+        The disk is the truth in that case, and the database catches up on the
+        next record."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        generation.checkpoint()  # 2
+
+        verdict = verify_local_state(store, generation.generation_id, expected_revision=1)
+        assert verdict.ok is True
+        assert verdict.local_revision == 2
+
+    def test_the_matching_checkpoint_is_accepted(self, tmp_path: pathlib.Path) -> None:
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        verdict = verify_local_state(store, generation.generation_id, expected_revision=1)
+        assert verdict == Verdict(
+            True, f"restored cache holds generation {generation.generation_id} at checkpoint 1", 1
+        )
+
+    def test_completed_players_never_regress_across_accepted_checkpoints(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider = RosterProvider([str(i) for i in range(1, 31)])
+        counts: list[int] = []
+        fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        for n, budget in ((2, 10), (3, 5), (4, None)):
+            run = fresh_runner(world, f"r{n}", provider, "continue_only").run(
+                at=at(1, n), budget=budget
+            )
+            assert run["verify"].ok
+            store = GenerationStore(root=world["tmp"] / f"r{n}" / "generations")
+            generation = store.get(run["generation_id"])
+            assert generation is not None
+            counts.append(generation.metadata.completed_players)
+        assert counts == sorted(counts), f"progress went backwards: {counts}"
+        assert counts[-1] == 30
+
+    def test_cache_keys_are_never_reused_across_runs(self, world: dict[str, Any]) -> None:
+        """`FakeCache.save` raises on a duplicate key, as GitHub refuses one.
+        Three runs, three keys, no exception."""
+        provider = RosterProvider([str(i) for i in range(1, 31)])
+        fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        fresh_runner(world, "r2", provider, "continue_only").run(at=at(1, 5), budget=10)
+        fresh_runner(world, "r3", provider, "continue_only").run(at=at(1, 6))
+        assert len(world["cache"].store) == 3
+        assert all(k.endswith(("-0001", "-0002", "-0003")) for k in world["cache"].store)
+
+
+# ---------------------------------------------------------------------------
+# The verify CLI is fatal
+# ---------------------------------------------------------------------------
+
+
+class TestTheVerifyCommandStopsTheJob:
+    def test_it_exits_non_zero_on_a_mismatch(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """`cache_matches=false` used to be an informational output. The
+        workflow now consumes it as the step's exit code."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        code = gate.main(["--verify-restored", "29990101T000000Z", "--expected-revision", "0"])
+
+        assert code == 1
+        err = capsys.readouterr().err
+        assert "::error::" in err
+        assert "--abandon 29990101T000000Z" in err
+
+    def test_it_exits_zero_when_the_disk_matches(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import pipelines.footystats.gate as gate
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+
+        code = gate.main(
+            ["--verify-restored", generation.generation_id, "--expected-revision", "1"]
+        )
+        assert code == 0
+
+    def test_a_stale_checkpoint_exits_non_zero(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import pipelines.footystats.gate as gate
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+
+        code = gate.main(
+            ["--verify-restored", generation.generation_id, "--expected-revision", "3"]
+        )
+        assert code == 1
+
+
+# ---------------------------------------------------------------------------
+# The newest checkpoint wins
+# ---------------------------------------------------------------------------
+
+
+class TestTheNewestCheckpointWins:
+    """Section 1 to 3 of the brief.
+
+    Checkpoint 5 was written, its cache saved, and the database update failed.
+    The database says 4. Asking GitHub for `-0004` exactly would get `-0004`,
+    because an exact hit beats a newer prefix match - and checkpoint 5's work
+    would be refetched. So the restore asks for a key that cannot exist.
+    """
+
+    def _two_checkpoints_db_behind(self, world: dict[str, Any]) -> tuple[RosterProvider, str]:
+        provider = RosterProvider([str(i) for i in range(1, 31)])
+        run1 = fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        run2 = fresh_runner(world, "r2", provider, "continue_only").run(at=at(1, 5), budget=10)
+        gid = run1["generation_id"]
+        assert run2["revision"] == 2
+        # The database never heard about checkpoint 2.
+        status, _ = world["db"].rows[gid]
+        world["db"].rows[gid] = (status, 1)
+        return provider, gid
+
+    def test_the_exact_key_would_have_restored_the_stale_checkpoint(
+        self, world: dict[str, Any]
+    ) -> None:
+        """The bug, demonstrated on the stand-in before the fix is asserted."""
+        _, gid = self._two_checkpoints_db_behind(world)
+        chosen = world["cache"].restore(key_for(gid, 1), prefix_for(gid), world["tmp"] / "x")
+        assert chosen == key_for(gid, 1), "an exact hit wins over the newer prefix match"
+
+    def test_the_never_existing_key_restores_the_newest(self, world: dict[str, Any]) -> None:
+        _, gid = self._two_checkpoints_db_behind(world)
+        chosen = world["cache"].restore(
+            restore_key_for(gid, "run-3"), prefix_for(gid), world["tmp"] / "y"
+        )
+        assert chosen == key_for(gid, 2)
+
+    def test_the_run_resumes_from_five_and_advances_the_database(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider, gid = self._two_checkpoints_db_behind(world)
+        fetched_before = len(provider.fetched)
+
+        run3 = fresh_runner(world, "r3", provider, "continue_only").run(at=at(1, 6), budget=5)
+
+        assert run3["restored"] == key_for(gid, 2), "checkpoint 2, not the database's 1"
+        assert run3["verify"].ok
+        assert run3["reconciled"] == 2, "the database was advanced before the fetch"
+        assert run3["revision"] == 3, "and the run checkpointed on from there"
+        assert len(provider.fetched) == fetched_before + 5, "nothing already fetched was refetched"
+        assert world["db"].rows[gid] == ("IN_PROGRESS", 3)
+
+    def test_the_database_is_never_moved_backwards(self, tmp_path: pathlib.Path) -> None:
+        """The reconciliation is forward-only by its WHERE clause; asserted on
+        the verifier's verdict, which is what drives it."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()  # 1
+        older = verify_local_state(store, generation.generation_id, expected_revision=3)
+        assert older.ok is False, "an older local checkpoint is refused, not reconciled to"
+
+    def test_a_newer_checkpoint_with_missing_files_is_refused(self, tmp_path: pathlib.Path) -> None:
+        """Newer is not enough. A partial restore of checkpoint 5 is not a
+        state to continue from, and not one to tell the database to trust."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.record_roster("16504", ["1", "2"])
+        generation.mark_competition_complete("16504")
+        generation.checkpoint()
+        generation.checkpoint()  # 2, and the snapshot never made it
+        assert not generation.snapshot_path("16504").exists()
+
+        verdict = verify_local_state(store, generation.generation_id, expected_revision=1)
+        assert verdict.ok is False
+        assert "do not match its metadata" in verdict.reason
+        assert "no snapshot" in verdict.reason
+
+    def test_the_acceptance_rules_in_one_table(self, tmp_path: pathlib.Path) -> None:
+        """Section 2, as a table."""
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        generation.checkpoint()  # local = 2
+        gid = generation.generation_id
+
+        assert verify_local_state(store, gid, expected_revision=2).ok is True  # equal
+        assert verify_local_state(store, gid, expected_revision=1).ok is True  # local newer
+        assert verify_local_state(store, gid, expected_revision=3).ok is False  # local older
+        assert verify_local_state(store, "29990101T000000Z", expected_revision=2).ok is False
+
+
+# ---------------------------------------------------------------------------
+# The gate fails closed without its database
+# ---------------------------------------------------------------------------
+
+
+class TestTheGateFailsClosedWithoutTheDatabase:
+    """Section 14, 15 and 21. The database is authoritative; a fresh runner
+    that cannot reach it has an empty disk, and an empty disk reads as
+    START_NEW beside the generation the database knows is IN_PROGRESS."""
+
+    @pytest.fixture
+    def unreachable_database(self, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+        import pipelines.footystats.gate as gate
+
+        def boom() -> Any:
+            raise ConnectionError("PostgreSQL is not answering")
+
+        monkeypatch.setattr(gate, "active_generations", lambda session: boom())
+        monkeypatch.setattr(
+            "app.core.database.get_session_factory", lambda: lambda: _RaisingSession()
+        )
+        return gate
+
+    def test_production_on_actions_stops_with_no_decision(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        # A disk that would say START_NEW if anyone asked it.
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+
+        code = gate.main(["--mode", "start"])
+
+        assert code == 1
+        err = capsys.readouterr().err
+        assert "::error::" in err and "authoritative" in err
+        out = capsys.readouterr().out
+        assert "action=START_NEW" not in out
+        assert not (tmp_path / "g").exists(), "no generation was created"
+
+    def test_production_off_actions_also_stops(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "continue_only"]) == 1
+
+    def test_actions_never_falls_back_even_outside_production(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "start"]) == 1
+
+    def test_local_development_may_fall_back(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        gate = unreachable_database
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.delenv("ALLOW_LOCAL_GATE_FALLBACK", raising=False)
+        store = GenerationStore(root=tmp_path / "g")
+        store.create(now=at(1))
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+
+        assert gate.main(["--mode", "continue_only"]) == 0
+        assert "action=FETCH" in capsys.readouterr().out
+
+    def test_the_explicit_override_allows_it_anywhere(
+        self,
+        unreachable_database,  # type: ignore[no-untyped-def]
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        """For a person running the gate by hand against a dead database and
+        knowing it. Never set in the workflow."""
+        gate = unreachable_database
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("ALLOW_LOCAL_GATE_FALLBACK", "true")
+        monkeypatch.setattr(gate, "GenerationStore", lambda: GenerationStore(root=tmp_path / "g"))
+        assert gate.main(["--mode", "continue_only"]) == 0
+
+
+class _RaisingSession:
+    def __enter__(self) -> Any:
+        raise ConnectionError("PostgreSQL is not answering")
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# The final fetch completes and the database never hears about it
+# ---------------------------------------------------------------------------
+
+
+class TestTheFinalCheckpointIsReconciledInFull:
+    """Section 16. Mandatory.
+
+    The last run fetched the final players, marked G5 COMPLETE, checkpointed
+    at 5 and saved the cache. The database update failed: it still says
+    IN_PROGRESS at 4. The next run's gate says FETCH. The restore brings back
+    COMPLETE at 5. Advancing only the revision left the status behind, and
+    the run would have spent itself fetching nothing.
+    """
+
+    def _complete_on_disk_in_progress_in_db(
+        self, world: dict[str, Any]
+    ) -> tuple[RosterProvider, str]:
+        provider = RosterProvider([str(i) for i in range(1, 21)])
+        run1 = fresh_runner(world, "r1", provider, "start").run(at=at(1), budget=10)
+        run2 = fresh_runner(world, "r2", provider, "continue_only").run(at=at(1, 5))
+        gid = run1["generation_id"]
+        assert run2["complete"] is True and run2["revision"] == 2
+        assert world["db"].rows[gid] == ("COMPLETE", 2)
+        # The database never heard about run 2.
+        world["db"].rows[gid] = ("IN_PROGRESS", 1)
+        return provider, gid
+
+    def test_the_run_reconciles_and_publishes_rather_than_fetching(
+        self, world: dict[str, Any]
+    ) -> None:
+        provider, gid = self._complete_on_disk_in_progress_in_db(world)
+        fetched_before = len(provider.fetched)
+
+        run3 = fresh_runner(world, "r3", provider, "continue_only").run(at=at(1, 6))
+
+        assert run3["action"] is Action.FETCH, "the stale gate decision"
+        assert run3["restored"] == key_for(gid, 2)
+        assert run3["verify"].ok, "integrity passed"
+        assert run3["reconciled"] == 2
+        assert world["db"].rows[gid] == ("COMPLETE", 2), "status and revision, not revision alone"
+        assert run3["effective_action"] is Action.PUBLISH_READY, "re-evaluated after reconciling"
+        assert len(provider.fetched) == fetched_before, "the player API was not called"
+        assert "generation_id" not in run3, "no fetch ran at all"
+
+    def test_the_real_reconciliation_moves_every_field(self, tmp_path: pathlib.Path) -> None:
+        """`reconcile_forward` against PostgreSQL. The simulation above
+        mirrors it; this is the thing itself."""
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        gid = generation.generation_id
+        source = "a_reconciled_provider"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'IN_PROGRESS', now(), now(), false, 20, 10, 0, 1, 0, 1)"
+                    ),
+                    {"g": gid, "s": source},
+                )
+            # The disk is at checkpoint 2, COMPLETE, every player fetched.
+            generation.record_roster("16504", [str(i) for i in range(1, 21)])
+            generation.mark_competition_complete("16504")
+            generation.refresh_counts(completed=20, failed=[])
+            generation.evaluate_completeness()
+            generation.set_status(GenerationStatus.COMPLETE)
+            generation.checkpoint()
+            generation.checkpoint()
+
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed
+            assert outcome.status == "COMPLETE"
+
+            with get_engine().connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT status, checkpoint_revision, completed_players, "
+                        "total_expected_players, competitions_complete, complete "
+                        "FROM public.fact_refresh_generation WHERE source = :s"
+                    ),
+                    {"s": source},
+                ).one()
+            assert tuple(row) == ("COMPLETE", 2, 20, 20, 1, True)
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_a_status_is_never_moved_down(self, tmp_path: pathlib.Path) -> None:
+        """VALIDATED in the database beside COMPLETE on disk stays VALIDATED:
+        the checks passed and the disk simply does not know."""
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        gid = generation.generation_id
+        source = "a_validated_provider_2"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'VALIDATED', now(), now(), true, 5, 5, 0, 1, 1, 1)"
+                    ),
+                    {"g": gid, "s": source},
+                )
+            generation.set_status(GenerationStatus.COMPLETE)
+            generation.checkpoint()
+            generation.checkpoint()
+
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed, "the revision moved"
+            assert outcome.status == "VALIDATED", "the status did not move down"
+
+            with get_engine().connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT status, checkpoint_revision FROM public.fact_refresh_generation "
+                        "WHERE source = :s"
+                    ),
+                    {"s": source},
+                ).one()
+            assert tuple(row) == ("VALIDATED", 2)
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_a_published_generation_is_not_touched(self, tmp_path: pathlib.Path) -> None:
+        pytest.importorskip("psycopg")
+        from pipelines.footystats.publish_status import reconcile_forward
+        from sqlalchemy import text
+
+        from app.core.database import get_engine
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        source = "a_published_provider_2"
+        try:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.fact_refresh_generation "
+                        "(generation_id, source, status, created_at, updated_at, complete, "
+                        " total_expected_players, completed_players, failed_players, "
+                        " competitions_expected, competitions_complete, checkpoint_revision) "
+                        "VALUES (:g, :s, 'PUBLISHED', now(), now(), true, 5, 5, 0, 1, 1, 1)"
+                    ),
+                    {"g": generation.generation_id, "s": source},
+                )
+            generation.checkpoint()
+            generation.checkpoint()
+            outcome = reconcile_forward(generation, source=source)
+            assert outcome.changed is False
+            assert outcome.status == "PUBLISHED"
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text("DELETE FROM public.fact_refresh_generation WHERE source = :s"),
+                    {"s": source},
+                )
+
+    def test_the_verify_command_emits_the_reconciled_action(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """What the workflow reads: `action=PUBLISH_READY` from the verify
+        step, overriding the gate's FETCH."""
+        import pipelines.footystats.gate as gate
+        import pipelines.footystats.publish_status as publish_status
+        from pipelines.footystats.publish_status import Reconciliation
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.set_status(GenerationStatus.COMPLETE)
+        generation.checkpoint()
+        generation.checkpoint()  # local 2, COMPLETE
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+        monkeypatch.setattr(
+            publish_status, "expected_state", lambda gid, source="footystats": ("IN_PROGRESS", 1)
+        )
+        monkeypatch.setattr(
+            publish_status,
+            "reconcile_forward",
+            lambda g, source="footystats": Reconciliation(True, "COMPLETE", "reconciled"),
+        )
+
+        code = gate.main(
+            ["--verify-restored", generation.generation_id, "--expected-revision", "1"]
+        )
+        assert code == 0
+        out = capsys.readouterr().out
+        assert "action=PUBLISH_READY" in out
+        assert "status=COMPLETE" in out
+
+
+# ---------------------------------------------------------------------------
+# The authority must be readable, and single
+# ---------------------------------------------------------------------------
+
+
+class TestTheAuthorityMustBeReadableAndSingle:
+    """Sections 4 to 8, 17 and 18."""
+
+    def test_the_gate_reads_status_and_revision_in_one_query(self) -> None:
+        import inspect
+
+        import pipelines.footystats.gate as gate
+
+        source = inspect.getsource(gate.active_generations)
+        assert "checkpoint_revision" in source, "the revision comes from the same row"
+        assert not hasattr(gate, "expected_revision_for"), "no second, best-effort lookup"
+
+    def test_a_live_generation_without_a_revision_is_an_error(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 17. The generation is known; its checkpoint is not. 0 is a
+        real value and not this."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(
+            gate,
+            "_live_from_state",
+            lambda: [LiveGeneration("29990101T000000Z", "IN_PROGRESS", None)],
+        )
+        code = gate.main(["--mode", "continue_only"])
+        assert code == 1
+        captured = capsys.readouterr()
+        assert "could not be read" in captured.err
+        assert "action=FETCH" not in captured.out
+        assert "action=START_NEW" not in captured.out
+
+    def test_the_verify_command_fails_without_an_authoritative_revision(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 6. No `--expected-revision`, database unreachable: stop."""
+        import pipelines.footystats.gate as gate
+        import pipelines.footystats.publish_status as publish_status
+
+        store = GenerationStore(root=tmp_path / "g")
+        generation = store.create(now=at(1))
+        generation.checkpoint()
+        monkeypatch.setattr(gate, "GenerationStore", lambda: store)
+        monkeypatch.setattr(publish_status, "expected_state", lambda gid, source="footystats": None)
+
+        code = gate.main(["--verify-restored", generation.generation_id])
+        assert code == 1
+        assert "cannot be trusted on its own" in capsys.readouterr().err
+
+    def test_the_workflow_never_substitutes_zero(self) -> None:
+        text = (
+            pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "pipeline.yml"
+        ).read_text(encoding="utf-8")
+        assert "expected_revision || 0" not in text
+
+    def test_two_live_generations_fail_the_gate(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 18. Red, not a green NOOP."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(
+            gate,
+            "_live_from_state",
+            lambda: [
+                LiveGeneration("29990105T000000Z", "IN_PROGRESS", 3),
+                LiveGeneration("29990106T000000Z", "COMPLETE", 7),
+            ],
+        )
+        code = gate.main(["--mode", "start"])
+        assert code == 1
+        captured = capsys.readouterr()
+        assert "multiple live FootyStats generations" in captured.err
+        assert "29990105T000000Z" in captured.err and "29990106T000000Z" in captured.err
+        assert "action=ERROR" in captured.out
+        assert "proceed=false" in captured.out
+        assert "needs_local_state=false" in captured.out, "no cache restore"
+
+    def test_a_quiet_hour_is_still_a_quiet_hour(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Section 8. The valid NOOP keeps exit 0."""
+        import pipelines.footystats.gate as gate
+
+        monkeypatch.setattr(gate, "_live_from_state", lambda: [])
+        assert gate.main(["--mode", "continue_only"]) == 0
+        assert "action=NOOP" in capsys.readouterr().out

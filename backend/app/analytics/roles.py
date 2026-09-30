@@ -164,6 +164,50 @@ class RoleScore:
         return self.score is not None
 
     @property
+    def availability_note(self) -> str | None:
+        """What was missing, generated from what was actually missing.
+
+        WHY THIS IS NOT WRITTEN BY HAND
+
+        It was, in `caveat`, and the hand-written text went stale exactly as
+        one would expect. The Ball-Winning Midfielder caveat said it was
+        computed without the ball security score; ball security has been fully
+        available for some time. The Direct Winger caveat said it was computed
+        without inverse dispossessions; that role is at 100% coverage with
+        nothing missing at all.
+
+        Both were true when written. Neither had any way of noticing the
+        provider had started supplying the field, so the site went on
+        apologising for data it had.
+
+        A quantitative availability claim is derivable, so it is derived.
+        `caveat` keeps only what cannot be: the qualitative methodological
+        limitations - that tackle counts are attempts rather than successes,
+        that goalkeeping figures are team-dependent - which no availability
+        report can know.
+        """
+        if not self.missing:
+            return None
+        names = ", ".join(sorted(self.missing))
+        return (
+            f"Computed from {self.coverage:.0%} of this role's configured weight. "
+            f"Not available from the performance provider: {names}. The remaining "
+            f"components are reweighted to sum to 100%; nothing missing is counted "
+            f"as zero."
+        )
+
+    @property
+    def explanation(self) -> str | None:
+        """The availability note and the methodological caveat, in that order.
+
+        One string for the interface, so the two cannot be shown apart or get
+        out of order.
+        """
+        parts = [self.availability_note, self.caveat]
+        joined = " ".join(part.strip() for part in parts if part)
+        return joined or None
+
+    @property
     def coverage_band(self) -> RoleCoverage:
         """How much of this role's definition was behind the score."""
         return classify_role_coverage(self.coverage)

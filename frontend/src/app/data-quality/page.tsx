@@ -1,18 +1,34 @@
+import { RefreshProgress } from "@/components/quality/RefreshProgress";
 import type { Metadata } from "next";
+import type React from "react";
 
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
-import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import {
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  TableWrap,
+} from "@/components/ui/Table";
 import { formatCount, formatDate } from "@/lib/format";
 import { getDataQuality } from "@/lib/system";
-import type { CheckStatus, QualityCheck, SourceFreshness } from "@/types/api";
+import type {
+  CheckStatus,
+  ProviderQuality,
+  QualityCheck,
+  SourceFreshness,
+} from "@/types/api";
 
 export const metadata: Metadata = {
   title: "Data quality",
-  description: "Source freshness, coverage and the automated checks run on every load.",
+  description:
+    "Source freshness, coverage and the automated checks run on every load.",
 };
 
 const TONE: Record<CheckStatus, BadgeTone> = {
@@ -50,9 +66,14 @@ export default async function DataQualityPage() {
   );
 }
 
-async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>> }) {
+async function Report({
+  report,
+}: {
+  report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>>;
+}) {
+  // `checks` is the published set - candidates are excluded by the service -
+  // so a failure here is a failure in the data readers are being served.
   const failing = report.checks.filter((c) => c.status === "fail");
-  const warning = report.checks.filter((c) => c.status === "warn");
 
   return (
     <>
@@ -64,15 +85,22 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Players" value={formatCount(report.volumes.players)} />
-        <StatTile label="Player seasons" value={formatCount(report.volumes.player_seasons)} />
+        <StatTile
+          label="Player seasons"
+          value={formatCount(report.volumes.player_seasons)}
+        />
         <StatTile label="Clubs" value={formatCount(report.volumes.clubs)} />
-        <StatTile label="Competitions" value={formatCount(report.volumes.competitions)} />
+        <StatTile
+          label="Competitions"
+          value={formatCount(report.volumes.competitions)}
+        />
       </div>
 
       {failing.length > 0 ? (
         <Callout tone="caution" title={`${failing.length} check(s) failing`}>
-          A failing check means the loaded data violates something the system relies on.
-          Figures derived from it may be wrong, not merely incomplete.
+          A failing check means the loaded data violates something the system
+          relies on. Figures derived from it may be wrong, not merely
+          incomplete.
         </Callout>
       ) : null}
 
@@ -115,7 +143,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
         <Card>
           <CardHeader
             title="Detailed statistics coverage"
-            description="The provider records detailed events for only some matches, and every per-90 divides by those minutes rather than all minutes played. This is the mean share across every loaded player-season carrying both figures."
+            description="The provider records detailed events for only some matches, and the rates built from those events — passing, tackling, shooting, npxG, xA — divide by the minutes it recorded rather than by all minutes played. Goals, assists and goals conceded are top-level counters and divide by minutes played. This is the mean share between the two counts across every loaded player-season carrying both."
           />
           <CardBody>
             {report.average_detailed_coverage_pct !== null ? (
@@ -124,7 +152,8 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               </p>
             ) : (
               <p className="text-sm text-muted">
-                Not measurable: no loaded player-season carries both minute counts.
+                Not measurable: no loaded player-season carries both minute
+                counts.
               </p>
             )}
           </CardBody>
@@ -153,6 +182,8 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
         </Card>
       </div>
 
+      {report.refresh ? <RefreshProgress refresh={report.refresh} /> : null}
+
       {report.analytics ? (
         <Card>
           <CardHeader
@@ -172,7 +203,9 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               <StatTile
                 label="View built"
                 value={
-                  report.analytics.built_at ? formatDate(report.analytics.built_at) : "–"
+                  report.analytics.built_at
+                    ? formatDate(report.analytics.built_at)
+                    : "–"
                 }
                 hint={
                   report.analytics.is_stale
@@ -182,9 +215,13 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
               />
             </div>
             {report.analytics.is_stale ? (
-              <Callout tone="note" title="The database has changed since this view was built">
-                A refreshed load reaches readers when the pipeline asks the API to rebuild.
-                Until then the previous figures are served — consistent, and behind.
+              <Callout
+                tone="note"
+                title="The database has changed since this view was built"
+              >
+                A refreshed load reaches readers when the pipeline asks the API
+                to rebuild. Until then the previous figures are served —
+                consistent, and behind.
               </Callout>
             ) : null}
           </CardBody>
@@ -194,7 +231,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
       <Card>
         <CardHeader
           title="Source freshness"
-          description="When each source's data was last loaded, and when its checks last ran. These are different facts: checks run routinely against data nobody reloaded."
+          description="When each source's data was last published to this site, and when its checks last ran. Three different facts, kept apart: checks run routinely against data nobody replaced, and a refresh can load into staging without ever reaching production."
         />
         <CardBody className="p-0">
           {report.sources.length === 0 ? (
@@ -208,7 +245,7 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
                 <THead>
                   <TR>
                     <TH>Source</TH>
-                    <TH numeric>Data updated</TH>
+                    <TH numeric>Data published</TH>
                     <TH numeric>Checked</TH>
                     <TH numeric>Checks</TH>
                     <TH numeric>Warnings</TH>
@@ -226,35 +263,21 @@ async function Report({ report }: { report: NonNullable<Awaited<ReturnType<typeo
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Automated checks"
-          description={`Most recent run per source. ${report.checks.length - failing.length - warning.length} passing, ${warning.length} warning, ${failing.length} failing.`}
-        />
-        <CardBody className="p-0">
-          {report.checks.length === 0 ? (
+      {(report.providers ?? []).map((provider) => (
+        <ProviderCard key={provider.source} provider={provider} />
+      ))}
+
+      {(report.providers ?? []).length === 0 ? (
+        <Card>
+          <CardHeader
+            title="Automated checks"
+            description="Nothing has recorded a check yet."
+          />
+          <CardBody>
             <EmptyState title="No checks recorded" />
-          ) : (
-            <TableWrap className="rounded-none border-0">
-              <Table>
-                <THead>
-                  <TR>
-                    <TH>Check</TH>
-                    <TH>Source</TH>
-                    <TH numeric>Count</TH>
-                    <TH>Status</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {report.checks.map((check) => (
-                    <CheckRow key={`${check.source}-${check.entity}-${check.check_name}`} check={check} />
-                  ))}
-                </TBody>
-              </Table>
-            </TableWrap>
-          )}
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
+      ) : null}
 
       <Callout tone="note" title="What these checks do and do not tell you">
         {report.meaning}
@@ -271,14 +294,22 @@ function SourceRow({ source }: { source: SourceFreshness }) {
     <TR>
       <TD className="font-medium">{source.source}</TD>
       <TD numeric>
-        {/* The load time, which is what a reader means by "how current is
-            this?". Never filled in from the check time beside it. */}
-        {source.last_loaded_at !== null ? (
-          <span className={dataStale ? "text-warning" : undefined} title={source.last_loaded_at}>
-            {formatDate(source.last_loaded_at)}
+        {/* The publication time — when this dataset became the one being
+            served, which is what a reader means by "how current is this?".
+            Never filled in from the check time beside it, and never from a
+            staging load that may not have reached production. */}
+        {source.last_published_at !== null ? (
+          <span
+            className={dataStale ? "text-warning" : undefined}
+            title={source.last_published_at}
+          >
+            {formatDate(source.last_published_at)}
           </span>
         ) : (
-          <span className="text-subtle" title="Loaded before load times were recorded">
+          <span
+            className="text-subtle"
+            title="Published before publication times were recorded, or never published"
+          >
             unknown
           </span>
         )}
@@ -290,12 +321,183 @@ function SourceRow({ source }: { source: SourceFreshness }) {
       </TD>
       <TD numeric>{source.checks_run}</TD>
       <TD numeric>
-        {source.warnings > 0 ? <Badge tone="warning">{source.warnings}</Badge> : "—"}
+        {source.warnings > 0 ? (
+          <Badge tone="warning">{source.warnings}</Badge>
+        ) : (
+          "—"
+        )}
       </TD>
       <TD numeric>
-        {source.failures > 0 ? <Badge tone="danger">{source.failures}</Badge> : "—"}
+        {source.failures > 0 ? (
+          <Badge tone="danger">{source.failures}</Badge>
+        ) : (
+          "—"
+        )}
       </TD>
     </TR>
+  );
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  footystats: "Performance data (FootyStats)",
+  transfermarkt: "Market data (Transfermarkt)",
+  demo: "Demo data",
+};
+
+function summarise(checks: QualityCheck[]): string {
+  const failing = checks.filter((c) => c.status === "fail").length;
+  const warning = checks.filter((c) => c.status === "warn").length;
+  return `${checks.length - failing - warning} passing, ${warning} warning, ${failing} failing`;
+}
+
+/**
+ * One provider, two datasets, never confused.
+ *
+ * The left column is the dataset this site is serving and the checks that
+ * validated it. The right column is whatever is waiting - a refresh between
+ * staging and production, or one that failed to get there - and it says so.
+ * The page used to show one list, and the list was whichever run was newest,
+ * which is how a candidate's ticks ended up above production's data.
+ */
+function ProviderCard({ provider }: { provider: ProviderQuality }) {
+  const { published, candidate } = provider;
+  return (
+    <Card>
+      <CardHeader
+        title={PROVIDER_LABELS[provider.source] ?? provider.source}
+        description="The published dataset and, separately, any refresh that has not reached readers."
+      />
+      <CardBody className="space-y-6">
+        <section className="space-y-3">
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+            Published dataset
+            <Badge tone="neutral">serving</Badge>
+          </h3>
+          {published ? (
+            <>
+              <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+                <Field label="Last published">
+                  {published.published_at
+                    ? formatDate(published.published_at)
+                    : "unknown"}
+                </Field>
+                <Field label="Refresh">
+                  <span className="font-mono text-xs">
+                    {published.refresh_id ?? "—"}
+                  </span>
+                </Field>
+                {published.generation_id ? (
+                  <Field label="Generation">
+                    <span className="font-mono text-xs">
+                      {published.generation_id}
+                    </span>
+                  </Field>
+                ) : null}
+                <Field label="Quality">{summarise(published.checks)}</Field>
+              </dl>
+              {published.checks.length > 0 ? (
+                <TableWrap>
+                  <ChecksTable checks={published.checks} />
+                </TableWrap>
+              ) : (
+                <p className="text-sm text-muted">
+                  Published before checks carried a refresh identity; no checks
+                  are attributable to this dataset.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Nothing from this source has been published.
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="flex items-center gap-2 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+            Latest candidate refresh
+            {candidate ? <Badge tone="neutral">not published</Badge> : null}
+          </h3>
+          {candidate ? (
+            <>
+              <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+                <Field label="Status">Checked, awaiting publication</Field>
+                <Field label="Refresh">
+                  <span className="font-mono text-xs">
+                    {candidate.refresh_id}
+                  </span>
+                </Field>
+                {candidate.generation_id ? (
+                  <Field label="Generation">
+                    <span className="font-mono text-xs">
+                      {candidate.generation_id}
+                    </span>
+                  </Field>
+                ) : null}
+                <Field label="Last validation">
+                  {formatDate(candidate.executed_at)}
+                </Field>
+                <Field label="Quality">{summarise(candidate.checks)}</Field>
+              </dl>
+              <p className="text-xs text-muted">
+                Checked against a staging copy that has not reached readers.
+                Nothing here describes the data on this site; it describes what
+                the next dataset would be if it were promoted.
+              </p>
+              <TableWrap>
+                <ChecksTable checks={candidate.checks} />
+              </TableWrap>
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Idle — no candidate refresh is waiting.
+            </p>
+          )}
+        </section>
+      </CardBody>
+    </Card>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] tracking-wide text-subtle uppercase">
+        {label}
+      </dt>
+      <dd className="font-medium">{children}</dd>
+    </div>
+  );
+}
+
+function ChecksTable({ checks }: { checks: QualityCheck[] }) {
+  return (
+    <>
+      <Table>
+        <THead>
+          <TR>
+            <TH>Check</TH>
+            <TH>Source</TH>
+            <TH numeric>Count</TH>
+            <TH>Status</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {checks.map((check) => (
+            <CheckRow
+              key={`${check.source}-${check.entity}-${check.check_name}`}
+              check={check}
+            />
+          ))}
+        </TBody>
+      </Table>
+    </>
   );
 }
 
@@ -305,7 +507,9 @@ function CheckRow({ check }: { check: QualityCheck }) {
       <TD>
         <span className="font-medium">{check.check_name}</span>
         <span className="mt-0.5 block text-xs text-subtle">{check.entity}</span>
-        {check.detail ? <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p> : null}
+        {check.detail ? (
+          <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p>
+        ) : null}
       </TD>
       <TD className="text-xs text-muted">{check.source}</TD>
       <TD numeric>{formatCount(check.record_count)}</TD>

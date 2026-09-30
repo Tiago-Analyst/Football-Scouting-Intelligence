@@ -76,7 +76,12 @@ def survey(session) -> PruneReport:  # type: ignore[no-untyped-def]
     """Count what is used without changing anything."""
     from sqlalchemy import func, select
 
-    from app.models import DimPlayer, FactMarketValue, FactPlayerSeasonStats, FactTransfer
+    from app.models import (
+        DimPlayer,
+        FactMarketValue,
+        FactPlayerSeasonStats,
+        FactTransfer,
+    )
 
     played = select(FactPlayerSeasonStats.player_id).distinct().scalar_subquery()
 

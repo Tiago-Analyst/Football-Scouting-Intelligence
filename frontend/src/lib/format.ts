@@ -52,6 +52,29 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+/**
+ * A timestamp to the minute, in UTC.
+ *
+ * For operational moments rather than calendar ones: "last checkpoint" is a
+ * question about whether something is still moving, and a month and year
+ * cannot answer it. UTC because the reader and the pipeline are rarely in the
+ * same timezone and the pipeline's is the one that matters here.
+ */
+export function formatTimestamp(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const time = date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+  return `${day}, ${time} UTC`;
+}
+
 /** Thousands-separated integer, e.g. minutes played. */
 export function formatCount(value: number): string {
   return value.toLocaleString("en-GB");

@@ -107,10 +107,16 @@ UNDER_TEST: tuple[MetricUnderTest, ...] = (
     MetricUnderTest("goals_per90", "goals_overall", "goals_per_90_overall", "goals"),
     MetricUnderTest("assists_per90", "assists_overall", "assists_per_90_overall", "assists"),
     MetricUnderTest(
-        "goals_conceded_per90", "conceded_overall", "conceded_per_90_overall", "goals conceded"
+        "goals_conceded_per90",
+        "conceded_overall",
+        "conceded_per_90_overall",
+        "goals conceded",
     ),
     MetricUnderTest(
-        "shots_per90", "detailed.shots_total_overall", "detailed.shots_per_90_overall", "shots"
+        "shots_per90",
+        "detailed.shots_total_overall",
+        "detailed.shots_per_90_overall",
+        "shots",
     ),
     MetricUnderTest(
         "shots_on_target_per90",
@@ -119,7 +125,10 @@ UNDER_TEST: tuple[MetricUnderTest, ...] = (
         "shots",
     ),
     MetricUnderTest(
-        "npxg_per90", "detailed.npxg_total_overall", "detailed.npxg_per_90_overall", "xG"
+        "npxg_per90",
+        "detailed.npxg_total_overall",
+        "detailed.npxg_per_90_overall",
+        "xG",
     ),
     MetricUnderTest("xa_per90", "detailed.xa_total_overall", "detailed.xa_per_90_overall", "xA"),
     MetricUnderTest(
@@ -170,6 +179,14 @@ class Evidence:
     ambiguous: int = 0
     #: Players inspected with a usable minute gap and all three numbers present.
     considered: int = 0
+    #: Of the decisive records, those where the provider reported MORE
+    #: detail-minutes than played-minutes. Counted separately because they are
+    #: the evidence that settled whether to preserve such values or clamp them:
+    #: if the detailed metrics reproduce against the larger figure, then the
+    #: larger figure is what the provider meant, and clamping destroys it.
+    decisive_recorded_exceeds: int = 0
+    #: Of those, the ones that agreed with the recorded denominator.
+    exceeds_agreeing_with_recorded: int = 0
     examples: list[str] = field(default_factory=list)
 
     @property
@@ -218,8 +235,39 @@ def _agrees(published: float, total: float, minutes: float) -> bool:
     return abs(total * 90.0 / minutes - published) <= TOLERANCE
 
 
-def iter_players(directory: pathlib.Path = SNAPSHOT_DIR):
+def snapshot_directory() -> pathlib.Path:
+    """Where the snapshots this validation reads actually live.
+
+    The published generation when there is one, and the flat directory when
+    there is not. The flat layout is what
+    `pipelines.footystats.migrate_snapshots` converts, so after that has run
+    this follows the data rather than reporting an empty universe from an
+    empty directory - which is what it did the first time the snapshots moved.
+    """
+    try:
+        from pipelines.footystats.generations import GenerationStore
+
+        store = GenerationStore()
+        published = store.latest_published()
+        if published is not None:
+            return published.directory
+        loadable = [g for g in store.all() if g.status.is_publishable]
+        if loadable:
+            return loadable[-1].directory
+    except Exception as exc:
+        # Said out loud rather than swallowed: falling back silently is how a
+        # report ends up describing the wrong directory and nobody notices.
+        print(
+            f"Could not read the generation store ({type(exc).__name__}); "
+            f"falling back to {SNAPSHOT_DIR}.",
+            file=sys.stderr,
+        )
+    return SNAPSHOT_DIR
+
+
+def iter_players(directory: pathlib.Path | None = None):
     """Every player record in every snapshot, as plain dicts."""
+    directory = directory or snapshot_directory()
     for path in sorted(directory.glob("season-*.jsonl.gz")):
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             for line in handle:
@@ -269,9 +317,14 @@ def examine(records) -> dict[str, Evidence]:
                 entry.ambiguous += 1
             elif by_playing:
                 entry.playing += 1
+                if recorded > playing:
+                    entry.decisive_recorded_exceeds += 1
                 _remember(entry, season, record, total, published, playing, recorded)
             elif by_recorded:
                 entry.recorded += 1
+                if recorded > playing:
+                    entry.decisive_recorded_exceeds += 1
+                    entry.exceeds_agreeing_with_recorded += 1
                 _remember(entry, season, record, total, published, playing, recorded)
             else:
                 entry.neither += 1
@@ -401,6 +454,45 @@ def render(evidence: dict[str, Evidence], *, players: int, differing: int) -> st
             )
         add("")
 
+    add("## Records where the provider recorded more than was played")
+    add("")
+    add(
+        "The canonical model once clamped `recorded_minutes` down to `minutes`, and a "
+        "database constraint enforced it. Both encoded a true statement about football "
+        "and a false one about this provider."
+    )
+    add("")
+    add(
+        "These are the records that settle it: the provider reported more detail-minutes "
+        "than played-minutes, so the two hypotheses give clearly different answers and "
+        "the provider's own published figure says which it used."
+    )
+    add("")
+    add("| Canonical metric | Decisive records with recorded > played | Agreed with recorded |")
+    add("| --- | ---: | ---: |")
+    for metric in UNDER_TEST:
+        entry = evidence[metric.canonical]
+        if not entry.decisive_recorded_exceeds:
+            continue
+        add(
+            f"| `{metric.canonical}` | {entry.decisive_recorded_exceeds} "
+            f"| {entry.exceeds_agreeing_with_recorded} |"
+        )
+    add("")
+    add(
+        "Where a detailed metric appears here, its rate reproduces against the larger "
+        "figure - which is the evidence that the larger figure is what the provider "
+        "meant. Clamping it would have inflated every detailed per-90 for those players "
+        "in proportion to the gap."
+    )
+    add("")
+    add(
+        "The clamp and the constraint were both removed. The raw provider values are "
+        "stored; the interface caps the coverage percentage it displays at 100% and "
+        "names the discrepancy rather than showing an impossible ratio."
+    )
+    add("")
+
     add("## What was done with this")
     add("")
     add(
@@ -426,11 +518,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not SNAPSHOT_DIR.exists():
+    directory = snapshot_directory()
+    if not directory.exists():
         # Not a failure, in either mode. A CI checkout has no snapshots, and
         # the report is committed and reviewed with the change that produces
         # it; this check runs where the data is.
-        print(f"No snapshots at {SNAPSHOT_DIR}. Nothing to validate.", file=sys.stderr)
+        print(f"No snapshots at {directory}. Nothing to validate.", file=sys.stderr)
         return 0
 
     players = 0

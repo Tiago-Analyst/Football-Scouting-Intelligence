@@ -1,3 +1,4 @@
+import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -186,7 +187,17 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
               />
             </Field>
 
-            <Field label="Minimum minutes" htmlFor="min_minutes">
+            <Field
+              label={
+                <>
+                  Minimum minutes
+                  <Tooltip label="Does this exclude players by default?">
+                    Optional filter. All players are eligible by default regardless of minutes played — this sets a floor only if you want one, and it is empty unless you fill it in.
+                  </Tooltip>
+                </>
+              }
+              htmlFor="min_minutes"
+            >
               <TextInput
                 id="min_minutes"
                 name="min_minutes"

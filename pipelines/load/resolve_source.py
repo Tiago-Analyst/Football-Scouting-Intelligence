@@ -47,8 +47,21 @@ class UnresolvedSource(RuntimeError):
     """The run's source could not be determined from its trigger."""
 
 
-def cron_map(config: Mapping[str, object]) -> dict[str, str]:
-    """`{cron literal: source}` from the refresh block.
+#: What a scheduled run is allowed to do.
+#:
+#: `start` may begin a new refresh generation, or continue an open one.
+#: `continue_only` may only continue an open one - a cron that fires hourly
+#: must not start a fresh fourteen-hour refresh every hour.
+START = "start"
+CONTINUE_ONLY = "continue_only"
+
+
+def cron_map(config: Mapping[str, object]) -> dict[str, tuple[str, str]]:
+    """`{cron literal: (source, mode)}` from the refresh block.
+
+    Two kinds of cron per source. `cron` is the cadence - when a new refresh
+    may begin. `continuation_cron` fires more often and may only carry an
+    unfinished one forward.
 
     Sources with no cron are skipped rather than mapped to `None`: a source
     that is never scheduled cannot be selected by a schedule.
@@ -56,13 +69,14 @@ def cron_map(config: Mapping[str, object]) -> dict[str, str]:
     refresh = config.get("refresh") or {}
     if not isinstance(refresh, Mapping):
         return {}
-    mapping: dict[str, str] = {}
+    mapping: dict[str, tuple[str, str]] = {}
     for source, entry in refresh.items():
         if not isinstance(entry, Mapping):
             continue
-        cron = entry.get("cron")
-        if isinstance(cron, str) and cron.strip():
-            mapping[_normalise(cron)] = str(source)
+        for key, mode in (("cron", START), ("continuation_cron", CONTINUE_ONLY)):
+            cron = entry.get(key)
+            if isinstance(cron, str) and cron.strip():
+                mapping[_normalise(cron)] = (str(source), mode)
     return mapping
 
 
@@ -71,17 +85,19 @@ def _normalise(cron: str) -> str:
     return " ".join(cron.split())
 
 
-def resolve(
+def resolve_with_mode(
     *,
     event_name: str,
     schedule: str | None,
     input_source: str | None,
     config: Mapping[str, object],
-) -> str:
-    """The source this run refreshes.
+) -> tuple[str, str]:
+    """The source this run refreshes, and what it is allowed to do.
 
-    Manual dispatch uses what the operator chose. A schedule uses whichever
-    source claims that cron. Anything else is an error.
+    Manual dispatch uses what the operator chose, and may start a refresh. A
+    schedule uses whichever source claims that cron, and whether it may start
+    one depends on which of that source's crons fired. Anything else is an
+    error.
     """
     if event_name == "workflow_dispatch":
         chosen = (input_source or "").strip()
@@ -93,29 +109,47 @@ def resolve(
             )
         if chosen not in KNOWN_SOURCES:
             raise UnresolvedSource(f"unknown source {chosen!r}; expected one of {KNOWN_SOURCES}")
-        return chosen
+        return chosen, START
 
     if event_name == "schedule":
         literal = _normalise(schedule or "")
         if not literal:
             raise UnresolvedSource("a scheduled run reported no cron expression")
         mapping = cron_map(config)
-        source = mapping.get(literal)
-        if source is None:
+        entry = mapping.get(literal)
+        if entry is None:
             raise UnresolvedSource(
                 f"no source in config/competitions.yaml claims the cron {literal!r}. "
                 f"Known: {sorted(mapping)}. Add it to `refresh`, or remove the cron "
                 f"from the workflow - a scheduled run must not guess which provider "
                 f"it is refreshing."
             )
+        source, mode = entry
         if source not in KNOWN_SOURCES:
             raise UnresolvedSource(f"config schedules unknown source {source!r}")
-        return source
+        return source, mode
 
     raise UnresolvedSource(
         f"cannot resolve a source for event {event_name!r}. Only workflow_dispatch "
         f"and schedule refresh production data."
     )
+
+
+def resolve(
+    *,
+    event_name: str,
+    schedule: str | None,
+    input_source: str | None,
+    config: Mapping[str, object],
+) -> str:
+    """The source alone, for callers that do not care what it may do."""
+    source, _ = resolve_with_mode(
+        event_name=event_name,
+        schedule=schedule,
+        input_source=input_source,
+        config=config,
+    )
+    return source
 
 
 def load_config(path: pathlib.Path = CONFIG) -> Mapping[str, object]:
@@ -126,7 +160,7 @@ def load_config(path: pathlib.Path = CONFIG) -> Mapping[str, object]:
 def main(argv: list[str] | None = None) -> int:
     """Resolve from the environment and write to `$GITHUB_OUTPUT`."""
     try:
-        source = resolve(
+        source, mode = resolve_with_mode(
             event_name=os.environ.get("EVENT_NAME", ""),
             schedule=os.environ.get("SCHEDULE"),
             input_source=os.environ.get("INPUT_SOURCE"),
@@ -136,11 +170,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"::error::{exc}", file=sys.stderr)
         return 1
 
-    print(f"source={source}")
+    values = {"source": source, "mode": mode}
+    for key, value in values.items():
+        print(f"{key}={value}")
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
         with open(output, "a", encoding="utf-8") as handle:
-            handle.write(f"source={source}\n")
+            for key, value in values.items():
+                handle.write(f"{key}={value}\n")
     return 0
 
 

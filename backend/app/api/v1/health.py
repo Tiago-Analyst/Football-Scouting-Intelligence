@@ -27,10 +27,10 @@ from app.schemas.system import (
     HealthResponse,
     LivenessResponse,
     MetaResponse,
-    SourceLoadOut,
+    SourcePublicationOut,
 )
 from app.services.analytics_service import get_analytics_view, view_is_stale
-from app.services.quality_service import last_loads
+from app.services.quality_service import last_publications
 
 log = get_logger(__name__)
 
@@ -258,12 +258,25 @@ def _market_source(settings: Settings) -> DataSourceStatus:
     )
 
 
-def _data_freshness() -> list[SourceLoadOut]:
-    """When each source was last loaded, for the shell to show unobtrusively.
+def _data_freshness() -> list[SourcePublicationOut]:
+    """When each source was last published, for the shell to show unobtrusively.
 
-    Never inferred from when the checks last ran: that is a different fact, and
-    a check against a fortnight-old load happens routinely. A source with no
-    recorded load is simply absent.
+    PUBLISHED, NOT LOADED
+    ---------------------
+
+    This is the line on every page of the site - "Performance data updated 8
+    Sep" - which makes it the most-read freshness claim there is, and it was
+    reading the load ledger.
+
+    Loads write to `analytics_staging` now. A refresh that loads at 10:00 and
+    fails identity resolution at 10:20 leaves production serving yesterday,
+    with a load row stamped 10:00 that this line would have turned into a
+    promise about the figures on screen.
+
+    Never inferred from when the checks last ran either: that is a third fact,
+    and a check against a fortnight-old dataset happens routinely. A source
+    with no recorded publication is simply absent, because a missing line is a
+    smaller lie than an invented date.
 
     A database that cannot be reached returns nothing rather than failing the
     endpoint. This is a footer line; the health check is where an unreachable
@@ -272,8 +285,10 @@ def _data_freshness() -> list[SourceLoadOut]:
     try:
         with get_session_factory()() as session:
             return [
-                SourceLoadOut(source=source, last_loaded_at=loaded_at, rows_loaded=rows)
-                for source, (loaded_at, rows) in sorted(last_loads(session).items())
+                SourcePublicationOut(
+                    source=source, last_published_at=published_at, rows_published=rows
+                )
+                for source, (published_at, rows) in sorted(last_publications(session).items())
             ]
     except Exception as exc:
         log.warning("data_freshness_unavailable", error=type(exc).__name__)

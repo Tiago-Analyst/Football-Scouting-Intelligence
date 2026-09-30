@@ -112,11 +112,23 @@ class ProviderLoader:
         source: str,
         performance: PerformanceDataProvider | None,
         market: MarketDataProvider | None,
+        generation_id: str | None = None,
+        refresh_id: str | None = None,
+        candidate: bool = False,
     ) -> None:
         self.session = session
         self.source = source
         self.performance = performance
         self.market = market
+        #: Which FootyStats generation this load reads, when it reads one.
+        self.generation_id = generation_id
+        #: The identity of this refresh, whatever the provider. Equal to the
+        #: generation id for FootyStats; minted by the workflow for the rest.
+        self.refresh_id = refresh_id or generation_id
+        #: Whether this load writes to staging, about data nobody is served.
+        #: Explicit, because it was inferred from `generation_id` being set,
+        #: which made every Transfermarkt candidate look published.
+        self.candidate = candidate
         self.report = LoadReport(source=source)
         # Provider player id -> internal player_id, built as players are loaded.
         self._player_ids: dict[str, int] = {}
@@ -155,7 +167,8 @@ class ProviderLoader:
                 )
 
         self.report.record(
-            "competitions", _bulk_insert(self.session, DimCompetition, list(rows.values()))
+            "competitions",
+            _bulk_insert(self.session, DimCompetition, list(rows.values())),
         )
 
     def load_seasons(self) -> None:
@@ -543,6 +556,12 @@ class ProviderLoader:
                     "status": status,
                     "record_count": count,
                     "detail": detail,
+                    # Written against staging, about a refresh that has not
+                    # been promoted. The promotion flips these to PUBLISHED by
+                    # source + refresh_id.
+                    "refresh_id": self.refresh_id,
+                    "generation_id": self.generation_id,
+                    "context": "CANDIDATE" if self.candidate else None,
                 }
                 for entity, name, status, count, detail in self.report.checks
             ],
@@ -596,13 +615,27 @@ def _normalize(name: str) -> str:
 
 #: Pairs the canonical model holds to be subset-and-total, mirroring the CHECK
 #: constraints on `fact_player_season_stats`.
+#:
+#: WHY `recorded_minutes`/`minutes` IS NOT HERE
+#:
+#: It was, and it was the same mistake as the database constraint dropped in
+#: migration 0007 - worse, in fact, because this does not clamp, it nulls
+#: *both* halves. A player with 326 minutes played and 416 recorded lost both
+#: figures on the way in, so the un-clamping work upstream had no effect at
+#: all: the provider's value survived the mapping and was then discarded here.
+#:
+#: The pairs below are genuine subset relationships - a completed pass is a
+#: pass, a won duel is a duel - and a provider contradicting one of those is
+#: contradicting itself. The two minute counts are not a subset relationship.
+#: They are two different measurements of two different things, and FootyStats
+#: computes its detailed per-90 figures over the larger one. See
+#: `docs/footystats_denominator_validation.md`.
 CONTAINMENT_PAIRS: tuple[tuple[str, str], ...] = (
     ("passes_completed", "passes"),
     ("shots_on_target", "shots"),
     ("duels_won", "duels"),
     ("aerial_duels_won", "aerial_duels"),
     ("non_penalty_goals", "goals"),
-    ("recorded_minutes", "minutes"),
 )
 
 
@@ -674,10 +707,76 @@ def purge(session: Session, source: str) -> None:
     session.execute(delete(BridgePlayerSource).where(BridgePlayerSource.source == source))
     session.execute(delete(DimClub).where(DimClub.source == source))
     session.execute(delete(DimCompetition).where(DimCompetition.source == source))
-    session.execute(delete(FactDataQuality).where(FactDataQuality.source == source))
+    # NOT `fact_data_quality`.
+    #
+    # It was on this list. Quality rows are validation history, kept in
+    # `public` beside the publication ledger, and they describe datasets -
+    # including the one production is serving right now. Purging them with the
+    # provider meant: G4 published and its checks recorded; G5 starts, the
+    # purge deletes G4's PUBLISHED rows; G5 fails at promotion; production is
+    # still G4 and nothing on the public page can say what validated it.
+    #
+    # A purge removes the provider's *data* from the candidate schema. History
+    # accumulates independently, and if it ever needs a retention policy that
+    # is a maintenance decision, not a side effect of refreshing a provider.
 
 
-def build_loader(session: Session, source: str) -> ProviderLoader:
+def _newest_loadable_generation():  # type: ignore[no-untyped-def]
+    """The newest generation that has finished fetching, or None.
+
+    For a local run with no database to name one. The workflow never uses
+    this: it names the generation, and `_generation_to_load` refuses any
+    other. "Newest" is a guess, and the one time the guess is wrong it
+    publishes an old COMPLETE generation over a newer one.
+
+    None means "no generation directory", not "nothing is ready": a store
+    holding only an IN_PROGRESS generation returns None here and the caller
+    falls back to the flat layout, which is empty on a fresh checkout and so
+    fails loudly rather than loading half a season.
+    """
+    from pipelines.footystats.generations import GenerationStore
+
+    loadable = [g for g in GenerationStore().all() if g.status.is_publishable]
+    return loadable[-1] if loadable else None
+
+
+def _generation_to_load(expected_id: str | None):  # type: ignore[no-untyped-def]
+    """The generation this load reads from: the named one, or - unnamed - the
+    newest finished one.
+
+    Named is the workflow's path. The gate read the database, the database
+    said which generation is awaiting publication, and that is the one to
+    load - not the newest directory on a runner whose cache may hold several.
+    A named generation that is missing, or not finished, stops the load: it
+    would otherwise read a partial universe or a different one.
+    """
+    from pipelines.footystats.generations import GenerationStore
+
+    if expected_id is None:
+        return _newest_loadable_generation()
+
+    generation = GenerationStore().get(expected_id)
+    if generation is None:
+        raise LookupError(
+            f"generation {expected_id} is not on disk. The database expects it and the "
+            f"restored cache does not hold it; nothing was loaded."
+        )
+    if not generation.status.is_publishable:
+        raise LookupError(
+            f"generation {expected_id} is {generation.status.value}, not finished; "
+            f"a partial universe is never loaded."
+        )
+    return generation
+
+
+def build_loader(
+    session: Session,
+    source: str,
+    *,
+    generation_id: str | None = None,
+    refresh_id: str | None = None,
+    candidate: bool = False,
+) -> ProviderLoader:
     if source == "demo":
         return ProviderLoader(
             session,
@@ -691,13 +790,50 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
         # fast, atomic and repeatable without asking the provider again.
         from app.core.config import get_settings
         from app.providers.footystats import FootyStatsProvider
-        from app.providers.footystats_snapshot import SnapshotReader, SnapshotUnavailableError
+        from app.providers.footystats_snapshot import (
+            SnapshotReader,
+            SnapshotUnavailableError,
+        )
 
-        reader = SnapshotReader()
+        # WHICH GENERATION THIS LOADS FROM
+        #
+        # The one the caller named, when it named one - the workflow always
+        # does, from the database. Otherwise the newest that finished
+        # fetching. A generation still IN_PROGRESS is a partial universe:
+        # loading it would replace a whole season with a subset of itself,
+        # and every percentile would be measured against a population
+        # missing entire leagues.
+        #
+        # `is_publishable` is the gate, and it is deliberately narrow -
+        # COMPLETE, VALIDATED or PUBLISHED. The load's own `--verify` decides
+        # whether what it finds is good enough to keep; this decides only that
+        # it is finished.
+        generation = _generation_to_load(generation_id)
+        if generation is not None:
+            reader = SnapshotReader(generation.directory)
+            print(
+                f"Loading FootyStats generation {generation.generation_id} "
+                f"({generation.status.value})."
+            )
+        else:
+            # The flat layout. Deprecated rather than supported: it is what
+            # `pipelines.footystats.migrate_snapshots` converts, and keeping
+            # two layouts working is how one of them quietly stops being
+            # tested. A local `--flat` fetch still lands here; anything else
+            # arriving here means the migration has not been run.
+            print(
+                "::warning::No refresh generation found; falling back to the flat "
+                "snapshot layout. Run `python -m pipelines.footystats.migrate_snapshots "
+                "--apply` to convert it - the flat layout has no notion of which "
+                "refresh a snapshot belongs to, which is the defect generations fix."
+            )
+            reader = SnapshotReader()
+
         available = reader.available_seasons()
         if not available:
             raise SnapshotUnavailableError(
-                "No FootyStats snapshots found. Run `python -m pipelines.footystats.ingest` first."
+                "No FootyStats snapshots found. Run `python -m pipelines.footystats.ingest` "
+                "first, and let a generation reach COMPLETE before loading."
             )
 
         performance = FootyStatsProvider(get_settings())
@@ -720,6 +856,9 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
             performance=performance,
             # Market data comes from Transfermarkt, loaded as its own source.
             market=None,
+            generation_id=generation.generation_id if generation is not None else None,
+            refresh_id=refresh_id or (generation.generation_id if generation is not None else None),
+            candidate=candidate,
         )
 
     if source == "transfermarkt":
@@ -730,6 +869,8 @@ def build_loader(session: Session, source: str) -> ProviderLoader:
             source="transfermarkt",
             performance=None,
             market=TransfermarktDatasetProvider(),
+            refresh_id=refresh_id,
+            candidate=candidate,
         )
     raise ValueError(f"unknown source: {source}")
 
@@ -755,6 +896,32 @@ def main(argv: list[str] | None = None) -> int:
             "back if any check fails. Use in scheduled pipelines."
         ),
     )
+    parser.add_argument(
+        "--generation-id",
+        default=None,
+        help=(
+            "FootyStats only. Load exactly this generation, which the database named. "
+            "Without it the newest finished generation on disk is used - for local "
+            "runs; the workflow always names one."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-id",
+        default=None,
+        help=(
+            "The identity of this refresh, for the quality rows it writes. Defaults to "
+            "the generation id for FootyStats; the workflow mints one for Transfermarkt."
+        ),
+    )
+    parser.add_argument(
+        "--candidate",
+        action="store_true",
+        help=(
+            "This load writes to the staging schema, about data nobody is being served. "
+            "Its quality rows are recorded as CANDIDATE and flipped to PUBLISHED by the "
+            "promotion. The workflow always passes this."
+        ),
+    )
     args = parser.parse_args(argv)
 
     from app.core.config import get_settings
@@ -772,7 +939,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Purged source '{args.source}'. Nothing was loaded.")
             return 0
 
-        loader = build_loader(session, args.source)
+        try:
+            loader = build_loader(
+                session,
+                args.source,
+                generation_id=args.generation_id,
+                refresh_id=args.refresh_id,
+                candidate=args.candidate,
+            )
+        except LookupError as exc:
+            session.rollback()
+            print(f"::error::{exc}", file=sys.stderr)
+            return 1
         report = loader.run()
 
         if report.failed:

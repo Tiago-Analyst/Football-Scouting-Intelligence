@@ -17,9 +17,14 @@ from fastapi import APIRouter
 from app.api.deps import SessionDep, SettingsDep
 from app.schemas.api import (
     AnalyticsFreshnessOut,
+    CandidateChecksOut,
     DataQualityResponse,
     IdentityCoverageOut,
+    ProviderQualityOut,
+    PublishedChecksOut,
     QualityCheckOut,
+    RefreshGenerationOut,
+    RefreshStatusOut,
     SourceFreshnessOut,
     VolumesOut,
 )
@@ -55,6 +60,8 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
     at all. Nothing here exposes a connection string, a credential or a log.
     """
     checks = svc.latest_checks(db)
+    candidates = svc.candidate_checks(db)
+    providers = svc.provider_quality(db)
     sources = svc.freshness(db)
     counts = svc.volumes(db)
     identity = svc.identity_coverage(db)
@@ -77,6 +84,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             built_at=view.built_at,
             is_stale=view_is_stale(),
         ),
+        refresh=_refresh_out(svc.refresh_status(db)),
         meaning=QUALITY_MEANING,
         notice=None if checks else NO_CHECKS_YET,
         volumes=VolumesOut(
@@ -93,22 +101,87 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
                 checks_run=item.checks_run,
                 failures=item.failures,
                 warnings=item.warnings,
-                last_loaded_at=item.last_loaded_at,
+                last_published_at=item.last_published_at,
                 data_age_days=item.data_age_days,
-                rows_loaded=item.rows_loaded,
+                rows_published=item.rows_published,
+                last_load_attempt_at=item.last_load_attempt_at,
             )
             for item in sources
         ],
-        checks=[
-            QualityCheckOut(
+        checks=[_check_out(item) for item in checks],
+        published_generation_id=svc.published_generation_id(db),
+        candidate=[_candidate_out(group) for group in candidates],
+        providers=[
+            ProviderQualityOut(
                 source=item.source,
-                entity=item.entity,
-                check_name=item.check_name,
-                status=item.status,  # type: ignore[arg-type]
-                record_count=item.record_count,
-                detail=item.detail,
-                executed_at=item.executed_at,
+                published=(
+                    PublishedChecksOut(
+                        source=item.published.source,
+                        refresh_id=item.published.refresh_id,
+                        generation_id=item.published.generation_id,
+                        published_at=item.published.published_at,
+                        executed_at=item.published.executed_at,
+                        checks=[_check_out(c) for c in item.published.checks],
+                    )
+                    if item.published
+                    else None
+                ),
+                candidate=_candidate_out(item.candidate) if item.candidate else None,
             )
-            for item in checks
+            for item in providers
         ],
+    )
+
+
+def _candidate_out(group) -> CandidateChecksOut:  # type: ignore[no-untyped-def]
+    return CandidateChecksOut(
+        source=group.source,
+        refresh_id=group.refresh_id,
+        generation_id=group.generation_id,
+        executed_at=group.executed_at,
+        checks=[_check_out(item) for item in group.checks],
+    )
+
+
+def _check_out(item) -> QualityCheckOut:  # type: ignore[no-untyped-def]
+    return QualityCheckOut(
+        source=item.source,
+        entity=item.entity,
+        check_name=item.check_name,
+        status=item.status,
+        record_count=item.record_count,
+        detail=item.detail,
+        executed_at=item.executed_at,
+        refresh_id=item.refresh_id,
+        generation_id=item.generation_id,
+        context=item.context,
+    )
+
+
+def _generation_out(summary) -> RefreshGenerationOut:  # type: ignore[no-untyped-def]
+    return RefreshGenerationOut(
+        generation_id=summary.generation_id,
+        status=summary.status,
+        created_at=summary.created_at,
+        last_updated_at=summary.last_updated_at,
+        published_at=summary.published_at,
+        total_expected_players=summary.total_expected_players,
+        completed_players=summary.completed_players,
+        failed_players=summary.failed_players,
+        completion_pct=summary.completion_pct,
+        competitions_complete=summary.competitions_complete,
+        competitions_expected=summary.competitions_expected,
+        complete=summary.complete,
+    )
+
+
+def _refresh_out(status) -> RefreshStatusOut | None:  # type: ignore[no-untyped-def]
+    """`None` stays `None`: no generation directory means nothing to show, and
+    an empty progress bar would imply a stalled refresh."""
+    if status is None:
+        return None
+    return RefreshStatusOut(
+        state=status.state,
+        published=_generation_out(status.published) if status.published else None,
+        current=_generation_out(status.current) if status.current else None,
     )
