@@ -1865,3 +1865,85 @@ class TestPublicationIsIdempotent:
                 {"s": self.SOURCE},
             ).scalar()
         assert count == 1
+
+
+class TestTheRefusalsHappenInTheRightOrder:
+    """CI found this and a developer's machine could not.
+
+    The row-count refusal used to run before both the `--source` guard and
+    the idempotency check. Locally staging holds a copy of production, so
+    `check` passed and the two later answers were reached; on a fresh CI
+    database staging is empty, `check` refused first, and it answered for
+    them both:
+
+      - a promotion missing `--source` reported "staging holds no
+        player-seasons" - true, and not what is wrong with the command;
+      - a re-run of an already-published refresh returned 1 instead of the
+        safe no-op it is. That is the case idempotency exists for, failing
+        loudest exactly when staging is thin - which is when somebody is
+        most likely to be re-running a job by hand.
+
+    Staging is emptied here by stubbing the counts rather than by truncating
+    a real schema: the point is the order of the checks, and a test that
+    rebuilt staging to prove it would be a test that changed what the next
+    promotion promotes.
+    """
+
+    @pytest.fixture
+    def empty_staging(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from pipelines.load import promote
+
+        real = promote._counts
+
+        def counts(connection, schema: str):  # type: ignore[no-untyped-def]
+            if schema == promote.STAGING:
+                return promote.SchemaCounts(players=0, player_seasons=0, competitions=0)
+            return real(connection, schema)
+
+        monkeypatch.setattr(promote, "_counts", counts)
+
+    def test_a_missing_source_is_reported_as_a_missing_source(
+        self, empty_staging: None, capsys: pytest.CaptureFixture
+    ) -> None:
+        from pipelines.load.promote import main
+
+        assert main(["--apply"]) == 2
+        assert "--source is required" in capsys.readouterr().err
+
+    def test_an_already_published_refresh_is_still_a_no_op(
+        self, empty_staging: None, capsys: pytest.CaptureFixture
+    ) -> None:
+        from pipelines.load.promote import main, record_publication
+
+        refresh = "test-order-R1"
+        try:
+            with get_engine().begin() as connection:
+                record_publication(
+                    connection,
+                    source="transfermarkt",
+                    generation_id=None,
+                    refresh_id=refresh,
+                    rows_published=1,
+                )
+
+            assert main(["--apply", "--source", "transfermarkt", "--refresh-id", refresh]) == 0
+            assert "already published" in capsys.readouterr().out
+        finally:
+            with get_engine().begin() as connection:
+                connection.execute(
+                    text(
+                        "DELETE FROM public.fact_source_publication "
+                        "WHERE source = 'transfermarkt' AND refresh_id = :r"
+                    ),
+                    {"r": refresh},
+                )
+
+    def test_an_unpublished_refresh_still_hits_the_row_count_refusal(
+        self, empty_staging: None, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The refusal did not go away; it moved behind the two answers that
+        were being swallowed."""
+        from pipelines.load.promote import main
+
+        assert main(["--apply", "--source", "transfermarkt", "--refresh-id", "test-order-R2"]) == 1
+        assert "nothing to promote" in capsys.readouterr().err

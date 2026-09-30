@@ -527,6 +527,45 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    # THE ORDER OF THESE THREE IS THE POINT.
+    #
+    # The row-count refusal used to come first, and it swallowed both of the
+    # answers below. A promotion missing `--source` reported "staging holds no
+    # player-seasons" - true, and not the thing wrong with the command. Worse,
+    # a re-run of an already-published refresh returned 1 instead of the safe
+    # no-op it is: exactly the case idempotency exists for, failing loudest
+    # when staging happens to be thin, which is when somebody is most likely
+    # to be re-running a job by hand.
+    #
+    # So: is the command well formed, has this already been done, and only
+    # then is there something worth promoting.
+    if args.apply and not args.source:
+        print(
+            "REFUSED: --source is required with --apply. A promotion advances one "
+            "provider's freshness, and which one is not something this can infer "
+            "from the row counts.",
+            file=sys.stderr,
+        )
+        return 2
+
+    refresh_id = args.refresh_id or args.generation_id
+    if args.apply and args.source:
+        with engine.connect() as connection:
+            if already_published(connection, args.source, refresh_id):
+                # Safe no-op. Not a refusal: the thing the run exists to do
+                # has been done, and a red job over a published dataset would
+                # send somebody to re-run it a third time.
+                print(
+                    f"Refresh {refresh_id} of {args.source} is already published. "
+                    f"Nothing to do; production is untouched."
+                )
+                log.info(
+                    "analytics_promotion_already_published",
+                    source=args.source,
+                    refresh_id=refresh_id,
+                )
+                return 0
+
     reasons = check(production, staged)
     if reasons and not args.force:
         for reason in reasons:
@@ -541,29 +580,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Ready to promote. Re-run with --apply.")
         return 0
 
-    if not args.source:
-        print(
-            "REFUSED: --source is required with --apply. A promotion advances one "
-            "provider's freshness, and which one is not something this can infer "
-            "from the row counts.",
-            file=sys.stderr,
-        )
-        return 2
-
     with engine.begin() as connection:
-        refresh_id = args.refresh_id or args.generation_id
-        if already_published(connection, args.source, refresh_id):
-            # Safe no-op. Not a refusal: the thing the run exists to do has
-            # been done, and a red job over a published dataset would send
-            # somebody to re-run it a third time.
-            print(
-                f"Refresh {refresh_id} of {args.source} is already published. "
-                f"Nothing to do; production is untouched."
-            )
-            log.info(
-                "analytics_promotion_already_published", source=args.source, refresh_id=refresh_id
-            )
-            return 0
         if args.generation_id:
             # Named by the workflow from the database. Verified against the
             # database again here, inside the promotion's own transaction:
