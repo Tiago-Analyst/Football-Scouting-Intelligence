@@ -16,10 +16,22 @@ import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState } from "@/components/ui/States";
-import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import {
+  Table,
+  TableWrap,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+} from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatCount, formatDate, formatEuro } from "@/lib/format";
-import { canPrerenderEverything, getPlayerProfile, searchPlayers } from "@/lib/players";
+import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
+import {
+  canPrerenderEverything,
+  getPlayerProfile,
+  searchPlayers,
+} from "@/lib/players";
 import type { Score } from "@/types/api";
 
 /**
@@ -50,9 +62,12 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const params: { slug: string }[] = [];
 
   for (let offset = 0; ; offset += PAGE) {
-    const page = await searchPlayers({ offset, limit: PAGE, sort: "minutes" }, {
-      buildAccess: true,
-    });
+    const page = await searchPlayers(
+      { offset, limit: PAGE, sort: "minutes" },
+      {
+        buildAccess: true,
+      },
+    );
     if (!page || page.items.length === 0) break;
     params.push(...page.items.map((player) => ({ slug: player.player_id })));
     if (params.length >= page.total) break;
@@ -68,7 +83,9 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
  */
 export const revalidate = 3600;
 
-export async function generateMetadata(props: PageProps<"/players/[slug]">): Promise<Metadata> {
+export async function generateMetadata(
+  props: PageProps<"/players/[slug]">,
+): Promise<Metadata> {
   const { slug } = await props.params;
   // The same request the page makes, so the fetch cache serves both from one
   // round trip rather than doubling the work of rendering every profile.
@@ -76,7 +93,9 @@ export async function generateMetadata(props: PageProps<"/players/[slug]">): Pro
   return { title: profile ? profile.player.name : "Player" };
 }
 
-export default async function PlayerProfilePage(props: PageProps<"/players/[slug]">) {
+export default async function PlayerProfilePage(
+  props: PageProps<"/players/[slug]">,
+) {
   const { slug } = await props.params;
   // One request rather than four. At five and a half thousand profiles the
   // difference decides whether the deploy can render them all.
@@ -126,8 +145,14 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         actions={
           <>
             {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
-            <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
-            <SaveToShortlist playerId={player.player_id} playerName={player.name} />
+            <SampleSizeBadge
+              band={player.sample_band}
+              minutes={player.minutes}
+            />
+            <SaveToShortlist
+              playerId={player.player_id}
+              playerName={player.name}
+            />
           </>
         }
       />
@@ -162,12 +187,18 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
         />
         <StatTile
           label="Market value"
-          value={player.market_value_eur !== null ? formatEuro(player.market_value_eur) : "–"}
+          value={
+            player.market_value_eur !== null
+              ? formatEuro(player.market_value_eur)
+              : "–"
+          }
           hint="Estimate, not a fee"
         />
         <StatTile
           label="Contract until"
-          value={player.contract_expires ? formatDate(player.contract_expires) : "–"}
+          value={
+            player.contract_expires ? formatDate(player.contract_expires) : "–"
+          }
         />
       </div>
 
@@ -197,9 +228,10 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               <span className="flex items-center gap-1.5">
                 Intelligence profile
                 <Tooltip label="What are intelligence scores?">
-                  Each score combines several metrics, converted to percentiles within the
-                  comparison group first, then weighted. A score of 0–100 says where this player
-                  sits on that composite — not how good they are.
+                  Each score combines several metrics, converted to percentiles
+                  within the comparison group first, then weighted. A score of
+                  0–100 says where this player sits on that composite — not how
+                  good they are.
                 </Tooltip>
               </span>
             }
@@ -207,13 +239,17 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
           />
           <CardBody className="space-y-3.5">
             {(stats?.scores ?? []).map((score) => (
-              <div key={score.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
+              <div
+                key={score.key}
+                className="grid grid-cols-[9.5rem_1fr] items-center gap-3"
+              >
                 <span className="flex items-center gap-1 text-xs text-muted">
                   {score.label}
                   {score.description || score.caveat ? (
                     <Tooltip label={`What is ${score.label}?`}>
                       {score.description ? <>{score.description} </> : null}
-                      Expressed relative to comparable players, not as a measure of quality.
+                      Expressed relative to comparable players, not as a measure
+                      of quality.
                       {score.caveat ? <> {score.caveat}</> : null}
                     </Tooltip>
                   ) : null}
@@ -241,15 +277,17 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
               <span className="flex items-center gap-1.5">
                 Role compatibility
                 <Tooltip label="Raw Role Fit and Role Fit Percentile">
-                  Raw Role Fit is the weighted statistical profile score, built from the
-                  components listed below it. Role Fit Percentile is where that score
-                  stands among every player evaluated for the same role. Roles weight
-                  their components differently, so raw scores from two roles are not
-                  directly comparable — the percentile is, and it is what the best role
-                  is chosen by. Metric Coverage, shown when it is below full, is the
-                  share of the role&rsquo;s configured weight backed by metrics the
-                  provider actually supplies; missing components are left out rather
-                  than counted as zero. None of the three is player quality.
+                  Raw Role Fit is the weighted statistical profile score, built
+                  from the components listed below it. Role Fit Percentile is
+                  where that score stands among every player evaluated for the
+                  same role. Roles weight their components differently, so raw
+                  scores from two roles are not directly comparable — the
+                  percentile is, and it is what the best role is chosen by.
+                  Metric Coverage, shown when it is below full, is the share of
+                  the role&rsquo;s configured weight backed by metrics the
+                  provider actually supplies; missing components are left out
+                  rather than counted as zero. None of the three is player
+                  quality.
                 </Tooltip>
               </span>
             }
@@ -272,7 +310,9 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                           name promises more than was measured. Marked, rather
                           than left to be inferred from a coverage figure
                           further down the row. */}
-                      {role.is_limited ? <Badge tone="warning">Limited</Badge> : null}
+                      {role.is_limited ? (
+                        <Badge tone="warning">Limited</Badge>
+                      ) : null}
                     </span>
                     {/* The bar shows the standing where there is one, because
                         that is what can be read across rows. */}
@@ -281,12 +321,13 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                     />
                   </div>
                   <p className="pl-[9.5rem] text-[11px] text-subtle tabular">
-                    Raw Role Fit {role.score !== null ? Math.round(role.score) : "N/A"}
+                    Raw Role Fit{" "}
+                    {role.score !== null ? Math.round(role.score) : "N/A"}
                     {role.role_fit_percentile !== null &&
                     role.role_fit_percentile !== undefined ? (
                       <>
                         {" · "}
-                        {Math.round(role.role_fit_percentile)}th percentile of{" "}
+                        {ordinal(role.role_fit_percentile)} percentile of{" "}
                         {role.role_population ?? 0} evaluated for this role
                       </>
                     ) : (
@@ -305,14 +346,18 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                       <>
                         {" · "}
                         <span
-                          className={role.is_limited ? "text-warning" : "text-subtle"}
+                          className={
+                            role.is_limited ? "text-warning" : "text-subtle"
+                          }
                           title={
                             role.explanation ??
                             "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
                           }
                         >
                           {Math.round(role.coverage * 100)}% metric coverage
-                          {role.coverage_label ? ` · ${role.coverage_label}` : null}
+                          {role.coverage_label
+                            ? ` · ${role.coverage_label}`
+                            : null}
                         </span>
                       </>
                     ) : null}
@@ -320,7 +365,9 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted">No role fit could be computed.</p>
+              <p className="text-sm text-muted">
+                No role fit could be computed.
+              </p>
             )}
           </CardBody>
           <CardFooter className="space-y-2 text-subtle">
@@ -329,14 +376,20 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 all of it, and a reader comparing two rows cannot see that from
                 the numbers. */}
             {[roles?.best, ...(roles?.alternatives ?? [])]
-              .filter((role) => role?.is_limited && (role?.explanation ?? role?.caveat))
+              .filter(
+                (role) =>
+                  role?.is_limited && (role?.explanation ?? role?.caveat),
+              )
               .map((role) => (
                 <p key={role!.key} className="text-[11px] leading-relaxed">
                   <span className="font-medium">{role!.label}:</span>{" "}
                   {role!.explanation ?? role!.caveat}
                 </p>
               ))}
-            <p>{roles?.meaning ?? "Role score measures resemblance to a profile."}</p>
+            <p>
+              {roles?.meaning ??
+                "Role score measures resemblance to a profile."}
+            </p>
           </CardFooter>
         </Card>
       </div>
@@ -364,8 +417,9 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
             <span className="flex items-center gap-1.5">
               Per 90 minutes, with percentile rank
               <Tooltip label="What does a percentile mean here?">
-                A 94th percentile means this player ranks above 94% of the comparison group on
-                that metric. The comparison group is stated below the table and is never hidden.
+                A 94th percentile means this player ranks above 94% of the
+                comparison group on that metric. The comparison group is stated
+                below the table and is never hidden.
               </Tooltip>
             </span>
           }
@@ -386,14 +440,21 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                     <span className="flex items-center gap-1.5">
                       {metric.label}
                       {metric.lower_is_better ? (
-                        <span className="text-[10px] text-subtle">(lower is better)</span>
+                        <span className="text-[10px] text-subtle">
+                          (lower is better)
+                        </span>
                       ) : null}
                     </span>
                   </TD>
-                  <TD numeric>{metric.value !== null ? metric.value.toFixed(2) : "–"}</TD>
+                  <TD numeric>
+                    {metric.value !== null ? metric.value.toFixed(2) : "–"}
+                  </TD>
                   <TD>
                     {metric.percentile !== null ? (
-                      <PercentileBar percentile={metric.percentile} />
+                      <PercentileBar
+                        percentile={metric.percentile}
+                        lowerIsBetter={metric.lower_is_better}
+                      />
                     ) : (
                       <span className="text-xs text-subtle">
                         {metric.unavailable_reason ?? "Not available"}
@@ -413,7 +474,10 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
       </Card>
 
       {stats?.context?.caveat ? (
-        <Callout tone="warning" title="Cross-league comparison is not strength-adjusted">
+        <Callout
+          tone="warning"
+          title="Cross-league comparison is not strength-adjusted"
+        >
           {stats.context.caveat}
         </Callout>
       ) : null}
@@ -421,7 +485,11 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Similar players</h2>
-          <ButtonLink href={`/similar?player=${player.player_id}`} variant="secondary" size="sm">
+          <ButtonLink
+            href={`/similar?player=${player.player_id}`}
+            variant="secondary"
+            size="sm"
+          >
             Open similarity search
           </ButtonLink>
         </div>
@@ -459,12 +527,16 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         </Link>
                         {!entry.comparable_strength ? (
                           <span className="mt-0.5 block">
-                            <Badge tone="warning">Different profile strength</Badge>
+                            <Badge tone="warning">
+                              Different profile strength
+                            </Badge>
                           </span>
                         ) : null}
                       </TD>
                       <TD numeric>{entry.player.age ?? "–"}</TD>
-                      <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
+                      <TD className="whitespace-nowrap">
+                        {entry.player.club ?? "–"}
+                      </TD>
                       <TD className="whitespace-nowrap text-muted">
                         {entry.player.best_role ?? "–"}
                       </TD>
@@ -477,7 +549,8 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                       <TD numeric className="whitespace-nowrap">
                         <span
                           className={
-                            entry.coverage_band === "high" || entry.coverage_band === "good"
+                            entry.coverage_band === "high" ||
+                            entry.coverage_band === "good"
                               ? "text-muted"
                               : "text-warning"
                           }
@@ -496,7 +569,9 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 </TBody>
               </Table>
             </TableWrap>
-            <p className="text-[11px] leading-relaxed text-subtle">{similar.meaning}</p>
+            <p className="text-[11px] leading-relaxed text-subtle">
+              {similar.meaning}
+            </p>
           </>
         ) : (
           <EmptyState
@@ -534,13 +609,17 @@ function WhyBestRole({ role }: { role: Score }) {
               <TR key={component.metric}>
                 <TD>{component.label}</TD>
                 <TD numeric>
-                  {component.percentile !== null ? component.percentile.toFixed(1) : "–"}
+                  {component.percentile !== null
+                    ? component.percentile.toFixed(1)
+                    : "–"}
                 </TD>
                 <TD numeric className="text-muted">
                   {Math.round(component.weight)}%
                 </TD>
                 <TD numeric className="font-medium">
-                  {component.contribution !== null ? component.contribution.toFixed(1) : "–"}
+                  {component.contribution !== null
+                    ? component.contribution.toFixed(1)
+                    : "–"}
                 </TD>
               </TR>
             ))}

@@ -381,7 +381,7 @@ def market_opportunities(
     view = get_analytics_view()
     # Each criterion carries its own test. Holding the wording in one list and
     # the tests in another let them drift apart, and a funnel that labels the
-    # minutes filter "Best role score at least 80" is worse than no funnel: it
+    # minutes filter "Raw role fit at least 80" is worse than no funnel: it
     # is a confident account of the wrong thing.
     steps: list[tuple[str, Callable[[PlayerRecord], bool]]] = [
         (
@@ -389,7 +389,7 @@ def market_opportunities(
             lambda r: r.age is not None and r.age <= max_age,
         ),
         (
-            f"Best role score at least {min_role_score:.0f}",
+            f"Raw role fit at least {min_role_score:.0f}",
             lambda r: _best_role_score(view, r) >= min_role_score,
         ),
         (

@@ -22,7 +22,9 @@ function first(value: string | string[] | undefined): string | undefined {
   return raw && raw.length > 0 ? raw : undefined;
 }
 
-export default async function OpportunitiesPage(props: PageProps<"/opportunities">) {
+export default async function OpportunitiesPage(
+  props: PageProps<"/opportunities">,
+) {
   const params = await props.searchParams;
   const criteria = {
     max_age: first(params.max_age) ?? "23",
@@ -57,7 +59,10 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Criteria</h2>
-              <Link href="/opportunities" className="text-xs text-muted hover:text-text">
+              <Link
+                href="/opportunities"
+                className="text-xs text-muted hover:text-text"
+              >
                 Reset
               </Link>
             </div>
@@ -75,9 +80,9 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
             </Field>
 
             <Field
-              label="Minimum role fit"
+              label="Minimum raw role fit"
               htmlFor="min_role_score"
-              hint="Best role score, 0–100."
+              hint="The weighted composite behind a player's best role, 0–100. Not the role fit percentile — a raw 80 is a high score on its own terms, whatever the population."
             >
               <TextInput
                 id="min_role_score"
@@ -95,7 +100,9 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                 <>
                   Minimum minutes
                   <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default regardless of minutes played — this sets a floor only if you want one, and it is empty unless you fill it in.
+                    Optional filter. All players are eligible by default
+                    regardless of minutes played — this sets a floor only if you
+                    want one, and it is empty unless you fill it in.
                   </Tooltip>
                 </>
               }
@@ -112,7 +119,10 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
               />
             </Field>
 
-            <Field label="Maximum market value (€)" htmlFor="max_market_value_eur">
+            <Field
+              label="Maximum market value (€)"
+              htmlFor="max_market_value_eur"
+            >
               <TextInput
                 id="max_market_value_eur"
                 name="max_market_value_eur"
@@ -124,7 +134,10 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
               />
             </Field>
 
-            <Field label="Contract expires within" htmlFor="contract_within_months">
+            <Field
+              label="Contract expires within"
+              htmlFor="contract_within_months"
+            >
               <Select
                 id="contract_within_months"
                 name="contract_within_months"
@@ -168,17 +181,24 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                 </summary>
                 <ul className="mt-3 space-y-1 text-xs text-muted">
                   {results.funnel.map((step) => (
-                    <li key={step.criterion} className="flex justify-between gap-4">
+                    <li
+                      key={step.criterion}
+                      className="flex justify-between gap-4"
+                    >
                       <span>{step.criterion}</span>
                       <span className="tabular whitespace-nowrap">
                         {formatCount(step.remaining)} left
-                        {step.removed > 0 ? ` (−${formatCount(step.removed)})` : ""}
+                        {step.removed > 0
+                          ? ` (−${formatCount(step.removed)})`
+                          : ""}
                       </span>
                     </li>
                   ))}
                 </ul>
                 {results.explanation ? (
-                  <p className="mt-3 text-xs text-muted">{results.explanation}</p>
+                  <p className="mt-3 text-xs text-muted">
+                    {results.explanation}
+                  </p>
                 ) : null}
               </details>
             ) : null}
@@ -191,7 +211,11 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                   "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling."
                 }
                 action={
-                  <ButtonLink href="/opportunities" variant="secondary" size="sm">
+                  <ButtonLink
+                    href="/opportunities"
+                    variant="secondary"
+                    size="sm"
+                  >
                     Reset criteria
                   </ButtonLink>
                 }
@@ -235,7 +259,8 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                         </ul>
                         {entry.player.market_value_eur !== null ? (
                           <p className="mt-3 text-xs text-subtle">
-                            Market value {formatEuro(entry.player.market_value_eur)} — a
+                            Market value{" "}
+                            {formatEuro(entry.player.market_value_eur)} — a
                             crowd-sourced estimate, not an asking price.
                           </p>
                         ) : null}

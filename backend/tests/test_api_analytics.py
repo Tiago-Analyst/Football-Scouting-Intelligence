@@ -566,6 +566,10 @@ class TestOpportunities:
         least 80". A funnel that confidently accounts for the wrong thing is
         worse than no funnel.
 
+        The criterion now reads "Raw role fit", which is what it screens on:
+        the weighted composite behind the best role, not its percentile. The
+        two are different numbers and the screen has to say which it used.
+
         Checked by moving one threshold at a time and seeing which line moves.
         """
         base = api.get("/api/v1/opportunities", params={"min_role_score": 50}).json()
@@ -575,7 +579,7 @@ class TestOpportunities:
             step = next(s for s in body["funnel"] if needle in s["criterion"])
             return step["removed"]
 
-        assert removed_by(stricter, "role score") > removed_by(base, "role score")
+        assert removed_by(stricter, "Raw role fit") > removed_by(base, "Raw role fit")
         # Nothing before it in the screen should have moved.
         assert removed_by(stricter, "Age at most") == removed_by(base, "Age at most")
 
