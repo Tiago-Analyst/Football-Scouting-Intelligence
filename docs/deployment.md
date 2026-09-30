@@ -153,6 +153,101 @@ and a pooled connection without this statement finds no tables at all.
 Existing connections keep the old setting: restart the service, or let Render
 do it as part of the deploy.
 
+### Runbook: bringing a deployed database from 0005 to head
+
+Written for the state production was actually found in on 30 September 2026 —
+the code at `0013` and the database at `0005`, because migrations do not run at
+start-up and nobody had run them. Follow it as written or take the shorter path
+at the end; do not improvise the order, because step 3 is the one whose absence
+took the site down earlier that day.
+
+**0. A branch to be wrong on.** Neon Console → the project → Branches → *Create
+branch* from `main`. It hands back its own connection string. Run steps 1–3
+against it first, look at the result, and delete the branch afterwards. Five
+minutes, and it converts "did that work?" into something you can answer before
+it matters. There is still no tested restore, so this is the nearest thing.
+
+**1. See where it is.** Render → `fri-backend` → Shell:
+
+```bash
+cd /app/backend && python -m alembic current
+```
+
+**2. Migrate.**
+
+```bash
+cd /app/backend && python -m alembic upgrade head
+```
+
+Eight revisions. Alembic stops at the first that fails rather than leaving the
+chain half applied.
+
+| | |
+| --- | --- |
+| 0006 | creates `fact_source_load` |
+| 0007 | drops the `recorded_minutes <= minutes` constraint |
+| 0008 | creates `fact_refresh_generation` — **this is what unblocks /data-quality** |
+| 0009 | creates the `analytics` and `analytics_staging` schemas, moves 8 tables |
+| 0010 | creates `fact_source_publication` |
+| 0011 | generation context and checkpoint columns |
+| 0012 | `refresh_id`, its backfill and indexes |
+| 0013 | the unique publication identity |
+
+0009 moves the tables with `ALTER TABLE … SET SCHEMA`, which rewrites the
+catalogue and not the rows: it is as fast on 236,000 rows as on none.
+
+**3. Set the search path, in the same window.**
+
+```sql
+ALTER ROLE fri_app IN DATABASE <database> SET search_path = analytics, public;
+```
+
+Not optional once 0009 has run. From that point the analytical tables are not
+in `public`, and a pooled connection cannot be told a search path per
+connection — see the section above, and the outage that established it.
+
+**4. Restart.** Render → Manual Deploy → Restart service. Connections already
+open keep the old setting.
+
+**5. Confirm.**
+
+```bash
+curl -s https://fri-backend.onrender.com/health
+```
+
+`schema_revision` should read `0013_publication_identity`, `postgresql` and
+`analytics` both `ok`, and the player-season count should be unchanged — a
+different count means tables were found somewhere unexpected. Then open
+`/data-quality`: the tables replace the "could not be reached" notice.
+
+#### If it goes wrong
+
+```bash
+cd /app/backend && python -m alembic downgrade 0008_refresh_generation
+```
+
+0009's downgrade moves the tables back to `public` and drops the new schemas.
+Then release the role setting and restart:
+
+```sql
+ALTER ROLE fri_app IN DATABASE <database> RESET search_path;
+```
+
+That leaves the database at 0008 — which is enough for `/data-quality`, so the
+recovery state is better than the starting one rather than merely equal to it.
+
+#### The shorter path
+
+To separate what fixes the visible fault from what reorganises the schema:
+
+```bash
+cd /app/backend && python -m alembic upgrade 0008_refresh_generation
+```
+
+`/data-quality` comes back, nothing leaves `public`, step 3 is not needed, and
+0009–0013 wait for a window of their own. Worth preferring on a day that has
+already had one incident.
+
 ---
 
 ## Containers
