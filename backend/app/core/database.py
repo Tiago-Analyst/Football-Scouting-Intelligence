@@ -33,6 +33,35 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
+def _is_pooled(url: str) -> bool:
+    """Whether this connection string points at a connection pooler.
+
+    Neon names its pooled endpoint `<project>-pooler.<region>.neon.tech`, and
+    the convention is shared: Supabase uses `pooler.supabase.com`, and
+    PgBouncer deployments commonly carry `pgbouncer` in the host. Matching the
+    host is a heuristic, and it is the right kind: a false positive costs a
+    search path that has to be set on the role instead, while a false negative
+    costs every connection.
+    """
+    host = url.split("@")[-1].split("/")[0].lower()
+    return "-pooler." in host or "pooler." in host or "pgbouncer" in host
+
+
+def search_path_args(settings: Settings) -> dict[str, str]:
+    """The libpq arguments that put the analytical schema on the search path.
+
+    Empty through a pooler, which refuses them - see `build_engine`. Its own
+    function so the decision can be asserted on directly: the whole outage was
+    one argument reaching a server that will not take it, and
+    `create_connect_args` does not report what `create_engine` was handed.
+    """
+    if _is_pooled(settings.sqlalchemy_url):
+        return {}
+    # Applied per connection rather than per session: a pooled connection
+    # handed to a new session must already be pointing at the right place.
+    return {"options": f"-csearch_path={settings.analytics_schema},public"}
+
+
 def build_engine(settings: Settings) -> Engine:
     """Create the SQLAlchemy engine.
 
@@ -50,16 +79,35 @@ def build_engine(settings: Settings) -> Engine:
     `public` stays on the path behind it, because the operational tables
     (accounts, sessions, shortlists, and the quality and refresh history) are
     never swapped and must resolve wherever the analytical ones point.
+
+    WHY IT IS NOT SET THROUGH A POOLER
+    ----------------------------------
+
+    This took production down for the length of one deploy. The search path
+    was sent as the libpq startup parameter `options`, which is exactly right
+    for a direct connection and impossible through PgBouncer: in transaction
+    pooling mode it refuses every startup parameter outside its small
+    allowlist, and `options` is not on it. The connection is rejected at once
+    - a fast 503 rather than a timeout, which is what gave it away - and
+    `render.yaml` tells the operator to use Neon's pooled endpoint.
+
+    So the parameter is sent only on a direct connection. Through a pooler
+    the search path has to come from the server side instead, where it
+    survives a pooled connection being handed round:
+
+        ALTER ROLE fri_app IN DATABASE <db> SET search_path = analytics, public;
+
+    Until the analytical tables move out of `public` (migration 0009) the
+    default path already resolves them, so a pooled deployment needs that
+    statement only when the migration is applied. `docs/deployment.md` says
+    so beside the migration step.
     """
-    schema = settings.analytics_schema
     return create_engine(
         settings.sqlalchemy_url,
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
-        # Applied per connection rather than per session: a pooled connection
-        # handed to a new session must already be pointing at the right place.
-        connect_args={"options": f"-csearch_path={schema},public"},
+        connect_args=search_path_args(settings),
         # SQLAlchemy's `echo` attaches a second handler of its own, which
         # duplicates every statement alongside our root handler. SQL logging is
         # instead enabled by raising the sqlalchemy.engine level in

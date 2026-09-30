@@ -117,13 +117,41 @@ The API serves from PostgreSQL, so it has nothing to show until a load has run.
 1. Provision the database. Create an application role — **not** the superuser.
 2. Set the secrets on both services.
 3. Run the production check. Fix anything it refuses.
-4. `alembic upgrade head`.
+4. `alembic upgrade head`. **Through a pooled connection, follow it with the
+   statement below** — migration 0009 moves the analytical tables into their
+   own schema, and a pooler cannot be told a search path per connection.
 5. Load: `python -m pipelines.load.load_providers --source transfermarkt --replace --verify`
 6. Deploy the backend, then the frontend.
 7. Confirm `/health` returns 200 with `analytics: ok`.
 
 Skipping step 5 is not a silent failure: `/health` reports
 `analytics: unavailable` and answers 503 until a load has run.
+
+### The search path, and the pooler
+
+The analytical tables live in `analytics` from migration 0009 onward, and the
+models name no schema: the connection resolves it. On a **direct** connection
+the application sends `options=-csearch_path=analytics,public` at startup and
+that is the end of it.
+
+A **pooled** endpoint — Neon's `-pooler` host, which `render.yaml` tells you to
+use — refuses it. PgBouncer in transaction pooling mode rejects every startup
+parameter outside a small allowlist, `options` is not on it, and every
+connection fails at once. This took production down for the length of one
+deploy; `_is_pooled` now omits the parameter, so the path has to be set
+server-side instead, where it survives a pooled connection being handed round:
+
+```sql
+ALTER ROLE fri_app IN DATABASE <database> SET search_path = analytics, public;
+```
+
+Run it **with** `alembic upgrade head`, in the same maintenance window. Before
+0009 the analytical tables are in `public` and the default path finds them, so
+a deployment that has not migrated yet needs nothing. After 0009 they are not,
+and a pooled connection without this statement finds no tables at all.
+
+Existing connections keep the old setting: restart the service, or let Render
+do it as part of the deploy.
 
 ---
 

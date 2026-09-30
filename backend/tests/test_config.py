@@ -84,3 +84,57 @@ class TestSecretHandling:
         )
         assert "SUPER_SECRET_KEY" not in repr(settings)
         assert "SUPER_SECRET_PW" not in repr(settings)
+
+
+class TestThePoolerCannotBeSentStartupParameters:
+    """This took production down for the length of one deploy.
+
+    The search path was sent as the libpq startup parameter `options`, which
+    is right for a direct connection and impossible through PgBouncer: in
+    transaction pooling mode it refuses every startup parameter outside a
+    small allowlist, and `options` is not on it. `render.yaml` tells the
+    operator to use Neon's pooled endpoint, so every connection was rejected
+    at once - a fast 503 rather than a timeout, which is what gave it away.
+    """
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "ep-cool-name-123456-pooler.eu-central-1.aws.neon.tech",
+            "aws-0-eu-west-2.pooler.supabase.com",
+            "pgbouncer.internal:6432",
+        ],
+    )
+    def test_a_pooled_url_sends_no_startup_options(self, host: str) -> None:
+        from app.core.database import _is_pooled
+
+        assert _is_pooled(f"postgresql+psycopg://u:p@{host}/db") is True
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "ep-cool-name-123456.eu-central-1.aws.neon.tech",
+            "localhost:5432",
+            "db.example.com",
+        ],
+    )
+    def test_a_direct_url_still_sends_them(self, host: str) -> None:
+        from app.core.database import _is_pooled
+
+        assert _is_pooled(f"postgresql+psycopg://u:p@{host}/db") is False
+
+    def test_no_startup_option_is_built_for_a_pooled_url(self) -> None:
+        """Asserted on what `create_engine` is handed: the whole outage was
+        one argument reaching a server that will not take it."""
+        from app.core.database import search_path_args
+
+        settings = build_settings(
+            database_url="postgresql+psycopg://u:p@ep-x-pooler.eu.aws.neon.tech/db"
+        )
+        assert search_path_args(settings) == {}
+
+    def test_and_one_is_built_for_a_direct_url(self) -> None:
+        from app.core.database import search_path_args
+
+        settings = build_settings(database_url="postgresql+psycopg://u:p@ep-x.eu.aws.neon.tech/db")
+        assert "search_path" in search_path_args(settings)["options"]
