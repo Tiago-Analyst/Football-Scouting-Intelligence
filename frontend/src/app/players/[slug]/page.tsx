@@ -6,6 +6,7 @@ import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { DataConfidence } from "@/components/player/DataConfidence";
 import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
 import { MarketValueChart } from "@/components/player/MarketValueChart";
+import { ScoutingInterpretation } from "@/components/player/ScoutingInterpretation";
 import { TransferHistory } from "@/components/player/TransferHistory";
 import { SaveToShortlist } from "@/components/shortlists/SaveToShortlist";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -206,6 +207,13 @@ export default async function PlayerProfilePage(
         <div className="max-w-md">
           <DataConfidence sample={stats.sample} />
         </div>
+      ) : null}
+
+      {/* Above the tables it reads, so a scout meets the summary first and
+          the evidence underneath it - rather than deriving the summary and
+          then being told it. */}
+      {profile.interpretation ? (
+        <ScoutingInterpretation interpretation={profile.interpretation} />
       ) : null}
 
       {stats?.sample && stats.sample.band !== "established" ? (

@@ -303,6 +303,32 @@ export interface Transfer {
   transfer_type: string;
 }
 
+/** One reading, with the number it came from. */
+export interface Finding {
+  label: string;
+  /** Oriented so higher is always better, whichever way the metric reads. */
+  percentile: number;
+  reading: string;
+}
+
+/**
+ * The profile's own numbers, read aloud.
+ *
+ * Every line is a threshold applied to a figure shown elsewhere on the page.
+ * Computed on the server, like everything analytical: the frontend renders it
+ * and does not decide any of it.
+ */
+export interface ScoutingInterpretation {
+  profile: string[];
+  strengths: Finding[];
+  watch_outs: Finding[];
+  /** Metrics the provider does not supply — not things the player does badly. */
+  unavailable: string[];
+  confidence: string[];
+  /** What the model does not look at. Never shown without the reading. */
+  not_captured: string[];
+}
+
 export interface PlayerProfile {
   player: PlayerDetail;
   stats: PlayerStats;
@@ -312,6 +338,8 @@ export interface PlayerProfile {
   /** Both empty for a player the market source does not cover. */
   market_value_history: MarketValuePoint[];
   transfers: Transfer[];
+  /** Null when there is nothing to read from. */
+  interpretation?: ScoutingInterpretation | null;
 }
 
 export interface Competition {

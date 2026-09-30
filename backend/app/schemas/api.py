@@ -255,6 +255,41 @@ class SimilarPlayersResponse(BaseModel):
     meaning: str
 
 
+class FindingOut(BaseModel):
+    """One reading, with the number it came from.
+
+    The evidence travels with the claim so an interface cannot show one
+    without the other. A sentence without its figure is an opinion.
+    """
+
+    label: str
+    #: Oriented so higher is always better, whichever way the metric reads.
+    percentile: float
+    reading: str
+
+
+class ScoutingInterpretationOut(BaseModel):
+    """The profile's own numbers, read aloud.
+
+    Derived entirely from the figures elsewhere in this response - thresholds
+    applied to percentiles the reader can see above. Nothing here is a second
+    opinion, and no language model is involved: the vocabulary is a fixed list
+    chosen so a sentence cannot claim more than a percentile supports.
+    """
+
+    profile: list[str] = Field(default_factory=list)
+    strengths: list[FindingOut] = Field(default_factory=list)
+    watch_outs: list[FindingOut] = Field(default_factory=list)
+    #: Metrics the provider does not supply. Named apart from the watch-outs,
+    #: because a statistic nobody collected is not something a player does
+    #: badly.
+    unavailable: list[str] = Field(default_factory=list)
+    confidence: list[str] = Field(default_factory=list)
+    #: What the model does not look at. Returned with the reading rather than
+    #: written into a template, so it cannot be shown without it.
+    not_captured: list[str] = Field(default_factory=list)
+
+
 class PlayerProfileResponse(BaseModel):
     """Everything one profile page shows, in a single answer.
 
@@ -279,6 +314,9 @@ class PlayerProfileResponse(BaseModel):
     #: ordinary state rather than a failure.
     market_value_history: list[MarketValuePointOut] = Field(default_factory=list)
     transfers: list[TransferOut] = Field(default_factory=list)
+    #: The figures above, read. Absent when there is nothing to read from -
+    #: a player with no ranked metric and no fitted role.
+    interpretation: ScoutingInterpretationOut | None = None
 
 
 class MarketValuePointOut(BaseModel):
