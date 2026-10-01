@@ -234,7 +234,14 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                           </span>
                         }
                         action={
-                          <span className="flex items-center gap-2">
+                          /* A number with no name beside it gets read as
+                             whichever one the reader expects. This is the raw
+                             role fit for the player's best role, on the 0-100
+                             scale the rest of the product reserves for it. */
+                          <span className="flex items-baseline gap-2">
+                            <span className="text-[10px] tracking-wide text-subtle uppercase">
+                              Raw role fit
+                            </span>
                             <span className="tabular text-lg font-semibold text-accent">
                               {entry.best_role_score !== null
                                 ? Math.round(entry.best_role_score)

@@ -388,7 +388,7 @@ class TestTheRoleLineSaysWhy:
             detailed_coverage_pct=None,
         )
         line = reading.profile[0]
-        assert "driven mainly by interceptions /90 and blocks /90" in line
+        assert "driven mainly by interceptions and blocks" in line
         # Only the two strongest, and nothing merely average.
         assert "clearances" not in line.lower()
 
@@ -448,7 +448,7 @@ class TestTheRoleLineSaysWhy:
             sample_band_label=None,
             detailed_coverage_pct=None,
         )
-        assert "driven mainly by dispossessed /90" in reading.profile[0]
+        assert "driven mainly by dispossessed" in reading.profile[0]
 
     def test_the_scores_are_called_what_the_rest_of_the_site_calls_them(self) -> None:
         reading = interpret(
@@ -461,3 +461,26 @@ class TestTheRoleLineSaysWhy:
         )
         assert any("intelligence scores" in line for line in reading.profile)
         assert not any("profile dimensions" in line for line in reading.profile)
+
+
+class TestMetricLabelsInProse:
+    """A sentence with table headings dropped into it is not a sentence."""
+
+    def test_the_per_90_suffix_is_a_unit_not_a_word(self) -> None:
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("Interceptions /90") == "interceptions"
+        assert _in_prose("Fouls drawn /90") == "fouls drawn"
+
+    def test_a_percent_sign_becomes_a_word(self) -> None:
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("Duel win %") == "duel win rate"
+        assert _in_prose("Pass completion %") == "pass completion rate"
+
+    def test_an_acronym_keeps_its_shape(self) -> None:
+        """ "npxg" is a different thing from the row it points at."""
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("npxG /90") == "npxG"
+        assert _in_prose("xA /90") == "xA"

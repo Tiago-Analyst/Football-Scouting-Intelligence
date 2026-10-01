@@ -205,6 +205,30 @@ def interpret(
     )
 
 
+def _in_prose(label: str) -> str:
+    """A metric label as it would be spoken, not as a column heading.
+
+    "driven mainly by interceptions /90 and blocks /90" is a sentence with
+    table headings dropped into it. The per-90 suffix is a unit the reader
+    already knows applies to every rate on the page, and a trailing percent
+    sign is a symbol rather than a word.
+
+    Only the suffix moves. The metric keeps its name, so a reader can still
+    find the row the clause came from.
+    """
+    cleaned = label.removesuffix(" /90")
+    if cleaned.endswith(" %"):
+        cleaned = f"{cleaned.removesuffix(' %')} rate"
+
+    # Lower-case the opening word only when it is an ordinary one. `npxG` is
+    # not a sentence that happens to start with a capital, and "npxg" is a
+    # different thing from the row it points at.
+    head, _, tail = cleaned.partition(" ")
+    if head[1:].islower() or head[1:] == "":
+        cleaned = f"{head.lower()} {tail}".strip()
+    return cleaned
+
+
 def _drivers(role: RoleReading | None, metrics: list[MetricReading], limit: int = 2) -> list[str]:
     """The role's own components this player ranks highest on.
 
@@ -225,7 +249,7 @@ def _drivers(role: RoleReading | None, metrics: list[MetricReading], limit: int 
         ),
         key=lambda item: -item[0],
     )
-    return [label for percentile, label in ranked[:limit] if percentile >= STRONG]
+    return [_in_prose(label) for percentile, label in ranked[:limit] if percentile >= STRONG]
 
 
 def _profile_lines(
@@ -243,7 +267,7 @@ def _profile_lines(
         # because a driver clause naming a mediocre metric would be explaining
         # the score with the thing that did not produce it.
         drivers = _drivers(role, metrics)
-        because = f", driven mainly by {_list_of(drivers).lower()}" if drivers else ""
+        because = f", driven mainly by {_list_of(drivers)}" if drivers else ""
 
         if role.percentile is not None:
             standing = _reading(role.percentile)

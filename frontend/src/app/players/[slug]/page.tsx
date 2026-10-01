@@ -496,7 +496,7 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         said so for a while; this table did not, which meant
                         the profile was the less honest of the two. */}
                     <TH numeric>Shared</TH>
-                    <TH numeric>Coverage</TH>
+                    <TH numeric>Feature coverage</TH>
                     <TH numeric>Value</TH>
                   </TR>
                 </THead>
