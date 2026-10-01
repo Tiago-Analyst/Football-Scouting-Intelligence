@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.analytics.contracts import expires_within
 from app.analytics.intelligence import ScoreDefinition
 from app.analytics.percentiles import PercentileScope
+from app.analytics.presets import get_presets
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
 from app.analytics.similarity import SimilarityFilters
 from app.api.v1.players import metric_label, require_player, to_summary
@@ -30,6 +31,7 @@ from app.schemas.api import (
     ReplacementCandidate,
     ReplacementRequest,
     ReplacementResponse,
+    RolePresetOut,
     ScoreComponentOut,
     ScreenStepOut,
     UnavailableScoreOut,
@@ -100,6 +102,31 @@ def _passes_filters(record: PlayerRecord, filters: RecruitmentFilters) -> bool:
     return filters.contract_expiring_within_months is None or expires_within(
         record.contract_expires, filters.contract_expiring_within_months
     )
+
+
+@router.get("/recruitment/presets", response_model=list[RolePresetOut])
+def list_recruitment_presets() -> list[RolePresetOut]:
+    """Named roles as builder weights.
+
+    The builder opens on one profile and asks for eight numbers before it will
+    do anything, which is a poor question to put to someone who knows the role
+    they want but not how much "defensive activity" it is. These answer it
+    from the role definitions the rest of the system already uses, so a preset
+    cannot drift away from the role it is named after.
+    """
+    return [
+        RolePresetOut(
+            key=preset.key,
+            label=preset.label,
+            description=preset.description,
+            position_groups=list(preset.position_groups),
+            weights=preset.weights,
+            expressible=preset.expressible,
+            caveat=preset.caveat,
+            unmapped=[metric_label(m) for m in preset.unmapped],
+        )
+        for preset in get_presets()
+    ]
 
 
 @router.post("/recruitment/search", response_model=RecruitmentResponse)

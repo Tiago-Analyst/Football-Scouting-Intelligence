@@ -373,6 +373,29 @@ class RoleOut(BaseModel):
     caveat: str | None = None
 
 
+class RolePresetOut(BaseModel):
+    """A named role expressed as recruitment-builder weights.
+
+    A starting point the user can see and change, not a second ranking. The
+    search that follows is the ordinary weighted search over these numbers.
+
+    `expressible` is the share of the role's own definition the eight
+    intelligence scores could carry. Below 1.0 some of what the role measures
+    has no score to go to and was dropped rather than redistributed, and
+    `unmapped` names what.
+    """
+
+    key: str
+    label: str
+    description: str
+    position_groups: list[str]
+    #: Intelligence score key -> weight, in steps of five, summing to 100.
+    weights: dict[str, float]
+    expressible: float
+    caveat: str | None = None
+    unmapped: list[str] = Field(default_factory=list)
+
+
 class RecruitmentWeights(BaseModel):
     """User-defined emphasis across intelligence scores.
 

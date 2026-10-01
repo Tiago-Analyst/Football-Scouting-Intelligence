@@ -376,6 +376,28 @@ export interface Role {
   caveat: string | null;
 }
 
+/**
+ * A named role, expressed as recruitment-builder weights.
+ *
+ * A starting point the user can see and change, not a second ranking. Roles
+ * are defined mostly in metrics and the builder weights the eight
+ * intelligence scores, so part of a role can have nowhere to go:
+ * `expressible` is the share that survived and `unmapped` names the rest.
+ */
+export interface RolePreset {
+  key: string;
+  label: string;
+  description: string;
+  position_groups: string[];
+  /** Intelligence score key -> weight, in steps of five, summing to 100. */
+  weights: Record<string, number>;
+  /** Share of the role's own definition these weights carry, 0-1. */
+  expressible: number;
+  caveat: string | null;
+  /** Role components no intelligence score covers, by label. */
+  unmapped: string[];
+}
+
 export interface RecruitmentCandidate {
   player: PlayerSummary;
   score: number;
