@@ -213,9 +213,9 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
                           >
                             {metric.value.toFixed(2)}
                           </span>
-                          {metric.percentile !== null ? (
+                          {metric.performance_percentile !== null ? (
                             <PercentileBar
-                              percentile={metric.percentile}
+                              percentile={metric.performance_percentile}
                               lowerIsBetter={metric.lower_is_better}
                             />
                           ) : null}

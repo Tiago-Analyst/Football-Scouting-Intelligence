@@ -743,3 +743,40 @@ class TestReferenceData:
         body = api.get("/api/v1/recruitment/presets").json()
         for preset in body:
             assert not {"items", "total", "score"} & set(preset)
+
+    def test_a_metric_carries_both_readings_of_its_rank(self, stats: dict) -> None:
+        """One number, two readings, and the site needs the oriented one.
+
+        A metric table printing "4th" for a player who is rarely dispossessed,
+        beside a Scouting Interpretation calling the same figure a strength,
+        was two pages disagreeing about one number.
+        """
+        ranked = [m for m in stats["metrics"] if m["percentile"] is not None]
+        assert ranked
+        for metric in ranked:
+            assert metric["performance_percentile"] is not None
+            if metric["lower_is_better"]:
+                assert metric["performance_percentile"] == pytest.approx(
+                    100.0 - metric["percentile"]
+                )
+            else:
+                assert metric["performance_percentile"] == pytest.approx(metric["percentile"])
+
+    def test_the_wider_population_is_oriented_the_same_way(self, stats: dict) -> None:
+        """Otherwise a row shows the oriented rank at home and the raw rank
+        across Europe - two numbers running opposite ways on exactly the
+        metrics where it matters."""
+        for metric in stats["metrics"]:
+            if metric["global_percentile"] is None:
+                continue
+            expected = (
+                100.0 - metric["global_percentile"]
+                if metric["lower_is_better"]
+                else metric["global_percentile"]
+            )
+            assert metric["global_performance_percentile"] == pytest.approx(expected)
+
+    def test_at_least_one_metric_actually_runs_the_other_way(self, stats: dict) -> None:
+        """The two assertions above are vacuous if nothing on the profile is
+        lower-is-better."""
+        assert any(m["lower_is_better"] for m in stats["metrics"])

@@ -53,7 +53,18 @@ class MetricOut(BaseModel):
     metric: str
     label: str
     value: float | None
+    #: Rank in the metric's own direction: a high percentile for
+    #: `dispossessed_per90` means dispossessed often. Kept because it is the
+    #: rank in the distribution and sometimes that is the question.
     percentile: float | None
+    #: The same rank oriented so higher is always better.
+    #:
+    #: This is what the site displays. A metric table that printed "4th" for a
+    #: player who is rarely dispossessed, beside a Scouting Interpretation
+    #: calling the same figure a strength, was two pages disagreeing about one
+    #: number - and 4 reads as bad to everyone who has not stopped to work out
+    #: which way the metric runs.
+    performance_percentile: float | None = None
     #: The same value ranked against every loaded competition rather than the
     #: player's own. Present only when `percentile` is a domestic rank, so the
     #: two are never the same number printed twice.
@@ -65,6 +76,9 @@ class MetricOut(BaseModel):
     #: believe is a recruitment judgement, and showing both is what lets
     #: somebody make it.
     global_percentile: float | None = None
+    #: Oriented, like `performance_percentile`, so the two columns on a row
+    #: can be read against each other.
+    global_performance_percentile: float | None = None
     #: True when a low value is the better outcome, so the UI can say so.
     lower_is_better: bool = False
     unavailable_reason: str | None = None

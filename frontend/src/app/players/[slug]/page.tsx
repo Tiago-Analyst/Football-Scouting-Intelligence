@@ -374,8 +374,11 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
             <span className="flex items-center gap-1.5">
               Per 90 minutes, with percentile rank
               <Tooltip label="What does a percentile mean here?">
-                A 94th percentile means this player ranks above 94% of the comparison group on that
-                metric. The comparison group is stated below the table and is never hidden.
+                A 94th percentile means this player comes out better than 94% of the comparison
+                group on that metric. Higher is always better here, whichever way the metric runs: a
+                player who is rarely dispossessed reads high, not low. Where that flips the reading,
+                the rank by raw value is printed underneath. The comparison group is stated below
+                the table and is never hidden.
               </Tooltip>
             </span>
           }
@@ -408,23 +411,37 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                   </TD>
                   <TD numeric>{metric.value !== null ? metric.value.toFixed(2) : "–"}</TD>
                   <TD>
-                    {metric.percentile !== null ? (
-                      <PercentileBar
-                        percentile={metric.percentile}
-                        lowerIsBetter={metric.lower_is_better}
-                      />
+                    {metric.performance_percentile !== null ? (
+                      <>
+                        <PercentileBar
+                          percentile={metric.performance_percentile}
+                          lowerIsBetter={metric.lower_is_better}
+                        />
+                        {/* The rank in the distribution, kept for the metrics
+                            where it differs from the performance one. "4% of
+                            players are dispossessed less often" and "better
+                            than 96% of players" are the same sentence; only
+                            the second is read correctly at a glance, so it
+                            leads - and the first is still here, named, for
+                            anyone who wants the distribution itself. */}
+                        {metric.lower_is_better && metric.percentile !== null ? (
+                          <span className="mt-1 block text-[10px] text-subtle">
+                            {ordinal(metric.percentile)} by raw value
+                          </span>
+                        ) : null}
+                      </>
                     ) : (
                       <span className="text-xs text-subtle">
                         {metric.unavailable_reason ?? "Not available"}
                       </span>
                     )}
                   </TD>
-                  {/* The rank as printed, exactly as the bar beside it. The
-                      direction is already stated on the metric's own name, and
-                      two numbers on one row that orient differently is the
-                      mistake this page has made before. */}
+                  {/* Oriented too, so the two columns on a row answer the same
+                      question of two different populations. */}
                   <TD numeric className="text-xs text-muted">
-                    {metric.global_percentile !== null ? ordinal(metric.global_percentile) : "–"}
+                    {metric.global_performance_percentile !== null
+                      ? ordinal(metric.global_performance_percentile)
+                      : "–"}
                   </TD>
                 </TR>
               ))}

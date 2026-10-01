@@ -115,7 +115,14 @@ export interface Metric {
   metric: string;
   label: string;
   value: number | null;
+  /**
+   * Rank in the metric's own direction: a high percentile for
+   * `dispossessed_per90` means dispossessed often. The distribution rank,
+   * shown as the secondary figure where the two differ.
+   */
   percentile: number | null;
+  /** The same rank oriented so higher is always better. What the UI shows. */
+  performance_percentile: number | null;
   /**
    * The same value ranked against every loaded competition rather than the
    * player's own. Null when `percentile` is already global.
@@ -125,6 +132,8 @@ export interface Metric {
    * judged worse - they have been put in a bigger room.
    */
   global_percentile: number | null;
+  /** Oriented, so the two columns on a row can be read against each other. */
+  global_performance_percentile: number | null;
   /** A low value is the better outcome, so the UI must say so. */
   lower_is_better: boolean;
   unavailable_reason: string | null;

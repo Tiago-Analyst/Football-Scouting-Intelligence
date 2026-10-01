@@ -222,7 +222,9 @@ def to_metric(result: PercentileResult, wider: PercentileResult | None = None) -
         label=metric_label(result.metric.value),
         value=result.value,
         percentile=result.percentile,
+        performance_percentile=result.oriented,
         global_percentile=wider.percentile if wider is not None else None,
+        global_performance_percentile=wider.oriented if wider is not None else None,
         lower_is_better=result.metric in LOWER_IS_BETTER,
         unavailable_reason=result.unavailable_reason,
     )

@@ -7,8 +7,18 @@
  * using the formatter that already existed three files away. And the bar was
  * coloured from the percentile as printed, so a player who is rarely
  * dispossessed - a low percentile on a metric where low is the good end - got
- * the colour reserved for the bottom of the population. The caption beside it
- * read "(lower is better)", and the colour is what gets read first.
+ * the colour reserved for the bottom of the population.
+ *
+ * The first fix orientated the colour and left the number and the bar's length
+ * on the raw rank, which made the component say two things at once: a bar 4%
+ * long, painted green, under a caption explaining that this was fine. And the
+ * Scouting Interpretation, which has always worked in the oriented form,
+ * called the same figure 96th.
+ *
+ * So the convention is now one thing: everything a reader interprets as
+ * performance is oriented, higher is better, and the rank in the raw
+ * distribution is printed beside it where the two differ. These tests pin
+ * that, and the exception - similarity, which compares raw ranks on purpose.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -95,16 +105,50 @@ test("out-of-range percentiles are clamped before they are oriented", () => {
   assert.equal(meritOf(140, false), 100);
 });
 
-test("the bar's length still reports the rank as printed", () => {
+test("the bar's length, number and colour all say the same thing", () => {
   const source = readFileSync(
     new URL("../src/components/ui/PercentileBar.tsx", import.meta.url),
     "utf8",
   );
-  // Width from the percentile, colour from merit. Swapping either is the bug
-  // in one direction or a bar whose length contradicts its number in the other.
+  // One value drives all three. The previous version took width from the raw
+  // rank and colour from merit, so an excellent figure drew a short green bar.
   assert.match(source, /width: `\$\{clamped\}%`/);
-  assert.match(source, /background: rampColor\(merit\)/);
-  assert.match(source, /const merit = lowerIsBetter \? 100 - clamped : clamped/);
+  assert.match(source, /rampColor\(clamped\)/);
+  assert.equal(/rampColor\(merit\)/.test(source), false);
+  assert.equal(/100 - clamped/.test(source), false);
+});
+
+test("the bar is told the direction only so it can say it out loud", () => {
+  // `lowerIsBetter` no longer changes any number - the value arrives oriented
+  // - but a screen reader still needs to know which way the metric runs.
+  const source = readFileSync(
+    new URL("../src/components/ui/PercentileBar.tsx", import.meta.url),
+    "utf8",
+  );
+  const flat = source.replace(/\s+/g, " ");
+  assert.match(flat, /performance percentile, on a metric where a lower value is better/);
+});
+
+test("similarity keeps raw ranks, and is not painted as merit", () => {
+  // Similarity asks whether two players do the same things, so two who are
+  // both dispossessed constantly are alike. Orienting those features would
+  // make a careless player resemble a careful one, and colouring them by
+  // merit would put a judgement on a number that is not making one.
+  const breakdown = readFileSync(
+    new URL("../src/components/player/SimilarityBreakdown.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(breakdown, /<PercentileBar percentile=\{percentile\} neutral \/>/);
+});
+
+test("the pages that show performance all show the oriented figure", () => {
+  for (const file of [
+    "src/app/players/[slug]/page.tsx",
+    "src/components/shortlists/ComparisonTable.tsx",
+  ]) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    assert.match(source, /performance_percentile/, file);
+  }
 });
 
 test("every surface that shows a directional metric passes the direction", () => {
@@ -123,14 +167,23 @@ test("every surface that shows a directional metric passes the direction", () =>
 });
 
 test("both percentile columns orient the same way", () => {
-  // The domestic bar prints the rank as it stands and carries the direction
-  // in the metric's own label. A neighbouring column that flipped
-  // lower-is-better metrics would put two numbers on one row that mean
-  // opposite things - which is the bug this file was written for.
+  // Two populations, one question. A row showing the oriented rank at home
+  // and the raw rank across Europe would put two numbers side by side that
+  // run in opposite directions on exactly the metrics where it matters.
   const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
-  assert.match(flat, /ordinal\(metric\.global_percentile\)/);
+  assert.match(flat, /ordinal\(metric\.global_performance_percentile\)/);
   assert.equal(/100 - metric\.global_percentile/.test(flat), false);
+});
+
+test("the raw distribution rank is kept, not discarded", () => {
+  // "4% of players are dispossessed less often" and "better than 96% of
+  // players" are the same sentence. The second leads because it is read
+  // correctly at a glance; the first is still on the page, named.
+  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const flat = page.replace(/\s+/g, " ");
+  assert.match(flat, /ordinal\(metric\.percentile\)\} by raw value/);
+  assert.match(flat, /metric\.lower_is_better && metric\.percentile !== null/);
 });
 
 test("the wider population is named, not left to be guessed", () => {
