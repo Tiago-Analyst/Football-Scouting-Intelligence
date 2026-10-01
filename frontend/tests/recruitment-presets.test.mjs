@@ -53,3 +53,28 @@ test("presets failing to load does not take the builder down with them", () => {
   const fetcher = players.slice(players.indexOf("getRecruitmentPresets"));
   assert.match(fetcher.slice(0, 400), /catch\s*\{[\s\S]*?return \[\];/);
 });
+
+test("a profile that cannot rank anybody says so before it is submitted", () => {
+  // The search already explains this - afterwards, in an empty result that
+  // reads as "no player matched your filters". The filters are not the
+  // problem, and blaming them sends the reader to widen something that will
+  // never help.
+  const flat = page.replace(/\s+/g, " ");
+  assert.match(flat, /This profile will rank nobody/);
+  assert.match(flat, /getRecruitmentScores/);
+});
+
+test("only the unavailable scores this profile actually weights are warned about", () => {
+  // A warning about a score the reader set to zero is noise about their own
+  // decision.
+  assert.match(page, /Object\.keys\(weights\)/);
+});
+
+test("a blocked preset is marked, not hidden", () => {
+  // Hiding it would claim the role does not exist. What is true is that this
+  // load cannot rank anyone against it, and the weights it sets are still a
+  // correct reading of the role.
+  const presets = read("src/components/recruitment/RolePresets.tsx");
+  assert.match(presets, /unavailable_scores\.length > 0/);
+  assert.equal(/filter\([^)]*unavailable_scores\.length === 0/.test(presets), false);
+});

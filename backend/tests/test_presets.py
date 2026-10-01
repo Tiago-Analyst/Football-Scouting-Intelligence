@@ -8,10 +8,18 @@ that it declines rather than mislead when too little of a role survives.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import cast
+
 import pytest
 
-from app.analytics.intelligence import ScoreDefinition, get_definitions
+from app.analytics.intelligence import (
+    IntelligenceScoreEngine,
+    ScoreDefinition,
+    get_definitions,
+)
 from app.analytics.metrics import DerivedMetric
+from app.analytics.percentiles import PercentileEngine
 from app.analytics.presets import (
     MINIMUM_EXPRESSIBLE,
     STEP,
@@ -153,3 +161,56 @@ def _unmapped_metric() -> DerivedMetric:
     for definition in definitions.values():
         covered |= set(definition.components)
     return next(m for m in DerivedMetric if m not in covered)
+
+
+class TestSayingSoBeforeTheSearch:
+    """Which emphases this load cannot produce, answered in advance.
+
+    The builder could only say a profile was unscorable after running the
+    search and coming back empty - which reads as "no player matched your
+    filters" and blames the filters for the data. A score no player can be
+    given is a property of the load, knowable before anybody presses anything.
+    """
+
+    def test_a_score_missing_a_component_is_reported_unproducible(self) -> None:
+        definitions = get_definitions()
+        progression = definitions["ball_progression"]
+        present = frozenset(m for m in DerivedMetric if m in progression.components)
+        dropped = next(iter(progression.components))
+
+        engine = IntelligenceScoreEngine(
+            percentiles=cast(PercentileEngine, None),
+            definitions={"ball_progression": progression},
+        )
+        verdict = engine.unproducible(present - {dropped})
+
+        assert "ball_progression" in verdict
+        assert dropped.value in verdict["ball_progression"]
+
+    def test_a_score_with_everything_present_is_not_reported(self) -> None:
+        definitions = get_definitions()
+        engine = IntelligenceScoreEngine(
+            percentiles=cast(PercentileEngine, None), definitions=definitions
+        )
+        assert engine.unproducible(frozenset(DerivedMetric)) == {}
+
+    def test_the_verdict_follows_the_definition_rather_than_a_second_rule(self) -> None:
+        """A definition that tolerates a gap must be reported as producible.
+        Reimplementing the coverage rule here is how the warning starts
+        disagreeing with the search it is warning about."""
+        definitions = get_definitions()
+        security = definitions["ball_security"]
+        tolerant = replace(security, min_coverage=0.1)
+        dropped = next(iter(tolerant.components))
+
+        engine = IntelligenceScoreEngine(
+            percentiles=cast(PercentileEngine, None), definitions={"ball_security": tolerant}
+        )
+        present = frozenset(m for m in tolerant.components if m is not dropped)
+        assert engine.unproducible(present) == {}
+
+    def test_nothing_present_blocks_everything(self) -> None:
+        engine = IntelligenceScoreEngine(
+            percentiles=cast(PercentileEngine, None), definitions=get_definitions()
+        )
+        assert set(engine.unproducible(frozenset())) == set(get_definitions())

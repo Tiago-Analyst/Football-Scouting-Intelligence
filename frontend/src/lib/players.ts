@@ -14,6 +14,7 @@ import type {
   Role,
   RoleFit,
   RolePreset,
+  ScoreAvailability,
   ShortlistStatus,
   SimilarPlayers,
 } from "@/types/api";
@@ -274,6 +275,18 @@ export async function getRecruitmentPresets(): Promise<RolePreset[]> {
   } catch {
     // A builder without starting points still works; one that refuses to
     // render because the presets did not load does not.
+    return [];
+  }
+}
+
+export async function getRecruitmentScores(): Promise<ScoreAvailability[]> {
+  try {
+    return await apiFetch<ScoreAvailability[]>("/api/v1/recruitment/scores", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
+  } catch {
+    // The builder works without this; it just cannot warn in advance.
     return [];
   }
 }

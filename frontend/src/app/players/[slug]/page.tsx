@@ -441,7 +441,11 @@ export default async function PlayerProfilePage(
               <TR>
                 <TH>Metric</TH>
                 <TH numeric>Per 90</TH>
-                <TH className="w-52">Percentile</TH>
+                <TH className="w-52">In this league</TH>
+                {/* A rank among 23 defenders and a rank among 752 are both
+                    honest and are not the same claim. Showing only the first
+                    lets a thin league read as a strong player. */}
+                <TH numeric className="w-28">All leagues</TH>
               </TR>
             </THead>
             <TBody>
@@ -472,14 +476,34 @@ export default async function PlayerProfilePage(
                       </span>
                     )}
                   </TD>
+                  {/* The rank as printed, exactly as the bar beside it. The
+                      direction is already stated on the metric's own name, and
+                      two numbers on one row that orient differently is the
+                      mistake this page has made before. */}
+                  <TD numeric className="text-xs text-muted">
+                    {metric.global_percentile !== null
+                      ? ordinal(metric.global_percentile)
+                      : "–"}
+                  </TD>
                 </TR>
               ))}
             </TBody>
           </Table>
         </TableWrap>
         {stats?.context ? (
-          <CardFooter>
+          <CardFooter className="block space-y-2">
             <ComparisonPopulation context={stats.context} />
+            {stats.global_context ? (
+              <p className="text-xs leading-relaxed text-subtle">
+                The second column ranks the same figures against all{" "}
+                {formatCount(stats.global_context.population_size)} players in this
+                position across every loaded competition. Neither column is adjusted
+                for how strong a league is, because this system does not model that:
+                a player high at home and lower here has not been judged worse, they
+                have been placed in a bigger population. Which number matters is a
+                recruitment decision, not a statistical one.
+              </p>
+            ) : null}
           </CardFooter>
         ) : null}
       </Card>

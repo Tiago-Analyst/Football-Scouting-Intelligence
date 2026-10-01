@@ -32,6 +32,7 @@ from app.schemas.api import (
     ReplacementRequest,
     ReplacementResponse,
     RolePresetOut,
+    ScoreAvailabilityOut,
     ScoreComponentOut,
     ScreenStepOut,
     UnavailableScoreOut,
@@ -114,6 +115,7 @@ def list_recruitment_presets() -> list[RolePresetOut]:
     from the role definitions the rest of the system already uses, so a preset
     cannot drift away from the role it is named after.
     """
+    blocked = _unavailable_scores()
     return [
         RolePresetOut(
             key=preset.key,
@@ -124,9 +126,56 @@ def list_recruitment_presets() -> list[RolePresetOut]:
             expressible=preset.expressible,
             caveat=preset.caveat,
             unmapped=[metric_label(m) for m in preset.unmapped],
+            unavailable_scores=[blocked[k] for k in preset.weights if k in blocked],
         )
         for preset in get_presets()
     ]
+
+
+@router.get("/recruitment/scores", response_model=list[ScoreAvailabilityOut])
+def list_recruitment_scores() -> list[ScoreAvailabilityOut]:
+    """The eight emphases, and which of them this load can actually produce.
+
+    The builder used to answer that only after a search: you set a weight, you
+    pressed the button, and an empty result came back blaming filters that
+    were not the problem. A score no player can be given is a property of the
+    data, knowable before anybody clicks.
+    """
+    view = get_analytics_view()
+    if view.intelligence is None:
+        raise HTTPException(status_code=503, detail="Analytics unavailable")
+
+    blocked = _unavailable_scores()
+    return [
+        ScoreAvailabilityOut(
+            key=key,
+            label=definition.label,
+            description=definition.description,
+            available=key not in blocked,
+            missing=blocked[key].missing if key in blocked else [],
+            reason=blocked[key].reason if key in blocked else None,
+        )
+        for key, definition in view.intelligence.definitions.items()
+    ]
+
+
+def _unavailable_scores() -> dict[str, UnavailableScoreOut]:
+    """Scores the loaded data cannot produce for anybody, keyed by score.
+
+    The same sentence the search already returns, reached without running one.
+    """
+    view = get_analytics_view()
+    if view.intelligence is None:
+        return {}
+    return {
+        key: UnavailableScoreOut(
+            key=key,
+            label=view.intelligence.definitions[key].label,
+            missing=list(missing),
+            reason=_why_unavailable(view.intelligence.definitions[key], sorted(missing)),
+        )
+        for key, missing in view.unproducible_scores().items()
+    }
 
 
 @router.post("/recruitment/search", response_model=RecruitmentResponse)

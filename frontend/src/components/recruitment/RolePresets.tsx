@@ -80,9 +80,12 @@ export function RolePresets({
       <div className="mt-3 space-y-3">
         {groups.map(({ group, roles }) => (
           <section key={group}>
-            <h3 className="mb-1 text-[10px] font-semibold tracking-widest text-subtle uppercase">
+            {/* h2, not h3: this disclosure sits above the page's own "Profile
+                weights" heading, so an h3 here skips a level and a screen
+                reader's outline gains a section that is not there. */}
+            <h2 className="mb-1 text-[10px] font-semibold tracking-widest text-subtle uppercase">
               {GROUP_LABELS[group]}
-            </h3>
+            </h2>
             <ul className="space-y-0.5">
               {roles.map((preset) => (
                 <li key={preset.key}>
@@ -124,6 +127,23 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
       {preset.description ? (
         <p className="mt-1 text-[11px] leading-relaxed text-subtle">{preset.description}</p>
       ) : null}
+      {preset.unavailable_scores.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          <p className="text-[11px] font-medium text-warning">
+            This profile cannot be scored against the loaded data.
+          </p>
+          {preset.unavailable_scores.map((score) => (
+            <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
+              {score.reason}
+            </p>
+          ))}
+          <p className="text-[11px] leading-relaxed text-subtle">
+            Setting that weight to zero will produce a ranking, against a narrower reading of the
+            role than the one named above.
+          </p>
+        </div>
+      ) : null}
+
       {preset.unmapped.length > 0 ? (
         <p className="mt-2 text-[11px] leading-relaxed text-warning">
           {Math.round(preset.expressible * 100)}% of this role is covered by the weights below.{" "}

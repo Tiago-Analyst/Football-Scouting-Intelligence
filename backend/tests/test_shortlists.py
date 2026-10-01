@@ -629,6 +629,47 @@ class TestCompare:
         assert MIXED_COMPETITION_CAVEAT not in (response["caveat"] or "")
 
 
+class TestWhatAComparisonCarries:
+    def test_each_column_carries_the_owners_assessment(self, signed_in: TestClient) -> None:
+        """A comparison is read to make a decision. Three of the five columns
+        having already been decided about is part of the answer, and it was
+        sitting one page away."""
+        player = a_player(signed_in)
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Compare me"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": player["player_id"]},
+        )
+        signed_in.put(
+            f"/api/v1/shortlists/{shortlist_id}/entries/{player['player_id']}/assessment",
+            json={"status": "priority", "pros": "Reads the game.", "concerns": "Injuries."},
+        )
+
+        column = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()["players"][0]
+        assert column["status"] == "priority"
+        assert column["status_label"] == "Priority"
+        assert column["pros"] == "Reads the game."
+        assert column["concerns"] == "Injuries."
+
+    def test_an_unassessed_column_still_states_a_status(self, signed_in: TestClient) -> None:
+        """Every entry has one, so a column never has a blank nobody can
+        interpret: a player nobody has got to is on the longlist."""
+        player = a_player(signed_in)
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Untouched"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": player["player_id"]},
+        )
+
+        column = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()["players"][0]
+        assert column["status"] == "longlist"
+        assert column["pros"] is None
+
+
 class TestExport:
     def _shortlist_with_a_player(self, api: TestClient, note: str | None = None) -> tuple[int, str]:
         player = a_player(api)

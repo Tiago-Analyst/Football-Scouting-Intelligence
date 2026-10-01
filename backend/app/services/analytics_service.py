@@ -123,6 +123,10 @@ class AnalyticsView:
     #: When this view was assembled, and what the database held at the time.
     built_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     fingerprint: UniverseFingerprint | None = None
+    #: Memoised answer to `unproducible_scores`. Computed on first use and
+    #: discarded with the view, which is rebuilt whenever the data changes -
+    #: so it cannot go stale without the thing it describes going with it.
+    _unproducible: dict[str, tuple[str, ...]] | None = field(default=None, repr=False)
 
     @property
     def is_empty(self) -> bool:
@@ -138,6 +142,27 @@ class AnalyticsView:
 
     def get(self, player_key: str) -> PlayerRecord | None:
         return self.players.get(player_key)
+
+    def unproducible_scores(self) -> dict[str, tuple[str, ...]]:
+        """Intelligence scores this load cannot give to anybody.
+
+        A profile weighting one of them matches nobody, however wide the
+        filters are, and the recruitment builder could only say so after the
+        search had run and come back empty. The question is answerable before
+        anybody clicks, and this is what answers it.
+
+        The population is scanned once per view rather than per request: one
+        pass over five thousand players is cheap, and the view is rebuilt
+        whenever the data changes.
+        """
+        if self._unproducible is None:
+            if self.intelligence is None:
+                return {}
+            present: set[DerivedMetric] = set()
+            for record in self.players.values():
+                present |= record.metrics.available()
+            self._unproducible = self.intelligence.unproducible(frozenset(present))
+        return self._unproducible
 
     def player_metrics(self, player_key: str) -> PlayerMetrics | None:
         record = self.players.get(player_key)

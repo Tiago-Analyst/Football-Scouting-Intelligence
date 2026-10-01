@@ -2,10 +2,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import {
-  ActivePreset,
-  RolePresets,
-} from "@/components/recruitment/RolePresets";
+import { ActivePreset, RolePresets } from "@/components/recruitment/RolePresets";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
@@ -17,6 +14,7 @@ import { formatCount, formatEuro } from "@/lib/format";
 import {
   getCompetitions,
   getRecruitmentPresets,
+  getRecruitmentScores,
   runRecruitmentSearch,
 } from "@/lib/players";
 
@@ -26,16 +24,7 @@ export const metadata: Metadata = {
     "Build a ranked shortlist by weighting the qualities that matter to you, then read why each candidate placed where it did. Every score arrives with the percentiles behind it.",
 };
 
-const POSITION_GROUPS = [
-  "GK",
-  "CB",
-  "FB_WB",
-  "DM",
-  "CM",
-  "AM",
-  "WINGER",
-  "FORWARD",
-];
+const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
 
 /** The eight intelligence scores, with the spec's "Progressive #6" defaults. */
 const SCORES = [
@@ -54,9 +43,7 @@ function first(value: string | string[] | undefined): string | undefined {
   return raw && raw.length > 0 ? raw : undefined;
 }
 
-export default async function RecruitmentPage(
-  props: PageProps<"/recruitment">,
-) {
+export default async function RecruitmentPage(props: PageProps<"/recruitment">) {
   const params = await props.searchParams;
   const submitted = first(params.submitted) === "1";
 
@@ -68,17 +55,11 @@ export default async function RecruitmentPage(
   }
 
   const filters = {
-    position_groups: first(params.position_group)
-      ? [first(params.position_group)!]
-      : null,
+    position_groups: first(params.position_group) ? [first(params.position_group)!] : null,
     max_age: first(params.max_age) ? Number(first(params.max_age)) : null,
     min_age: first(params.min_age) ? Number(first(params.min_age)) : null,
-    max_market_value_eur: first(params.max_value)
-      ? Number(first(params.max_value))
-      : null,
-    competitions: first(params.competition)
-      ? [first(params.competition)!]
-      : null,
+    max_market_value_eur: first(params.max_value) ? Number(first(params.max_value)) : null,
+    competitions: first(params.competition) ? [first(params.competition)!] : null,
     // No default floor. 900 minutes is ten full matches, and the loaded
     // season is four matches old - as a default it emptied this page rather
     // than focusing it. The field below still accepts one.
@@ -88,9 +69,10 @@ export default async function RecruitmentPage(
       : null,
   };
 
-  const [competitions, presets, results] = await Promise.all([
+  const [competitions, presets, scores, results] = await Promise.all([
     getCompetitions(),
     getRecruitmentPresets(),
+    getRecruitmentScores(),
     submitted && Object.keys(weights).length > 0
       ? runRecruitmentSearch({ weights, filters, limit: 20 })
       : Promise.resolve(null),
@@ -102,7 +84,21 @@ export default async function RecruitmentPage(
   const activeKey = first(params.preset);
   const activePreset = presets.find((preset) => preset.key === activeKey);
 
+  // Which emphases this load cannot produce for anybody. A weight on one of
+  // them matches nobody however wide the filters are, and the builder used to
+  // say so only after the search had run and come back empty - which blames
+  // the filters for the data.
+  const unavailable = new Map(
+    scores.filter((score) => !score.available).map((score) => [score.key, score]),
+  );
+
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+
+  // Only the unavailable scores this profile actually weights. Warning about
+  // one the reader has set to zero would be noise about a choice they made.
+  const blockedNow = Object.keys(weights)
+    .map((key) => unavailable.get(key))
+    .filter((score) => score !== undefined);
 
   return (
     <div className="space-y-8">
@@ -118,9 +114,7 @@ export default async function RecruitmentPage(
           className="space-y-5 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
         >
           <input type="hidden" name="submitted" value="1" />
-          {activeKey ? (
-            <input type="hidden" name="preset" value={activeKey} />
-          ) : null}
+          {activeKey ? <input type="hidden" name="preset" value={activeKey} /> : null}
 
           <RolePresets
             presets={presets}
@@ -143,16 +137,24 @@ export default async function RecruitmentPage(
           <div className="space-y-2.5">
             {SCORES.map((score) => (
               <label key={score.key} className="flex items-center gap-3">
-                <span className="flex-1 text-xs text-muted">{score.label}</span>
+                <span className="flex-1 text-xs text-muted">
+                  {score.label}
+                  {unavailable.has(score.key) ? (
+                    <span
+                      className="ml-1.5 text-[10px] text-warning"
+                      title={unavailable.get(score.key)!.reason ?? undefined}
+                    >
+                      unavailable
+                    </span>
+                  ) : null}
+                </span>
                 <input
                   type="number"
                   name={score.key}
                   min={0}
                   max={100}
                   step={5}
-                  defaultValue={
-                    first(params[score.key]) ?? String(score.preset)
-                  }
+                  defaultValue={first(params[score.key]) ?? String(score.preset)}
                   className="tabular h-8 w-16 rounded-md border border-border bg-surface px-2 text-right text-sm"
                 />
                 <span className="w-3 text-xs text-subtle">%</span>
@@ -188,10 +190,7 @@ export default async function RecruitmentPage(
               >
                 <option value="">Any</option>
                 {competitions.map((competition) => (
-                  <option
-                    key={competition.competition_id}
-                    value={competition.competition_id}
-                  >
+                  <option key={competition.competition_id} value={competition.competition_id}>
                     {competition.name}
                   </option>
                 ))}
@@ -240,9 +239,9 @@ export default async function RecruitmentPage(
                 <>
                   Minimum minutes
                   <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default
-                    regardless of minutes played — this sets a floor only if you
-                    want one, and it is empty unless you fill it in.
+                    Optional filter. All players are eligible by default regardless of minutes
+                    played — this sets a floor only if you want one, and it is empty unless you fill
+                    it in.
                   </Tooltip>
                 </>
               }
@@ -259,6 +258,20 @@ export default async function RecruitmentPage(
               />
             </Field>
           </fieldset>
+
+          {blockedNow.length > 0 ? (
+            <div className="space-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
+              <p className="text-[11px] font-medium text-warning">This profile will rank nobody.</p>
+              {blockedNow.map((score) => (
+                <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
+                  {score.reason}
+                </p>
+              ))}
+              <p className="text-[11px] leading-relaxed text-subtle">
+                Set that weight to zero to get a ranking from the rest of the profile.
+              </p>
+            </div>
+          ) : null}
 
           <button
             type="submit"
@@ -287,8 +300,7 @@ export default async function RecruitmentPage(
                   : "No players match this profile"
               }
               description={
-                results.explanation ??
-                "Try widening the filters or lowering the minimum minutes."
+                results.explanation ?? "Try widening the filters or lowering the minimum minutes."
               }
               action={
                 <ButtonLink href="/recruitment" variant="secondary" size="sm">
@@ -305,16 +317,11 @@ export default async function RecruitmentPage(
                   </span>{" "}
                   players match · showing the top {results.items.length}
                 </p>
-                {results.is_mock ? (
-                  <Badge tone="warning">Demo data</Badge>
-                ) : null}
+                {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
               </div>
 
               {results.unavailable_scores.length > 0 ? (
-                <Callout
-                  tone="warning"
-                  title="Part of this profile cannot be scored"
-                >
+                <Callout tone="warning" title="Part of this profile cannot be scored">
                   <ul className="space-y-1">
                     {results.unavailable_scores.map((score) => (
                       <li key={score.key}>{score.reason}</li>
@@ -335,9 +342,7 @@ export default async function RecruitmentPage(
                       <CardHeader
                         title={
                           <span className="flex items-center gap-2">
-                            <span className="tabular text-xs text-subtle">
-                              {index + 1}.
-                            </span>
+                            <span className="tabular text-xs text-subtle">{index + 1}.</span>
                             <Link
                               href={`/players/${candidate.player.player_id}`}
                               className="transition-colors hover:text-accent"
@@ -362,12 +367,8 @@ export default async function RecruitmentPage(
                             key={component.metric}
                             className="grid grid-cols-[9.5rem_1fr_3rem] items-center gap-3"
                           >
-                            <span className="text-xs text-muted">
-                              {component.label}
-                            </span>
-                            <PercentileBar
-                              percentile={component.percentile ?? 0}
-                            />
+                            <span className="text-xs text-muted">{component.label}</span>
+                            <PercentileBar percentile={component.percentile ?? 0} />
                             <span className="tabular text-right text-[11px] text-subtle">
                               {Math.round(component.weight)}%
                             </span>
@@ -380,9 +381,9 @@ export default async function RecruitmentPage(
               </ol>
 
               <Callout tone="caution" title="What this ranking is">
-                A ranking of statistical fit against the weights you set. It is
-                not a measure of player quality, and it knows nothing about
-                tactical system, injury record or temperament.
+                A ranking of statistical fit against the weights you set. It is not a measure of
+                player quality, and it knows nothing about tactical system, injury record or
+                temperament.
               </Callout>
             </>
           )}

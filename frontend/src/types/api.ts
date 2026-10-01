@@ -117,6 +117,15 @@ export interface Metric {
   label: string;
   value: number | null;
   percentile: number | null;
+  /**
+   * The same value ranked against every loaded competition rather than the
+   * player's own. Null when `percentile` is already global.
+   *
+   * The gap between the two is the point. Neither is adjusted for league
+   * strength, so a player 92nd at home and 61st across Europe has not been
+   * judged worse - they have been put in a bigger room.
+   */
+  global_percentile: number | null;
   /** A low value is the better outcome, so the UI must say so. */
   lower_is_better: boolean;
   unavailable_reason: string | null;
@@ -256,6 +265,8 @@ export interface PlayerStats {
   player_id: string;
   sample: Sample;
   context: ComparisonContext | null;
+  /** The population behind `Metric.global_percentile`. */
+  global_context: ComparisonContext | null;
   metrics: Metric[];
   scores: Score[];
 }
@@ -396,6 +407,22 @@ export interface RolePreset {
   caveat: string | null;
   /** Role components no intelligence score covers, by label. */
   unmapped: string[];
+  /**
+   * Scores this preset weights that the loaded data cannot produce. A preset
+   * with any of these ranks nobody, whatever the filters say.
+   */
+  unavailable_scores: UnavailableScore[];
+}
+
+/** One emphasis, and whether this load can produce it at all. */
+export interface ScoreAvailability {
+  key: string;
+  label: string;
+  description: string;
+  available: boolean;
+  /** Component metrics the provider does not supply. Empty when available. */
+  missing: string[];
+  reason: string | null;
 }
 
 export interface RecruitmentCandidate {
@@ -542,7 +569,12 @@ export interface ShortlistDetail extends Shortlist {
 export interface ComparedPlayer {
   player: PlayerSummary;
   sample: Sample;
+  /** Where the owner has got to with this player. */
+  status: string;
+  status_label: string;
   note: string | null;
+  pros: string | null;
+  concerns: string | null;
   metrics: Metric[];
   scores: Score[];
   role: Score | null;

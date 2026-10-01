@@ -121,3 +121,23 @@ test("every surface that shows a directional metric passes the direction", () =>
     );
   }
 });
+
+test("both percentile columns orient the same way", () => {
+  // The domestic bar prints the rank as it stands and carries the direction
+  // in the metric's own label. A neighbouring column that flipped
+  // lower-is-better metrics would put two numbers on one row that mean
+  // opposite things - which is the bug this file was written for.
+  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const flat = page.replace(/\s+/g, " ");
+  assert.match(flat, /ordinal\(metric\.global_percentile\)/);
+  assert.equal(/100 - metric\.global_percentile/.test(flat), false);
+});
+
+test("the wider population is named, not left to be guessed", () => {
+  // A rank among 752 beside a rank among 23 is only readable if the page
+  // says which is which, and that neither corrects for league strength.
+  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const flat = page.replace(/\s+/g, " ");
+  assert.match(flat, /global_context\.population_size/);
+  assert.match(flat, /adjusted for how strong a league is/);
+});
