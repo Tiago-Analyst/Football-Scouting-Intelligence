@@ -30,6 +30,7 @@ from app.api.deps import SessionDep
 from app.api.v1.auth import CurrentUser
 from app.api.v1.players import (
     PROFILE_METRICS,
+    read_profile,
     to_context,
     to_metric,
     to_sample,
@@ -367,6 +368,7 @@ def compare(
             )
 
         fit = view.role_fit(key)
+        column_scores = [to_score(s) for s in view.scores(key).values()]
         entry = entries[key]
         entry_status = ShortlistStatus(entry.status)
         columns.append(
@@ -379,8 +381,16 @@ def compare(
                 pros=entry.pros,
                 concerns=entry.concerns,
                 metrics=metrics,
-                scores=[to_score(s) for s in view.scores(key).values()],
+                scores=column_scores,
                 role=to_score(fit.best) if fit and fit.best else None,
+                interpretation=read_profile(
+                    best_role=to_score(fit.best) if fit and fit.best else None,
+                    alternatives=[a.label for a in fit.alternatives[:3]] if fit else [],
+                    scores=column_scores,
+                    metrics=metrics,
+                    sample=to_sample(record),
+                    position_label=record.position_group.value if record.position_group else None,
+                ),
             )
         )
 

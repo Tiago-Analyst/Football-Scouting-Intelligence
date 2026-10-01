@@ -666,6 +666,14 @@ class ComparedPlayer(BaseModel):
     metrics: list[MetricOut]
     scores: list[ScoreOut]
     role: ScoreOut | None
+    #: The same deterministic reading the profile page shows, per column.
+    #:
+    #: A comparison of five players is forty rows before it answers "what
+    #: stands out about each of these", and that is the question it is opened
+    #: to answer. Produced by the one reader the profile already uses rather
+    #: than a second summariser, because two deterministic readings of one
+    #: player would eventually disagree on two pages.
+    interpretation: ScoutingInterpretationOut | None = None
 
 
 class ComparisonResponse(BaseModel):

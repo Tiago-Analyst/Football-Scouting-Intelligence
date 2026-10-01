@@ -586,6 +586,8 @@ export interface ComparedPlayer {
   metrics: Metric[];
   scores: Score[];
   role: Score | null;
+  /** The same deterministic reading the profile page shows, per column. */
+  interpretation: ScoutingInterpretation | null;
 }
 
 export interface ComparisonResponse {

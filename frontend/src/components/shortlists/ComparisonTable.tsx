@@ -30,6 +30,88 @@ import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
  * Omitted rather than shown empty: a comparison of five players where none has
  * been assessed should not carry two rows of dashes explaining that.
  */
+/**
+ * What stands out about each player, before the table.
+ *
+ * Five players is forty rows of two-decimal numbers before the comparison
+ * answers the question it was opened to answer. This is the same deterministic
+ * reading the profile page shows - the server's, from thresholds applied to
+ * percentiles on this page - so a player cannot be characterised one way here
+ * and another way on their own profile.
+ *
+ * No overall winner, and no ranking of the columns against each other. The
+ * populations differ, the warning above says so, and a single "best" would be
+ * precisely the league-strength judgement the rest of the system declines to
+ * make.
+ */
+function ComparisonSummary({ players }: { players: ComparedPlayer[] }) {
+  const readable = players.filter((column) => column.interpretation !== null);
+  if (readable.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {readable.map((column) => {
+        const reading = column.interpretation!;
+        return (
+          <div
+            key={column.player.player_id}
+            className="space-y-2 rounded-lg border border-border bg-surface p-3"
+          >
+            <p className="text-sm font-medium">{column.player.name}</p>
+            {column.role?.label ? (
+              <p className="text-[11px] text-subtle">{column.role.label}</p>
+            ) : null}
+
+            <SummaryList
+              heading="Strengths"
+              items={reading.strengths.map((finding) => finding.label)}
+              empty="Nothing in the upper band."
+            />
+            <SummaryList
+              heading="Watch-outs"
+              items={[
+                ...reading.watch_outs.map((finding) => finding.label),
+                // Reliability belongs beside the weaknesses: a figure built on
+                // 90 minutes is a different kind of risk from a low percentile,
+                // and both change whether you would act on this column.
+                ...reading.confidence,
+              ]}
+              empty="Nothing in the lower band of this role."
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SummaryList({
+  heading,
+  items,
+  empty,
+}: {
+  heading: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold tracking-widest text-subtle uppercase">{heading}</p>
+      {items.length === 0 ? (
+        <p className="text-[11px] text-subtle">{empty}</p>
+      ) : (
+        <ul className="mt-0.5 space-y-0.5">
+          {items.slice(0, 4).map((item) => (
+            <li key={item} className="text-[11px] leading-snug text-muted">
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ArgumentRow({
   heading,
   players,
@@ -79,6 +161,8 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
         </h2>
         {context ? <ComparisonPopulation context={context} /> : null}
       </div>
+
+      <ComparisonSummary players={players} />
 
       {caveat ? (
         <Callout tone="warning" title="These columns are not measured against the same population">

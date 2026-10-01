@@ -233,15 +233,40 @@ def to_metric(result: PercentileResult, wider: PercentileResult | None = None) -
 def _interpret(
     player: PlayerDetail, stats: PlayerStatsResponse, roles: RoleFitOut | None
 ) -> ScoutingInterpretationOut | None:
-    """Read the profile that was just assembled.
+    """Read the profile that was just assembled."""
+    return read_profile(
+        best_role=roles.best if roles is not None else None,
+        alternatives=[a.label for a in roles.alternatives[:3]] if roles is not None else [],
+        scores=stats.scores,
+        metrics=stats.metrics,
+        sample=stats.sample,
+        position_label=player.position_group,
+    )
+
+
+def read_profile(
+    *,
+    best_role: ScoreOut | None,
+    alternatives: list[str],
+    scores: list[ScoreOut],
+    metrics: list[MetricOut],
+    sample: SampleOut,
+    position_label: str | None,
+) -> ScoutingInterpretationOut | None:
+    """Read a profile from the pieces a response already carries.
 
     Built from the response objects rather than from the view, so the prose
     cannot describe a number the page does not show: if a metric was withheld
     for want of a population, the reading has no access to it either.
+
+    Shared with the comparison, which assembles the same pieces per column and
+    would otherwise need its own summariser - and two deterministic readers of
+    one profile is one too many, because they would eventually disagree about
+    the same player on two pages.
     """
     role_reading = None
-    if roles is not None and roles.best is not None:
-        best = roles.best
+    if best_role is not None:
+        best = best_role
         role_reading = RoleReading(
             label=best.label,
             score=best.score,
@@ -249,21 +274,21 @@ def _interpret(
             coverage=best.coverage,
             is_limited=best.is_limited,
             missing=tuple(best.missing),
-            alternatives=tuple(a.label for a in roles.alternatives[:3]),
+            alternatives=tuple(alternatives),
             components=tuple(c.label for c in best.components),
         )
 
     reading = interpret(
         role=role_reading,
-        scores=[ScoreReading(s.label, s.score, s.coverage) for s in stats.scores],
+        scores=[ScoreReading(s.label, s.score, s.coverage) for s in scores],
         metrics=[
             MetricReading(m.label, m.percentile, m.lower_is_better, m.unavailable_reason)
-            for m in stats.metrics
+            for m in metrics
         ],
-        minutes=stats.sample.minutes,
-        sample_band_label=stats.sample.band_label,
-        detailed_coverage_pct=stats.sample.detailed_coverage_pct,
-        position_label=player.position_group,
+        minutes=sample.minutes,
+        sample_band_label=sample.band_label,
+        detailed_coverage_pct=sample.detailed_coverage_pct,
+        position_label=position_label,
     )
     if reading.is_empty:
         return None
