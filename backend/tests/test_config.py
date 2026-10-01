@@ -106,9 +106,9 @@ class TestThePoolerCannotBeSentStartupParameters:
         ],
     )
     def test_a_pooled_url_sends_no_startup_options(self, host: str) -> None:
-        from app.core.database import _is_pooled
+        from app.core.database import is_pooled
 
-        assert _is_pooled(f"postgresql+psycopg://u:p@{host}/db") is True
+        assert is_pooled(f"postgresql+psycopg://u:p@{host}/db") is True
 
     @pytest.mark.parametrize(
         "host",
@@ -119,9 +119,9 @@ class TestThePoolerCannotBeSentStartupParameters:
         ],
     )
     def test_a_direct_url_still_sends_them(self, host: str) -> None:
-        from app.core.database import _is_pooled
+        from app.core.database import is_pooled
 
-        assert _is_pooled(f"postgresql+psycopg://u:p@{host}/db") is False
+        assert is_pooled(f"postgresql+psycopg://u:p@{host}/db") is False
 
     def test_no_startup_option_is_built_for_a_pooled_url(self) -> None:
         """Asserted on what `create_engine` is handed: the whole outage was
@@ -138,3 +138,52 @@ class TestThePoolerCannotBeSentStartupParameters:
 
         settings = build_settings(database_url="postgresql+psycopg://u:p@ep-x.eu.aws.neon.tech/db")
         assert "search_path" in search_path_args(settings)["options"]
+
+    def test_the_direct_endpoint_is_derived_from_the_pooled_one(self) -> None:
+        """Neon names the two endpoints for one database `ep-x-pooler.<region>`
+        and `ep-x.<region>`. Migrations need the second, and the second is the
+        first with four characters removed."""
+        from app.core.database import direct_url, is_pooled
+
+        pooled = "postgresql+psycopg://u:p@ep-x-pooler.c-6.eu-central-1.aws.neon.tech/db"
+        direct = direct_url(pooled)
+
+        assert direct == "postgresql+psycopg://u:p@ep-x.c-6.eu-central-1.aws.neon.tech/db"
+        assert is_pooled(direct) is False
+
+    def test_a_password_is_not_mistaken_for_a_host(self) -> None:
+        """The text being removed is four characters a password may contain,
+        and a mangled password fails in a way that reads like a wrong one."""
+        from app.core.database import direct_url
+
+        url = "postgresql+psycopg://u:a-pooler.b@ep-x-pooler.eu.aws.neon.tech/db"
+        assert direct_url(url) == "postgresql+psycopg://u:a-pooler.b@ep-x.eu.aws.neon.tech/db"
+
+    def test_a_url_that_needs_no_change_is_returned_as_it_is(self) -> None:
+        from app.core.database import direct_url
+
+        for url in (
+            "postgresql+psycopg://u:p@localhost:5432/db",
+            "postgresql+psycopg://u:p@ep-x.eu.aws.neon.tech/db",
+        ):
+            assert direct_url(url) == url
+
+    def test_migrations_choose_the_direct_endpoint(self) -> None:
+        """Alembic pins `search_path=public` with a startup parameter, which is
+        exactly what a pooler refuses. It connects directly instead, and
+        `MIGRATION_DATABASE_URL` overrides the derivation for a provider whose
+        direct host cannot be guessed."""
+        from pathlib import Path
+
+        # Read rather than imported: importing `env.py` runs the migrations.
+        source = (Path(__file__).resolve().parents[1] / "alembic" / "env.py").read_text(
+            encoding="utf-8"
+        )
+
+        assert "def migration_url()" in source
+        assert "migration_database_url" in source
+        assert "direct_url(" in source
+        # And it refuses rather than migrating through a pooler with no pin,
+        # which would create operational tables in the schema promotions swap.
+        assert "is_pooled(url)" in source
+        assert "RuntimeError" in source

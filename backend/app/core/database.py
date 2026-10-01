@@ -33,7 +33,7 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-def _is_pooled(url: str) -> bool:
+def is_pooled(url: str) -> bool:
     """Whether this connection string points at a connection pooler.
 
     Neon names its pooled endpoint `<project>-pooler.<region>.neon.tech`, and
@@ -47,6 +47,28 @@ def _is_pooled(url: str) -> bool:
     return "-pooler." in host or "pooler." in host or "pgbouncer" in host
 
 
+def direct_url(url: str) -> str:
+    """The same database reached without the pooler, where that is derivable.
+
+    Neon names the two endpoints for one database `ep-x-pooler.<region>` and
+    `ep-x.<region>`, so the direct host is the pooled one with `-pooler`
+    removed. That is a convention, not a guarantee, and no other provider
+    shares it: Supabase's direct host is a different name entirely.
+
+    So this returns the URL unchanged when it cannot do better, and the caller
+    decides. A caller that needs an unpooled connection must check rather than
+    assume it got one.
+    """
+    if not is_pooled(url):
+        return url
+    # Split from the right: a password may contain anything, including the
+    # text this replaces.
+    head, at, tail = url.rpartition("@")
+    if not at:
+        return url.replace("-pooler.", ".", 1)
+    return head + at + tail.replace("-pooler.", ".", 1)
+
+
 def search_path_args(settings: Settings) -> dict[str, str]:
     """The libpq arguments that put the analytical schema on the search path.
 
@@ -55,7 +77,7 @@ def search_path_args(settings: Settings) -> dict[str, str]:
     one argument reaching a server that will not take it, and
     `create_connect_args` does not report what `create_engine` was handed.
     """
-    if _is_pooled(settings.sqlalchemy_url):
+    if is_pooled(settings.sqlalchemy_url):
         return {}
     # Applied per connection rather than per session: a pooled connection
     # handed to a new session must already be pointing at the right place.

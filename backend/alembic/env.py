@@ -16,14 +16,35 @@ from sqlalchemy import engine_from_config, pool
 import app.models  # noqa: F401
 from alembic import context
 from app.core.config import get_settings
-from app.core.database import Base
+from app.core.database import Base, direct_url, is_pooled
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().sqlalchemy_url)
+
+def migration_url() -> str:
+    """Where migrations connect, which is not always where the app connects.
+
+    A migration has to pin `search_path=public` (see below), and the only way
+    to do that which Alembic's transaction handling tolerates is a startup
+    parameter - which a connection pooler refuses outright. PgBouncer answers
+    `unsupported startup parameter in options: search_path` and the migration
+    never begins.
+
+    So migrations use the direct endpoint. `MIGRATION_DATABASE_URL` says which
+    one explicitly; failing that, Neon's direct host is derivable from its
+    pooled one. A one-off administrative command has no use for a pooler
+    anyway.
+    """
+    settings = get_settings()
+    if settings.migration_database_url:
+        return settings.migration_database_url
+    return direct_url(settings.sqlalchemy_url)
+
+
+config.set_main_option("sqlalchemy.url", migration_url())
 
 target_metadata = Base.metadata
 
@@ -58,6 +79,20 @@ def run_migrations_online() -> None:
     # connection closes. That failure is silent in both directions - the schema
     # is unchanged and the version table is unchanged, so a re-run does the
     # same nothing.
+    url = config.get_main_option("sqlalchemy.url") or ""
+    if is_pooled(url):
+        # Refusing is the safe answer. Connecting anyway would mean dropping
+        # the `public` pin, and after migration 0009 the application's own
+        # search path puts `analytics` first - so a new operational table
+        # would be created in the schema that promotions swap away, and the
+        # migration would report success while doing it.
+        raise RuntimeError(
+            "Migrations cannot run through a connection pooler: it rejects the "
+            "search_path startup parameter they depend on. Set "
+            "MIGRATION_DATABASE_URL to this database's direct (unpooled) "
+            "endpoint and run again."
+        )
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

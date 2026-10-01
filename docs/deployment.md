@@ -179,6 +179,21 @@ cd /app/backend && python -m alembic current
 cd /app/backend && python -m alembic upgrade head
 ```
 
+Migrations connect to the **direct** endpoint, not the pooled one the service
+uses. They pin `search_path=public` with a startup parameter - the only way
+Alembic's transaction handling tolerates - and a pooler refuses startup
+parameters, so run through one and nothing begins:
+
+```
+ERROR: unsupported startup parameter in options: search_path
+```
+
+`alembic/env.py` derives Neon's direct host from the pooled one, so normally
+there is nothing to do. For a provider whose direct host is a different name,
+set `MIGRATION_DATABASE_URL` to it. Alembic refuses to run through a pooler
+rather than dropping the pin, because dropping it would put new operational
+tables in the schema a promotion swaps away, and report success.
+
 Nine revisions. Alembic stops at the first that fails rather than leaving the
 chain half applied.
 

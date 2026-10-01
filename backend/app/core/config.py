@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     postgres_user: str = "fri_app"
     postgres_password: SecretStr = SecretStr("")
     database_url: str | None = None
+    #: An unpooled connection string, used only by Alembic.
+    #:
+    #: Migrations have to pin `search_path=public`, and a startup parameter is
+    #: the only way to do that which Alembic's transaction handling tolerates -
+    #: but a pooler refuses startup parameters. For Neon the direct host is
+    #: derivable from the pooled one; for anything else it is not, and this is
+    #: where to say it.
+    migration_database_url: str | None = None
 
     # -- API ------------------------------------------------------------------
     api_host: str = "127.0.0.1"
