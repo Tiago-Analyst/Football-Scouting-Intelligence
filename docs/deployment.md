@@ -370,6 +370,75 @@ Create a project in a region near Frankfurt, then:
   backup in the system, and it is the reason for using a managed database at
   all rather than a container.
 
+#### The application role
+
+The service should not be able to drop its own tables, and for most of this
+project's life it could: it connected as `neondb_owner`, the database owner,
+because that is the role Neon hands you and nothing stopped it. Anything that
+reached the connection string — an injection, a leaked environment, a mistaken
+`DELETE` — had the whole database.
+
+It needs much less than that. The web service **reads** the analytical tables
+and never writes them; the pipeline writes them, with its own credentials. It
+**owns** the operational tables — accounts, sessions, shortlists — which live
+in `public`. That is the whole surface.
+
+Create the role in the Neon console (Roles → New role), so the password is
+generated there and never passes through a terminal, then run this in Neon's
+SQL editor as the owner. Substitute the database name if yours is not
+`neondb`, and the owner if the tables are not owned by `neondb_owner`:
+
+```sql
+GRANT CONNECT ON DATABASE neondb TO fri_app;
+
+-- Analytical data: read only.
+GRANT USAGE ON SCHEMA analytics, analytics_staging TO fri_app;
+GRANT SELECT ON ALL TABLES IN SCHEMA analytics, analytics_staging TO fri_app;
+
+-- Operational data: the service owns it.
+GRANT USAGE ON SCHEMA public TO fri_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fri_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fri_app;
+
+-- And whatever a future migration creates, which the owner will own.
+ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner
+  IN SCHEMA analytics, analytics_staging GRANT SELECT ON TABLES TO fri_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner
+  IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fri_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE neondb_owner
+  IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fri_app;
+
+ALTER ROLE fri_app IN DATABASE neondb SET search_path = analytics, public;
+```
+
+**`analytics_staging` is in there on purpose.** A promotion does not copy rows
+between schemas, it renames them — serving becomes intermediate, staging
+becomes serving, intermediate becomes staging. Privileges belong to the schema
+object and follow it through the rename, so a role granted only on `analytics`
+is granted on the *old* data the moment a refresh is published, and the site
+goes down on the next deploy with `permission denied`. Granting both survives
+any number of swaps.
+
+The last statement is belt and braces on a direct endpoint, where the
+application sends the search path itself; it is what makes the role work at
+all through a pooler. Harmless either way.
+
+Then point `DATABASE_URL` at the new role — direct endpoint, no `-pooler` —
+and restart. Confirm with `/health`: `postgresql: ok`, `analytics: ok`, and
+the same player-season count as before.
+
+To check the role cannot do more than it should:
+
+```sql
+SET ROLE fri_app;
+DELETE FROM analytics.fact_player_season_stats;  -- must fail
+DROP TABLE shortlist;                            -- must fail
+RESET ROLE;
+```
+
+Migrations keep using the owner, which is what `MIGRATION_DATABASE_URL` is
+for. DDL is not something the web service should ever be able to do.
+
 ### 2. Render
 
 New > Blueprint, pointed at the repository. Render reads `render.yaml` and
