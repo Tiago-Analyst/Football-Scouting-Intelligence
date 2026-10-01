@@ -104,6 +104,15 @@ export default function AboutPage() {
             >
               github.com/Tiago-Analyst/Football-Scouting-Intelligence
             </Link>
+            . He can be reached on{" "}
+            <Link
+              href="https://www.linkedin.com/in/tiagomarques-/"
+              className="text-accent hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              LinkedIn
+            </Link>
             .
           </p>
         </CardBody>
