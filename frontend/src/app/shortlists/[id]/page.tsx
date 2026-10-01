@@ -23,7 +23,7 @@ export default async function ShortlistPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ compare?: string }>;
+  searchParams: Promise<{ compare?: string; scope?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
@@ -39,8 +39,12 @@ export default async function ShortlistPage({
   if (!shortlist) notFound();
 
   const requested = (query.compare ?? "").split(",").filter(Boolean).slice(0, MAX_COMPARE);
+  // Which population the percentiles are measured against. In the URL rather
+  // than component state, so a comparison stays linkable - the same rule the
+  // selection follows.
+  const scope = query.scope === "global" ? "global" : "competition";
   const [comparison, statuses] = await Promise.all([
-    requested.length > 0 ? getComparison(shortlistId, requested) : Promise.resolve(null),
+    requested.length > 0 ? getComparison(shortlistId, requested, scope) : Promise.resolve(null),
     getShortlistStatuses(),
   ]);
 
@@ -78,14 +82,17 @@ export default async function ShortlistPage({
           action={<ButtonLink href="/players">Search players</ButtonLink>}
         />
       ) : (
-        <EntriesTable
-          entries={shortlist.entries}
-          shortlistId={shortlistId}
-          statuses={statuses}
-        />
+        <EntriesTable entries={shortlist.entries} shortlistId={shortlistId} statuses={statuses} />
       )}
 
-      {comparison ? <ComparisonTable comparison={comparison} /> : null}
+      {comparison ? (
+        <ComparisonTable
+          comparison={comparison}
+          scope={scope}
+          shortlistId={shortlistId}
+          compared={requested}
+        />
+      ) : null}
 
       {requested.length > 0 && !comparison ? (
         <p className="text-sm text-muted">

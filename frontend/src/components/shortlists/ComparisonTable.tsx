@@ -44,6 +44,34 @@ import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
  * precisely the league-strength judgement the rest of the system declines to
  * make.
  */
+function comparisonHref(
+  shortlistId: number,
+  compared: string[],
+  scope: "competition" | "global",
+): string {
+  const params = new URLSearchParams();
+  if (compared.length > 0) params.set("compare", compared.join(","));
+  params.set("scope", scope);
+  return `/shortlists/${shortlistId}?${params.toString()}`;
+}
+
+function ScopeLink({ label, active, href }: { label: string; active: boolean; href: string }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "true" : undefined}
+      scroll={false}
+      className={
+        active
+          ? "rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent"
+          : "rounded-full border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text"
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
 function ComparisonSummary({ players }: { players: ComparedPlayer[] }) {
   const readable = players.filter((column) => column.interpretation !== null);
   if (readable.length === 0) return null;
@@ -137,7 +165,19 @@ function ArgumentRow({
   );
 }
 
-export function ComparisonTable({ comparison }: { comparison: ComparisonResponse }) {
+export function ComparisonTable({
+  comparison,
+  scope,
+  shortlistId,
+  compared,
+}: {
+  comparison: ComparisonResponse;
+  /** Which population the percentiles were measured against. */
+  scope: "competition" | "global";
+  shortlistId: number;
+  /** The selected players, so the toggle keeps them. */
+  compared: string[];
+}) {
   const { players, context, caveat } = comparison;
 
   const metricOrder: string[] = [];
@@ -160,6 +200,25 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
           Comparing {players.length} player{players.length === 1 ? "" : "s"}
         </h2>
         {context ? <ComparisonPopulation context={context} /> : null}
+      </div>
+
+      {/* The answer to the warning below, rather than a second opinion beside
+          it. Ranked inside each player's own competition the columns cannot be
+          read across, which is what the warning says; ranked across every
+          loaded competition they can. Same engine, same call, one argument -
+          and neither adjusts for league strength, because nothing here does. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted">Compare percentiles within:</span>
+        <ScopeLink
+          label="Each competition"
+          active={scope === "competition"}
+          href={comparisonHref(shortlistId, compared, "competition")}
+        />
+        <ScopeLink
+          label="All leagues"
+          active={scope === "global"}
+          href={comparisonHref(shortlistId, compared, "global")}
+        />
       </div>
 
       <ComparisonSummary players={players} />

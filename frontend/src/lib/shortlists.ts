@@ -42,11 +42,15 @@ export async function getShortlist(id: number): Promise<ShortlistDetail | null> 
 export async function getComparison(
   id: number,
   playerKeys: string[],
+  scope: "competition" | "global" = "competition",
 ): Promise<ComparisonResponse | null> {
   const cookie = await sessionHeader();
   if (!cookie || playerKeys.length === 0) return null;
 
-  const query = playerKeys.map((key) => `player=${encodeURIComponent(key)}`).join("&");
+  const query = [
+    ...playerKeys.map((key) => `player=${encodeURIComponent(key)}`),
+    `scope=${scope}`,
+  ].join("&");
   try {
     return await apiFetch<ComparisonResponse>(`/api/v1/shortlists/${id}/compare?${query}`, {
       cookie,
