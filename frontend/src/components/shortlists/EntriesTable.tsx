@@ -7,7 +7,7 @@ import { EntryRow } from "@/components/shortlists/EntryRow";
 import { Button } from "@/components/ui/Button";
 import { Table, TBody, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { MAX_COMPARE } from "@/lib/limits";
-import type { ShortlistEntry } from "@/types/api";
+import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
 
 /**
  * The saved players, with a selection for comparison.
@@ -15,20 +15,36 @@ import type { ShortlistEntry } from "@/types/api";
  * The chosen players go into the URL rather than into component state alone,
  * so a comparison can be linked, bookmarked and reloaded — the same rule the
  * search filters follow. Selection is held locally only until it is applied.
+ *
+ * The status filter is the reason the statuses are a fixed vocabulary rather
+ * than free text: "show me the priorities" is a question a list can answer only
+ * if everyone spells them the same way. It filters what is shown and nothing
+ * else — a hidden player is still on the shortlist, still counted and still in
+ * the export, and the line under the table says so.
  */
 export function EntriesTable({
   entries,
   shortlistId,
+  statuses,
 }: {
   entries: ShortlistEntry[];
   shortlistId: number;
+  statuses: ShortlistStatus[];
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const applied = (params.get("compare") ?? "").split(",").filter(Boolean);
   const [selected, setSelected] = useState<string[]>(applied);
+  const [statusFilter, setStatusFilter] = useState<string>("");
 
   const atLimit = selected.length >= MAX_COMPARE;
+  const shown = statusFilter ? entries.filter((entry) => entry.status === statusFilter) : entries;
+
+  // Only the statuses actually in use, so the filter never offers an option
+  // that would empty the table.
+  const present = statuses.filter((status) =>
+    entries.some((entry) => entry.status === status.key),
+  );
 
   function toggle(playerKey: string) {
     setSelected((current) =>
@@ -59,6 +75,26 @@ export function EntriesTable({
 
   return (
     <div className="space-y-3">
+      {present.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <FilterChip
+            label={`All (${entries.length})`}
+            active={statusFilter === ""}
+            onClick={() => setStatusFilter("")}
+          />
+          {present.map((status) => (
+            <FilterChip
+              key={status.key}
+              label={`${status.label} (${
+                entries.filter((entry) => entry.status === status.key).length
+              })`}
+              active={statusFilter === status.key}
+              onClick={() => setStatusFilter(status.key)}
+            />
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted">
           {selected.length === 0
@@ -88,18 +124,20 @@ export function EntriesTable({
               <TH>Player</TH>
               <TH numeric>Age</TH>
               <TH numeric>Value</TH>
-              <TH>Your note</TH>
+              <TH>Status</TH>
+              <TH>Your assessment</TH>
               <TH>
                 <span className="sr-only">Remove</span>
               </TH>
             </TR>
           </THead>
           <TBody>
-            {entries.map((entry) => (
+            {shown.map((entry) => (
               <EntryRow
                 key={entry.player_key}
                 entry={entry}
                 shortlistId={shortlistId}
+                statuses={statuses}
                 selected={selected.includes(entry.player_key)}
                 selectionDisabled={atLimit}
                 onToggle={toggle}
@@ -108,6 +146,39 @@ export function EntriesTable({
           </TBody>
         </Table>
       </TableWrap>
+
+      {statusFilter && shown.length < entries.length ? (
+        <p className="text-[11px] text-subtle">
+          {entries.length - shown.length} other{" "}
+          {entries.length - shown.length === 1 ? "player is" : "players are"} hidden by this
+          filter. They are still on the shortlist and still in the export.
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        active
+          ? "rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent"
+          : "rounded-full border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-text"
+      }
+    >
+      {label}
+    </button>
   );
 }

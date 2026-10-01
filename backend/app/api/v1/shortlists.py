@@ -37,6 +37,7 @@ from app.api.v1.players import (
     to_summary,
 )
 from app.core.errors import NotFoundError
+from app.models.shortlists import STATUS_LABELS, ShortlistStatus
 from app.schemas.api import (
     ComparedPlayer,
     ComparisonResponse,
@@ -95,6 +96,20 @@ class NoteRequest(BaseModel):
     note: str | None = Field(default=None, max_length=svc.MAX_NOTE_LENGTH)
 
 
+class AssessmentRequest(BaseModel):
+    """What the owner has decided about a saved player.
+
+    A replacement, not a patch. The form that sends this shows all four fields
+    at once, so a field left out means the person emptied it; merging would
+    make a cleared box impossible to express.
+    """
+
+    status: str
+    note: str | None = Field(default=None, max_length=svc.MAX_NOTE_LENGTH)
+    pros: str | None = Field(default=None, max_length=svc.MAX_ASSESSMENT_LENGTH)
+    concerns: str | None = Field(default=None, max_length=svc.MAX_ASSESSMENT_LENGTH)
+
+
 # ---------------------------------------------------------------------------
 # Conversion
 # ---------------------------------------------------------------------------
@@ -113,11 +128,17 @@ def to_shortlist(summary: svc.ShortlistSummary) -> ShortlistOut:
 
 def to_entry(entry: svc.ShortlistEntry, view: AnalyticsView) -> ShortlistEntryOut:
     record = view.get(entry.player_key)
+    status = ShortlistStatus(entry.status)
     return ShortlistEntryOut(
         player_key=entry.player_key,
         player=to_summary(record, view) if record else None,
         saved_as=entry.player_name,
+        status=status.value,
+        status_label=STATUS_LABELS[status],
         note=entry.note,
+        pros=entry.pros,
+        concerns=entry.concerns,
+        last_reviewed_at=entry.last_reviewed_at,
         added_at=entry.added_at,
         unavailable_reason=None if record else UNRESOLVED_REASON,
     )
@@ -250,6 +271,37 @@ def set_note(
     return to_entry(entry, get_analytics_view())
 
 
+@router.put("/{shortlist_id}/entries/{player_id}/assessment", response_model=ShortlistEntryOut)
+def set_assessment(
+    shortlist_id: int,
+    player_id: str,
+    request: AssessmentRequest,
+    user: CurrentUser,
+    db: SessionDep,
+) -> ShortlistEntryOut:
+    """Record where a player has got to, and the case for and against.
+
+    Stamps the review date every time, including when nothing changed: looking
+    at a player again and concluding the same thing is a review, and on a list
+    of forty players it is the fact most worth showing.
+
+    None of this reaches the analytics. A player marked Rejected still ranks
+    wherever the numbers put them.
+    """
+    entry = svc.set_assessment(
+        db,
+        user_id=user.user_id,
+        shortlist_id=shortlist_id,
+        player_key=player_id,
+        status=request.status,
+        note=request.note,
+        pros=request.pros,
+        concerns=request.concerns,
+    )
+    db.commit()
+    return to_entry(entry, get_analytics_view())
+
+
 @router.delete("/{shortlist_id}/entries/{player_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_entry(shortlist_id: int, player_id: str, user: CurrentUser, db: SessionDep) -> Response:
     removed = svc.remove_entry(
@@ -355,9 +407,14 @@ def _comparison_caveat(columns: list[ComparedPlayer]) -> str | None:
 # Export
 # ---------------------------------------------------------------------------
 
-#: Exactly the columns a shortlist already shows, plus the owner's own note.
-#: Deliberately no per-metric statistics: this is a record of one person's
-#: selection, not an extract of the underlying data (spec section 26).
+#: Exactly the columns a shortlist already shows, plus the owner's own
+#: assessment. Deliberately no per-metric statistics: this is a record of one
+#: person's selection, not an extract of the underlying data (spec section 26).
+#:
+#: `status` is the owner's workflow state and `data_status` is whether the
+#: player still resolves in the current data. The second used to be called
+#: `status`, which was unambiguous only while there was one kind of status to
+#: report; two columns a spreadsheet cannot tell apart is worse than a rename.
 EXPORT_COLUMNS = [
     "player_name",
     "age",
@@ -371,9 +428,13 @@ EXPORT_COLUMNS = [
     "contract_expires",
     "best_role",
     "best_role_score",
-    "note",
-    "added_at",
     "status",
+    "note",
+    "pros",
+    "concerns",
+    "last_reviewed",
+    "added_at",
+    "data_status",
 ]
 
 
@@ -409,12 +470,16 @@ def export_csv(shortlist_id: int, user: CurrentUser, db: SessionDep) -> Response
 
     for entry in entries:
         record = view.get(entry.player_key)
+        owner = _assessment_cells(entry)
         if record is None:
+            # Everything the provider would have supplied is blank; what the
+            # owner wrote is theirs and survives the player going missing.
+            blanks = len(EXPORT_COLUMNS) - 2 - len(owner) - 1
             writer.writerow(
                 [
                     _cell(entry.player_name or entry.player_key),
-                    *[""] * (len(EXPORT_COLUMNS) - 4),
-                    _cell(entry.note),
+                    *[""] * blanks,
+                    *owner,
                     _cell(entry.added_at),
                     "not in current data",
                 ]
@@ -436,7 +501,7 @@ def export_csv(shortlist_id: int, user: CurrentUser, db: SessionDep) -> Response
                 _cell(summary.contract_expires),
                 _cell(summary.best_role),
                 _cell(summary.best_role_score),
-                _cell(entry.note),
+                *owner,
                 _cell(entry.added_at),
                 "ok",
             ]
@@ -448,6 +513,23 @@ def export_csv(shortlist_id: int, user: CurrentUser, db: SessionDep) -> Response
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _assessment_cells(entry: svc.ShortlistEntry) -> list[str]:
+    """The owner's own columns, in export order.
+
+    Built in one place so the resolvable and unresolvable rows cannot disagree
+    about how many cells they are writing - which is the shape of bug that
+    shifts every later column by one and is invisible until someone sorts the
+    spreadsheet.
+    """
+    return [
+        _cell(STATUS_LABELS[ShortlistStatus(entry.status)]),
+        _cell(entry.note),
+        _cell(entry.pros),
+        _cell(entry.concerns),
+        _cell(entry.last_reviewed_at),
+    ]
 
 
 def _safe_filename(name: str) -> str:

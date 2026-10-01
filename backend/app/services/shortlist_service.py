@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, NotFoundError
 from app.core.logging import get_logger
-from app.models.shortlists import Shortlist, ShortlistEntry
+from app.models.shortlists import Shortlist, ShortlistEntry, ShortlistStatus
 
 log = get_logger(__name__)
 
@@ -38,6 +38,10 @@ MAX_COMPARE = 5
 MAX_NAME_LENGTH = 120
 MAX_DESCRIPTION_LENGTH = 500
 MAX_NOTE_LENGTH = 2000
+#: Pros and concerns are an argument, not a report. Shorter than the note
+#: on purpose: a box that invites three bullet points gets three bullet
+#: points, and a box that invites an essay gets one nobody re-reads.
+MAX_ASSESSMENT_LENGTH = 1000
 
 
 class ShortlistError(AppError):
@@ -288,12 +292,7 @@ def add_entry(
     return entry
 
 
-def set_note(
-    session: Session, *, user_id: int, shortlist_id: int, player_key: str, note: str | None
-) -> ShortlistEntry:
-    """Write, replace or clear the note on a saved player."""
-    shortlist = get_shortlist(session, user_id=user_id, shortlist_id=shortlist_id)
-
+def _require_entry(session: Session, *, shortlist_id: int, player_key: str) -> ShortlistEntry:
     entry = session.scalar(
         select(ShortlistEntry).where(
             ShortlistEntry.shortlist_id == shortlist_id,
@@ -302,12 +301,80 @@ def set_note(
     )
     if entry is None:
         raise NotFoundError("That player is not on this shortlist.")
+    return entry
+
+
+def set_note(
+    session: Session, *, user_id: int, shortlist_id: int, player_key: str, note: str | None
+) -> ShortlistEntry:
+    """Write, replace or clear the note on a saved player.
+
+    Does not stamp the review date. A note can be a reminder of where you
+    found someone, and treating every keystroke as a scouting judgement would
+    make "last reviewed" mean "last touched", which is a different and much
+    less useful column.
+    """
+    shortlist = get_shortlist(session, user_id=user_id, shortlist_id=shortlist_id)
+    entry = _require_entry(session, shortlist_id=shortlist_id, player_key=player_key)
 
     entry.note = _clean(note, limit=MAX_NOTE_LENGTH)
     entry.updated_at = datetime.now(UTC)
     _touch(shortlist)
     session.flush()
     return entry
+
+
+def set_assessment(
+    session: Session,
+    *,
+    user_id: int,
+    shortlist_id: int,
+    player_key: str,
+    status: str,
+    note: str | None = None,
+    pros: str | None = None,
+    concerns: str | None = None,
+) -> ShortlistEntry:
+    """Record what the owner has decided about a saved player.
+
+    A replacement rather than a merge: everything the caller does not send is
+    cleared. The caller is a form showing all four fields at once, so an
+    omitted one means the person emptied it, and merging would make a cleared
+    box impossible to express.
+
+    Stamps `last_reviewed_at` unconditionally, including when nothing changed.
+    Looking at a player again and concluding the same thing *is* a review, and
+    it is the fact a list of forty players most needs to show.
+
+    Changes no score. The analytics never read this table.
+    """
+    shortlist = get_shortlist(session, user_id=user_id, shortlist_id=shortlist_id)
+    entry = _require_entry(session, shortlist_id=shortlist_id, player_key=player_key)
+
+    entry.status = _clean_status(status)
+    entry.note = _clean(note, limit=MAX_NOTE_LENGTH)
+    entry.pros = _clean(pros, limit=MAX_ASSESSMENT_LENGTH)
+    entry.concerns = _clean(concerns, limit=MAX_ASSESSMENT_LENGTH)
+
+    now = datetime.now(UTC)
+    entry.last_reviewed_at = now
+    entry.updated_at = now
+    _touch(shortlist)
+    session.flush()
+    return entry
+
+
+def _clean_status(status: str) -> str:
+    """Reject an unknown status rather than falling back to a default.
+
+    Silently storing "longlist" when the caller asked for something else would
+    move a player backwards in someone's process without saying so.
+    """
+    try:
+        return ShortlistStatus(status.strip().lower()).value
+    except ValueError:
+        known = ", ".join(s.value for s in ShortlistStatus)
+        raise InvalidShortlist(f"Unknown status. Use one of: {known}.") from None
 
 
 def remove_entry(session: Session, *, user_id: int, shortlist_id: int, player_key: str) -> bool:

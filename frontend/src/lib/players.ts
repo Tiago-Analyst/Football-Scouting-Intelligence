@@ -14,6 +14,7 @@ import type {
   Role,
   RoleFit,
   RolePreset,
+  ShortlistStatus,
   SimilarPlayers,
 } from "@/types/api";
 
@@ -245,6 +246,17 @@ export async function getCompetitions(): Promise<Competition[]> {
 export async function getRoles(): Promise<Role[]> {
   try {
     return await apiFetch<Role[]>("/api/v1/roles", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getShortlistStatuses(): Promise<ShortlistStatus[]> {
+  try {
+    return await apiFetch<ShortlistStatus[]>("/api/v1/shortlist-statuses", {
       revalidate: ANALYSIS_TTL,
       tags: [ANALYTICS_TAG],
     });

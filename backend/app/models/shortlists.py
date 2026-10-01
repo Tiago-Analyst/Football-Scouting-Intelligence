@@ -21,11 +21,19 @@ someone's shortlist without telling them is worse than showing them a gap.
 `player_name` is a snapshot taken when the player was saved, kept solely so an
 unresolvable entry can still say who it was. It is display text for that one
 case and must never stand in for live data.
+
+**An assessment is the owner's, not the provider's.** Status, note, pros,
+concerns and the review date record what a person decided about a player. None
+of it is derived from the data and none of it feeds back into any score: a
+player marked Rejected still ranks wherever the numbers put them, because a
+shortlist is a record of judgement and the analytics are a record of what the
+provider supplied. Keeping the two apart is what makes either one readable.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import (
     BigInteger,
@@ -41,6 +49,44 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+
+
+class ShortlistStatus(StrEnum):
+    """Where a player has got to in the owner's own process.
+
+    Deliberately a short, ordered vocabulary rather than free text. Five words
+    everyone on a desk uses the same way are worth more than thirty everyone
+    uses differently, and a fixed set is what makes "show me the priorities"
+    a question the list can answer.
+
+    This is a workflow state, not a verdict the system reached. Nothing here
+    is computed and nothing here changes a score.
+    """
+
+    LONGLIST = "longlist"
+    MONITOR = "monitor"
+    SCOUT = "scout"
+    PRIORITY = "priority"
+    REJECTED = "rejected"
+
+
+#: What each status means, so a desk reads them the same way and the CSV, the
+#: table and the picker cannot drift apart.
+STATUS_LABELS: dict[ShortlistStatus, str] = {
+    ShortlistStatus.LONGLIST: "Longlist",
+    ShortlistStatus.MONITOR: "Monitor",
+    ShortlistStatus.SCOUT: "Scouting",
+    ShortlistStatus.PRIORITY: "Priority",
+    ShortlistStatus.REJECTED: "Rejected",
+}
+
+STATUS_DESCRIPTIONS: dict[ShortlistStatus, str] = {
+    ShortlistStatus.LONGLIST: "Saved, not yet assessed.",
+    ShortlistStatus.MONITOR: "Worth following, no action now.",
+    ShortlistStatus.SCOUT: "Actively being watched and reported on.",
+    ShortlistStatus.PRIORITY: "A target you would move for.",
+    ShortlistStatus.REJECTED: "Ruled out, and kept so the reason is not lost.",
+}
 
 
 class Shortlist(Base):
@@ -89,7 +135,24 @@ class ShortlistEntry(Base):
     #: resolves, so the entry can name someone instead of showing an id.
     player_name: Mapped[str | None] = mapped_column(String(200))
 
+    #: Where this player has got to in the owner's process. Every entry has
+    #: one, so a list never has to explain a blank column; a player who has
+    #: only been saved is on the longlist, which is true.
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=ShortlistStatus.LONGLIST.value
+    )
+
     note: Mapped[str | None] = mapped_column(Text)
+    #: Kept apart from the note on purpose. A single box collects a paragraph
+    #: that has to be re-read to find the argument; two make the reader state
+    #: both sides, and make a one-sided entry visible as one.
+    pros: Mapped[str | None] = mapped_column(Text)
+    concerns: Mapped[str | None] = mapped_column(Text)
+
+    #: When the owner last recorded a judgement. Null until they do, rather
+    #: than defaulting to the date they saved the player - "reviewed the day
+    #: it was added" is a claim, and saving is not reviewing.
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -102,5 +165,13 @@ class ShortlistEntry(Base):
         # Saving the same player twice is a no-op, not a second row.
         UniqueConstraint("shortlist_id", "player_key", name="uq_shortlist_entry_player"),
         CheckConstraint("length(btrim(player_key)) > 0", name="shortlist_entry_key_not_blank"),
+        # The vocabulary is enforced by the database as well as the service.
+        # A status the UI cannot render would make a row unreadable, and the
+        # only way to find out would be to read it.
+        CheckConstraint(
+            "status IN ('longlist', 'monitor', 'scout', 'priority', 'rejected')",
+            name="shortlist_entry_status_known",
+        ),
         Index("ix_shortlist_entry_list", "shortlist_id"),
+        Index("ix_shortlist_entry_status", "shortlist_id", "status"),
     )

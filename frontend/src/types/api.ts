@@ -505,13 +505,32 @@ export interface Shortlist {
   updated_at: string;
 }
 
+/** One step in the shortlist workflow, served so nothing drifts apart. */
+export interface ShortlistStatus {
+  key: string;
+  label: string;
+  description: string;
+}
+
 export interface ShortlistEntry {
   player_key: string;
   /** Null when the saved player is not in the current data. */
   player: PlayerSummary | null;
   /** The name captured when they were saved. Shown only when `player` is null. */
   saved_as: string | null;
+  /**
+   * Where this player has got to in the owner's own process. A workflow state
+   * the owner set, never something the system concluded, and it changes no
+   * score anywhere.
+   */
+  status: string;
+  status_label: string;
   note: string | null;
+  /** The argument, split, so a one-sided entry is visible as one. */
+  pros: string | null;
+  concerns: string | null;
+  /** Null until the owner records a judgement. Saving is not reviewing. */
+  last_reviewed_at: string | null;
   added_at: string;
   unavailable_reason: string | null;
 }

@@ -373,6 +373,18 @@ class RoleOut(BaseModel):
     caveat: str | None = None
 
 
+class ShortlistStatusOut(BaseModel):
+    """One step in the shortlist workflow, with what it means.
+
+    Served so the picker, the table and the CSV cannot drift apart, and so a
+    desk reads the five words the same way.
+    """
+
+    key: str
+    label: str
+    description: str
+
+
 class RolePresetOut(BaseModel):
     """A named role expressed as recruitment-builder weights.
 
@@ -566,7 +578,19 @@ class ShortlistEntryOut(BaseModel):
     player: PlayerSummary | None
     #: Name at the time of saving. Shown only when `player` is None.
     saved_as: str | None
+    #: Where this player has got to in the owner's own process. A workflow
+    #: state the owner set, never something the system concluded, and it
+    #: changes no score anywhere.
+    status: str
+    status_label: str
     note: str | None
+    #: The argument, split. One box collects a paragraph that has to be
+    #: re-read to find the case; two make a one-sided entry visible as one.
+    pros: str | None = None
+    concerns: str | None = None
+    #: When the owner last recorded a judgement. Null until they do - saving a
+    #: player is not reviewing them.
+    last_reviewed_at: datetime | None = None
     added_at: datetime
     unavailable_reason: str | None = None
 
