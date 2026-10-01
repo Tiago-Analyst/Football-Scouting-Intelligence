@@ -179,7 +179,7 @@ cd /app/backend && python -m alembic current
 cd /app/backend && python -m alembic upgrade head
 ```
 
-Eight revisions. Alembic stops at the first that fails rather than leaving the
+Nine revisions. Alembic stops at the first that fails rather than leaving the
 chain half applied.
 
 | | |
@@ -192,6 +192,7 @@ chain half applied.
 | 0011 | generation context and checkpoint columns |
 | 0012 | `refresh_id`, its backfill and indexes |
 | 0013 | the unique publication identity |
+| 0014 | shortlist status, pros, concerns and review date — **this is what the shortlist workflow needs** |
 
 0009 moves the tables with `ALTER TABLE … SET SCHEMA`, which rewrites the
 catalogue and not the rows: it is as fast on 236,000 rows as on none.
@@ -201,6 +202,25 @@ catalogue and not the rows: it is as fast on 236,000 rows as on none.
 ```sql
 ALTER ROLE fri_app IN DATABASE <database> SET search_path = analytics, public;
 ```
+
+The two names are not guesses. Read them from the connection the service is
+actually using rather than from this document, and apply the statement in the
+same breath, so a typo cannot put the setting on a role nobody connects as:
+
+```bash
+cd /app/backend && python - <<'EOF'
+from sqlalchemy import text
+from app.core.database import get_engine
+
+with get_engine().connect() as c:
+    role, db = c.execute(text("select current_user, current_database()")).one()
+    c.execute(text(f'ALTER ROLE "{role}" IN DATABASE "{db}" SET search_path = analytics, public'))
+    c.commit()
+    print(f"search_path set for {role} in {db}")
+EOF
+```
+
+Idempotent: running it twice sets the same value twice.
 
 Not optional once 0009 has run. From that point the analytical tables are not
 in `public`, and a pooled connection cannot be told a search path per
@@ -215,7 +235,7 @@ open keep the old setting.
 curl -s https://fri-backend.onrender.com/health
 ```
 
-`schema_revision` should read `0013_publication_identity`, `postgresql` and
+`schema_revision` should read `0014_shortlist_assessment`, `postgresql` and
 `analytics` both `ok`, and the player-season count should be unchanged — a
 different count means tables were found somewhere unexpected. Then open
 `/data-quality`: the tables replace the "could not be reached" notice.
@@ -245,8 +265,12 @@ cd /app/backend && python -m alembic upgrade 0008_refresh_generation
 ```
 
 `/data-quality` comes back, nothing leaves `public`, step 3 is not needed, and
-0009–0013 wait for a window of their own. Worth preferring on a day that has
+0009–0014 wait for a window of their own. Worth preferring on a day that has
 already had one incident.
+
+It leaves the shortlist workflow broken, though: status, pros, concerns and the
+review date arrive in 0014, and the code expects them. Take the short path to
+end an incident, not to finish the job.
 
 ---
 
