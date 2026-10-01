@@ -569,7 +569,12 @@ export interface ShortlistDetail extends Shortlist {
 export interface ComparedPlayer {
   player: PlayerSummary;
   sample: Sample;
+  /** Where the owner has got to with this player. */
+  status: string;
+  status_label: string;
   note: string | null;
+  pros: string | null;
+  concerns: string | null;
   metrics: Metric[];
   scores: Score[];
   role: Score | null;

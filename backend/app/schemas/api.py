@@ -641,7 +641,14 @@ class ComparedPlayer(BaseModel):
 
     player: PlayerSummary
     sample: SampleOut
+    #: Where the owner has got to with this player. A comparison is read to
+    #: make a decision, and three of the five columns having already been
+    #: decided about is part of the answer.
+    status: str
+    status_label: str
     note: str | None
+    pros: str | None = None
+    concerns: str | None = None
     metrics: list[MetricOut]
     scores: list[ScoreOut]
     role: ScoreOut | None

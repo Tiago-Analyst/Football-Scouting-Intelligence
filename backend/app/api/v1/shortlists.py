@@ -367,11 +367,17 @@ def compare(
             )
 
         fit = view.role_fit(key)
+        entry = entries[key]
+        entry_status = ShortlistStatus(entry.status)
         columns.append(
             ComparedPlayer(
                 player=to_summary(record, view),
                 sample=to_sample(record),
-                note=entries[key].note,
+                status=entry_status.value,
+                status_label=STATUS_LABELS[entry_status],
+                note=entry.note,
+                pros=entry.pros,
+                concerns=entry.concerns,
                 metrics=metrics,
                 scores=[to_score(s) for s in view.scores(key).values()],
                 role=to_score(fit.best) if fit and fit.best else None,

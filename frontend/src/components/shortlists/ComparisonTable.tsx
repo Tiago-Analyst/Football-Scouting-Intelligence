@@ -1,20 +1,14 @@
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import Link from "next/link";
 
+import { StatusBadge } from "@/components/shortlists/StatusBadge";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout } from "@/components/ui/States";
-import {
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  TableWrap,
-} from "@/components/ui/Table";
+import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import { leadingValues } from "@/lib/comparison";
 import { formatCount, formatEuro } from "@/lib/format";
-import type { ComparisonResponse } from "@/types/api";
+import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
 
 /**
  * Players side by side.
@@ -26,12 +20,42 @@ import type { ComparisonResponse } from "@/types/api";
  * Only metrics at least one player has are shown. A row of dashes for a
  * goalkeeping stat in an outfield comparison is noise, and a metric one player
  * lacks still earns its row: the gap is information.
+ *
+ * The leading per-90 value on each row is marked; `leadingValues` says why
+ * that is the value and never the percentile.
  */
-export function ComparisonTable({
-  comparison,
+/**
+ * One side of the written argument, as a row, or nothing when nobody wrote it.
+ *
+ * Omitted rather than shown empty: a comparison of five players where none has
+ * been assessed should not carry two rows of dashes explaining that.
+ */
+function ArgumentRow({
+  heading,
+  players,
+  pick,
 }: {
-  comparison: ComparisonResponse;
+  heading: string;
+  players: ComparedPlayer[];
+  pick: (column: ComparedPlayer) => string | null;
 }) {
+  if (!players.some((column) => pick(column))) return null;
+
+  return (
+    <TR>
+      <TH scope="row" className="sticky left-0 z-10 bg-surface">
+        {heading}
+      </TH>
+      {players.map((column) => (
+        <TD key={column.player.player_id} className="text-xs text-muted">
+          {pick(column) ?? <span className="text-subtle">—</span>}
+        </TD>
+      ))}
+    </TR>
+  );
+}
+
+export function ComparisonTable({ comparison }: { comparison: ComparisonResponse }) {
   const { players, context, caveat } = comparison;
 
   const metricOrder: string[] = [];
@@ -45,6 +69,8 @@ export function ComparisonTable({
     }
   }
 
+  const leaders = leadingValues(players);
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -55,10 +81,7 @@ export function ComparisonTable({
       </div>
 
       {caveat ? (
-        <Callout
-          tone="warning"
-          title="These columns are not measured against the same population"
-        >
+        <Callout tone="warning" title="These columns are not measured against the same population">
           {caveat}
         </Callout>
       ) : null}
@@ -93,9 +116,7 @@ export function ComparisonTable({
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
                   <span className="inline-flex items-center gap-1.5">
-                    {column.sample.minutes !== null
-                      ? formatCount(column.sample.minutes)
-                      : "—"}
+                    {column.sample.minutes !== null ? formatCount(column.sample.minutes) : "—"}
                     {column.sample.minutes !== null ? (
                       <SampleSizeBadge
                         band={column.sample.band}
@@ -140,12 +161,8 @@ export function ComparisonTable({
                 <TD key={column.player.player_id} numeric>
                   {column.role ? (
                     <>
-                      <span className="block text-xs text-muted">
-                        {column.role.label}
-                      </span>
-                      {column.role.score !== null
-                        ? column.role.score.toFixed(1)
-                        : "—"}
+                      <span className="block text-xs text-muted">{column.role.label}</span>
+                      {column.role.score !== null ? column.role.score.toFixed(1) : "—"}
                     </>
                   ) : (
                     "—"
@@ -156,10 +173,7 @@ export function ComparisonTable({
 
             {metricOrder.map((key) => (
               <TR key={key}>
-                <TH
-                  scope="row"
-                  className="sticky left-0 z-10 bg-surface font-normal"
-                >
+                <TH scope="row" className="sticky left-0 z-10 bg-surface font-normal">
                   {labels.get(key)}
                 </TH>
                 {players.map((column) => {
@@ -168,7 +182,15 @@ export function ComparisonTable({
                     <TD key={column.player.player_id} numeric>
                       {metric?.value != null ? (
                         <div className="space-y-1">
-                          <span>{metric.value.toFixed(2)}</span>
+                          <span
+                            className={
+                              leaders.get(key) === metric.value
+                                ? "font-semibold text-accent"
+                                : undefined
+                            }
+                          >
+                            {metric.value.toFixed(2)}
+                          </span>
                           {metric.percentile !== null ? (
                             <PercentileBar
                               percentile={metric.percentile}
@@ -187,20 +209,37 @@ export function ComparisonTable({
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
+                Status
+              </TH>
+              {players.map((column) => (
+                <TD key={column.player.player_id} numeric>
+                  <StatusBadge status={column.status} label={column.status_label} />
+                </TD>
+              ))}
+            </TR>
+
+            <TR>
+              <TH scope="row" className="sticky left-0 z-10 bg-surface">
                 Your note
               </TH>
               {players.map((column) => (
-                <TD
-                  key={column.player.player_id}
-                  className="text-xs text-muted"
-                >
+                <TD key={column.player.player_id} className="text-xs text-muted">
                   {column.note ?? <span className="text-subtle">—</span>}
                 </TD>
               ))}
             </TR>
+
+            <ArgumentRow heading="For" players={players} pick={(c) => c.pros} />
+            <ArgumentRow heading="Against" players={players} pick={(c) => c.concerns} />
           </TBody>
         </Table>
       </TableWrap>
+
+      <p className="text-[11px] leading-relaxed text-subtle">
+        The highlighted figure in each row is the largest per 90 minutes, not the best player: it
+        compares quantities, which are the same everywhere, rather than percentiles, which are ranks
+        inside each player&rsquo;s own competition.
+      </p>
     </section>
   );
 }
