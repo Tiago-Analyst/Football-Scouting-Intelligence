@@ -117,9 +117,9 @@ The API serves from PostgreSQL, so it has nothing to show until a load has run.
 1. Provision the database. Create an application role — **not** the superuser.
 2. Set the secrets on both services.
 3. Run the production check. Fix anything it refuses.
-4. `alembic upgrade head`. **Through a pooled connection, follow it with the
-   statement below** — migration 0009 moves the analytical tables into their
-   own schema, and a pooler cannot be told a search path per connection.
+4. `alembic upgrade head`. Migration 0009 moves the analytical tables into
+   their own schema, which the connection has to be told about — see below,
+   and use the direct endpoint.
 5. Load: `python -m pipelines.load.load_providers --source transfermarkt --replace --verify`
 6. Deploy the backend, then the frontend.
 7. Confirm `/health` returns 200 with `analytics: ok`.
@@ -127,31 +127,47 @@ The API serves from PostgreSQL, so it has nothing to show until a load has run.
 Skipping step 5 is not a silent failure: `/health` reports
 `analytics: unavailable` and answers 503 until a load has run.
 
-### The search path, and the pooler
+### The search path, and why not to use the pooler
 
 The analytical tables live in `analytics` from migration 0009 onward, and the
 models name no schema: the connection resolves it. On a **direct** connection
 the application sends `options=-csearch_path=analytics,public` at startup and
 that is the end of it.
 
-A **pooled** endpoint — Neon's `-pooler` host, which `render.yaml` tells you to
-use — refuses it. PgBouncer in transaction pooling mode rejects every startup
-parameter outside a small allowlist, `options` is not on it, and every
-connection fails at once. This took production down for the length of one
-deploy; `_is_pooled` now omits the parameter, so the path has to be set
-server-side instead, where it survives a pooled connection being handed round:
+**Use the direct endpoint.** This document and `render.yaml` both used to say
+the opposite, and that recommendation broke production three times in two
+days:
+
+1. The application sent `options` to Neon's pooled endpoint. PgBouncer in
+   transaction mode rejects every startup parameter outside a small allowlist,
+   `options` is not on it, and every connection failed instantly — a 503 in
+   0.4 seconds, which reads like anything except a configuration error.
+2. `alembic/env.py` builds its own engine and went on sending it after the
+   application had stopped. Migrations could not run at all, against the one
+   database that needed migrating.
+3. With the parameter omitted, the path was set on the role instead — and
+   nothing changed. The pooler keeps its own long-lived connections to
+   Postgres, established before that statement ran, and they went on resolving
+   names in `public`: `relation "fact_player_season_stats" does not exist`,
+   from a database where it plainly did.
+
+Nothing here needs a pooler. The service runs one process with
+`WEB_CONCURRENCY=1` and SQLAlchemy keeps its own pool, so PgBouncer adds a
+restriction and no capacity. Use the Neon host **without** `-pooler`.
+`is_pooled` detects which kind it was given and omits the parameter on a
+pooled one, so that case degrades rather than failing closed — which is why it
+has to be a deliberate choice and not a default.
+
+If a pooled endpoint is ever genuinely required, the path has to be set on the
+role *and* the Neon compute restarted, so the pooler's own connections are
+re-established and pick it up:
 
 ```sql
 ALTER ROLE fri_app IN DATABASE <database> SET search_path = analytics, public;
 ```
 
-Run it **with** `alembic upgrade head`, in the same maintenance window. Before
-0009 the analytical tables are in `public` and the default path finds them, so
-a deployment that has not migrated yet needs nothing. After 0009 they are not,
-and a pooled connection without this statement finds no tables at all.
-
-Existing connections keep the old setting: restart the service, or let Render
-do it as part of the deploy.
+Before 0009 the analytical tables are in `public` and the default path finds
+them, so a deployment that has not migrated yet needs nothing either way.
 
 ### Runbook: bringing a deployed database from 0005 to head
 
@@ -237,9 +253,11 @@ EOF
 
 Idempotent: running it twice sets the same value twice.
 
-Not optional once 0009 has run. From that point the analytical tables are not
-in `public`, and a pooled connection cannot be told a search path per
-connection — see the section above, and the outage that established it.
+Only needed once 0009 has run on a deployment that reaches the database
+through a pooler. On the direct endpoint the application sets the path itself
+at connection time and this statement changes nothing — run it anyway: it
+costs nothing, and it is what would have to be true if the endpoint were ever
+switched back.
 
 **4. Restart.** Render → Manual Deploy → Restart service. Connections already
 open keep the old setting.
@@ -345,8 +363,9 @@ Create a project in a region near Frankfurt, then:
 
 - create a database and an **application role that does not own it**. The
   application should not be able to drop its own tables;
-- copy the **pooled** connection string. Neon's pooler handles the connection
-  churn a container platform produces;
+- copy the **direct** connection string — the host *without* `-pooler`. The
+  pooled one rejects the startup parameter the search path depends on; see
+  "The search path, and why not to use the pooler" above;
 - keep the branch/point-in-time retention Neon gives you. This is the only
   backup in the system, and it is the reason for using a managed database at
   all rather than a container.
@@ -358,7 +377,7 @@ prompts for:
 
 | Prompt | Value |
 | --- | --- |
-| `DATABASE_URL` | the Neon pooled connection string |
+| `DATABASE_URL` | the Neon **direct** connection string, no `-pooler` |
 | `CORS_ALLOW_ORIGINS` | the Vercel origin, exactly, no trailing slash |
 | `FOOTYSTATS_API_KEY` | only if a subscription is in use |
 | `BUILD_TOKEN` | any long random string; the same value goes to Vercel |

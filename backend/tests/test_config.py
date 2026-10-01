@@ -68,6 +68,38 @@ class TestFootyStatsGate:
         assert build_settings(footystats_api_key="abc123").footystats_configured is True
 
 
+class TestWhichDatabaseIsReported:
+    """The startup log's answer to "what is this process connected to".
+
+    It used to read the individual POSTGRES_* settings, which keep their
+    defaults whenever DATABASE_URL is set - as every managed provider makes
+    you set it. So a service connected to Neon reported `localhost:5432/fri`,
+    confidently, on the line somebody reads first during an incident.
+    """
+
+    def test_the_url_decides_rather_than_the_unset_defaults(self) -> None:
+        settings = build_settings(
+            database_url=("postgresql+psycopg://u:p@ep-x.c-6.eu-central-1.aws.neon.tech/neondb")
+        )
+        assert settings.database_target == "ep-x.c-6.eu-central-1.aws.neon.tech/neondb"
+        assert "localhost" not in settings.database_target
+
+    def test_the_individual_settings_still_answer_when_they_are_the_source(self) -> None:
+        settings = build_settings(postgres_host="db.internal", postgres_db="fri")
+        assert settings.database_target.startswith("db.internal:")
+        assert settings.database_target.endswith("/fri")
+
+    def test_whether_it_is_pooled_is_reported_too(self) -> None:
+        """Which endpoint it is decides whether the search path can be sent at
+        connection time, and that question has taken this service down."""
+        pooled = build_settings(
+            database_url="postgresql+psycopg://u:p@ep-x-pooler.eu.aws.neon.tech/db"
+        )
+        direct = build_settings(database_url="postgresql+psycopg://u:p@ep-x.eu.aws.neon.tech/db")
+        assert pooled.safe_summary()["pooled"] is True
+        assert direct.safe_summary()["pooled"] is False
+
+
 class TestSecretHandling:
     def test_secrets_are_not_in_safe_summary(self) -> None:
         settings = build_settings(
@@ -76,6 +108,17 @@ class TestSecretHandling:
         rendered = repr(settings.safe_summary())
         assert "SUPER_SECRET_KEY" not in rendered
         assert "SUPER_SECRET_PW" not in rendered
+
+    def test_a_password_in_the_url_never_reaches_the_startup_log(self) -> None:
+        """The summary is derived from the connection URL now, and that URL
+        carries a password. Deriving it wrong is the one way this could start
+        writing one into a log."""
+        settings = build_settings(
+            database_url="postgresql+psycopg://fri_app:SUPER_SECRET_PW@db.example.com:5432/fri"
+        )
+        rendered = repr(settings.safe_summary())
+        assert "SUPER_SECRET_PW" not in rendered
+        assert "fri_app" not in rendered
 
     def test_secrets_are_masked_in_repr(self) -> None:
         """SecretStr guards against a stray print/log of the settings object."""

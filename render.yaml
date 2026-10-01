@@ -17,10 +17,11 @@
 #   3. Fill in the prompted secrets.
 #   4. Run the migrations and the first load (see docs/deployment.md).
 #
-# The free plan sleeps after 15 minutes idle and takes roughly 50 seconds to
-# wake, during which the site shows its error state rather than data. That is
-# survivable for a site people visit deliberately and wrong for one anybody
-# depends on; `plan: starter` removes it.
+# `plan: starter` because the free plan sleeps after 15 minutes idle and takes
+# roughly 50 seconds to wake, during which the site shows its error state
+# rather than data. That is survivable for a site people visit deliberately
+# and wrong for one anybody is shown a link to: the first visitor after a
+# quiet hour waits 50 seconds, and does not wait.
 
 services:
   - type: web
@@ -30,7 +31,7 @@ services:
     # The repository root, not `backend/`: the image needs `config/`, which sits
     # beside it, and Docker cannot copy from outside its context.
     dockerContext: .
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
     # Only rebuild when the backend or its pipelines change. A frontend commit
@@ -62,8 +63,29 @@ services:
 
       # Neon hands out a single connection string, and the settings accept one
       # directly - normalising `postgres://` or `postgresql://` onto the psycopg
-      # driver this depends on. Use the pooled endpoint, and the application
-      # role rather than the database owner.
+      # driver this depends on.
+      #
+      # USE THE DIRECT ENDPOINT, NOT THE POOLED ONE
+      #
+      # This file used to say the opposite, and that recommendation broke
+      # production three times in two days. From migration 0009 the analytical
+      # tables live in the `analytics` schema, and the connection has to be
+      # told so. The application does that with the libpq `options` startup
+      # parameter, which is the only mechanism that survives a connection
+      # being handed to a new session.
+      #
+      # Neon's pooled endpoint is PgBouncer in transaction mode, and it
+      # rejects `options` outright. Setting the path on the role instead does
+      # not help: the pooler keeps its own long-lived connections to Postgres,
+      # established before the statement ran, and they go on resolving names
+      # in `public`. The tables are found by nobody and every request 503s.
+      #
+      # Nothing here needs a pooler. The service runs one process with
+      # WEB_CONCURRENCY=1 and SQLAlchemy keeps its own pool, so PgBouncer adds
+      # a restriction and no capacity. Use the host WITHOUT `-pooler`.
+      #
+      # Use the application role rather than the database owner, which is not
+      # what is deployed today and should be.
       #
       # The individual POSTGRES_HOST/PORT/DB/USER/PASSWORD variables still work
       # and take second place; set one or the other, not both.

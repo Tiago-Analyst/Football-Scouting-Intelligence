@@ -11,6 +11,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -26,6 +27,20 @@ class AppMode(StrEnum):
 
     DEMO = "demo"
     PRODUCTION = "production"
+
+
+def is_pooled(url: str) -> bool:
+    """Whether this connection string points at a connection pooler.
+
+    Neon names its pooled endpoint `<project>-pooler.<region>.neon.tech`, and
+    the convention is shared: Supabase uses `pooler.supabase.com`, and
+    PgBouncer deployments commonly carry `pgbouncer` in the host. Matching the
+    host is a heuristic, and it is the right kind: a false positive costs a
+    search path that has to be set on the role instead, while a false negative
+    costs every connection.
+    """
+    host = url.split("@")[-1].split("/")[0].lower()
+    return "-pooler." in host or "pooler." in host or "pgbouncer" in host
 
 
 class AppEnv(StrEnum):
@@ -186,14 +201,47 @@ class Settings(BaseSettings):
         """
         return bool(self.footystats_api_key.get_secret_value().strip())
 
+    @property
+    def database_target(self) -> str:
+        """Host and database actually connected to, with the credentials gone.
+
+        Derived from the URL the engine is built from, not from the individual
+        POSTGRES_* settings. Those are the second-place source: set
+        DATABASE_URL, as every managed provider makes you, and they keep their
+        defaults - so the startup log used to report `localhost:5432/fri` from
+        a service connected to Neon. It is the first line anybody reads when
+        asking which database a process is talking to, and it answered with
+        somebody's laptop.
+
+        Falls back to a placeholder rather than the raw URL: a string this
+        cannot parse is exactly the one whose password might survive into a
+        log.
+        """
+        try:
+            parts = urlsplit(self.sqlalchemy_url)
+            host = parts.hostname or "?"
+            port = f":{parts.port}" if parts.port else ""
+            name = parts.path.lstrip("/") or "?"
+        except ValueError:
+            return "unparseable"
+        return f"{host}{port}/{name}"
+
     def safe_summary(self) -> dict[str, object]:
-        """Non-sensitive settings, safe to log at startup or expose on /health."""
+        """Non-sensitive settings, safe to log at startup.
+
+        Deliberately not served to callers: a hostname is harmless in a log a
+        reader already has access to, and gratuitous in a public response.
+        """
         return {
             "app_name": self.app_name,
             "app_mode": self.app_mode.value,
             "app_env": self.app_env.value,
             "debug": self.debug,
-            "database": f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}",
+            "database": self.database_target,
+            # Which kind of endpoint, because it decides whether the search
+            # path can be sent at connection time or has to be set on the
+            # role - and getting that wrong has taken this service down.
+            "pooled": is_pooled(self.sqlalchemy_url),
             "footystats_configured": self.footystats_configured,
         }
 

@@ -14,7 +14,7 @@ from sqlalchemy import MetaData, create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings, get_settings, is_pooled
 
 # Explicit constraint naming. Without this, Alembic autogenerate cannot emit
 # stable DROP statements for unnamed constraints on PostgreSQL.
@@ -31,20 +31,6 @@ class Base(DeclarativeBase):
     """Declarative base for every ORM model in the application."""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
-
-
-def is_pooled(url: str) -> bool:
-    """Whether this connection string points at a connection pooler.
-
-    Neon names its pooled endpoint `<project>-pooler.<region>.neon.tech`, and
-    the convention is shared: Supabase uses `pooler.supabase.com`, and
-    PgBouncer deployments commonly carry `pgbouncer` in the host. Matching the
-    host is a heuristic, and it is the right kind: a false positive costs a
-    search path that has to be set on the role instead, while a false negative
-    costs every connection.
-    """
-    host = url.split("@")[-1].split("/")[0].lower()
-    return "-pooler." in host or "pooler." in host or "pgbouncer" in host
 
 
 def direct_url(url: str) -> str:
