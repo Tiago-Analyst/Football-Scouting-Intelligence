@@ -393,6 +393,16 @@ class ProviderInfo(BaseModel):
     validated: bool
     available_metrics: frozenset[CanonicalMetric]
     notes: str | None = None
+    #: Metrics in `available_metrics` the provider has no field for, computed
+    #: from ones it does supply. Non-penalty goals is goals minus penalty
+    #: goals; FootyStats carries no non-penalty figure of its own. Kept
+    #: separate so a report can say "derived" instead of implying a field
+    #: exists, while `available_metrics` goes on answering the only question
+    #: the engines ask: can this be produced.
+    derived_metrics: dict[str, str] = Field(default_factory=dict)
+    #: Why each unsupplied metric is unsupplied, where profiling established
+    #: it. "Unavailable" with nothing behind it reads as "not looked at yet".
+    absent_reasons: dict[str, str] = Field(default_factory=dict)
 
     def supports(self, metric: CanonicalMetric) -> bool:
         return metric in self.available_metrics

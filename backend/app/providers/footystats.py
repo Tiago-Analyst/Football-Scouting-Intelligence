@@ -238,6 +238,12 @@ class FootyStatsProvider(PerformanceDataProvider):
             # responses and every entry names the evidence for it.
             validated=True,
             available_metrics=available,
+            derived_metrics={
+                metric.value: entry.formula for metric, entry in self._mapping.derived.items()
+            },
+            absent_reasons={
+                metric.value: entry.reason for metric, entry in self._mapping.absent.items()
+            },
             notes=(
                 f"{len(available)} of {len(available) + len(missing)} canonical metrics "
                 f"mapped from verified responses. Unavailable: {', '.join(missing)}. "

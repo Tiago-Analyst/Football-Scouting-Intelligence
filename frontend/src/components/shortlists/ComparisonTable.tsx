@@ -7,7 +7,7 @@ import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { leadingValues } from "@/lib/comparison";
-import { formatCount, formatEuro } from "@/lib/format";
+import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
 
 /**
@@ -155,15 +155,37 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Best role fit
+                Best role
               </TH>
+              {/* A bare "50.5" under "Best role fit" is three different numbers
+                  the product keeps apart everywhere else: the Raw Role Fit, the
+                  Role Fit Percentile it maps to, and the Metric Coverage behind
+                  it. Raw fits from differently weighted roles do not share a
+                  scale, so 50.5 against 31.9 was never a comparison - and
+                  nothing on the row said which of the three it was. Each is now
+                  named, and only the ones the backend actually returned are
+                  shown. */}
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
                   {column.role ? (
-                    <>
+                    <div className="space-y-0.5">
                       <span className="block text-xs text-muted">{column.role.label}</span>
-                      {column.role.score !== null ? column.role.score.toFixed(1) : "—"}
-                    </>
+                      {column.role.score !== null ? (
+                        <span className="block text-[11px] text-subtle">
+                          {column.role.score.toFixed(1)} raw fit
+                        </span>
+                      ) : null}
+                      {/* `!= null`, because the field is optional as well as nullable:
+                          a role that was never given a standing is absent, not null. */}
+                      {column.role.role_fit_percentile != null ? (
+                        <span className="block text-[11px] text-subtle">
+                          {ordinal(column.role.role_fit_percentile)} role fit percentile
+                        </span>
+                      ) : null}
+                      <span className="block text-[11px] text-subtle">
+                        {Math.round(column.role.coverage * 100)}% metric coverage
+                      </span>
+                    </div>
                   ) : (
                     "—"
                   )}

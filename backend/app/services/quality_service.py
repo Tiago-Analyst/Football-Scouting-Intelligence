@@ -566,6 +566,71 @@ def average_detailed_coverage(session: Session) -> float | None:
     return float(value) if value is not None else None
 
 
+@dataclass(frozen=True)
+class MetricAvailability:
+    """One canonical metric the provider cannot supply, and what was found.
+
+    The reason comes from the profiling that established it - a key declared
+    and never populated, an attempt count absent where only successes are
+    given, a percentage returning zero for everybody. A page that lists five
+    names tells a reader nothing about whether the gap could ever close.
+    """
+
+    metric: str
+    label: str
+    reason: str | None
+
+
+@dataclass(frozen=True)
+class DerivedMetricNote:
+    """A metric the provider has no field for and the system computes anyway."""
+
+    metric: str
+    label: str
+    formula: str
+
+
+def metric_availability(
+    settings: Settings,
+) -> tuple[list[MetricAvailability], list[DerivedMetricNote]]:
+    """What cannot be supplied and what is computed instead.
+
+    Two lists rather than one, because they are opposite facts and were being
+    reported as the same one. Non-penalty goals has no FootyStats field and
+    appears on every forward's profile, computed from goals and penalty goals;
+    it was listed as unavailable on the page whose job is to describe the data
+    accurately.
+    """
+    try:
+        provider = build_performance_provider(settings)
+    except AppError:
+        return [], []
+
+    info = provider.info
+    reasons = info.absent_reasons
+    derived = [
+        DerivedMetricNote(metric=name, label=_metric_label(name), formula=formula)
+        for name, formula in sorted(info.derived_metrics.items())
+    ]
+
+    available = info.available_metrics
+    unavailable = [
+        MetricAvailability(
+            metric=metric.value,
+            label=_metric_label(metric.value),
+            reason=reasons.get(metric.value),
+        )
+        for metric in CanonicalMetric
+        if metric not in available
+    ]
+    return sorted(unavailable, key=lambda item: item.metric), derived
+
+
+def _metric_label(name: str) -> str:
+    """The reader's name for a canonical metric, not the column's."""
+    return name.replace("_", " ").capitalize()
+
+
 def unavailable_metrics(settings: Settings) -> list[str]:
     """Canonical metrics the configured provider cannot supply.
 

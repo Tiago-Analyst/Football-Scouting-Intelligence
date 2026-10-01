@@ -19,7 +19,9 @@ from app.schemas.api import (
     AnalyticsFreshnessOut,
     CandidateChecksOut,
     DataQualityResponse,
+    DerivedMetricOut,
     IdentityCoverageOut,
+    MetricAvailabilityOut,
     ProviderQualityOut,
     PublishedChecksOut,
     QualityCheckOut,
@@ -65,6 +67,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
     sources = svc.freshness(db)
     counts = svc.volumes(db)
     identity = svc.identity_coverage(db)
+    unavailable, derived = svc.metric_availability(settings)
     view = get_analytics_view()
 
     return DataQualityResponse(
@@ -78,6 +81,13 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
         ),
         average_detailed_coverage_pct=svc.average_detailed_coverage(db),
         unavailable_metrics=svc.unavailable_metrics(settings),
+        unavailable_detail=[
+            MetricAvailabilityOut(metric=m.metric, label=m.label, reason=m.reason)
+            for m in unavailable
+        ],
+        derived_metrics=[
+            DerivedMetricOut(metric=d.metric, label=d.label, formula=d.formula) for d in derived
+        ],
         analytics=AnalyticsFreshnessOut(
             players=len(view.players),
             competitions=len(view.competitions),

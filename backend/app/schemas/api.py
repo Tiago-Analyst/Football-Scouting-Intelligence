@@ -835,6 +835,25 @@ class RefreshStatusOut(BaseModel):
     current: RefreshGenerationOut | None = None
 
 
+class MetricAvailabilityOut(BaseModel):
+    """A canonical metric the provider cannot supply, and what was found."""
+
+    metric: str
+    label: str
+    #: Null when nothing was recorded. Absent evidence is stated as absent
+    #: rather than filled with a plausible sentence.
+    reason: str | None = None
+
+
+class DerivedMetricOut(BaseModel):
+    """A metric with no provider field, computed from ones that exist."""
+
+    metric: str
+    label: str
+    #: The arithmetic, so the claim can be checked rather than believed.
+    formula: str
+
+
 class DataQualityResponse(BaseModel):
     """What was checked, when, and what it found."""
 
@@ -863,6 +882,14 @@ class DataQualityResponse(BaseModel):
     #: Canonical metrics the configured provider cannot supply at all. Empty in
     #: demo mode, where everything is fabricated.
     unavailable_metrics: list[str] = Field(default_factory=list)
+    #: The same metrics with the evidence that established each absence. A
+    #: list of five names says nothing about whether a gap could ever close;
+    #: "declared and null in all 691 sampled records" says it cannot.
+    unavailable_detail: list[MetricAvailabilityOut] = Field(default_factory=list)
+    #: Metrics the provider has no field for and the system computes anyway.
+    #: Reported separately because they are the opposite fact, and were being
+    #: reported as the same one.
+    derived_metrics: list[DerivedMetricOut] = Field(default_factory=list)
     analytics: AnalyticsFreshnessOut | None = None
     #: FootyStats refresh progress. `None` when no generation exists yet,
     #: which is the normal state of a database loaded before generations.
