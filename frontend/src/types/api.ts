@@ -262,6 +262,22 @@ export interface PlayerStats {
 
 export type FeatureCoverageBand = "high" | "good" | "limited" | "very_limited";
 
+/**
+ * One feature, on both sides of a similarity comparison.
+ *
+ * The index says two profiles resemble each other; these say where. Both
+ * values are null under a representation with no percentile to report, rather
+ * than carrying a number invented to fill the column.
+ */
+export interface FeatureComparison {
+  metric: string;
+  label: string;
+  /** Distance on the comparison scale. Small is alike. */
+  gap: number;
+  target: number | null;
+  candidate: number | null;
+}
+
 export interface SimilarPlayer {
   player: PlayerSummary;
   /** Resemblance on the features the two players share, 0-100. */
@@ -279,6 +295,10 @@ export interface SimilarPlayer {
   /** Low values mean the profiles match in shape but not in strength. */
   profile_strength_ratio: number;
   comparable_strength: boolean;
+  /** Where the two profiles are closest. What drove the index. */
+  drivers?: FeatureComparison[];
+  /** Where they are furthest apart, furthest first. */
+  differences?: FeatureComparison[];
 }
 
 export interface SimilarPlayers {

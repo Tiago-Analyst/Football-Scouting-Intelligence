@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +9,7 @@ import { DataConfidence } from "@/components/player/DataConfidence";
 import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
 import { MarketValueChart } from "@/components/player/MarketValueChart";
 import { ScoutingInterpretation } from "@/components/player/ScoutingInterpretation";
+import { SimilarityBreakdown } from "@/components/player/SimilarityBreakdown";
 import { TransferHistory } from "@/components/player/TransferHistory";
 import { SaveToShortlist } from "@/components/shortlists/SaveToShortlist";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -525,54 +528,68 @@ export default async function PlayerProfilePage(
                 </THead>
                 <TBody>
                   {similar.results.map((entry) => (
-                    <TR key={entry.player.player_id} interactive>
-                      <TD>
-                        <Link
-                          href={`/players/${entry.player.player_id}`}
-                          className="font-medium transition-colors hover:text-accent"
-                        >
-                          {entry.player.name}
-                        </Link>
-                        {!entry.comparable_strength ? (
-                          <span className="mt-0.5 block">
-                            <Badge tone="warning">
-                              Different profile strength
-                            </Badge>
+                    <Fragment key={entry.player.player_id}>
+                      <TR interactive>
+                        <TD>
+                          <Link
+                            href={`/players/${entry.player.player_id}`}
+                            className="font-medium transition-colors hover:text-accent"
+                          >
+                            {entry.player.name}
+                          </Link>
+                          {!entry.comparable_strength ? (
+                            <span className="mt-0.5 block">
+                              <Badge tone="warning">
+                                Different profile strength
+                              </Badge>
+                            </span>
+                          ) : null}
+                        </TD>
+                        <TD numeric>{entry.player.age ?? "–"}</TD>
+                        <TD className="whitespace-nowrap">
+                          {entry.player.club ?? "–"}
+                        </TD>
+                        <TD className="whitespace-nowrap text-muted">
+                          {entry.player.best_role ?? "–"}
+                        </TD>
+                        <TD numeric className="font-medium">
+                          {Math.round(entry.similarity)}
+                        </TD>
+                        <TD numeric className="whitespace-nowrap text-muted">
+                          {entry.shared_features} / {entry.expected_features}
+                        </TD>
+                        <TD numeric className="whitespace-nowrap">
+                          <span
+                            className={
+                              entry.coverage_band === "high" ||
+                              entry.coverage_band === "good"
+                                ? "text-muted"
+                                : "text-warning"
+                            }
+                            title={entry.coverage_label}
+                          >
+                            {Math.round(entry.feature_coverage_pct)}%
                           </span>
-                        ) : null}
-                      </TD>
-                      <TD numeric>{entry.player.age ?? "–"}</TD>
-                      <TD className="whitespace-nowrap">
-                        {entry.player.club ?? "–"}
-                      </TD>
-                      <TD className="whitespace-nowrap text-muted">
-                        {entry.player.best_role ?? "–"}
-                      </TD>
-                      <TD numeric className="font-medium">
-                        {Math.round(entry.similarity)}
-                      </TD>
-                      <TD numeric className="whitespace-nowrap text-muted">
-                        {entry.shared_features} / {entry.expected_features}
-                      </TD>
-                      <TD numeric className="whitespace-nowrap">
-                        <span
-                          className={
-                            entry.coverage_band === "high" ||
-                            entry.coverage_band === "good"
-                              ? "text-muted"
-                              : "text-warning"
-                          }
-                          title={entry.coverage_label}
-                        >
-                          {Math.round(entry.feature_coverage_pct)}%
-                        </span>
-                      </TD>
-                      <TD numeric>
-                        {entry.player.market_value_eur !== null
-                          ? formatEuro(entry.player.market_value_eur)
-                          : "–"}
-                      </TD>
-                    </TR>
+                        </TD>
+                        <TD numeric>
+                          {entry.player.market_value_eur !== null
+                            ? formatEuro(entry.player.market_value_eur)
+                            : "–"}
+                        </TD>
+                      </TR>
+                      {/* The breakdown belongs to the row above it, so the
+                        divider between them is suppressed. Collapsed it is
+                        one line; a reader who wants to know why the index
+                        came out where it did opens it. */}
+                      <TR className="border-t-0!">
+                        <TD colSpan={8} className="pt-0">
+                          <SimilarityBreakdown
+                            entry={entry}
+                            targetName={player.name}
+                          />
+                        </TD>
+                      </TR>
+                    </Fragment>
                   ))}
                 </TBody>
               </Table>

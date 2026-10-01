@@ -229,6 +229,26 @@ class PlayerStatsResponse(BaseModel):
     scores: list[ScoreOut]
 
 
+class FeatureComparisonOut(BaseModel):
+    """One feature, on both sides of a similarity comparison.
+
+    The index says two profiles resemble each other; these say where. An index
+    of 91 built on ball progression and one built on defensive volume describe
+    different players, and the number alone cannot tell them apart.
+
+    `target` and `candidate` are percentiles within the comparison population.
+    Both are null under a representation that has no percentile to report,
+    rather than carrying a number invented to fill the column.
+    """
+
+    metric: str
+    label: str
+    #: Distance between the two on the comparison scale. Small is alike.
+    gap: float
+    target: float | None = None
+    candidate: float | None = None
+
+
 class SimilarPlayerOut(BaseModel):
     player: PlayerSummary
     similarity: float
@@ -247,6 +267,12 @@ class SimilarPlayerOut(BaseModel):
     #: with a low ratio means the shapes match but the levels do not.
     profile_strength_ratio: float
     comparable_strength: bool
+    #: Where the two profiles are closest. What drove the index.
+    drivers: list[FeatureComparisonOut] = Field(default_factory=list)
+    #: Where they are furthest apart, furthest first. Shipped beside the
+    #: drivers rather than instead of them: a panel showing only agreement
+    #: would be an argument rather than a comparison.
+    differences: list[FeatureComparisonOut] = Field(default_factory=list)
 
 
 class SimilarPlayersResponse(BaseModel):

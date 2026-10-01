@@ -33,11 +33,12 @@ from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
 from app.analytics.roles import RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
-from app.analytics.similarity import SimilarityFilters, SimilarityResult
+from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
     ComparisonContextOut,
+    FeatureComparisonOut,
     FindingOut,
     MarketValuePointOut,
     MetricOut,
@@ -294,6 +295,18 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         coverage_label=result.coverage_label,
         profile_strength_ratio=result.profile_strength_ratio,
         comparable_strength=result.comparable_strength,
+        drivers=[_to_feature(f) for f in result.drivers()],
+        differences=[_to_feature(f) for f in result.differences()],
+    )
+
+
+def _to_feature(feature: FeatureComparison) -> FeatureComparisonOut:
+    return FeatureComparisonOut(
+        metric=feature.metric.value,
+        label=metric_label(feature.metric.value),
+        gap=feature.gap,
+        target=feature.target,
+        candidate=feature.candidate,
     )
 
 

@@ -9,16 +9,37 @@ import { cn } from "@/lib/cn";
  * to scroll horizontally, which is what keeps dense stat tables usable on a
  * phone. Numeric cells opt into tabular numerals so figures align in a column.
  */
-export function TableWrap({ className, children }: { className?: string; children: ReactNode }) {
+export function TableWrap({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className={cn("overflow-x-auto rounded-lg border border-border bg-surface", className)}>
+    <div
+      className={cn(
+        "overflow-x-auto rounded-lg border border-border bg-surface",
+        className,
+      )}
+    >
       {children}
     </div>
   );
 }
 
-export function Table({ className, children }: { className?: string; children: ReactNode }) {
-  return <table className={cn("w-full border-collapse text-sm", className)}>{children}</table>;
+export function Table({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <table className={cn("w-full border-collapse text-sm", className)}>
+      {children}
+    </table>
+  );
 }
 
 export function THead({ children }: { children: ReactNode }) {
@@ -39,7 +60,12 @@ export function TR({
   interactive?: boolean;
 }) {
   return (
-    <tr className={cn(interactive && "transition-colors hover:bg-surface-2", className)}>
+    <tr
+      className={cn(
+        interactive && "transition-colors hover:bg-surface-2",
+        className,
+      )}
+    >
       {children}
     </tr>
   );
@@ -74,12 +100,19 @@ export function TD({
   className,
   children,
   numeric,
+  colSpan,
 }: {
   className?: string;
   children: ReactNode;
   numeric?: boolean;
+  colSpan?: number;
 }) {
   return (
-    <td className={cn("px-4 py-2.5", numeric && "tabular text-right", className)}>{children}</td>
+    <td
+      colSpan={colSpan}
+      className={cn("px-4 py-2.5", numeric && "tabular text-right", className)}
+    >
+      {children}
+    </td>
   );
 }
