@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.analytics.metrics import DerivedMetric, DerivedMetrics
+from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric, DerivedMetrics
 from app.analytics.percentiles import (
     CROSS_LEAGUE_CAVEAT,
     ComparisonContext,
@@ -344,3 +344,47 @@ class TestAgainstTheMockDataset:
                     assert 0.0 <= (result.oriented or 0.0) <= 100.0
                     checked += 1
         assert checked > 0
+
+
+class TestWhatTheMetricTableIsHandedForDisplay:
+    """The raw/oriented split exists so a table can read one way and scoring
+    the other. These pin the contract the profile depends on."""
+
+    def test_a_metric_the_provider_did_not_supply_has_no_percentile(self) -> None:
+        """Absent, with a reason. Not nought, which would rank a player at the
+        bottom of a population for a statistic nobody measured."""
+        engine = PercentileEngine(
+            cohort([float(i) for i in range(20)], metric="dispossessed_per90")
+        )
+        result = engine.rank(player("t"), DerivedMetric.DISPOSSESSED_PER90)
+
+        assert result.value is None
+        assert result.percentile is None
+        assert result.oriented is None
+        assert result.is_available is False
+        assert result.unavailable_reason
+
+    def test_every_inverse_metric_is_declared_as_one(self) -> None:
+        """The set and the flag are the same fact; a metric in one and not the
+        other would colour a table by merit it does not have."""
+        for metric in LOWER_IS_BETTER:
+            engine = PercentileEngine(cohort([1.0] * 20, metric=metric.value))
+            result = engine.rank(player("t", **{metric.value: 1.0}), metric)
+            assert result.lower_is_better is True, metric
+
+    def test_a_tie_on_an_inverse_metric_orients_consistently(self) -> None:
+        engine = PercentileEngine(cohort([5.0] * 20, metric="dispossessed_per90"))
+        result = engine.rank(player("t", dispossessed_per90=5.0), DerivedMetric.DISPOSSESSED_PER90)
+
+        assert result.percentile == pytest.approx(50.0)
+        assert result.oriented == pytest.approx(50.0), "the midpoint is the midpoint either way"
+
+    def test_the_extremes_of_an_inverse_metric_swap(self) -> None:
+        engine = PercentileEngine(
+            cohort([float(i) for i in range(20)], metric="dispossessed_per90")
+        )
+        best = engine.rank(player("t", dispossessed_per90=0.0), DerivedMetric.DISPOSSESSED_PER90)
+        worst = engine.rank(player("t", dispossessed_per90=19.0), DerivedMetric.DISPOSSESSED_PER90)
+
+        assert best.percentile < worst.percentile, "ranked by how often, as the name says"
+        assert best.oriented > worst.oriented, "and scored by which is better"

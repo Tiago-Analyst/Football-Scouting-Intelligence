@@ -1,0 +1,340 @@
+"""Turn a profile's numbers into sentences a scout can read, and nothing more.
+
+WHAT THIS IS FOR
+================
+
+The profile is explainable and it is also forty numbers. A reader has to hold
+the role fit, its percentile, eight intelligence scores, thirty metric
+percentiles, two coverage figures and a sample band in their head and do the
+translation themselves. Everyone does it slightly differently, and the person
+reading it at five o'clock does it worse than the person who built it.
+
+So this does the translation once, deterministically, from the figures that
+are already on the page. It is a reading of the numbers, not a second opinion
+about the player.
+
+WHAT IT IS NOT
+==============
+
+Not a model. Nothing here computes a score, weights anything, or reaches any
+conclusion the page does not already contain - every sentence is a threshold
+applied to a number the reader can see above it. Remove this module and no
+analysis changes; only the reading gets slower.
+
+Not a language model. The vocabulary is a fixed list, chosen so that a
+sentence cannot claim more than a percentile supports. The bands match the
+ones the percentile bar already colours by, so the prose and the colours
+cannot tell a reader different things.
+
+WHAT IT REFUSES TO SAY
+======================
+
+Anything the data does not measure. A high interception percentile is
+"a high rate of interceptions", never "reads the game well": the first is what
+was counted, the second is why somebody thinks it happened, and the provider
+counts events rather than reasons. The same for "press resistant", "mentally
+strong", "elite" and every other word that sounds like scouting and is
+actually inference.
+
+A metric the provider does not supply is named as unavailable, never as a
+weakness. Absent is not nought, here as everywhere else.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+# ---------------------------------------------------------------------------
+# Bands
+# ---------------------------------------------------------------------------
+#
+# The same thresholds `PercentileBar` colours by, deliberately: a metric the
+# prose calls a strength must not be painted mid-range beside it.
+
+#: At or above this, a percentile is worth naming as a strength.
+STRONG = 70.0
+#: At or below this, worth naming as a watch-out.
+WEAK = 40.0
+#: The top band, where the wording is allowed to be a little firmer.
+VERY_STRONG = 90.0
+
+#: How many findings of each kind. Enough to characterise, few enough to read;
+#: a list of fifteen "strengths" is a list of none.
+MAX_FINDINGS = 4
+
+#: A role score needs this much of its definition present before the prose
+#: describes the player *as* that role rather than as scoring well on what
+#: could be measured of it.
+ROLE_COVERAGE_FOR_A_PLAIN_CLAIM = 0.85
+
+
+@dataclass(frozen=True)
+class Finding:
+    """One thing worth saying, with the number it came from.
+
+    The evidence travels with the claim so the interface can show them
+    together. A sentence without its figure is an opinion.
+    """
+
+    label: str
+    #: The percentile behind it, oriented so higher is always better.
+    percentile: float
+    #: The claim, in the fixed vocabulary.
+    reading: str
+
+
+@dataclass(frozen=True)
+class ScoutingInterpretation:
+    """A profile, read aloud. Every list may be empty."""
+
+    #: What shape of player this is, from the role fit and the scores.
+    profile: list[str] = field(default_factory=list)
+    strengths: list[Finding] = field(default_factory=list)
+    watch_outs: list[Finding] = field(default_factory=list)
+    #: What the data unavailability means for the reading above - named
+    #: separately from the watch-outs, because a metric nobody supplied is not
+    #: something the player does badly.
+    unavailable: list[str] = field(default_factory=list)
+    #: How much weight the reading carries: minutes, and how much of them the
+    #: provider described.
+    confidence: list[str] = field(default_factory=list)
+
+    @property
+    def is_empty(self) -> bool:
+        return not (self.profile or self.strengths or self.watch_outs or self.confidence)
+
+
+#: What this model does not look at. Static, and returned with the reading
+#: rather than written into a template, so an interface cannot show the
+#: interpretation without it.
+#:
+#: Every line is something a recruitment decision turns on and this data cannot
+#: see. The list is short on purpose: a wall of disclaimer gets skipped, and
+#: the point is that these are read.
+NOT_CAPTURED: tuple[str, ...] = (
+    "Tactical role and responsibilities as observed on video",
+    "Physical qualities the provider does not record",
+    "Injury history and availability",
+    "Temperament, and how a player handles a dressing room",
+    "Wage demands, agent terms and whether the club would sell",
+    "How well the player would adapt to a different league or system",
+)
+
+
+def _reading(percentile: float) -> str:
+    """The claim a percentile supports, and no more than that."""
+    if percentile >= VERY_STRONG:
+        return "strong statistical output"
+    if percentile >= STRONG:
+        return "above-average output"
+    if percentile <= 10.0:
+        return "little statistical output"
+    return "below-average output"
+
+
+def _oriented(percentile: float, lower_is_better: bool) -> float:
+    """A percentile turned so that higher always means better."""
+    return 100.0 - percentile if lower_is_better else percentile
+
+
+@dataclass(frozen=True)
+class MetricReading:
+    """One metric as the profile has it: what it is worth, and which way up."""
+
+    label: str
+    percentile: float | None
+    lower_is_better: bool = False
+    unavailable_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class ScoreReading:
+    """One intelligence score or role fit, reduced to what the prose uses."""
+
+    label: str
+    score: float | None
+    coverage: float = 1.0
+
+
+@dataclass(frozen=True)
+class RoleReading:
+    """The best role, and how much of its definition was present."""
+
+    label: str
+    score: float | None
+    percentile: float | None
+    coverage: float = 1.0
+    is_limited: bool = False
+    missing: tuple[str, ...] = ()
+    alternatives: tuple[str, ...] = ()
+    #: The metric labels this role is actually built from. What makes a
+    #: weakness worth naming: a goalkeeper ranks second percentile for key
+    #: passes and nobody asked him to make any, so reporting it as a watch-out
+    #: is true, useless, and reads as a deficiency.
+    components: tuple[str, ...] = ()
+
+
+def interpret(
+    *,
+    role: RoleReading | None,
+    scores: list[ScoreReading],
+    metrics: list[MetricReading],
+    minutes: int | None,
+    sample_band_label: str | None,
+    detailed_coverage_pct: float | None,
+    position_label: str | None = None,
+) -> ScoutingInterpretation:
+    """Read a profile. Pure, and every branch is a test.
+
+    Ordering is by evidence rather than by list position: the strongest
+    percentile leads, because that is the thing a reader most wants first. Ties
+    keep their input order, which is the order the page already shows them in.
+    """
+    # A strength outside the role is still worth knowing - a centre-back who
+    # dribbles well is interesting whatever he is being read as. A weakness
+    # outside it is not: it is a statistic about something nobody asked the
+    # player to do.
+    relevant = frozenset(role.components) if role and role.components else None
+
+    return ScoutingInterpretation(
+        profile=_profile_lines(role, scores, position_label),
+        strengths=_findings(metrics, strong=True),
+        watch_outs=_findings(metrics, strong=False, only=relevant),
+        unavailable=_unavailable_lines(role, metrics),
+        confidence=_confidence_lines(minutes, sample_band_label, detailed_coverage_pct),
+    )
+
+
+def _profile_lines(
+    role: RoleReading | None, scores: list[ScoreReading], position_label: str | None
+) -> list[str]:
+    lines: list[str] = []
+
+    if role is not None and role.score is not None:
+        where = position_label or "their position group"
+        if role.percentile is not None:
+            standing = _reading(role.percentile)
+            if role.is_limited or role.coverage < ROLE_COVERAGE_FOR_A_PLAIN_CLAIM:
+                # The score is real and the label is generous. Say what was
+                # measured rather than what the role is called.
+                lines.append(
+                    f"Scores as a {role.label} on the part of that definition the data "
+                    f"covers - {standing} against others evaluated for the same role."
+                )
+            else:
+                lines.append(
+                    f"Best fit among the roles evaluated is {role.label}: {standing} "
+                    f"against others evaluated for the same role."
+                )
+        else:
+            lines.append(
+                f"Best fit among the roles evaluated is {role.label}. Too few comparable "
+                f"players in {where} to place that score among others."
+            )
+
+        if role.alternatives:
+            lines.append("Also evaluated for " + _list_of(list(role.alternatives)) + ".")
+
+    ranked = sorted(
+        (s for s in scores if s.score is not None),
+        key=lambda s: (-(s.score or 0.0),),
+    )
+    top = [s for s in ranked if (s.score or 0.0) >= STRONG]
+    bottom = [s for s in ranked if (s.score or 0.0) <= WEAK]
+
+    if top:
+        lines.append(
+            "Strongest profile dimensions: "
+            + _list_of([f"{s.label} ({round(s.score or 0)})" for s in top[:3]])
+            + "."
+        )
+    if bottom:
+        lines.append(
+            "Weakest: "
+            + _list_of([f"{s.label} ({round(s.score or 0)})" for s in bottom[-3:]])
+            + "."
+        )
+    return lines
+
+
+def _findings(
+    metrics: list[MetricReading], *, strong: bool, only: frozenset[str] | None = None
+) -> list[Finding]:
+    """The metrics at one end of the distribution, best evidence first.
+
+    `only` narrows the pool to the metrics a role is built from, for the end
+    where irrelevance would be read as a fault.
+    """
+    candidates: list[Finding] = []
+    for metric in metrics:
+        if metric.percentile is None:
+            continue
+        if only is not None and metric.label not in only:
+            continue
+        oriented = _oriented(metric.percentile, metric.lower_is_better)
+        at_this_end = oriented >= STRONG if strong else oriented <= WEAK
+        if at_this_end:
+            candidates.append(Finding(metric.label, oriented, _reading(oriented)))
+
+    candidates.sort(key=lambda f: f.percentile, reverse=strong)
+    return candidates[:MAX_FINDINGS]
+
+
+def _unavailable_lines(role: RoleReading | None, metrics: list[MetricReading]) -> list[str]:
+    lines: list[str] = []
+
+    absent = [m.label for m in metrics if m.percentile is None]
+    if absent:
+        shown = _list_of(absent[:4])
+        more = f", and {len(absent) - 4} more" if len(absent) > 4 else ""
+        lines.append(f"Not ranked here because the provider does not supply them: {shown}{more}.")
+
+    if role is not None and role.missing:
+        lines.append(
+            f"The {role.label} score was computed without "
+            + _list_of(list(role.missing[:4]))
+            + ". The remaining weights were renormalised, so the score is not lowered by "
+            "the absence - but it describes less of the role than the name suggests."
+        )
+    return lines
+
+
+def _confidence_lines(
+    minutes: int | None, sample_band_label: str | None, detailed_coverage_pct: float | None
+) -> list[str]:
+    lines: list[str] = []
+
+    if sample_band_label and minutes is not None:
+        lines.append(f"{sample_band_label} - {minutes:,} minutes played.")
+    elif sample_band_label:
+        lines.append(sample_band_label)
+
+    if detailed_coverage_pct is not None:
+        pct = round(detailed_coverage_pct)
+        if pct >= 80:
+            lines.append(
+                f"The provider describes {pct}% of those minutes in detail, so the "
+                f"per-90 figures above rest on most of the football played."
+            )
+        elif pct >= 50:
+            lines.append(
+                f"The provider describes {pct}% of those minutes in detail. Rates built "
+                f"from that feed cover about half the football played."
+            )
+        else:
+            lines.append(
+                f"The provider describes only {pct}% of those minutes in detail. Treat the "
+                f"detailed rates as limited evidence."
+            )
+    else:
+        lines.append("How much of these minutes the provider described in detail is unknown.")
+    return lines
+
+
+def _list_of(items: list[str]) -> str:
+    """`a`, `a and b`, `a, b and c`. Reads as a sentence rather than as output."""
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " and " + items[-1]

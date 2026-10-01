@@ -13,11 +13,15 @@ import type {
   ReplacementResults,
   Role,
   RoleFit,
+  RolePreset,
+  ShortlistStatus,
   SimilarPlayers,
 } from "@/types/api";
 
 /** Drop empty values so they do not become `?age_min=` in the query string. */
-function query(params: Record<string, string | number | boolean | undefined | null>): string {
+function query(
+  params: Record<string, string | number | boolean | undefined | null>,
+): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
@@ -114,12 +118,17 @@ export async function searchPlayers(
   }
 }
 
-export async function getPlayer(playerId: string): Promise<PlayerDetail | null> {
+export async function getPlayer(
+  playerId: string,
+): Promise<PlayerDetail | null> {
   try {
-    return await apiFetch<PlayerDetail>(`/api/v1/players/${encodeURIComponent(playerId)}`, {
-      revalidate: ANALYSIS_TTL,
-      tags: [ANALYTICS_TAG],
-    });
+    return await apiFetch<PlayerDetail>(
+      `/api/v1/players/${encodeURIComponent(playerId)}`,
+      {
+        revalidate: ANALYSIS_TTL,
+        tags: [ANALYTICS_TAG],
+      },
+    );
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -139,12 +148,17 @@ export async function getPlayerStats(
   }
 }
 
-export async function getPlayerRoles(playerId: string): Promise<RoleFit | null> {
+export async function getPlayerRoles(
+  playerId: string,
+): Promise<RoleFit | null> {
   try {
-    return await apiFetch<RoleFit>(`/api/v1/players/${encodeURIComponent(playerId)}/roles`, {
-      revalidate: ANALYSIS_TTL,
-      tags: [ANALYTICS_TAG],
-    });
+    return await apiFetch<RoleFit>(
+      `/api/v1/players/${encodeURIComponent(playerId)}/roles`,
+      {
+        revalidate: ANALYSIS_TTL,
+        tags: [ANALYTICS_TAG],
+      },
+    );
   } catch (error) {
     return nullIfMissing(error);
   }
@@ -194,7 +208,9 @@ export async function canPrerenderEverything(): Promise<boolean> {
  * and a half thousand profiles at all - see `PlayerProfileResponse` in the
  * backend.
  */
-export async function getPlayerProfile(playerId: string): Promise<PlayerProfile | null> {
+export async function getPlayerProfile(
+  playerId: string,
+): Promise<PlayerProfile | null> {
   try {
     return await apiFetch<PlayerProfile>(
       `/api/v1/players/${encodeURIComponent(playerId)}/profile`,
@@ -218,7 +234,10 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
  */
 export async function getCompetitions(): Promise<Competition[]> {
   try {
-    return await apiFetch<Competition[]>("/api/v1/competitions", { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] });
+    return await apiFetch<Competition[]>("/api/v1/competitions", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
   } catch {
     return [];
   }
@@ -226,8 +245,35 @@ export async function getCompetitions(): Promise<Competition[]> {
 
 export async function getRoles(): Promise<Role[]> {
   try {
-    return await apiFetch<Role[]>("/api/v1/roles", { revalidate: ANALYSIS_TTL, tags: [ANALYTICS_TAG] });
+    return await apiFetch<Role[]>("/api/v1/roles", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
   } catch {
+    return [];
+  }
+}
+
+export async function getShortlistStatuses(): Promise<ShortlistStatus[]> {
+  try {
+    return await apiFetch<ShortlistStatus[]>("/api/v1/shortlist-statuses", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getRecruitmentPresets(): Promise<RolePreset[]> {
+  try {
+    return await apiFetch<RolePreset[]>("/api/v1/recruitment/presets", {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
+  } catch {
+    // A builder without starting points still works; one that refuses to
+    // render because the presets did not load does not.
     return [];
   }
 }
@@ -236,16 +282,21 @@ export async function getOpportunities(
   params: PlayerSearchParams = {},
 ): Promise<Opportunities | null> {
   try {
-    return await apiFetch<Opportunities>(`/api/v1/opportunities${query(params)}`, {
-      revalidate: ANALYSIS_TTL,
-      tags: [ANALYTICS_TAG],
-    });
+    return await apiFetch<Opportunities>(
+      `/api/v1/opportunities${query(params)}`,
+      {
+        revalidate: ANALYSIS_TTL,
+        tags: [ANALYTICS_TAG],
+      },
+    );
   } catch (error) {
     return nullIfMissing(error);
   }
 }
 
-export async function runRecruitmentSearch(body: unknown): Promise<RecruitmentResults | null> {
+export async function runRecruitmentSearch(
+  body: unknown,
+): Promise<RecruitmentResults | null> {
   try {
     return await apiFetch<RecruitmentResults>("/api/v1/recruitment/search", {
       method: "POST",
@@ -256,7 +307,9 @@ export async function runRecruitmentSearch(body: unknown): Promise<RecruitmentRe
   }
 }
 
-export async function runReplacementSearch(body: unknown): Promise<ReplacementResults | null> {
+export async function runReplacementSearch(
+  body: unknown,
+): Promise<ReplacementResults | null> {
   try {
     return await apiFetch<ReplacementResults>("/api/v1/replacement/search", {
       method: "POST",

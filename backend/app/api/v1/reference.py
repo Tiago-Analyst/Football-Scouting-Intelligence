@@ -1,4 +1,4 @@
-"""Reference data: competitions and role definitions.
+"""Reference data: competitions, role definitions and shortlist statuses.
 
 Cached hard because it barely changes and every page needs it (spec section 27).
 Role definitions expose their label, description and position groups - never
@@ -10,7 +10,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.analytics.roles import get_roles
-from app.schemas.api import CompetitionOut, RoleOut
+from app.models.shortlists import STATUS_DESCRIPTIONS, STATUS_LABELS, ShortlistStatus
+from app.schemas.api import CompetitionOut, RoleOut, ShortlistStatusOut
 from app.services.analytics_service import get_analytics_view
 
 router = APIRouter(prefix="/api/v1", tags=["reference"])
@@ -40,4 +41,25 @@ def list_roles() -> list[RoleOut]:
             caveat=role.caveat,
         )
         for role in get_roles().values()
+    ]
+
+
+@router.get("/shortlist-statuses", response_model=list[ShortlistStatusOut])
+def list_shortlist_statuses() -> list[ShortlistStatusOut]:
+    """The shortlist workflow, in order.
+
+    A fixed vocabulary rather than free text, so that "show me the priorities"
+    is a question a list can answer. Served from one place so the picker, the
+    table and the CSV cannot drift apart.
+
+    Not under /shortlists: these five words are the same for everybody and
+    describe nobody's data, so they need no account to read.
+    """
+    return [
+        ShortlistStatusOut(
+            key=status.value,
+            label=STATUS_LABELS[status],
+            description=STATUS_DESCRIPTIONS[status],
+        )
+        for status in ShortlistStatus
     ]

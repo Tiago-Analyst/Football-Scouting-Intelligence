@@ -185,6 +185,49 @@ export async function setNoteAction(_previous: FormState, data: FormData): Promi
   return { error: null, message: "Note saved." };
 }
 
+/**
+ * Record where a player has got to, and the case for and against.
+ *
+ * Sent as a replacement rather than a patch, because the form shows all four
+ * fields at once: a box the person emptied has to arrive as empty, and a
+ * merge would make clearing one impossible to express.
+ */
+export async function setAssessmentAction(
+  _previous: FormState,
+  data: FormData,
+): Promise<FormState> {
+  const id = Number(field(data, "shortlist_id"));
+  const playerId = field(data, "player_id");
+  const status = field(data, "status");
+  if (!status) return { error: "Choose a status." };
+
+  const cookie = await sessionHeader();
+  if (!cookie) return { error: SIGNED_OUT };
+
+  try {
+    await apiFetch(
+      `/api/v1/shortlists/${id}/entries/${encodeURIComponent(playerId)}/assessment`,
+      {
+        method: "PUT",
+        cookie,
+        body: {
+          status,
+          // Empty clears. Sending "" would store an empty string where the
+          // absence of a judgement is what is meant.
+          note: field(data, "note").trim() || null,
+          pros: field(data, "pros").trim() || null,
+          concerns: field(data, "concerns").trim() || null,
+        },
+      },
+    );
+  } catch (error) {
+    return { error: messageFor(error) };
+  }
+
+  refresh(id);
+  return { error: null, message: "Assessment saved." };
+}
+
 export async function removePlayerAction(data: FormData): Promise<void> {
   const id = Number(field(data, "shortlist_id"));
   const playerId = field(data, "player_id");
@@ -192,10 +235,13 @@ export async function removePlayerAction(data: FormData): Promise<void> {
   if (!cookie) redirect("/sign-in");
 
   try {
-    await apiFetch(`/api/v1/shortlists/${id}/entries/${encodeURIComponent(playerId)}`, {
-      method: "DELETE",
-      cookie,
-    });
+    await apiFetch(
+      `/api/v1/shortlists/${id}/entries/${encodeURIComponent(playerId)}`,
+      {
+        method: "DELETE",
+        cookie,
+      },
+    );
   } catch {
     // Already removed is the desired state.
   }

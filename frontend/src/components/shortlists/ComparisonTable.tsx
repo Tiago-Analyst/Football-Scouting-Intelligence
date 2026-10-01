@@ -4,7 +4,15 @@ import Link from "next/link";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout } from "@/components/ui/States";
-import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import {
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  TableWrap,
+} from "@/components/ui/Table";
 import { formatCount, formatEuro } from "@/lib/format";
 import type { ComparisonResponse } from "@/types/api";
 
@@ -19,7 +27,11 @@ import type { ComparisonResponse } from "@/types/api";
  * goalkeeping stat in an outfield comparison is noise, and a metric one player
  * lacks still earns its row: the gap is information.
  */
-export function ComparisonTable({ comparison }: { comparison: ComparisonResponse }) {
+export function ComparisonTable({
+  comparison,
+}: {
+  comparison: ComparisonResponse;
+}) {
   const { players, context, caveat } = comparison;
 
   const metricOrder: string[] = [];
@@ -43,7 +55,10 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
       </div>
 
       {caveat ? (
-        <Callout tone="warning" title="These columns are not measured against the same population">
+        <Callout
+          tone="warning"
+          title="These columns are not measured against the same population"
+        >
           {caveat}
         </Callout>
       ) : null}
@@ -78,7 +93,9 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
                   <span className="inline-flex items-center gap-1.5">
-                    {column.sample.minutes !== null ? formatCount(column.sample.minutes) : "—"}
+                    {column.sample.minutes !== null
+                      ? formatCount(column.sample.minutes)
+                      : "—"}
                     {column.sample.minutes !== null ? (
                       <SampleSizeBadge
                         band={column.sample.band}
@@ -123,8 +140,12 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
                 <TD key={column.player.player_id} numeric>
                   {column.role ? (
                     <>
-                      <span className="block text-xs text-muted">{column.role.label}</span>
-                      {column.role.score !== null ? column.role.score.toFixed(1) : "—"}
+                      <span className="block text-xs text-muted">
+                        {column.role.label}
+                      </span>
+                      {column.role.score !== null
+                        ? column.role.score.toFixed(1)
+                        : "—"}
                     </>
                   ) : (
                     "—"
@@ -135,7 +156,10 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
 
             {metricOrder.map((key) => (
               <TR key={key}>
-                <TH scope="row" className="sticky left-0 z-10 bg-surface font-normal">
+                <TH
+                  scope="row"
+                  className="sticky left-0 z-10 bg-surface font-normal"
+                >
                   {labels.get(key)}
                 </TH>
                 {players.map((column) => {
@@ -146,7 +170,10 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
                         <div className="space-y-1">
                           <span>{metric.value.toFixed(2)}</span>
                           {metric.percentile !== null ? (
-                            <PercentileBar percentile={metric.percentile} />
+                            <PercentileBar
+                              percentile={metric.percentile}
+                              lowerIsBetter={metric.lower_is_better}
+                            />
                           ) : null}
                         </div>
                       ) : (
@@ -163,7 +190,10 @@ export function ComparisonTable({ comparison }: { comparison: ComparisonResponse
                 Your note
               </TH>
               {players.map((column) => (
-                <TD key={column.player.player_id} className="text-xs text-muted">
+                <TD
+                  key={column.player.player_id}
+                  className="text-xs text-muted"
+                >
                   {column.note ?? <span className="text-subtle">—</span>}
                 </TD>
               ))}

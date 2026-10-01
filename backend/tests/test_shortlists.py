@@ -11,6 +11,7 @@ import csv
 import io
 import secrets
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.shortlists import EXPORT_COLUMNS, MIXED_COMPETITION_CAVEAT, MIXED_POSITION_CAVEAT
 from app.core.errors import NotFoundError
 from app.models.accounts import UserAccount
-from app.models.shortlists import Shortlist, ShortlistEntry
+from app.models.shortlists import Shortlist, ShortlistEntry, ShortlistStatus
 from app.services.auth_service import register_user
 from app.services.shortlist_service import (
     MAX_COMPARE,
@@ -37,6 +38,7 @@ from app.services.shortlist_service import (
     list_entries,
     list_shortlists,
     remove_entry,
+    set_assessment,
     set_note,
     update_shortlist,
 )
@@ -467,6 +469,75 @@ class TestShortlistEndpoints:
             cleanup.commit()
 
 
+class TestAssessmentEndpoint:
+    def _saved(self, api: TestClient) -> tuple[int, str]:
+        player = a_player(api)
+        shortlist_id = api.post("/api/v1/shortlists", json={"name": "Assess me"}).json()[
+            "shortlist_id"
+        ]
+        api.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": player["player_id"]},
+        )
+        return shortlist_id, str(player["player_id"])
+
+    def test_the_vocabulary_is_served_in_order_with_its_meanings(self, client: TestClient) -> None:
+        """Five words a desk reads the same way. Served from one place so the
+        picker, the table and the CSV cannot drift apart - and needing no
+        account, because they describe nobody's data."""
+        client.cookies.clear()
+        body = client.get("/api/v1/shortlist-statuses").json()
+        assert [s["key"] for s in body] == [
+            "longlist",
+            "monitor",
+            "scout",
+            "priority",
+            "rejected",
+        ]
+        assert all(s["label"] and s["description"] for s in body)
+
+    def test_an_entry_arrives_with_its_status_and_a_label_for_it(
+        self, signed_in: TestClient
+    ) -> None:
+        shortlist_id, _ = self._saved(signed_in)
+        entry = signed_in.get(f"/api/v1/shortlists/{shortlist_id}").json()["entries"][0]
+        assert entry["status"] == "longlist"
+        assert entry["status_label"] == "Longlist"
+        assert entry["last_reviewed_at"] is None
+
+    def test_an_assessment_is_saved_and_read_back(self, signed_in: TestClient) -> None:
+        shortlist_id, player_id = self._saved(signed_in)
+        response = signed_in.put(
+            f"/api/v1/shortlists/{shortlist_id}/entries/{player_id}/assessment",
+            json={
+                "status": "priority",
+                "note": "Seen live in March.",
+                "pros": "Reads the game early.",
+                "concerns": "Two long injuries.",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status_label"] == "Priority"
+        assert body["pros"] == "Reads the game early."
+        assert body["last_reviewed_at"] is not None
+
+    def test_an_unknown_status_is_refused(self, signed_in: TestClient) -> None:
+        shortlist_id, player_id = self._saved(signed_in)
+        response = signed_in.put(
+            f"/api/v1/shortlists/{shortlist_id}/entries/{player_id}/assessment",
+            json={"status": "signed"},
+        )
+        assert response.status_code == 422
+
+    def test_assessing_requires_an_account(self, client: TestClient) -> None:
+        client.cookies.clear()
+        response = client.put(
+            "/api/v1/shortlists/1/entries/p1/assessment", json={"status": "monitor"}
+        )
+        assert response.status_code == 401
+
+
 class TestCompare:
     def test_at_most_five_players(self, signed_in: TestClient) -> None:
         players = some_players(signed_in, MAX_COMPARE + 1)
@@ -587,6 +658,71 @@ class TestExport:
             for column in EXPORT_COLUMNS
         )
 
+    def test_the_two_kinds_of_status_are_distinguishable(self) -> None:
+        """One column says where the owner has got to, the other whether the
+        player still resolves. Calling both "status" was unambiguous only
+        while there was one of them."""
+        assert "status" in EXPORT_COLUMNS
+        assert "data_status" in EXPORT_COLUMNS
+
+    def test_the_assessment_travels_with_the_export(self, signed_in: TestClient) -> None:
+        shortlist_id, _ = self._shortlist_with_a_player(signed_in)
+        entries = signed_in.get(f"/api/v1/shortlists/{shortlist_id}").json()["entries"]
+        player_id = entries[0]["player_key"]
+        signed_in.put(
+            f"/api/v1/shortlists/{shortlist_id}/entries/{player_id}/assessment",
+            json={"status": "rejected", "concerns": "Wage demands."},
+        )
+
+        rows = list(
+            csv.reader(
+                io.StringIO(signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").text)
+            )
+        )
+        assert len(rows[1]) == len(EXPORT_COLUMNS)
+        assert rows[1][EXPORT_COLUMNS.index("status")] == "Rejected"
+        assert rows[1][EXPORT_COLUMNS.index("concerns")] == "Wage demands."
+        assert rows[1][EXPORT_COLUMNS.index("data_status")] == "ok"
+
+    def test_an_unresolvable_row_writes_exactly_as_many_cells_as_the_header(
+        self, signed_in: TestClient
+    ) -> None:
+        """The two row shapes are written by different branches, and a branch
+        one cell short shifts every later column without failing anything.
+        What the owner wrote is theirs and survives the player going missing;
+        what the provider would have supplied is blank."""
+        from app.core.database import get_engine
+
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Gone"}).json()[
+            "shortlist_id"
+        ]
+        with Session(get_engine()) as session:
+            owner = session.scalar(select(Shortlist).where(Shortlist.shortlist_id == shortlist_id))
+            assert owner is not None
+            add_entry(
+                session,
+                user_id=owner.user_id,
+                shortlist_id=shortlist_id,
+                player_key="no-longer-resolves",
+                player_name="Someone Who Left",
+                note="Kept so the reason is not lost.",
+            )
+            session.commit()
+
+        rows = list(
+            csv.reader(
+                io.StringIO(signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").text)
+            )
+        )
+        assert len(rows) == 2
+        assert len(rows[1]) == len(EXPORT_COLUMNS)
+        assert rows[1][EXPORT_COLUMNS.index("player_name")] == "Someone Who Left"
+        assert rows[1][EXPORT_COLUMNS.index("note")] == "Kept so the reason is not lost."
+        assert rows[1][EXPORT_COLUMNS.index("status")] == "Longlist"
+        assert rows[1][EXPORT_COLUMNS.index("data_status")] == "not in current data"
+        assert rows[1][EXPORT_COLUMNS.index("club")] == ""
+        assert rows[1][EXPORT_COLUMNS.index("best_role_score")] == ""
+
     def test_a_note_containing_a_comma_and_quotes_does_not_shift_the_columns(
         self, signed_in: TestClient
     ) -> None:
@@ -647,3 +783,181 @@ class TestUnresolvablePlayers:
         assert out.player is None
         assert out.saved_as == "Someone Who Left"
         assert out.unavailable_reason is not None
+
+
+# ---------------------------------------------------------------------------
+# The owner's own judgement
+# ---------------------------------------------------------------------------
+
+
+class TestAssessments:
+    """Status, the argument for and against, and when it was last made.
+
+    All of it belongs to the person who wrote it. None of it is derived from
+    the data, and none of it reaches a score.
+    """
+
+    @pytest.fixture
+    def saved(self, db_session: Session) -> tuple[int, int]:
+        user = make_user(db_session, "assess")
+        shortlist = create_shortlist(db_session, user_id=user.user_id, name="Assessed")
+        add_entry(
+            db_session,
+            user_id=user.user_id,
+            shortlist_id=shortlist.shortlist_id,
+            player_key="p1",
+            player_name="A Player",
+        )
+        return user.user_id, shortlist.shortlist_id
+
+    def test_a_saved_player_starts_on_the_longlist(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """Saved but not yet assessed is what a longlist is, so the default
+        states what is already true rather than leaving a blank to explain."""
+        _, shortlist_id = saved
+        entry = list_entries(db_session, shortlist_id=shortlist_id)[0]
+        assert entry.status == ShortlistStatus.LONGLIST
+        assert entry.last_reviewed_at is None
+
+    def test_an_assessment_is_recorded(self, db_session: Session, saved: tuple[int, int]) -> None:
+        user_id, shortlist_id = saved
+        entry = set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="priority",
+            note="Watched twice.",
+            pros="Covers ground.",
+            concerns="Contract runs long.",
+        )
+        assert entry.status == ShortlistStatus.PRIORITY
+        assert entry.pros == "Covers ground."
+        assert entry.concerns == "Contract runs long."
+        assert entry.last_reviewed_at is not None
+
+    def test_reviewing_again_without_changing_anything_still_counts(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """Looking at a player again and concluding the same thing is a
+        review, and on a list of forty it is the fact most worth showing."""
+        user_id, shortlist_id = saved
+        first = set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="monitor",
+        )
+        stamped = first.last_reviewed_at
+        assert stamped is not None
+
+        second = set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="monitor",
+        )
+        assert second.last_reviewed_at is not None
+        assert second.last_reviewed_at >= stamped
+
+    def test_an_omitted_field_is_cleared_rather_than_kept(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """A replacement, not a patch. The form shows all four at once, so a
+        field left out means the person emptied it - and a merge would make a
+        cleared box impossible to express."""
+        user_id, shortlist_id = saved
+        set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="scout",
+            concerns="Aerially weak.",
+        )
+        entry = set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="scout",
+        )
+        assert entry.concerns is None
+
+    def test_blank_text_is_stored_as_absent(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        user_id, shortlist_id = saved
+        entry = set_assessment(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            status="monitor",
+            pros="   ",
+        )
+        assert entry.pros is None
+
+    def test_an_unknown_status_is_refused_rather_than_defaulted(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """Quietly storing "longlist" would move a player backwards in
+        someone's process without saying so."""
+        user_id, shortlist_id = saved
+        with pytest.raises(InvalidShortlist, match="Unknown status"):
+            set_assessment(
+                db_session,
+                user_id=user_id,
+                shortlist_id=shortlist_id,
+                player_key="p1",
+                status="signed",
+            )
+
+    def test_a_note_on_its_own_is_not_a_review(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """A note can be a reminder of where you found someone. Treating every
+        keystroke as a judgement would make "last reviewed" mean "last
+        touched", which is a different and much less useful column."""
+        user_id, shortlist_id = saved
+        entry = set_note(
+            db_session,
+            user_id=user_id,
+            shortlist_id=shortlist_id,
+            player_key="p1",
+            note="Recommended by the Belgian scout.",
+        )
+        assert entry.note
+        assert entry.last_reviewed_at is None
+
+    def test_assessing_someone_elses_entry_reports_it_as_missing(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        _, shortlist_id = saved
+        stranger = make_user(db_session, "stranger")
+        with pytest.raises(NotFoundError):
+            set_assessment(
+                db_session,
+                user_id=stranger.user_id,
+                shortlist_id=shortlist_id,
+                player_key="p1",
+                status="priority",
+            )
+
+    def test_an_assessment_changes_no_score(
+        self, db_session: Session, saved: tuple[int, int]
+    ) -> None:
+        """A player marked Rejected ranks wherever the numbers put them. The
+        analytics never read this table, and this is the test that notices if
+        that ever stops being true."""
+        import app.analytics as analytics_package
+
+        source = Path(analytics_package.__file__).parent
+        for module in source.rglob("*.py"):
+            text = module.read_text(encoding="utf-8")
+            assert "shortlist" not in text.lower(), (
+                f"{module.name} refers to shortlists; analytics must not read a user's judgement"
+            )

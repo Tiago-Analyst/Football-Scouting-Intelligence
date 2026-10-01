@@ -6,9 +6,21 @@ import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
-import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import {
+  Table,
+  TableWrap,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+} from "@/components/ui/Table";
 import { formatDate, formatEuro } from "@/lib/format";
-import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
+import {
+  getCompetitions,
+  runReplacementSearch,
+  searchPlayers,
+} from "@/lib/players";
 
 export const metadata: Metadata = {
   title: "Replacement finder",
@@ -21,7 +33,9 @@ function first(value: string | string[] | undefined): string | undefined {
   return raw && raw.length > 0 ? raw : undefined;
 }
 
-export default async function ReplacementsPage(props: PageProps<"/replacements">) {
+export default async function ReplacementsPage(
+  props: PageProps<"/replacements">,
+) {
   const params = await props.searchParams;
   const playerId = first(params.player);
   const search = first(params.search);
@@ -29,9 +43,7 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
 
   if (!playerId) {
     const results =
-      search || club
-        ? await searchPlayers({ search, club, limit: 20 })
-        : null;
+      search || club ? await searchPlayers({ search, club, limit: 20 }) : null;
     const competitions = await getCompetitions();
 
     return (
@@ -42,7 +54,10 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
           description="Select a player, then find candidates who could replace that profile. Combines statistical similarity, role fit and affordability."
         />
 
-        <form method="get" className="space-y-4 rounded-lg border border-border bg-surface p-4">
+        <form
+          method="get"
+          className="space-y-4 rounded-lg border border-border bg-surface p-4"
+        >
           <Field label="Find the player to replace" htmlFor="search">
             <TextInput
               id="search"
@@ -56,7 +71,10 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
             <Select id="competition" name="competition" defaultValue="">
               <option value="">Any</option>
               {competitions.map((competition) => (
-                <option key={competition.competition_id} value={competition.competition_id}>
+                <option
+                  key={competition.competition_id}
+                  value={competition.competition_id}
+                >
                   {competition.name}
                 </option>
               ))}
@@ -81,17 +99,22 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                   <span>
                     <span className="text-sm font-medium">{player.name}</span>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {player.raw_position ?? player.position_group} · {player.club} ·{" "}
-                      {player.competition}
+                      {player.raw_position ?? player.position_group} ·{" "}
+                      {player.club} · {player.competition}
                     </span>
                   </span>
-                  <span className="text-xs text-subtle">{player.best_role}</span>
+                  <span className="text-xs text-subtle">
+                    {player.best_role}
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : search ? (
-          <EmptyState title="No players found" description="Try a different name." />
+          <EmptyState
+            title="No players found"
+            description="Try a different name."
+          />
         ) : null}
       </div>
     );
@@ -101,7 +124,9 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
   const filters = {
     max_market_value_eur: budget ? Number(budget) : null,
     max_age: first(params.max_age) ? Number(first(params.max_age)) : null,
-    competitions: first(params.competition) ? [first(params.competition)!] : null,
+    competitions: first(params.competition)
+      ? [first(params.competition)!]
+      : null,
     // No default floor - see the note on the recruitment page. A replacement
     // search that silently excludes everyone who has played fewer than ten
     // matches finds nobody in an season this young.
@@ -143,7 +168,11 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
         description={`${target.raw_position ?? target.position_group} · ${target.club} · ${target.competition}${target.best_role ? ` · ${target.best_role}` : ""}`}
         actions={
           <>
-            <ButtonLink href={`/players/${target.player_id}`} variant="secondary" size="sm">
+            <ButtonLink
+              href={`/players/${target.player_id}`}
+              variant="secondary"
+              size="sm"
+            >
               View profile
             </ButtonLink>
             <ButtonLink href="/replacements" variant="ghost" size="sm">
@@ -197,7 +226,10 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
             >
               <option value="">Any</option>
               {competitions.map((competition) => (
-                <option key={competition.competition_id} value={competition.competition_id}>
+                <option
+                  key={competition.competition_id}
+                  value={competition.competition_id}
+                >
                   {competition.name}
                 </option>
               ))}
@@ -242,7 +274,7 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                       <TH>Club</TH>
                       <TH numeric>Similarity</TH>
                       <TH numeric>Role fit</TH>
-                      <TH numeric>Market fit</TH>
+                      <TH numeric>Affordability</TH>
                       <TH numeric>Overall</TH>
                       <TH numeric>Value</TH>
                       <TH numeric>Contract</TH>
@@ -260,18 +292,26 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                           </Link>
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">Different profile strength</Badge>
+                              <Badge tone="warning">
+                                Different profile strength
+                              </Badge>
                             </span>
                           ) : null}
                         </TD>
                         <TD numeric>{entry.player.age ?? "–"}</TD>
-                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
+                        <TD className="whitespace-nowrap">
+                          {entry.player.club ?? "–"}
+                        </TD>
                         <TD numeric>{Math.round(entry.similarity)}</TD>
                         <TD numeric>
-                          {entry.role_fit !== null ? Math.round(entry.role_fit) : "–"}
+                          {entry.role_fit !== null
+                            ? Math.round(entry.role_fit)
+                            : "–"}
                         </TD>
                         <TD numeric>
-                          {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
+                          {entry.market_fit !== null
+                            ? Math.round(entry.market_fit)
+                            : "–"}
                         </TD>
                         <TD numeric className="font-medium text-accent">
                           {Math.round(entry.overall)}
@@ -293,9 +333,14 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
               </TableWrap>
 
               <Callout tone="note" title="How the overall score is built">
-                Statistical similarity 55%, role fit 30%, market fit 15%. Market fit measures
-                affordability against the budget you set — not value for money — and is left out
-                of the calculation entirely when no budget is given, rather than being guessed.
+                Statistical similarity 55%, role fit 30%, affordability 15%.
+                Affordability is the market value against the budget you set and
+                nothing else — not value for money, and not a judgement about
+                whether the club would sell. It is left out of the calculation
+                entirely when no budget is given, rather than being guessed.
+                Wages, agent fees, registration eligibility and adaptation risk
+                are not inputs to this model and are not represented anywhere in
+                the score.
               </Callout>
             </>
           )}

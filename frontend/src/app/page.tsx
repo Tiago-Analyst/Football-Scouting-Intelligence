@@ -50,9 +50,10 @@ function Hero() {
       </h1>
 
       <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted">
-        A scouting and market-analysis platform that turns raw match data into contextual
-        percentiles, player roles, statistical similarity and ranked recruitment shortlists — with
-        the reasoning behind every result kept visible.
+        A scouting and market-analysis platform that turns raw match data into
+        contextual percentiles, player roles, statistical similarity and ranked
+        recruitment shortlists — with the reasoning behind every result kept
+        visible.
       </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -70,7 +71,10 @@ function Hero() {
 function Capabilities() {
   return (
     <section aria-labelledby="capabilities">
-      <h2 id="capabilities" className="text-xs font-semibold tracking-widest text-subtle uppercase">
+      <h2
+        id="capabilities"
+        className="text-xs font-semibold tracking-widest text-subtle uppercase"
+      >
         Capabilities
       </h2>
 
@@ -84,7 +88,9 @@ function Capabilities() {
               <span className="text-sm font-semibold tracking-tight group-hover:text-accent">
                 {item.label}
               </span>
-              <span className="text-sm leading-relaxed text-muted">{item.description}</span>
+              <span className="text-sm leading-relaxed text-muted">
+                {item.description}
+              </span>
             </a>
           </li>
         ))}
@@ -96,7 +102,7 @@ function Capabilities() {
 const PRINCIPLES = [
   {
     title: "Compared against the right peer group",
-    body: "A centre-back's tackling means nothing measured against forwards. Every percentile is calculated within a position group, competition and season — and the comparison population is always shown alongside the number.",
+    body: "A centre-back's tackling means nothing measured against forwards. Every percentile is position-scoped and measured against an explicitly defined comparison population — one competition, a selected group of them, or a cross-competition recruitment pool — and which one is always shown alongside the number.",
   },
   {
     title: "Every recommendation is explainable",
@@ -115,15 +121,22 @@ const PRINCIPLES = [
 function Principles() {
   return (
     <section aria-labelledby="principles">
-      <h2 id="principles" className="text-xs font-semibold tracking-widest text-subtle uppercase">
+      <h2
+        id="principles"
+        className="text-xs font-semibold tracking-widest text-subtle uppercase"
+      >
         How results are framed
       </h2>
 
       <dl className="mt-6 grid gap-x-12 gap-y-8 sm:grid-cols-2">
         {PRINCIPLES.map((principle) => (
           <div key={principle.title} className="space-y-2">
-            <dt className="text-sm font-semibold tracking-tight">{principle.title}</dt>
-            <dd className="text-sm leading-relaxed text-muted">{principle.body}</dd>
+            <dt className="text-sm font-semibold tracking-tight">
+              {principle.title}
+            </dt>
+            <dd className="text-sm leading-relaxed text-muted">
+              {principle.body}
+            </dd>
           </div>
         ))}
       </dl>
@@ -134,19 +147,26 @@ function Principles() {
 function Limitations() {
   return (
     <section aria-labelledby="limitations" className="max-w-3xl">
-      <h2 id="limitations" className="text-xs font-semibold tracking-widest text-subtle uppercase">
+      <h2
+        id="limitations"
+        className="text-xs font-semibold tracking-widest text-subtle uppercase"
+      >
         Known limitations
       </h2>
 
       <div className="mt-6 space-y-3">
-        <Callout tone="warning" title="Cross-league percentiles are not strength-adjusted">
-          A 90th percentile in one competition is not equivalent to a 90th percentile in another.
-          No competition-strength coefficient is applied, because inventing one would be worse than
-          stating the limitation.
+        <Callout
+          tone="warning"
+          title="Cross-league percentiles are not strength-adjusted"
+        >
+          A 90th percentile in one competition is not equivalent to a 90th
+          percentile in another. No competition-strength coefficient is applied,
+          because inventing one would be worse than stating the limitation.
         </Callout>
         <Callout tone="note" title="Market value is not a transfer fee">
-          Market values come from Transfermarkt and represent a crowd-sourced estimate. They are not
-          asking prices, and no valuation model is applied on top of them.
+          Market values come from Transfermarkt and represent a crowd-sourced
+          estimate. They are not asking prices, and no valuation model is
+          applied on top of them.
         </Callout>
       </div>
     </section>

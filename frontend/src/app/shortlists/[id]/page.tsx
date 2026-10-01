@@ -13,6 +13,7 @@ import { Field, TextInput } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/States";
 import { getCurrentUser } from "@/lib/auth";
 import { MAX_COMPARE } from "@/lib/limits";
+import { getShortlistStatuses } from "@/lib/players";
 import { getComparison, getShortlist } from "@/lib/shortlists";
 
 export const metadata: Metadata = { title: "Shortlist" };
@@ -38,7 +39,10 @@ export default async function ShortlistPage({
   if (!shortlist) notFound();
 
   const requested = (query.compare ?? "").split(",").filter(Boolean).slice(0, MAX_COMPARE);
-  const comparison = requested.length > 0 ? await getComparison(shortlistId, requested) : null;
+  const [comparison, statuses] = await Promise.all([
+    requested.length > 0 ? getComparison(shortlistId, requested) : Promise.resolve(null),
+    getShortlistStatuses(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -74,7 +78,11 @@ export default async function ShortlistPage({
           action={<ButtonLink href="/players">Search players</ButtonLink>}
         />
       ) : (
-        <EntriesTable entries={shortlist.entries} shortlistId={shortlistId} />
+        <EntriesTable
+          entries={shortlist.entries}
+          shortlistId={shortlistId}
+          statuses={statuses}
+        />
       )}
 
       {comparison ? <ComparisonTable comparison={comparison} /> : null}

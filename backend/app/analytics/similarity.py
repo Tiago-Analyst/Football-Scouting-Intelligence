@@ -212,6 +212,33 @@ class SimilarityFilters:
 
 
 @dataclass(frozen=True)
+class FeatureComparison:
+    """One feature, on both sides of the comparison.
+
+    The index says two profiles resemble each other. This says where, which is
+    the question a scout actually has: an index of 91 built on ball
+    progression and one built on defensive volume describe different players
+    and the number cannot tell them apart.
+
+    `target` and `candidate` are percentiles when the engine compares
+    percentiles, which is what it does in production. Under the z-score
+    representation there is no percentile to report and both are `None` rather
+    than a number invented to fill the column.
+    """
+
+    metric: DerivedMetric
+    #: Distance between the two on the comparison scale. Small is alike.
+    gap: float
+    target: float | None = None
+    candidate: float | None = None
+
+    @property
+    def is_displayable(self) -> bool:
+        """Whether there are two numbers to show, rather than only a distance."""
+        return self.target is not None and self.candidate is not None
+
+
+@dataclass(frozen=True)
 class SimilarityResult:
     """One similar player, with the features that made them similar."""
 
@@ -233,6 +260,24 @@ class SimilarityResult:
     profile_strength_ratio: float = 1.0
     #: Per-feature absolute difference on the comparison scale, closest first.
     feature_gaps: list[tuple[str, float]] = field(default_factory=list)
+    #: The same features with both sides' values, closest first. What a
+    #: "why similar?" panel is built from: the head of this list is what drove
+    #: the index, the tail is where the two players actually differ.
+    features: list[FeatureComparison] = field(default_factory=list)
+
+    def drivers(self, limit: int = 3) -> list[FeatureComparison]:
+        """The features the two players are closest on."""
+        return [f for f in self.features if f.is_displayable][:limit]
+
+    def differences(self, limit: int = 3) -> list[FeatureComparison]:
+        """The features they are furthest apart on, furthest first.
+
+        Reported beside the drivers rather than instead of them. A similarity
+        panel that showed only agreement would be an argument rather than a
+        comparison.
+        """
+        displayable = [f for f in self.features if f.is_displayable]
+        return list(reversed(displayable[-limit:]))
 
     @property
     def comparable_strength(self) -> bool:
@@ -482,10 +527,24 @@ class SimilarityEngine:
                 else 1.0
             )
 
-            gaps = sorted(
-                ((m.value, abs(target_vector[m] - candidate_vector[m])) for m in shared),
-                key=lambda item: item[1],
+            # Centred percentiles go back to percentiles for display; a
+            # z-score has no percentile to go back to, and the column is left
+            # empty rather than filled with a number that looks like one.
+            readable = self.representation is FeatureRepresentation.PERCENTILE
+
+            comparisons = sorted(
+                (
+                    FeatureComparison(
+                        metric=m,
+                        gap=abs(target_vector[m] - candidate_vector[m]),
+                        target=target_vector[m] + 50.0 if readable else None,
+                        candidate=candidate_vector[m] + 50.0 if readable else None,
+                    )
+                    for m in shared
+                ),
+                key=lambda f: f.gap,
             )
+            gaps = [(f.metric.value, f.gap) for f in comparisons]
             results.append(
                 SimilarityResult(
                     candidate=candidate,
@@ -494,6 +553,7 @@ class SimilarityEngine:
                     expected_features=expected,
                     profile_strength_ratio=strength_ratio,
                     feature_gaps=gaps,
+                    features=comparisons,
                 )
             )
 

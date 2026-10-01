@@ -229,6 +229,26 @@ class PlayerStatsResponse(BaseModel):
     scores: list[ScoreOut]
 
 
+class FeatureComparisonOut(BaseModel):
+    """One feature, on both sides of a similarity comparison.
+
+    The index says two profiles resemble each other; these say where. An index
+    of 91 built on ball progression and one built on defensive volume describe
+    different players, and the number alone cannot tell them apart.
+
+    `target` and `candidate` are percentiles within the comparison population.
+    Both are null under a representation that has no percentile to report,
+    rather than carrying a number invented to fill the column.
+    """
+
+    metric: str
+    label: str
+    #: Distance between the two on the comparison scale. Small is alike.
+    gap: float
+    target: float | None = None
+    candidate: float | None = None
+
+
 class SimilarPlayerOut(BaseModel):
     player: PlayerSummary
     similarity: float
@@ -247,12 +267,53 @@ class SimilarPlayerOut(BaseModel):
     #: with a low ratio means the shapes match but the levels do not.
     profile_strength_ratio: float
     comparable_strength: bool
+    #: Where the two profiles are closest. What drove the index.
+    drivers: list[FeatureComparisonOut] = Field(default_factory=list)
+    #: Where they are furthest apart, furthest first. Shipped beside the
+    #: drivers rather than instead of them: a panel showing only agreement
+    #: would be an argument rather than a comparison.
+    differences: list[FeatureComparisonOut] = Field(default_factory=list)
 
 
 class SimilarPlayersResponse(BaseModel):
     target: PlayerSummary
     results: list[SimilarPlayerOut]
     meaning: str
+
+
+class FindingOut(BaseModel):
+    """One reading, with the number it came from.
+
+    The evidence travels with the claim so an interface cannot show one
+    without the other. A sentence without its figure is an opinion.
+    """
+
+    label: str
+    #: Oriented so higher is always better, whichever way the metric reads.
+    percentile: float
+    reading: str
+
+
+class ScoutingInterpretationOut(BaseModel):
+    """The profile's own numbers, read aloud.
+
+    Derived entirely from the figures elsewhere in this response - thresholds
+    applied to percentiles the reader can see above. Nothing here is a second
+    opinion, and no language model is involved: the vocabulary is a fixed list
+    chosen so a sentence cannot claim more than a percentile supports.
+    """
+
+    profile: list[str] = Field(default_factory=list)
+    strengths: list[FindingOut] = Field(default_factory=list)
+    watch_outs: list[FindingOut] = Field(default_factory=list)
+    #: Metrics the provider does not supply. Named apart from the watch-outs,
+    #: because a statistic nobody collected is not something a player does
+    #: badly.
+    unavailable: list[str] = Field(default_factory=list)
+    confidence: list[str] = Field(default_factory=list)
+    #: What the model does not look at. Returned with the reading rather than
+    #: written into a template, so it cannot be shown without it.
+    not_captured: list[str] = Field(default_factory=list)
 
 
 class PlayerProfileResponse(BaseModel):
@@ -279,6 +340,9 @@ class PlayerProfileResponse(BaseModel):
     #: ordinary state rather than a failure.
     market_value_history: list[MarketValuePointOut] = Field(default_factory=list)
     transfers: list[TransferOut] = Field(default_factory=list)
+    #: The figures above, read. Absent when there is nothing to read from -
+    #: a player with no ranked metric and no fitted role.
+    interpretation: ScoutingInterpretationOut | None = None
 
 
 class MarketValuePointOut(BaseModel):
@@ -307,6 +371,41 @@ class RoleOut(BaseModel):
     description: str
     position_groups: list[str]
     caveat: str | None = None
+
+
+class ShortlistStatusOut(BaseModel):
+    """One step in the shortlist workflow, with what it means.
+
+    Served so the picker, the table and the CSV cannot drift apart, and so a
+    desk reads the five words the same way.
+    """
+
+    key: str
+    label: str
+    description: str
+
+
+class RolePresetOut(BaseModel):
+    """A named role expressed as recruitment-builder weights.
+
+    A starting point the user can see and change, not a second ranking. The
+    search that follows is the ordinary weighted search over these numbers.
+
+    `expressible` is the share of the role's own definition the eight
+    intelligence scores could carry. Below 1.0 some of what the role measures
+    has no score to go to and was dropped rather than redistributed, and
+    `unmapped` names what.
+    """
+
+    key: str
+    label: str
+    description: str
+    position_groups: list[str]
+    #: Intelligence score key -> weight, in steps of five, summing to 100.
+    weights: dict[str, float]
+    expressible: float
+    caveat: str | None = None
+    unmapped: list[str] = Field(default_factory=list)
 
 
 class RecruitmentWeights(BaseModel):
@@ -479,7 +578,19 @@ class ShortlistEntryOut(BaseModel):
     player: PlayerSummary | None
     #: Name at the time of saving. Shown only when `player` is None.
     saved_as: str | None
+    #: Where this player has got to in the owner's own process. A workflow
+    #: state the owner set, never something the system concluded, and it
+    #: changes no score anywhere.
+    status: str
+    status_label: str
     note: str | None
+    #: The argument, split. One box collects a paragraph that has to be
+    #: re-read to find the case; two make a one-sided entry visible as one.
+    pros: str | None = None
+    concerns: str | None = None
+    #: When the owner last recorded a judgement. Null until they do - saving a
+    #: player is not reviewing them.
+    last_reviewed_at: datetime | None = None
     added_at: datetime
     unavailable_reason: str | None = None
 

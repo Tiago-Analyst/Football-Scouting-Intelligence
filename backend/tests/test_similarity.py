@@ -512,6 +512,112 @@ class TestRepresentations:
         assert min(r.similarity for r in results) < 50.0
 
 
+class TestWhySimilar:
+    """The per-feature breakdown behind the index.
+
+    A single number cannot say where two players resemble each other, and an
+    index of 91 built on ball progression describes a different player from
+    one built on defensive volume. These assert the breakdown says which.
+    """
+
+    def test_the_breakdown_carries_both_sides_of_every_feature(self) -> None:
+        engine = build_engine(varied_cohort())
+        result = matches(engine, "p10", limit=1)[0]
+
+        assert result.features
+        assert len(result.features) == result.shared_features
+        for feature in result.features:
+            assert feature.is_displayable
+            assert 0.0 <= feature.target <= 100.0  # type: ignore[operator]
+            assert 0.0 <= feature.candidate <= 100.0  # type: ignore[operator]
+
+    def test_the_breakdown_and_the_gaps_describe_the_same_features(self) -> None:
+        """`feature_gaps` is the older, flatter view of the same comparison.
+        They are built together, so they may not disagree."""
+        engine = build_engine(varied_cohort())
+        result = matches(engine, "p10", limit=1)[0]
+        assert [(f.metric.value, f.gap) for f in result.features] == result.feature_gaps
+
+    def test_drivers_are_the_closest_features_and_differences_the_furthest(self) -> None:
+        engine = build_engine(varied_cohort())
+        result = matches(engine, "p10", limit=1)[0]
+
+        drivers = result.drivers()
+        differences = result.differences()
+        assert [f.gap for f in drivers] == sorted(f.gap for f in drivers)
+        assert [f.gap for f in differences] == sorted((f.gap for f in differences), reverse=True)
+        assert drivers[0].gap <= differences[0].gap
+
+    def test_both_lists_respect_their_limit(self) -> None:
+        engine = build_engine(varied_cohort())
+        result = matches(engine, "p10", limit=1)[0]
+        assert len(result.drivers(limit=2)) == 2
+        assert len(result.differences(limit=2)) == 2
+
+    def test_a_gap_is_the_distance_between_the_two_percentiles(self) -> None:
+        engine = build_engine(varied_cohort())
+        result = matches(engine, "p10", limit=1)[0]
+        for feature in result.features:
+            assert feature.gap == pytest.approx(
+                abs(feature.target - feature.candidate),  # type: ignore[operator]
+            )
+
+    def test_a_z_score_comparison_reports_no_percentiles_rather_than_fake_ones(
+        self,
+    ) -> None:
+        """Rule 6 in miniature: a column with nothing to put in it is left
+        empty, not filled with a number that looks like a percentile."""
+        engine = build_engine(varied_cohort(), FeatureRepresentation.ZSCORE)
+        result = matches(engine, "p10", limit=1)[0]
+
+        assert result.features
+        for feature in result.features:
+            assert feature.target is None
+            assert feature.candidate is None
+            assert not feature.is_displayable
+        assert result.drivers() == []
+        assert result.differences() == []
+
+    def test_an_identical_profile_has_no_meaningful_differences(self) -> None:
+        entries = varied_cohort()
+        source = next(r for r, _ in entries if r.player_key == "p10")
+        clone_values = {
+            name: source.metrics.get(DerivedMetric(name)) or 0.0 for name in SPEC_MIDFIELD_FEATURES
+        }
+        entries.append(make_player("clone", clone_values, club="other"))
+        engine = build_engine(entries)
+
+        result = next(
+            r for r in matches(engine, "p10", limit=50) if r.candidate.player_key == "clone"
+        )
+        assert all(f.gap == pytest.approx(0.0) for f in result.differences())
+
+    def test_the_breakdown_exposes_a_match_made_at_the_bottom_of_the_population(
+        self,
+    ) -> None:
+        """The case that looks best and means least.
+
+        Two players alike because both rank near the floor on every shared
+        feature score highly, correctly - their profiles do have the same
+        shape - and "99% similar" invites the conclusion "equally good",
+        which the index has never claimed. The breakdown is what makes that
+        visible, so it has to show the level and not only the distance.
+        """
+        entries = varied_cohort()
+        floor = {name: 0.05 for name in SPEC_MIDFIELD_FEATURES}
+        entries.append(make_player("weak_a", floor, club="a9"))
+        entries.append(make_player("weak_b", dict(floor), club="b9"))
+        engine = build_engine(entries)
+
+        result = next(
+            r for r in matches(engine, "weak_a", limit=50) if r.candidate.player_key == "weak_b"
+        )
+        assert result.similarity > 90.0
+        drivers = result.drivers()
+        assert drivers
+        assert all(f.target < 50.0 and f.candidate < 50.0 for f in drivers)  # type: ignore[operator]
+
+
 class TestAgainstTheMockDataset:
     def test_similarity_behaves_across_a_real_cohort(self) -> None:
         from app.analytics.metrics import compute_derived

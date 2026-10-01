@@ -566,6 +566,10 @@ class TestOpportunities:
         least 80". A funnel that confidently accounts for the wrong thing is
         worse than no funnel.
 
+        The criterion now reads "Raw role fit", which is what it screens on:
+        the weighted composite behind the best role, not its percentile. The
+        two are different numbers and the screen has to say which it used.
+
         Checked by moving one threshold at a time and seeing which line moves.
         """
         base = api.get("/api/v1/opportunities", params={"min_role_score": 50}).json()
@@ -575,7 +579,7 @@ class TestOpportunities:
             step = next(s for s in body["funnel"] if needle in s["criterion"])
             return step["removed"]
 
-        assert removed_by(stricter, "role score") > removed_by(base, "role score")
+        assert removed_by(stricter, "Raw role fit") > removed_by(base, "Raw role fit")
         # Nothing before it in the screen should have moved.
         assert removed_by(stricter, "Age at most") == removed_by(base, "Age at most")
 
@@ -642,3 +646,32 @@ class TestReferenceData:
         body = api.get("/api/v1/competitions").json()
         assert body
         assert all(c["player_count"] > 0 for c in body)
+
+    def test_presets_arrive_ready_for_the_builder_form(self, api: TestClient) -> None:
+        """The form holds whole steps of five and prints a total. A preset
+        that needed rounding or adding up on arrival would be a starting
+        point the page immediately disagreed with."""
+        body = api.get("/api/v1/recruitment/presets").json()
+        assert body
+        for preset in body:
+            assert sum(preset["weights"].values()) == pytest.approx(100.0)
+            assert all(w % 5 == 0 for w in preset["weights"].values())
+            assert preset["position_groups"]
+
+    def test_a_preset_says_what_it_could_not_carry(self, api: TestClient) -> None:
+        """Roles are defined in metrics and the builder weights scores, so
+        some of a role can have nowhere to go. Whatever was dropped is named
+        in the reader's vocabulary rather than the database's."""
+        body = api.get("/api/v1/recruitment/presets").json()
+        partial = [p for p in body if p["expressible"] < 1.0]
+        assert partial, "expected at least one role the scores cannot fully carry"
+        for preset in partial:
+            assert preset["unmapped"]
+            assert all("_" not in label for label in preset["unmapped"])
+
+    def test_presets_rank_nobody(self, api: TestClient) -> None:
+        """A preset is eight numbers for a form. Searching is a separate,
+        explicit request."""
+        body = api.get("/api/v1/recruitment/presets").json()
+        for preset in body:
+            assert not {"items", "total", "score"} & set(preset)

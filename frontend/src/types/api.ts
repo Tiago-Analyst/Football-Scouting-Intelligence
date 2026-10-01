@@ -262,6 +262,22 @@ export interface PlayerStats {
 
 export type FeatureCoverageBand = "high" | "good" | "limited" | "very_limited";
 
+/**
+ * One feature, on both sides of a similarity comparison.
+ *
+ * The index says two profiles resemble each other; these say where. Both
+ * values are null under a representation with no percentile to report, rather
+ * than carrying a number invented to fill the column.
+ */
+export interface FeatureComparison {
+  metric: string;
+  label: string;
+  /** Distance on the comparison scale. Small is alike. */
+  gap: number;
+  target: number | null;
+  candidate: number | null;
+}
+
 export interface SimilarPlayer {
   player: PlayerSummary;
   /** Resemblance on the features the two players share, 0-100. */
@@ -279,6 +295,10 @@ export interface SimilarPlayer {
   /** Low values mean the profiles match in shape but not in strength. */
   profile_strength_ratio: number;
   comparable_strength: boolean;
+  /** Where the two profiles are closest. What drove the index. */
+  drivers?: FeatureComparison[];
+  /** Where they are furthest apart, furthest first. */
+  differences?: FeatureComparison[];
 }
 
 export interface SimilarPlayers {
@@ -303,6 +323,32 @@ export interface Transfer {
   transfer_type: string;
 }
 
+/** One reading, with the number it came from. */
+export interface Finding {
+  label: string;
+  /** Oriented so higher is always better, whichever way the metric reads. */
+  percentile: number;
+  reading: string;
+}
+
+/**
+ * The profile's own numbers, read aloud.
+ *
+ * Every line is a threshold applied to a figure shown elsewhere on the page.
+ * Computed on the server, like everything analytical: the frontend renders it
+ * and does not decide any of it.
+ */
+export interface ScoutingInterpretation {
+  profile: string[];
+  strengths: Finding[];
+  watch_outs: Finding[];
+  /** Metrics the provider does not supply — not things the player does badly. */
+  unavailable: string[];
+  confidence: string[];
+  /** What the model does not look at. Never shown without the reading. */
+  not_captured: string[];
+}
+
 export interface PlayerProfile {
   player: PlayerDetail;
   stats: PlayerStats;
@@ -312,6 +358,8 @@ export interface PlayerProfile {
   /** Both empty for a player the market source does not cover. */
   market_value_history: MarketValuePoint[];
   transfers: Transfer[];
+  /** Null when there is nothing to read from. */
+  interpretation?: ScoutingInterpretation | null;
 }
 
 export interface Competition {
@@ -326,6 +374,28 @@ export interface Role {
   description: string;
   position_groups: string[];
   caveat: string | null;
+}
+
+/**
+ * A named role, expressed as recruitment-builder weights.
+ *
+ * A starting point the user can see and change, not a second ranking. Roles
+ * are defined mostly in metrics and the builder weights the eight
+ * intelligence scores, so part of a role can have nowhere to go:
+ * `expressible` is the share that survived and `unmapped` names the rest.
+ */
+export interface RolePreset {
+  key: string;
+  label: string;
+  description: string;
+  position_groups: string[];
+  /** Intelligence score key -> weight, in steps of five, summing to 100. */
+  weights: Record<string, number>;
+  /** Share of the role's own definition these weights carry, 0-1. */
+  expressible: number;
+  caveat: string | null;
+  /** Role components no intelligence score covers, by label. */
+  unmapped: string[];
 }
 
 export interface RecruitmentCandidate {
@@ -435,13 +505,32 @@ export interface Shortlist {
   updated_at: string;
 }
 
+/** One step in the shortlist workflow, served so nothing drifts apart. */
+export interface ShortlistStatus {
+  key: string;
+  label: string;
+  description: string;
+}
+
 export interface ShortlistEntry {
   player_key: string;
   /** Null when the saved player is not in the current data. */
   player: PlayerSummary | null;
   /** The name captured when they were saved. Shown only when `player` is null. */
   saved_as: string | null;
+  /**
+   * Where this player has got to in the owner's own process. A workflow state
+   * the owner set, never something the system concluded, and it changes no
+   * score anywhere.
+   */
+  status: string;
+  status_label: string;
   note: string | null;
+  /** The argument, split, so a one-sided entry is visible as one. */
+  pros: string | null;
+  concerns: string | null;
+  /** Null until the owner records a judgement. Saving is not reviewing. */
+  last_reviewed_at: string | null;
   added_at: string;
   unavailable_reason: string | null;
 }

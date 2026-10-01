@@ -22,15 +22,24 @@ from app.analytics.coverage import (
     minutes_are_inconsistent,
 )
 from app.analytics.intelligence import IntelligenceScore
+from app.analytics.interpretation import (
+    NOT_CAPTURED,
+    MetricReading,
+    RoleReading,
+    ScoreReading,
+    interpret,
+)
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
 from app.analytics.roles import RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
-from app.analytics.similarity import SimilarityFilters, SimilarityResult
+from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
     ComparisonContextOut,
+    FeatureComparisonOut,
+    FindingOut,
     MarketValuePointOut,
     MetricOut,
     PlayerDetail,
@@ -42,6 +51,7 @@ from app.schemas.api import (
     SampleOut,
     ScoreComponentOut,
     ScoreOut,
+    ScoutingInterpretationOut,
     SimilarPlayerOut,
     SimilarPlayersResponse,
     TransferOut,
@@ -217,6 +227,60 @@ def to_metric(result: PercentileResult) -> MetricOut:
     )
 
 
+def _interpret(
+    player: PlayerDetail, stats: PlayerStatsResponse, roles: RoleFitOut | None
+) -> ScoutingInterpretationOut | None:
+    """Read the profile that was just assembled.
+
+    Built from the response objects rather than from the view, so the prose
+    cannot describe a number the page does not show: if a metric was withheld
+    for want of a population, the reading has no access to it either.
+    """
+    role_reading = None
+    if roles is not None and roles.best is not None:
+        best = roles.best
+        role_reading = RoleReading(
+            label=best.label,
+            score=best.score,
+            percentile=best.role_fit_percentile,
+            coverage=best.coverage,
+            is_limited=best.is_limited,
+            missing=tuple(best.missing),
+            alternatives=tuple(a.label for a in roles.alternatives[:3]),
+            components=tuple(c.label for c in best.components),
+        )
+
+    reading = interpret(
+        role=role_reading,
+        scores=[ScoreReading(s.label, s.score, s.coverage) for s in stats.scores],
+        metrics=[
+            MetricReading(m.label, m.percentile, m.lower_is_better, m.unavailable_reason)
+            for m in stats.metrics
+        ],
+        minutes=stats.sample.minutes,
+        sample_band_label=stats.sample.band_label,
+        detailed_coverage_pct=stats.sample.detailed_coverage_pct,
+        position_label=player.position_group,
+    )
+    if reading.is_empty:
+        return None
+
+    return ScoutingInterpretationOut(
+        profile=reading.profile,
+        strengths=[
+            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
+            for f in reading.strengths
+        ],
+        watch_outs=[
+            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
+            for f in reading.watch_outs
+        ],
+        unavailable=reading.unavailable,
+        confidence=reading.confidence,
+        not_captured=list(NOT_CAPTURED),
+    )
+
+
 def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOut | None:
     record = view.get(result.candidate.player_key)
     if record is None:
@@ -231,6 +295,18 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         coverage_label=result.coverage_label,
         profile_strength_ratio=result.profile_strength_ratio,
         comparable_strength=result.comparable_strength,
+        drivers=[_to_feature(f) for f in result.drivers()],
+        differences=[_to_feature(f) for f in result.differences()],
+    )
+
+
+def _to_feature(feature: FeatureComparison) -> FeatureComparisonOut:
+    return FeatureComparisonOut(
+        metric=feature.metric.value,
+        label=metric_label(feature.metric.value),
+        gap=feature.gap,
+        target=feature.target,
+        candidate=feature.candidate,
     )
 
 
@@ -510,10 +586,14 @@ def get_player_profile(
             raise
         roles = None
 
+    player = get_player(player_id)
+    stats = get_player_stats(player_id, scope=PercentileScope.COMPETITION.value)
+
     return PlayerProfileResponse(
-        player=get_player(player_id),
-        stats=get_player_stats(player_id, scope=PercentileScope.COMPETITION.value),
+        player=player,
+        stats=stats,
         roles=roles,
+        interpretation=_interpret(player, stats, roles),
         # Read from the database like everything else, so the page cannot
         # disagree with itself about a player.
         market_value_history=get_market_value_history(player_id),
