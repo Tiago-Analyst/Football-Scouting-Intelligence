@@ -669,6 +669,31 @@ class TestReferenceData:
             assert preset["unmapped"]
             assert all("_" not in label for label in preset["unmapped"])
 
+    def test_the_scores_say_which_of_them_this_load_can_produce(self, api: TestClient) -> None:
+        body = api.get("/api/v1/recruitment/scores").json()
+        assert len(body) == 8
+        for score in body:
+            assert isinstance(score["available"], bool)
+            # An unavailable score has to say what it is missing and why.
+            # "Unavailable" with no reason is the message the search already
+            # gave, after the fact.
+            if not score["available"]:
+                assert score["missing"]
+                assert score["reason"]
+            else:
+                assert score["missing"] == []
+                assert score["reason"] is None
+
+    def test_a_preset_and_the_scores_cannot_disagree(self, api: TestClient) -> None:
+        """Both answers come from one place. If they ever drift, a preset is
+        marked usable on a page whose own weight rows say otherwise."""
+        blocked = {
+            s["key"] for s in api.get("/api/v1/recruitment/scores").json() if not s["available"]
+        }
+        for preset in api.get("/api/v1/recruitment/presets").json():
+            named = {s["key"] for s in preset["unavailable_scores"]}
+            assert named == blocked & set(preset["weights"])
+
     def test_presets_rank_nobody(self, api: TestClient) -> None:
         """A preset is eight numbers for a form. Searching is a separate,
         explicit request."""

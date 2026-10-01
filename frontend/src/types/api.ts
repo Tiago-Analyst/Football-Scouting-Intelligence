@@ -396,6 +396,22 @@ export interface RolePreset {
   caveat: string | null;
   /** Role components no intelligence score covers, by label. */
   unmapped: string[];
+  /**
+   * Scores this preset weights that the loaded data cannot produce. A preset
+   * with any of these ranks nobody, whatever the filters say.
+   */
+  unavailable_scores: UnavailableScore[];
+}
+
+/** One emphasis, and whether this load can produce it at all. */
+export interface ScoreAvailability {
+  key: string;
+  label: string;
+  description: string;
+  available: boolean;
+  /** Component metrics the provider does not supply. Empty when available. */
+  missing: string[];
+  reason: string | null;
 }
 
 export interface RecruitmentCandidate {

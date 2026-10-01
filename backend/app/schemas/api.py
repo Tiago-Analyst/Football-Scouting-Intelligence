@@ -385,6 +385,34 @@ class ShortlistStatusOut(BaseModel):
     description: str
 
 
+class UnavailableScoreOut(BaseModel):
+    """A requested score that could not be produced, and what it needed."""
+
+    key: str
+    label: str
+    #: The component metrics the provider does not supply.
+    missing: list[str]
+    reason: str
+
+
+class ScoreAvailabilityOut(BaseModel):
+    """One intelligence score, and whether this load can produce it at all.
+
+    Served so the builder can say which emphasis is unavailable *before* a
+    search is run. A weight on a score no player can be given matches nobody,
+    however wide the filters are, and finding that out from an empty result
+    blames the filters for the data.
+    """
+
+    key: str
+    label: str
+    description: str
+    available: bool
+    #: Component metrics the provider does not supply. Empty when available.
+    missing: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
 class RolePresetOut(BaseModel):
     """A named role expressed as recruitment-builder weights.
 
@@ -406,6 +434,10 @@ class RolePresetOut(BaseModel):
     expressible: float
     caveat: str | None = None
     unmapped: list[str] = Field(default_factory=list)
+    #: Scores this preset weights that the loaded data cannot produce. A
+    #: preset with any of these ranks nobody, and says so before it is used
+    #: rather than after the search comes back empty.
+    unavailable_scores: list[UnavailableScoreOut] = Field(default_factory=list)
 
 
 class RecruitmentWeights(BaseModel):
@@ -446,16 +478,6 @@ class RecruitmentCandidate(BaseModel):
     #: Why this player ranked here: the component percentiles behind the score.
     components: list[ScoreComponentOut]
     coverage: float
-
-
-class UnavailableScoreOut(BaseModel):
-    """A requested score that could not be produced, and what it needed."""
-
-    key: str
-    label: str
-    #: The component metrics the provider does not supply.
-    missing: list[str]
-    reason: str
 
 
 class RecruitmentResponse(BaseModel):

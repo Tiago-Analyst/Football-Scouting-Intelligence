@@ -124,6 +124,23 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
       {preset.description ? (
         <p className="mt-1 text-[11px] leading-relaxed text-subtle">{preset.description}</p>
       ) : null}
+      {preset.unavailable_scores.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          <p className="text-[11px] font-medium text-warning">
+            This profile cannot be scored against the loaded data.
+          </p>
+          {preset.unavailable_scores.map((score) => (
+            <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
+              {score.reason}
+            </p>
+          ))}
+          <p className="text-[11px] leading-relaxed text-subtle">
+            Setting that weight to zero will produce a ranking, against a narrower reading of the
+            role than the one named above.
+          </p>
+        </div>
+      ) : null}
+
       {preset.unmapped.length > 0 ? (
         <p className="mt-2 text-[11px] leading-relaxed text-warning">
           {Math.round(preset.expressible * 100)}% of this role is covered by the weights below.{" "}

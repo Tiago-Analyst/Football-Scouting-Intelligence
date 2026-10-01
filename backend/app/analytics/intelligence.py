@@ -233,6 +233,36 @@ class IntelligenceScoreEngine:
             description=definition.description,
         )
 
+    def unproducible(self, present: frozenset[DerivedMetric]) -> dict[str, tuple[str, ...]]:
+        """Scores no player can be given, and the components that stopped them.
+
+        A different question from "this player is missing something". A metric
+        absent for one player is a thin comparison; a metric absent from the
+        whole load is a score that will refuse every candidate, and a profile
+        weighting it matches nobody however wide the filters are.
+
+        Asked of `weighted_score` with the same `min_coverage` the real
+        computation uses, rather than by reimplementing the rule here. The two
+        answers cannot drift: a score whose definition tolerates a gap is
+        reported as producible, because it is.
+        """
+        verdict: dict[str, tuple[str, ...]] = {}
+        for key, definition in self.definitions.items():
+            components = [
+                ScoreComponent(
+                    metric=metric.value,
+                    weight=weight,
+                    # Any number will do: only presence decides coverage, and
+                    # the score this produces is thrown away.
+                    value=50.0 if metric in present else None,
+                )
+                for metric, weight in definition.components.items()
+            ]
+            result = weighted_score(components, min_coverage=definition.min_coverage)
+            if result.score is None:
+                verdict[key] = tuple(result.missing)
+        return verdict
+
     def score_all(
         self,
         player: PlayerMetrics,
