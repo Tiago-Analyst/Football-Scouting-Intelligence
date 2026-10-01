@@ -64,12 +64,10 @@ export function SimilarityBreakdown({
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-subtle">
-        Compared on {entry.shared_features} of the {entry.expected_features}{" "}
-        features defined for this position (
-        {Math.round(entry.feature_coverage_pct)}% coverage). Percentiles are
-        within the same comparison population as the profile above; two players
-        can share a shape at any level, so read the values and not only the
-        distance between them.
+        Compared on {entry.shared_features} of the {entry.expected_features} features defined for
+        this position ({Math.round(entry.feature_coverage_pct)}% coverage). Percentiles are within
+        the same comparison population as the profile above; two players can share a shape at any
+        level, so read the values and not only the distance between them.
       </p>
     </details>
   );
@@ -106,13 +104,7 @@ function FeatureList({
   );
 }
 
-function Side({
-  label,
-  percentile,
-}: {
-  label: string;
-  percentile: number | null;
-}) {
+function Side({ label, percentile }: { label: string; percentile: number | null }) {
   if (percentile === null) return null;
   return (
     <div className="grid grid-cols-[7rem_1fr] items-center gap-2">

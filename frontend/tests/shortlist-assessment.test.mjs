@@ -17,8 +17,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const read = (file) =>
-  readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const row = read("src/components/shortlists/EntryRow.tsx");
 const table = read("src/components/shortlists/EntriesTable.tsx");
 const actions = read("src/app/actions/shortlists.ts");
@@ -27,29 +26,18 @@ test("every field the assessment replaces is present in the form", () => {
   // A PUT replaces. A field missing from the form arrives as null and clears
   // what was there.
   for (const name of ["status", "note", "pros", "concerns"]) {
-    assert.match(
-      row,
-      new RegExp(`name="${name}"`),
-      `the form has no ${name} field`,
-    );
+    assert.match(row, new RegExp(`name="${name}"`), `the form has no ${name} field`);
   }
 });
 
 test("the action sends all four fields, with empty meaning absent", () => {
   const body = actions.slice(actions.indexOf("setAssessmentAction"));
   for (const name of ["status", "note", "pros", "concerns"]) {
-    assert.match(
-      body.slice(0, 1400),
-      new RegExp(`${name}`),
-      `the action omits ${name}`,
-    );
+    assert.match(body.slice(0, 1400), new RegExp(`${name}`), `the action omits ${name}`);
   }
   // `.trim() || null`: storing "" where the absence of a judgement is meant
   // would make an emptied box indistinguishable from a filled blank one.
-  assert.match(
-    body.slice(0, 1400),
-    /field\(data, "pros"\)\.trim\(\) \|\| null/,
-  );
+  assert.match(body.slice(0, 1400), /field\(data, "pros"\)\.trim\(\) \|\| null/);
 });
 
 test("pros and concerns are separate boxes, not one", () => {
@@ -87,10 +75,7 @@ test("filtering by status hides rows and says so", () => {
 });
 
 test("the filter only offers statuses that are actually in use", () => {
-  assert.match(
-    table,
-    /entries\.some\(\(entry\) => entry\.status === status\.key\)/,
-  );
+  assert.match(table, /entries\.some\(\(entry\) => entry\.status === status\.key\)/);
 });
 
 test("no shortlist judgement reaches a score", () => {

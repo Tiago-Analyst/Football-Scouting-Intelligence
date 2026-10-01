@@ -15,29 +15,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const read = (file) =>
-  readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const breakdown = read("src/components/player/SimilarityBreakdown.tsx");
 const profile = read("src/app/players/[slug]/page.tsx");
 
 test("the target row is labelled with the profile owner, not the candidate", () => {
   // `feature.target` is this page's player; `feature.candidate` is the other
   // one. Each percentile must travel with the name it belongs to.
-  assert.match(
-    breakdown,
-    /<Side\s+label=\{targetName\}\s+percentile=\{feature\.target\}/,
-  );
-  assert.match(
-    breakdown,
-    /<Side\s+label=\{candidateName\}\s+percentile=\{feature\.candidate\}/,
-  );
+  assert.match(breakdown, /<Side\s+label=\{targetName\}\s+percentile=\{feature\.target\}/);
+  assert.match(breakdown, /<Side\s+label=\{candidateName\}\s+percentile=\{feature\.candidate\}/);
 });
 
 test("the profile page passes its own player as the target side", () => {
-  assert.match(
-    profile,
-    /<SimilarityBreakdown[\s\S]{0,160}targetName=\{player\.name\}/,
-  );
+  assert.match(profile, /<SimilarityBreakdown[\s\S]{0,160}targetName=\{player\.name\}/);
 });
 
 test("a feature with nothing to show is left out, not filled in", () => {

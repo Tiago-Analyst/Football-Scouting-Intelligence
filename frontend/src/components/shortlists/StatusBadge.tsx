@@ -16,12 +16,6 @@ const TONES: Record<string, BadgeTone> = {
   rejected: "outline",
 };
 
-export function StatusBadge({
-  status,
-  label,
-}: {
-  status: string;
-  label: string;
-}) {
+export function StatusBadge({ status, label }: { status: string; label: string }) {
   return <Badge tone={TONES[status] ?? "neutral"}>{label}</Badge>;
 }

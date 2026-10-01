@@ -1,10 +1,7 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Tooltip } from "@/components/ui/Tooltip";
-import type {
-  Finding,
-  ScoutingInterpretation as Interpretation,
-} from "@/types/api";
+import type { Finding, ScoutingInterpretation as Interpretation } from "@/types/api";
 
 /**
  * The rest of this page, read aloud.
@@ -30,19 +27,8 @@ import type {
  * something nobody asked them to do, so the server draws watch-outs from the
  * role's own components. A goalkeeper is not weak at key passes.
  */
-export function ScoutingInterpretation({
-  interpretation,
-}: {
-  interpretation: Interpretation;
-}) {
-  const {
-    profile,
-    strengths,
-    watch_outs,
-    unavailable,
-    confidence,
-    not_captured,
-  } = interpretation;
+export function ScoutingInterpretation({ interpretation }: { interpretation: Interpretation }) {
+  const { profile, strengths, watch_outs, unavailable, confidence, not_captured } = interpretation;
 
   return (
     <Card>
@@ -51,10 +37,9 @@ export function ScoutingInterpretation({
           <span className="flex items-center gap-1.5">
             Scouting interpretation
             <Tooltip label="Where does this come from?">
-              Generated from the figures on this page by fixed rules — a
-              threshold applied to a percentile you can see below. No language
-              model is involved, and nothing here is a judgement the data does
-              not support.
+              Generated from the figures on this page by fixed rules — a threshold applied to a
+              percentile you can see below. No language model is involved, and nothing here is a
+              judgement the data does not support.
             </Tooltip>
           </span>
         }
@@ -161,9 +146,7 @@ function FindingList({
             <li key={finding.label} className="space-y-1">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-sm">{finding.label}</span>
-                <span className="text-[11px] text-subtle">
-                  {finding.reading}
-                </span>
+                <span className="text-[11px] text-subtle">{finding.reading}</span>
               </div>
               <PercentileBar percentile={finding.percentile} />
             </li>

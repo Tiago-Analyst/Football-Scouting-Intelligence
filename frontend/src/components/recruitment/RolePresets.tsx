@@ -73,8 +73,8 @@ export function RolePresets({
       </summary>
 
       <p className="mt-2 text-[11px] leading-relaxed text-subtle">
-        Fills the weights below from the role&rsquo;s own definition. Adjust
-        them afterwards &mdash; nothing is locked.
+        Fills the weights below from the role&rsquo;s own definition. Adjust them afterwards &mdash;
+        nothing is locked.
       </p>
 
       <div className="mt-3 space-y-3">
@@ -122,24 +122,18 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
         Starting from <span className="text-accent">{preset.label}</span>
       </p>
       {preset.description ? (
-        <p className="mt-1 text-[11px] leading-relaxed text-subtle">
-          {preset.description}
-        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-subtle">{preset.description}</p>
       ) : null}
       {preset.unmapped.length > 0 ? (
         <p className="mt-2 text-[11px] leading-relaxed text-warning">
-          {Math.round(preset.expressible * 100)}% of this role is covered by the
-          weights below. {preset.unmapped.join(", ")}{" "}
-          {preset.unmapped.length === 1 ? "is" : "are"} part of the role but not
-          of any score the builder weights, so{" "}
-          {preset.unmapped.length === 1 ? "it" : "they"} cannot be carried
-          across.
+          {Math.round(preset.expressible * 100)}% of this role is covered by the weights below.{" "}
+          {preset.unmapped.join(", ")} {preset.unmapped.length === 1 ? "is" : "are"} part of the
+          role but not of any score the builder weights, so{" "}
+          {preset.unmapped.length === 1 ? "it" : "they"} cannot be carried across.
         </p>
       ) : null}
       {preset.caveat ? (
-        <p className="mt-2 text-[11px] leading-relaxed text-subtle">
-          {preset.caveat}
-        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-subtle">{preset.caveat}</p>
       ) : null}
     </div>
   );
