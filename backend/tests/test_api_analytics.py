@@ -641,6 +641,49 @@ class TestOpportunities:
         assert any("21" in criterion for criterion in body["criteria"])
 
 
+class TestTheTwoPopulations:
+    """A domestic rank beside the rank across every loaded league.
+
+    A centre-back can be 91st among the 23 defenders in their own league and
+    13th among the 752 in the data. Both are true, neither is adjusted for
+    league strength, and showing only the first lets a thin league read as a
+    strong player.
+    """
+
+    def test_a_metric_carries_both_ranks(self, stats: dict) -> None:
+        ranked = [m for m in stats["metrics"] if m["percentile"] is not None]
+        assert ranked
+        for metric in ranked:
+            assert metric["global_percentile"] is not None
+            assert 0.0 <= metric["global_percentile"] <= 100.0
+
+    def test_the_wider_population_is_described_and_is_wider(self, stats: dict) -> None:
+        """A number with no stated reference group cannot be read, and this
+        one is easy to mistake for a second opinion on the same population."""
+        assert stats["global_context"] is not None
+        assert stats["global_context"]["scope"] == "global"
+        assert stats["global_context"]["population_size"] >= stats["context"]["population_size"]
+
+    def test_a_global_request_does_not_print_the_same_number_twice(
+        self, api: TestClient, a_midfielder: dict
+    ) -> None:
+        """Asked for global percentiles, the second column would repeat the
+        first - which reads as corroboration and is one number."""
+        body = api.get(
+            f"/api/v1/players/{a_midfielder['player_id']}/stats",
+            params={"scope": "global"},
+        ).json()
+        assert body["global_context"] is None
+        assert all(m["global_percentile"] is None for m in body["metrics"])
+
+    def test_neither_population_claims_to_adjust_for_league_strength(self, stats: dict) -> None:
+        """Rule 25. The gap between the two numbers is the information; a
+        system that silently corrected for it would be making the judgement
+        the reader is being shown in order to make."""
+        assert stats["context"]["strength_adjusted"] is False
+        assert stats["global_context"]["strength_adjusted"] is False
+
+
 class TestReferenceData:
     def test_competitions_are_listed_with_counts(self, api: TestClient) -> None:
         body = api.get("/api/v1/competitions").json()

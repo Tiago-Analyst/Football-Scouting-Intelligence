@@ -216,12 +216,13 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
     )
 
 
-def to_metric(result: PercentileResult) -> MetricOut:
+def to_metric(result: PercentileResult, wider: PercentileResult | None = None) -> MetricOut:
     return MetricOut(
         metric=result.metric.value,
         label=metric_label(result.metric.value),
         value=result.value,
         percentile=result.percentile,
+        global_percentile=wider.percentile if wider is not None else None,
         lower_is_better=result.metric in LOWER_IS_BETTER,
         unavailable_reason=result.unavailable_reason,
     )
@@ -473,7 +474,17 @@ def get_player_stats(
         raise HTTPException(status_code=422, detail="Unknown comparison scope") from exc
 
     ranked = view.rank(player_id, PROFILE_METRICS, scope=percentile_scope)
-    metrics = [to_metric(ranked[m]) for m in PROFILE_METRICS if m in ranked]
+
+    # The same metrics against every loaded competition, so a domestic rank can
+    # be read beside the one it looks like from outside. Only when the asked-for
+    # scope is domestic: against the global population they would be the same
+    # number twice, which reads as corroboration and is not.
+    wider = (
+        view.rank(player_id, PROFILE_METRICS, scope=PercentileScope.GLOBAL)
+        if percentile_scope is PercentileScope.COMPETITION
+        else {}
+    )
+    metrics = [to_metric(ranked[m], wider.get(m)) for m in PROFILE_METRICS if m in ranked]
     # Metrics that do not apply to the position carry no value at all; showing
     # a row of blanks for every goalkeeping stat on an outfield profile is noise.
     metrics = [m for m in metrics if m.value is not None]
@@ -492,12 +503,21 @@ def get_player_stats(
         ),
         None,
     ) or next((to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked), None)
+    global_context = next(
+        (
+            to_context(wider[m].context, view)
+            for m in PROFILE_METRICS
+            if wider.get(m) is not None and wider[m].percentile is not None
+        ),
+        None,
+    )
     scores = [to_score(s) for s in view.scores(player_id, scope=percentile_scope).values()]
 
     return PlayerStatsResponse(
         player_id=player_id,
         sample=to_sample(record),
         context=context,
+        global_context=global_context,
         metrics=metrics,
         scores=scores,
     )

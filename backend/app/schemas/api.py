@@ -54,6 +54,17 @@ class MetricOut(BaseModel):
     label: str
     value: float | None
     percentile: float | None
+    #: The same value ranked against every loaded competition rather than the
+    #: player's own. Present only when `percentile` is a domestic rank, so the
+    #: two are never the same number printed twice.
+    #:
+    #: The gap between them is the point. Neither is adjusted for league
+    #: strength - nothing in this system is - so a player at the 92nd
+    #: percentile at home and the 61st across Europe has not been judged
+    #: weaker; they have been placed in a bigger room. Which of the two to
+    #: believe is a recruitment judgement, and showing both is what lets
+    #: somebody make it.
+    global_percentile: float | None = None
     #: True when a low value is the better outcome, so the UI can say so.
     lower_is_better: bool = False
     unavailable_reason: str | None = None
@@ -225,6 +236,10 @@ class PlayerStatsResponse(BaseModel):
     player_id: str
     sample: SampleOut
     context: ComparisonContextOut | None
+    #: The population behind `MetricOut.global_percentile`. None when the
+    #: percentiles are already global, because then there is no second
+    #: population to describe.
+    global_context: ComparisonContextOut | None = None
     metrics: list[MetricOut]
     scores: list[ScoreOut]
 
