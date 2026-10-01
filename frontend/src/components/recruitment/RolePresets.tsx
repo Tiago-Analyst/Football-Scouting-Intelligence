@@ -80,9 +80,12 @@ export function RolePresets({
       <div className="mt-3 space-y-3">
         {groups.map(({ group, roles }) => (
           <section key={group}>
-            <h3 className="mb-1 text-[10px] font-semibold tracking-widest text-subtle uppercase">
+            {/* h2, not h3: this disclosure sits above the page's own "Profile
+                weights" heading, so an h3 here skips a level and a screen
+                reader's outline gains a section that is not there. */}
+            <h2 className="mb-1 text-[10px] font-semibold tracking-widest text-subtle uppercase">
               {GROUP_LABELS[group]}
-            </h3>
+            </h2>
             <ul className="space-y-0.5">
               {roles.map((preset) => (
                 <li key={preset.key}>

@@ -100,7 +100,7 @@ export default function AboutPage() {
               href="https://github.com/Tiago-Analyst/Football-Scouting-Intelligence"
               className="text-accent hover:underline"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               github.com/Tiago-Analyst/Football-Scouting-Intelligence
             </Link>
@@ -109,7 +109,7 @@ export default function AboutPage() {
               href="https://www.linkedin.com/in/tiagomarques-/"
               className="text-accent hover:underline"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               LinkedIn
             </Link>
