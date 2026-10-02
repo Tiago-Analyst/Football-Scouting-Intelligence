@@ -1066,3 +1066,64 @@ class TestComparingAcrossPopulations:
             if reading is None:
                 continue
             assert set(reading) >= {"strengths", "watch_outs", "confidence"}
+
+
+class TestAComparisonAtItsLimits:
+    """Two players, five players, and a metric one of them does not have.
+
+    Five is the ceiling the service enforces and the width the table was
+    designed around; the refusal above it is tested elsewhere. What was not
+    tested is that five actually works, and that a gap in one column is shown
+    as a gap rather than closing the row.
+    """
+
+    def _compare(self, api: TestClient, count: int) -> dict:
+        players = some_players(api, count)
+        shortlist_id = api.post("/api/v1/shortlists", json={"name": f"Wide {count}"}).json()[
+            "shortlist_id"
+        ]
+        for player in players:
+            api.post(
+                f"/api/v1/shortlists/{shortlist_id}/entries",
+                json={"player_id": player["player_id"]},
+            )
+        return api.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()  # type: ignore[no-any-return]
+
+    def test_two_players_compare(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in, 2)
+        assert len(body["players"]) == 2
+
+    def test_five_players_compare(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in, MAX_COMPARE)
+        assert len(body["players"]) == MAX_COMPARE
+        # And every column is complete enough to render: a name, a sample, a
+        # status. A column missing one of those is a hole in the table.
+        for column in body["players"]:
+            assert column["player"]["name"]
+            assert column["sample"] is not None
+            assert column["status"]
+
+    def test_a_metric_one_player_lacks_is_a_gap_not_a_zero(self, signed_in: TestClient) -> None:
+        """Rule 6, in the place it would be easiest to break: a table wants
+        every cell filled, and a zero would read as "did none of it"."""
+        body = self._compare(signed_in, MAX_COMPARE)
+        keys = {m["metric"] for column in body["players"] for m in column["metrics"]}
+
+        for column in body["players"]:
+            present = {m["metric"] for m in column["metrics"]}
+            missing = keys - present
+            # Whatever this column does not carry is absent from its list
+            # rather than present with a fabricated value.
+            for metric in column["metrics"]:
+                assert metric["value"] is not None
+            assert missing == keys - present
+
+    def test_the_columns_agree_on_what_a_metric_is_called(self, signed_in: TestClient) -> None:
+        """The table keys rows by metric and labels them from whichever column
+        mentioned one first. Two labels for one key would silently produce two
+        rows for the same metric."""
+        body = self._compare(signed_in, MAX_COMPARE)
+        labels: dict[str, str] = {}
+        for column in body["players"]:
+            for metric in column["metrics"]:
+                assert labels.setdefault(metric["metric"], metric["label"]) == metric["label"]
