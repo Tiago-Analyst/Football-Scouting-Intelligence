@@ -7,20 +7,27 @@ import { ordinal } from "@/lib/format";
  * The number is always present: colour alone must not carry the meaning, and
  * the bar is decorative reinforcement rather than the only encoding.
  *
- * WHY THE COLOUR NEEDS THE METRIC'S DIRECTION
+ * WHAT THE NUMBER MEANS, AND WHY IT CHANGED
  *
- * The number shown is the rank in the metric's own direction — a high
- * percentile for `dispossessed_per90` means dispossessed often — because that
- * is what a metric table is for: the value and its rank, read the same way
- * round. Scoring consumes the oriented form separately.
+ * It is the **performance percentile**: higher is always better, whichever way
+ * the underlying metric runs. A player who is rarely dispossessed reads 96th,
+ * not 4th.
  *
- * The colour was painted from that same number, so a player who is rarely
- * dispossessed got a low percentile and a red bar for being good at it. The
- * "(lower is better)" caption beside it said the opposite of the colour, and
- * the colour is what a scout reads first while scanning a table.
+ * This bar used to take the rank in the metric's own direction, and then
+ * colour it by merit — so the same component said two things at once. A player
+ * who is excellent at keeping the ball got a bar 4% long and painted green:
+ * the length said bad, the colour said good, and the caption beside it said
+ * "(lower is better)" as if that resolved it. Meanwhile the Scouting
+ * Interpretation, which has always worked in the oriented form, called that
+ * same figure a strength and printed 96. One number, three presentations.
  *
- * So the bar's length stays with the number — they are the same fact — and
- * only the colour is oriented.
+ * Orienting everything the reader interprets as performance is also the
+ * convention everywhere else in the field, so it is the reading somebody
+ * arrives with. The rank in the raw distribution is not lost — the metric
+ * table prints it beside the bar for the metrics where the two differ — but it
+ * is the secondary fact, because "4% of players are dispossessed less often"
+ * and "better than 96% of players" are the same sentence and only one of them
+ * is read correctly at a glance.
  */
 function rampColor(percentile: number): string {
   if (percentile >= 90) return "var(--pct-elite)";
@@ -32,21 +39,34 @@ function rampColor(percentile: number): string {
 export function PercentileBar({
   percentile,
   lowerIsBetter = false,
+  neutral = false,
   className,
   showValue = true,
 }: {
-  /** 0-100, in the metric's own direction. */
+  /** 0-100, oriented so higher is better — unless `neutral`. */
   percentile: number;
   /**
-   * Whether a low value is the good one. Colours the bar by merit while the
-   * number and the bar's length keep reporting the rank as it stands.
+   * Whether a low raw value is the good one. Does not change the bar — the
+   * number arrives already oriented — and only tells the screen reader which
+   * direction the metric runs, so the figure can be understood without the
+   * caption beside it.
    */
   lowerIsBetter?: boolean;
+  /**
+   * The number is a position in a distribution, not a performance.
+   *
+   * Similarity compares raw percentiles on purpose: it asks whether two
+   * players *do the same things*, so two who are both dispossessed constantly
+   * are alike, and orienting would make a careless player resemble a careful
+   * one. A breakdown of those features is therefore showing ranks, not merit,
+   * and the merit ramp would paint a judgement onto a number that is not
+   * making one.
+   */
+  neutral?: boolean;
   className?: string;
   showValue?: boolean;
 }) {
   const clamped = Math.max(0, Math.min(100, percentile));
-  const merit = lowerIsBetter ? 100 - clamped : clamped;
 
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
@@ -57,14 +77,19 @@ export function PercentileBar({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={
-          lowerIsBetter
-            ? `${ordinal(clamped)} percentile, where lower is better`
-            : `${ordinal(clamped)} percentile`
+          neutral
+            ? `${ordinal(clamped)} percentile within the comparison population`
+            : lowerIsBetter
+              ? `${ordinal(clamped)} performance percentile, on a metric where a lower value is better`
+              : `${ordinal(clamped)} percentile`
         }
       >
         <div
           className="h-full rounded-full"
-          style={{ width: `${clamped}%`, background: rampColor(merit) }}
+          style={{
+            width: `${clamped}%`,
+            background: neutral ? "var(--pct-mid)" : rampColor(clamped),
+          }}
         />
       </div>
       {showValue ? (

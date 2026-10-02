@@ -300,3 +300,121 @@ class TestProbeMechanics:
         assert out["success"] is True
         assert len(out["data"]) == 200
         assert out["_fri_data_truncated_from"] == 500
+
+
+class TestDerivedMetricsAreNotAbsences:
+    """A metric the provider has no field for, that the system computes anyway.
+
+    FootyStats carries no non-penalty goals count; it carries goals and penalty
+    goals, and the difference is the answer. The mapping file has recorded that
+    derivation, with evidence, since the provider was written - and the loader
+    ignored the block, so `available_metrics` left both derived metrics out and
+    the data quality page called them unavailable while every forward's profile
+    showed them.
+    """
+
+    def test_a_derived_metric_counts_as_available(self) -> None:
+        from app.providers.footystats_mapping import load_mapping
+
+        mapping = load_mapping()
+        assert mapping.derived, "the real mapping file records derivations"
+        for metric in mapping.derived:
+            assert metric in mapping.available_metrics
+            assert metric not in mapping.missing()
+
+    def test_derived_is_still_distinguishable_from_native(self) -> None:
+        """Available, yes - but a report that says "field" where there is none
+        is a different false claim from the one just fixed."""
+        from app.providers.footystats_mapping import load_mapping
+
+        mapping = load_mapping()
+        assert set(mapping.derived) & set(mapping.metrics) == set()
+
+    def test_every_derivation_shows_its_arithmetic(self) -> None:
+        from app.providers.footystats_mapping import load_mapping
+
+        for entry in load_mapping().derived.values():
+            assert entry.formula
+            assert entry.note
+            assert entry.verified_on
+
+    def test_what_is_missing_is_exactly_what_was_profiled_as_absent(self) -> None:
+        """The two blocks are written by hand and could drift. If `missing()`
+        ever names something the `absent` block does not, the data quality page
+        has a metric it cannot explain."""
+        from app.providers.footystats_mapping import load_mapping
+
+        mapping = load_mapping()
+        assert set(mapping.missing()) == set(mapping.absent)
+
+    def test_every_absence_says_what_was_found(self) -> None:
+        """ "Unavailable" with nothing behind it reads as "not looked at yet"."""
+        from app.providers.footystats_mapping import load_mapping
+
+        for entry in load_mapping().absent.values():
+            assert len(entry.reason) > 40, entry.metric
+
+    def test_the_provider_reports_both_to_callers(self) -> None:
+        """The quality service used to reach into `_mapping` for this. It is
+        part of what a provider is, so it is on `info`."""
+        from app.providers.footystats_mapping import load_mapping
+
+        mapping = load_mapping()
+        assert set(mapping.derived) and set(mapping.absent)
+
+
+class TestTheQualityPageReadsTheMapping:
+    """The path from the mapping file to what the page says.
+
+    The two halves were right separately and wrong together: the provider
+    derived non-penalty goals, the mapping recorded the derivation, and the
+    report asked a set that excluded it. Demo mode cannot catch that - the
+    mock supplies everything - so the join is tested directly.
+    """
+
+    def _report(self, monkeypatch) -> tuple[list, list]:  # type: ignore[no-untyped-def]
+        from app.providers.footystats_mapping import load_mapping
+        from app.schemas.canonical import ProviderInfo
+        from app.services import quality_service
+
+        mapping = load_mapping()
+        info = ProviderInfo(
+            name="FootyStatsProvider",
+            is_mock=False,
+            validated=True,
+            available_metrics=mapping.available_metrics,
+            derived_metrics={m.value: e.formula for m, e in mapping.derived.items()},
+            absent_reasons={m.value: e.reason for m, e in mapping.absent.items()},
+        )
+
+        class Stub:
+            def __init__(self) -> None:
+                self.info = info
+
+        monkeypatch.setattr(quality_service, "build_performance_provider", lambda _settings: Stub())
+        from app.core.config import get_settings
+
+        return quality_service.metric_availability(get_settings())
+
+    def test_a_derived_metric_is_not_reported_as_unavailable(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        unavailable, derived = self._report(monkeypatch)
+        named_as_missing = {item.metric for item in unavailable}
+
+        assert "non_penalty_goals" not in named_as_missing
+        assert "penalties_taken" not in named_as_missing
+        assert {item.metric for item in derived} == {"non_penalty_goals", "penalties_taken"}
+
+    def test_every_unavailable_metric_arrives_with_its_evidence(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        unavailable, _ = self._report(monkeypatch)
+
+        assert unavailable
+        for item in unavailable:
+            assert item.reason, item.metric
+            # Sample counts, not a shrug: these were profiled.
+            assert any(char.isdigit() for char in item.reason)
+
+    def test_a_derivation_carries_the_arithmetic_to_the_page(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        _, derived = self._report(monkeypatch)
+        formulas = {item.metric: item.formula for item in derived}
+        assert "-" in formulas["non_penalty_goals"]
+        assert "+" in formulas["penalties_taken"]

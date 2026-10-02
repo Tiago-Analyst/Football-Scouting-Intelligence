@@ -335,6 +335,13 @@ class TestQualityEndpoint:
             "identity",
             "average_detailed_coverage_pct",
             "unavailable_metrics",
+            # The same metrics with the profiling behind each absence, and -
+            # separately - the ones the provider has no field for and the
+            # system computes anyway. Two opposite facts that were reported
+            # as one: non-penalty goals was listed as unavailable while
+            # appearing on every forward's profile.
+            "unavailable_detail",
+            "derived_metrics",
             "analytics",
             # Where the FootyStats refresh has got to. `None` when no
             # generation exists yet, so the key is always present and the

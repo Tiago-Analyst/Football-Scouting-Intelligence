@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
+import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { formatCount, formatEuro } from "@/lib/format";
 import { getOpportunities } from "@/lib/players";
 
@@ -22,9 +23,7 @@ function first(value: string | string[] | undefined): string | undefined {
   return raw && raw.length > 0 ? raw : undefined;
 }
 
-export default async function OpportunitiesPage(
-  props: PageProps<"/opportunities">,
-) {
+export default async function OpportunitiesPage(props: PageProps<"/opportunities">) {
   const params = await props.searchParams;
   const criteria = {
     max_age: first(params.max_age) ?? "23",
@@ -59,10 +58,7 @@ export default async function OpportunitiesPage(
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Criteria</h2>
-              <Link
-                href="/opportunities"
-                className="text-xs text-muted hover:text-text"
-              >
+              <Link href="/opportunities" className="text-xs text-muted hover:text-text">
                 Reset
               </Link>
             </div>
@@ -100,9 +96,9 @@ export default async function OpportunitiesPage(
                 <>
                   Minimum minutes
                   <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default
-                    regardless of minutes played — this sets a floor only if you
-                    want one, and it is empty unless you fill it in.
+                    Optional filter. All players are eligible by default regardless of minutes
+                    played — this sets a floor only if you want one, and it is empty unless you fill
+                    it in.
                   </Tooltip>
                 </>
               }
@@ -119,10 +115,7 @@ export default async function OpportunitiesPage(
               />
             </Field>
 
-            <Field
-              label="Maximum market value (€)"
-              htmlFor="max_market_value_eur"
-            >
+            <Field label="Maximum market value (€)" htmlFor="max_market_value_eur">
               <TextInput
                 id="max_market_value_eur"
                 name="max_market_value_eur"
@@ -134,10 +127,7 @@ export default async function OpportunitiesPage(
               />
             </Field>
 
-            <Field
-              label="Contract expires within"
-              htmlFor="contract_within_months"
-            >
+            <Field label="Contract expires within" htmlFor="contract_within_months">
               <Select
                 id="contract_within_months"
                 name="contract_within_months"
@@ -162,9 +152,7 @@ export default async function OpportunitiesPage(
           <section className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
-                <span className="tabular font-medium text-text">
-                  {formatCount(results.total)}
-                </span>{" "}
+                <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
                 players meet these criteria
               </p>
               {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
@@ -181,24 +169,17 @@ export default async function OpportunitiesPage(
                 </summary>
                 <ul className="mt-3 space-y-1 text-xs text-muted">
                   {results.funnel.map((step) => (
-                    <li
-                      key={step.criterion}
-                      className="flex justify-between gap-4"
-                    >
+                    <li key={step.criterion} className="flex justify-between gap-4">
                       <span>{step.criterion}</span>
                       <span className="tabular whitespace-nowrap">
                         {formatCount(step.remaining)} left
-                        {step.removed > 0
-                          ? ` (−${formatCount(step.removed)})`
-                          : ""}
+                        {step.removed > 0 ? ` (−${formatCount(step.removed)})` : ""}
                       </span>
                     </li>
                   ))}
                 </ul>
                 {results.explanation ? (
-                  <p className="mt-3 text-xs text-muted">
-                    {results.explanation}
-                  </p>
+                  <p className="mt-3 text-xs text-muted">{results.explanation}</p>
                 ) : null}
               </details>
             ) : null}
@@ -211,11 +192,7 @@ export default async function OpportunitiesPage(
                   "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling."
                 }
                 action={
-                  <ButtonLink
-                    href="/opportunities"
-                    variant="secondary"
-                    size="sm"
-                  >
+                  <ButtonLink href="/opportunities" variant="secondary" size="sm">
                     Reset criteria
                   </ButtonLink>
                 }
@@ -234,9 +211,37 @@ export default async function OpportunitiesPage(
                             {entry.player.name}
                           </Link>
                         }
-                        description={`${entry.player.raw_position ?? entry.player.position_group} · ${entry.player.club} · ${entry.player.competition}`}
+                        description={
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span>
+                              {entry.player.raw_position ?? entry.player.position_group} ·{" "}
+                              {entry.player.club} · {entry.player.competition}
+                            </span>
+                            {/* A player can reach this list on 41 minutes,
+                                deliberately - nothing is excluded for a short
+                                sample. What was missing was any sign of it on
+                                the card, so a figure built on half a match
+                                looked like one built on a season. */}
+                            {entry.player.minutes !== null ? (
+                              <span className="flex items-center gap-1.5">
+                                <span>· {formatCount(entry.player.minutes)} min</span>
+                                <SampleSizeBadge
+                                  band={entry.player.sample_band}
+                                  minutes={entry.player.minutes}
+                                />
+                              </span>
+                            ) : null}
+                          </span>
+                        }
                         action={
-                          <span className="flex items-center gap-2">
+                          /* A number with no name beside it gets read as
+                             whichever one the reader expects. This is the raw
+                             role fit for the player's best role, on the 0-100
+                             scale the rest of the product reserves for it. */
+                          <span className="flex items-baseline gap-2">
+                            <span className="text-[10px] tracking-wide text-subtle uppercase">
+                              Raw role fit
+                            </span>
                             <span className="tabular text-lg font-semibold text-accent">
                               {entry.best_role_score !== null
                                 ? Math.round(entry.best_role_score)
@@ -259,8 +264,7 @@ export default async function OpportunitiesPage(
                         </ul>
                         {entry.player.market_value_eur !== null ? (
                           <p className="mt-3 text-xs text-subtle">
-                            Market value{" "}
-                            {formatEuro(entry.player.market_value_eur)} — a
+                            Market value {formatEuro(entry.player.market_value_eur)} — a
                             crowd-sourced estimate, not an asking price.
                           </p>
                         ) : null}

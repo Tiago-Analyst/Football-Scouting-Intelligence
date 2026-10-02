@@ -9,8 +9,7 @@ import type { CoverageBand, SampleBand } from "@/lib/sample";
 
 export type AppMode = "demo" | "production";
 
-export type DependencyState =
-  "ok" | "degraded" | "unavailable" | "not_configured";
+export type DependencyState = "ok" | "degraded" | "unavailable" | "not_configured";
 
 export interface DependencyStatus {
   name: string;
@@ -116,7 +115,14 @@ export interface Metric {
   metric: string;
   label: string;
   value: number | null;
+  /**
+   * Rank in the metric's own direction: a high percentile for
+   * `dispossessed_per90` means dispossessed often. The distribution rank,
+   * shown as the secondary figure where the two differ.
+   */
   percentile: number | null;
+  /** The same rank oriented so higher is always better. What the UI shows. */
+  performance_percentile: number | null;
   /**
    * The same value ranked against every loaded competition rather than the
    * player's own. Null when `percentile` is already global.
@@ -126,6 +132,8 @@ export interface Metric {
    * judged worse - they have been put in a bigger room.
    */
   global_percentile: number | null;
+  /** Oriented, so the two columns on a row can be read against each other. */
+  global_performance_percentile: number | null;
   /** A low value is the better outcome, so the UI must say so. */
   lower_is_better: boolean;
   unavailable_reason: string | null;
@@ -578,6 +586,8 @@ export interface ComparedPlayer {
   metrics: Metric[];
   scores: Score[];
   role: Score | null;
+  /** The same deterministic reading the profile page shows, per column. */
+  interpretation: ScoutingInterpretation | null;
 }
 
 export interface ComparisonResponse {
@@ -717,6 +727,22 @@ export interface RefreshStatus {
   current: RefreshGeneration | null;
 }
 
+/** A canonical metric the provider cannot supply, and what was found. */
+export interface MetricAvailability {
+  metric: string;
+  label: string;
+  /** Null when nothing was recorded. Absent evidence is stated as absent. */
+  reason: string | null;
+}
+
+/** A metric with no provider field, computed from ones that exist. */
+export interface DerivedMetricNote {
+  metric: string;
+  label: string;
+  /** The arithmetic, so the claim can be checked rather than believed. */
+  formula: string;
+}
+
 export interface DataQualityResponse {
   /** What these checks do and do not establish. Always rendered with them. */
   meaning: string;
@@ -736,6 +762,10 @@ export interface DataQualityResponse {
   average_detailed_coverage_pct: number | null;
   /** What the provider cannot supply at all. Empty in demo mode. */
   unavailable_metrics: string[];
+  /** The same metrics with the evidence that established each absence. */
+  unavailable_detail: MetricAvailability[];
+  /** Metrics with no provider field that the system computes anyway. */
+  derived_metrics: DerivedMetricNote[];
   analytics: AnalyticsFreshness | null;
   /** Null when no generation exists yet. */
   refresh?: RefreshStatus | null;

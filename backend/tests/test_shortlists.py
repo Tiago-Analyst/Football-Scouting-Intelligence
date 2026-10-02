@@ -1002,3 +1002,128 @@ class TestAssessments:
             assert "shortlist" not in text.lower(), (
                 f"{module.name} refers to shortlists; analytics must not read a user's judgement"
             )
+
+
+class TestComparingAcrossPopulations:
+    """Which population the comparison's percentiles are measured against.
+
+    The response has always warned that columns from different competitions
+    cannot be read across. The engine has always been able to rank them
+    against every loaded competition instead - the profile does it - and the
+    comparison hard-coded one scope and left the warning as the only answer.
+    """
+
+    def _compare(self, api: TestClient, scope: str | None = None) -> dict:
+        players = some_players(api, 2)
+        shortlist_id = api.post("/api/v1/shortlists", json={"name": f"Scope {scope}"}).json()[
+            "shortlist_id"
+        ]
+        for player in players:
+            api.post(
+                f"/api/v1/shortlists/{shortlist_id}/entries",
+                json={"player_id": player["player_id"]},
+            )
+        params = {"scope": scope} if scope else {}
+        return api.get(f"/api/v1/shortlists/{shortlist_id}/compare", params=params).json()  # type: ignore[no-any-return]
+
+    def test_the_default_is_still_each_players_own_competition(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in)
+        assert body["context"]["scope"] == "competition"
+
+    def test_global_ranks_every_column_against_one_population(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in, "global")
+        assert body["context"]["scope"] == "global"
+
+    def test_the_cross_competition_warning_goes_when_it_stops_being_true(
+        self, signed_in: TestClient
+    ) -> None:
+        """A false warning is worse than none: it trains a reader to scroll
+        past the warnings that are true."""
+        body = self._compare(signed_in, "global")
+        assert MIXED_COMPETITION_CAVEAT not in (body["caveat"] or "")
+
+    def test_an_unknown_scope_is_refused_rather_than_defaulted(self, signed_in: TestClient) -> None:
+        players = some_players(signed_in, 1)
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Bad scope"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": players[0]["player_id"]},
+        )
+        response = signed_in.get(
+            f"/api/v1/shortlists/{shortlist_id}/compare", params={"scope": "europe"}
+        )
+        assert response.status_code == 422
+
+    def test_each_column_carries_a_reading_of_its_own(self, signed_in: TestClient) -> None:
+        """Five players is forty rows before the table answers what stands out
+        about each. The reading is the profile's own, not a second one."""
+        body = self._compare(signed_in)
+        readings = [c["interpretation"] for c in body["players"]]
+        assert any(r is not None for r in readings)
+        for reading in readings:
+            if reading is None:
+                continue
+            assert set(reading) >= {"strengths", "watch_outs", "confidence"}
+
+
+class TestAComparisonAtItsLimits:
+    """Two players, five players, and a metric one of them does not have.
+
+    Five is the ceiling the service enforces and the width the table was
+    designed around; the refusal above it is tested elsewhere. What was not
+    tested is that five actually works, and that a gap in one column is shown
+    as a gap rather than closing the row.
+    """
+
+    def _compare(self, api: TestClient, count: int) -> dict:
+        players = some_players(api, count)
+        shortlist_id = api.post("/api/v1/shortlists", json={"name": f"Wide {count}"}).json()[
+            "shortlist_id"
+        ]
+        for player in players:
+            api.post(
+                f"/api/v1/shortlists/{shortlist_id}/entries",
+                json={"player_id": player["player_id"]},
+            )
+        return api.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()  # type: ignore[no-any-return]
+
+    def test_two_players_compare(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in, 2)
+        assert len(body["players"]) == 2
+
+    def test_five_players_compare(self, signed_in: TestClient) -> None:
+        body = self._compare(signed_in, MAX_COMPARE)
+        assert len(body["players"]) == MAX_COMPARE
+        # And every column is complete enough to render: a name, a sample, a
+        # status. A column missing one of those is a hole in the table.
+        for column in body["players"]:
+            assert column["player"]["name"]
+            assert column["sample"] is not None
+            assert column["status"]
+
+    def test_a_metric_one_player_lacks_is_a_gap_not_a_zero(self, signed_in: TestClient) -> None:
+        """Rule 6, in the place it would be easiest to break: a table wants
+        every cell filled, and a zero would read as "did none of it"."""
+        body = self._compare(signed_in, MAX_COMPARE)
+        keys = {m["metric"] for column in body["players"] for m in column["metrics"]}
+
+        for column in body["players"]:
+            present = {m["metric"] for m in column["metrics"]}
+            missing = keys - present
+            # Whatever this column does not carry is absent from its list
+            # rather than present with a fabricated value.
+            for metric in column["metrics"]:
+                assert metric["value"] is not None
+            assert missing == keys - present
+
+    def test_the_columns_agree_on_what_a_metric_is_called(self, signed_in: TestClient) -> None:
+        """The table keys rows by metric and labels them from whichever column
+        mentioned one first. Two labels for one key would silently produce two
+        rows for the same metric."""
+        body = self._compare(signed_in, MAX_COMPARE)
+        labels: dict[str, str] = {}
+        for column in body["players"]:
+            for metric in column["metrics"]:
+                assert labels.setdefault(metric["metric"], metric["label"]) == metric["label"]

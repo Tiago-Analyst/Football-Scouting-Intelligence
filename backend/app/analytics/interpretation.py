@@ -197,7 +197,7 @@ def interpret(
     relevant = frozenset(role.components) if role and role.components else None
 
     return ScoutingInterpretation(
-        profile=_profile_lines(role, scores, position_label),
+        profile=_profile_lines(role, scores, metrics, position_label),
         strengths=_findings(metrics, strong=True),
         watch_outs=_findings(metrics, strong=False, only=relevant),
         unavailable=_unavailable_lines(role, metrics),
@@ -205,13 +205,70 @@ def interpret(
     )
 
 
+def _in_prose(label: str) -> str:
+    """A metric label as it would be spoken, not as a column heading.
+
+    "driven mainly by interceptions /90 and blocks /90" is a sentence with
+    table headings dropped into it. The per-90 suffix is a unit the reader
+    already knows applies to every rate on the page, and a trailing percent
+    sign is a symbol rather than a word.
+
+    Only the suffix moves. The metric keeps its name, so a reader can still
+    find the row the clause came from.
+    """
+    cleaned = label.removesuffix(" /90")
+    if cleaned.endswith(" %"):
+        cleaned = f"{cleaned.removesuffix(' %')} rate"
+
+    # Lower-case the opening word only when it is an ordinary one. `npxG` is
+    # not a sentence that happens to start with a capital, and "npxg" is a
+    # different thing from the row it points at.
+    head, _, tail = cleaned.partition(" ")
+    if head[1:].islower() or head[1:] == "":
+        cleaned = f"{head.lower()} {tail}".strip()
+    return cleaned
+
+
+def _drivers(role: RoleReading | None, metrics: list[MetricReading], limit: int = 2) -> list[str]:
+    """The role's own components this player ranks highest on.
+
+    What turns "scores well as a Defensive Stopper" into a sentence worth
+    reading: the reader learns *why* without leaving the line. Drawn from the
+    role's components only - a centre-back's dribbling is not what makes them
+    a stopper, however good it is - and from metrics that actually have a
+    percentile, so the clause names evidence or is omitted.
+    """
+    if role is None or not role.components:
+        return []
+    within = frozenset(role.components)
+    ranked = sorted(
+        (
+            (_oriented(m.percentile, m.lower_is_better), m.label)
+            for m in metrics
+            if m.percentile is not None and m.label in within
+        ),
+        key=lambda item: -item[0],
+    )
+    return [_in_prose(label) for percentile, label in ranked[:limit] if percentile >= STRONG]
+
+
 def _profile_lines(
-    role: RoleReading | None, scores: list[ScoreReading], position_label: str | None
+    role: RoleReading | None,
+    scores: list[ScoreReading],
+    metrics: list[MetricReading],
+    position_label: str | None,
 ) -> list[str]:
     lines: list[str] = []
 
     if role is not None and role.score is not None:
         where = position_label or "their position group"
+        # "driven mainly by interceptions and blocks" rather than a full stop.
+        # Omitted entirely when nothing in the role's own components is strong,
+        # because a driver clause naming a mediocre metric would be explaining
+        # the score with the thing that did not produce it.
+        drivers = _drivers(role, metrics)
+        because = f", driven mainly by {_list_of(drivers)}" if drivers else ""
+
         if role.percentile is not None:
             standing = _reading(role.percentile)
             if role.is_limited or role.coverage < ROLE_COVERAGE_FOR_A_PLAIN_CLAIM:
@@ -219,17 +276,18 @@ def _profile_lines(
                 # measured rather than what the role is called.
                 lines.append(
                     f"Scores as a {role.label} on the part of that definition the data "
-                    f"covers - {standing} against others evaluated for the same role."
+                    f"covers{because} - {standing} against others evaluated for the "
+                    f"same role."
                 )
             else:
                 lines.append(
-                    f"Best fit among the roles evaluated is {role.label}: {standing} "
-                    f"against others evaluated for the same role."
+                    f"The statistical profile aligns best with a {role.label} role"
+                    f"{because}: {standing} against others evaluated for the same role."
                 )
         else:
             lines.append(
-                f"Best fit among the roles evaluated is {role.label}. Too few comparable "
-                f"players in {where} to place that score among others."
+                f"The statistical profile aligns best with a {role.label} role{because}. "
+                f"Too few comparable players in {where} to place that score among others."
             )
 
         if role.alternatives:
@@ -242,9 +300,11 @@ def _profile_lines(
     top = [s for s in ranked if (s.score or 0.0) >= STRONG]
     bottom = [s for s in ranked if (s.score or 0.0) <= WEAK]
 
+    # Named as what they are. "Profile dimensions" is a word this product uses
+    # nowhere else; the page beside this one calls them intelligence scores.
     if top:
         lines.append(
-            "Strongest profile dimensions: "
+            "Strongest intelligence scores: "
             + _list_of([f"{s.label} ({round(s.score or 0)})" for s in top[:3]])
             + "."
         )

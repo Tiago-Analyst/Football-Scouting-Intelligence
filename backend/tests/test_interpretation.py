@@ -148,7 +148,7 @@ class TestWhatItRefusesToSay:
         reading = read(
             role=RoleReading(label="Defensive Stopper", score=81.0, percentile=93.0, coverage=1.0)
         )
-        assert "Best fit among the roles evaluated is Defensive Stopper" in reading.profile[0]
+        assert "aligns best with a Defensive Stopper role" in reading.profile[0]
 
     def test_a_role_that_could_not_be_ranked_says_so(self) -> None:
         reading = read(role=RoleReading(label="Defensive Stopper", score=81.0, percentile=None))
@@ -359,3 +359,128 @@ class TestAWeaknessHasToBeRelevant:
             metrics=self.GK_METRICS,
         )
         assert reading.watch_outs, "an empty component list is unknown, not empty"
+
+
+class TestTheRoleLineSaysWhy:
+    """ "Scores well as a Defensive Stopper" is a verdict with no evidence.
+
+    Naming the role's own components the player ranks highest on turns it into
+    something a reader can check, and does it from numbers already on the page.
+    """
+
+    def test_the_drivers_are_named(self) -> None:
+        reading = interpret(
+            role=RoleReading(
+                label="Defensive Stopper",
+                score=81.0,
+                percentile=93.0,
+                coverage=1.0,
+                components=("Interceptions /90", "Blocks /90", "Clearances /90"),
+            ),
+            scores=[],
+            metrics=[
+                MetricReading("Interceptions /90", 94.0),
+                MetricReading("Blocks /90", 88.0),
+                MetricReading("Clearances /90", 51.0),
+            ],
+            minutes=2000,
+            sample_band_label=None,
+            detailed_coverage_pct=None,
+        )
+        line = reading.profile[0]
+        assert "driven mainly by interceptions and blocks" in line
+        # Only the two strongest, and nothing merely average.
+        assert "clearances" not in line.lower()
+
+    def test_a_metric_outside_the_role_is_never_a_driver(self) -> None:
+        """A centre-back's dribbling is not what makes them a stopper,
+        however good it is."""
+        reading = interpret(
+            role=RoleReading(
+                label="Defensive Stopper",
+                score=81.0,
+                percentile=93.0,
+                coverage=1.0,
+                components=("Interceptions /90",),
+            ),
+            scores=[],
+            metrics=[
+                MetricReading("Interceptions /90", 92.0),
+                MetricReading("Successful dribbles /90", 99.0),
+            ],
+            minutes=2000,
+            sample_band_label=None,
+            detailed_coverage_pct=None,
+        )
+        assert "dribbles" not in reading.profile[0].lower()
+
+    def test_nothing_strong_means_no_clause_rather_than_a_weak_one(self) -> None:
+        """A driver clause naming a mediocre metric explains the score with
+        the thing that did not produce it."""
+        reading = interpret(
+            role=RoleReading(
+                label="Defensive Stopper",
+                score=55.0,
+                percentile=52.0,
+                coverage=1.0,
+                components=("Interceptions /90",),
+            ),
+            scores=[],
+            metrics=[MetricReading("Interceptions /90", 44.0)],
+            minutes=2000,
+            sample_band_label=None,
+            detailed_coverage_pct=None,
+        )
+        assert "driven mainly by" not in reading.profile[0]
+
+    def test_a_lower_is_better_component_is_judged_on_merit(self) -> None:
+        reading = interpret(
+            role=RoleReading(
+                label="Deep-Lying Playmaker",
+                score=80.0,
+                percentile=90.0,
+                coverage=1.0,
+                components=("Dispossessed /90",),
+            ),
+            scores=[],
+            metrics=[MetricReading("Dispossessed /90", 4.0, lower_is_better=True)],
+            minutes=2000,
+            sample_band_label=None,
+            detailed_coverage_pct=None,
+        )
+        assert "driven mainly by dispossessed" in reading.profile[0]
+
+    def test_the_scores_are_called_what_the_rest_of_the_site_calls_them(self) -> None:
+        reading = interpret(
+            role=None,
+            scores=[ScoreReading("Defensive Activity", 82.0)],
+            metrics=[],
+            minutes=2000,
+            sample_band_label=None,
+            detailed_coverage_pct=None,
+        )
+        assert any("intelligence scores" in line for line in reading.profile)
+        assert not any("profile dimensions" in line for line in reading.profile)
+
+
+class TestMetricLabelsInProse:
+    """A sentence with table headings dropped into it is not a sentence."""
+
+    def test_the_per_90_suffix_is_a_unit_not_a_word(self) -> None:
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("Interceptions /90") == "interceptions"
+        assert _in_prose("Fouls drawn /90") == "fouls drawn"
+
+    def test_a_percent_sign_becomes_a_word(self) -> None:
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("Duel win %") == "duel win rate"
+        assert _in_prose("Pass completion %") == "pass completion rate"
+
+    def test_an_acronym_keeps_its_shape(self) -> None:
+        """ "npxg" is a different thing from the row it points at."""
+        from app.analytics.interpretation import _in_prose
+
+        assert _in_prose("npxG /90") == "npxG"
+        assert _in_prose("xA /90") == "xA"

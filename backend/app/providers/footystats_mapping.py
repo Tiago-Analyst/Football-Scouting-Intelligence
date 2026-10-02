@@ -18,7 +18,7 @@ whole point of this file is that it is evidence.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -54,6 +54,40 @@ class MappedField:
 
 
 @dataclass(frozen=True)
+class DerivedField:
+    """One canonical metric the provider does not carry but the data yields.
+
+    FootyStats has no non-penalty goals field; it has goals and penalty goals,
+    and the difference is the answer. That is a derivation, not an absence, and
+    the distinction matters to a reader: "unavailable" says the system cannot
+    see something, and here it can.
+
+    `formula` is the arithmetic as a person would write it, kept so the claim
+    can be checked against the response named beside it.
+    """
+
+    metric: CanonicalMetric
+    formula: str
+    verified_on: date
+    note: str
+
+
+@dataclass(frozen=True)
+class AbsentField:
+    """One canonical metric the provider genuinely cannot supply, and why.
+
+    Not a placeholder. Each of these was profiled against real responses, and
+    the reason says what was found - a key declared and never populated, an
+    attempt count absent where only the successes are given, a percentage that
+    returns zero for everybody. A list of names tells a reader nothing; this
+    tells them whether the gap could ever close.
+    """
+
+    metric: CanonicalMetric
+    reason: str
+
+
+@dataclass(frozen=True)
 class FootyStatsMapping:
     """What FootyStats has been verified to supply.
 
@@ -65,6 +99,8 @@ class FootyStatsMapping:
     metrics: dict[CanonicalMetric, MappedField]
     verified_against: tuple[str, ...]
     rejected: dict[str, str]
+    derived: dict[CanonicalMetric, DerivedField] = field(default_factory=dict)
+    absent: dict[CanonicalMetric, AbsentField] = field(default_factory=dict)
 
     @property
     def is_empty(self) -> bool:
@@ -72,7 +108,19 @@ class FootyStatsMapping:
 
     @property
     def available_metrics(self) -> frozenset[CanonicalMetric]:
-        return frozenset(self.metrics)
+        """Everything the provider can produce, however it produces it.
+
+        Derived metrics belong here. The provider computes non-penalty goals
+        and penalties taken from fields it does supply, and the site has shown
+        both for as long as it has shown anything - while the data quality
+        page, reading this set, called them unavailable. A page whose only job
+        is to be truthful about the data was wrong about the data.
+
+        The distinction between native and derived is worth keeping, and
+        `derived` keeps it. What it must not do is decide whether the metric
+        exists.
+        """
+        return frozenset(self.metrics) | frozenset(self.derived)
 
     def missing(self) -> frozenset[CanonicalMetric]:
         """Canonical metrics FootyStats has not been verified to supply."""
@@ -183,7 +231,69 @@ def load_mapping(path: Path | None = None) -> FootyStatsMapping:
         metrics={entry.metric: entry for entry in parsed.values()},
         verified_against=tuple(str(item) for item in verified_against),
         rejected={str(k): str(v) for k, v in rejected_block.items()},
+        derived=_parse_derived(raw.get("derived") or {}),
+        absent=_parse_absent(raw.get("absent") or []),
     )
+
+
+def _parse_derived(block: Any) -> dict[CanonicalMetric, DerivedField]:
+    """Metrics computed from fields the provider does supply.
+
+    Held to the same evidence standard as a direct mapping: a derivation
+    nobody can check is a number nobody should trust, and arithmetic is
+    exactly where a plausible-looking mistake hides.
+    """
+    if not isinstance(block, dict):
+        raise MappingError("'derived' must be a mapping of metric name to definition")
+
+    out: dict[CanonicalMetric, DerivedField] = {}
+    for name, entry in block.items():
+        try:
+            metric = CanonicalMetric(str(name))
+        except ValueError as exc:
+            raise MappingError(f"'{name}' in 'derived' is not a canonical metric") from exc
+        if not isinstance(entry, dict):
+            raise MappingError(f"derivation for '{name}' must be a block of keys")
+        gaps = {"from", "verified_on", "note"} - set(entry)
+        if gaps:
+            raise MappingError(
+                f"derivation for '{name}' is missing {', '.join(sorted(gaps))}. "
+                "Every derivation must say what it is computed from, when that "
+                "was checked, and on what basis."
+            )
+        verified = entry["verified_on"]
+        if not isinstance(verified, date):
+            raise MappingError(f"derivation for '{name}' needs a real date in 'verified_on'")
+        out[metric] = DerivedField(
+            metric=metric,
+            formula=str(entry["from"]).strip(),
+            verified_on=verified,
+            note=str(entry["note"]).strip(),
+        )
+    return out
+
+
+def _parse_absent(block: Any) -> dict[CanonicalMetric, AbsentField]:
+    """Metrics profiling established the provider cannot supply.
+
+    A reason is required. "Unavailable" with nothing behind it reads as "not
+    looked at yet", and these were looked at - with sample counts.
+    """
+    if not isinstance(block, list):
+        raise MappingError("'absent' must be a list of {metric, reason} entries")
+
+    out: dict[CanonicalMetric, AbsentField] = {}
+    for entry in block:
+        if not isinstance(entry, dict) or "metric" not in entry or "reason" not in entry:
+            raise MappingError("each 'absent' entry needs a 'metric' and a 'reason'")
+        try:
+            metric = CanonicalMetric(str(entry["metric"]))
+        except ValueError as exc:
+            raise MappingError(
+                f"'{entry['metric']}' in 'absent' is not a canonical metric"
+            ) from exc
+        out[metric] = AbsentField(metric=metric, reason=str(entry["reason"]).strip())
+    return out
 
 
 @lru_cache(maxsize=1)

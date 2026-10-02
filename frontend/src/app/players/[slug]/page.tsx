@@ -20,22 +20,10 @@ import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState } from "@/components/ui/States";
-import {
-  Table,
-  TableWrap,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-} from "@/components/ui/Table";
+import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
-import {
-  canPrerenderEverything,
-  getPlayerProfile,
-  searchPlayers,
-} from "@/lib/players";
+import { canPrerenderEverything, getPlayerProfile, searchPlayers } from "@/lib/players";
 import type { Score } from "@/types/api";
 
 /**
@@ -87,9 +75,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
  */
 export const revalidate = 3600;
 
-export async function generateMetadata(
-  props: PageProps<"/players/[slug]">,
-): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/players/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
   // The same request the page makes, so the fetch cache serves both from one
   // round trip rather than doubling the work of rendering every profile.
@@ -97,9 +83,7 @@ export async function generateMetadata(
   return { title: profile ? profile.player.name : "Player" };
 }
 
-export default async function PlayerProfilePage(
-  props: PageProps<"/players/[slug]">,
-) {
+export default async function PlayerProfilePage(props: PageProps<"/players/[slug]">) {
   const { slug } = await props.params;
   // One request rather than four. At five and a half thousand profiles the
   // difference decides whether the deploy can render them all.
@@ -149,14 +133,8 @@ export default async function PlayerProfilePage(
         actions={
           <>
             {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
-            <SampleSizeBadge
-              band={player.sample_band}
-              minutes={player.minutes}
-            />
-            <SaveToShortlist
-              playerId={player.player_id}
-              playerName={player.name}
-            />
+            <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
+            <SaveToShortlist playerId={player.player_id} playerName={player.name} />
           </>
         }
       />
@@ -191,18 +169,12 @@ export default async function PlayerProfilePage(
         />
         <StatTile
           label="Market value"
-          value={
-            player.market_value_eur !== null
-              ? formatEuro(player.market_value_eur)
-              : "–"
-          }
+          value={player.market_value_eur !== null ? formatEuro(player.market_value_eur) : "–"}
           hint="Estimate, not a fee"
         />
         <StatTile
           label="Contract until"
-          value={
-            player.contract_expires ? formatDate(player.contract_expires) : "–"
-          }
+          value={player.contract_expires ? formatDate(player.contract_expires) : "–"}
         />
       </div>
 
@@ -239,10 +211,9 @@ export default async function PlayerProfilePage(
               <span className="flex items-center gap-1.5">
                 Intelligence profile
                 <Tooltip label="What are intelligence scores?">
-                  Each score combines several metrics, converted to percentiles
-                  within the comparison group first, then weighted. A score of
-                  0–100 says where this player sits on that composite — not how
-                  good they are.
+                  Each score combines several metrics, converted to percentiles within the
+                  comparison group first, then weighted. A score of 0–100 says where this player
+                  sits on that composite — not how good they are.
                 </Tooltip>
               </span>
             }
@@ -250,17 +221,13 @@ export default async function PlayerProfilePage(
           />
           <CardBody className="space-y-3.5">
             {(stats?.scores ?? []).map((score) => (
-              <div
-                key={score.key}
-                className="grid grid-cols-[9.5rem_1fr] items-center gap-3"
-              >
+              <div key={score.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
                 <span className="flex items-center gap-1 text-xs text-muted">
                   {score.label}
                   {score.description || score.caveat ? (
                     <Tooltip label={`What is ${score.label}?`}>
                       {score.description ? <>{score.description} </> : null}
-                      Expressed relative to comparable players, not as a measure
-                      of quality.
+                      Expressed relative to comparable players, not as a measure of quality.
                       {score.caveat ? <> {score.caveat}</> : null}
                     </Tooltip>
                   ) : null}
@@ -288,17 +255,14 @@ export default async function PlayerProfilePage(
               <span className="flex items-center gap-1.5">
                 Role compatibility
                 <Tooltip label="Raw Role Fit and Role Fit Percentile">
-                  Raw Role Fit is the weighted statistical profile score, built
-                  from the components listed below it. Role Fit Percentile is
-                  where that score stands among every player evaluated for the
-                  same role. Roles weight their components differently, so raw
-                  scores from two roles are not directly comparable — the
-                  percentile is, and it is what the best role is chosen by.
-                  Metric Coverage, shown when it is below full, is the share of
-                  the role&rsquo;s configured weight backed by metrics the
-                  provider actually supplies; missing components are left out
-                  rather than counted as zero. None of the three is player
-                  quality.
+                  Raw Role Fit is the weighted statistical profile score, built from the components
+                  listed below it. Role Fit Percentile is where that score stands among every player
+                  evaluated for the same role. Roles weight their components differently, so raw
+                  scores from two roles are not directly comparable — the percentile is, and it is
+                  what the best role is chosen by. Metric Coverage, shown when it is below full, is
+                  the share of the role&rsquo;s configured weight backed by metrics the provider
+                  actually supplies; missing components are left out rather than counted as zero.
+                  None of the three is player quality.
                 </Tooltip>
               </span>
             }
@@ -321,21 +285,15 @@ export default async function PlayerProfilePage(
                           name promises more than was measured. Marked, rather
                           than left to be inferred from a coverage figure
                           further down the row. */}
-                      {role.is_limited ? (
-                        <Badge tone="warning">Limited</Badge>
-                      ) : null}
+                      {role.is_limited ? <Badge tone="warning">Limited</Badge> : null}
                     </span>
                     {/* The bar shows the standing where there is one, because
                         that is what can be read across rows. */}
-                    <PercentileBar
-                      percentile={role.role_fit_percentile ?? role.score ?? 0}
-                    />
+                    <PercentileBar percentile={role.role_fit_percentile ?? role.score ?? 0} />
                   </div>
                   <p className="pl-[9.5rem] text-[11px] text-subtle tabular">
-                    Raw Role Fit{" "}
-                    {role.score !== null ? Math.round(role.score) : "N/A"}
-                    {role.role_fit_percentile !== null &&
-                    role.role_fit_percentile !== undefined ? (
+                    Raw Role Fit {role.score !== null ? Math.round(role.score) : "N/A"}
+                    {role.role_fit_percentile !== null && role.role_fit_percentile !== undefined ? (
                       <>
                         {" · "}
                         {ordinal(role.role_fit_percentile)} percentile of{" "}
@@ -357,18 +315,14 @@ export default async function PlayerProfilePage(
                       <>
                         {" · "}
                         <span
-                          className={
-                            role.is_limited ? "text-warning" : "text-subtle"
-                          }
+                          className={role.is_limited ? "text-warning" : "text-subtle"}
                           title={
                             role.explanation ??
                             "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
                           }
                         >
                           {Math.round(role.coverage * 100)}% metric coverage
-                          {role.coverage_label
-                            ? ` · ${role.coverage_label}`
-                            : null}
+                          {role.coverage_label ? ` · ${role.coverage_label}` : null}
                         </span>
                       </>
                     ) : null}
@@ -376,9 +330,7 @@ export default async function PlayerProfilePage(
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted">
-                No role fit could be computed.
-              </p>
+              <p className="text-sm text-muted">No role fit could be computed.</p>
             )}
           </CardBody>
           <CardFooter className="space-y-2 text-subtle">
@@ -387,20 +339,14 @@ export default async function PlayerProfilePage(
                 all of it, and a reader comparing two rows cannot see that from
                 the numbers. */}
             {[roles?.best, ...(roles?.alternatives ?? [])]
-              .filter(
-                (role) =>
-                  role?.is_limited && (role?.explanation ?? role?.caveat),
-              )
+              .filter((role) => role?.is_limited && (role?.explanation ?? role?.caveat))
               .map((role) => (
                 <p key={role!.key} className="text-[11px] leading-relaxed">
                   <span className="font-medium">{role!.label}:</span>{" "}
                   {role!.explanation ?? role!.caveat}
                 </p>
               ))}
-            <p>
-              {roles?.meaning ??
-                "Role score measures resemblance to a profile."}
-            </p>
+            <p>{roles?.meaning ?? "Role score measures resemblance to a profile."}</p>
           </CardFooter>
         </Card>
       </div>
@@ -428,9 +374,11 @@ export default async function PlayerProfilePage(
             <span className="flex items-center gap-1.5">
               Per 90 minutes, with percentile rank
               <Tooltip label="What does a percentile mean here?">
-                A 94th percentile means this player ranks above 94% of the
-                comparison group on that metric. The comparison group is stated
-                below the table and is never hidden.
+                A 94th percentile means this player comes out better than 94% of the comparison
+                group on that metric. Higher is always better here, whichever way the metric runs: a
+                player who is rarely dispossessed reads high, not low. Where that flips the reading,
+                the rank by raw value is printed underneath. The comparison group is stated below
+                the table and is never hidden.
               </Tooltip>
             </span>
           }
@@ -445,7 +393,9 @@ export default async function PlayerProfilePage(
                 {/* A rank among 23 defenders and a rank among 752 are both
                     honest and are not the same claim. Showing only the first
                     lets a thin league read as a strong player. */}
-                <TH numeric className="w-28">All leagues</TH>
+                <TH numeric className="w-28">
+                  All leagues
+                </TH>
               </TR>
             </THead>
             <TBody>
@@ -455,34 +405,42 @@ export default async function PlayerProfilePage(
                     <span className="flex items-center gap-1.5">
                       {metric.label}
                       {metric.lower_is_better ? (
-                        <span className="text-[10px] text-subtle">
-                          (lower is better)
-                        </span>
+                        <span className="text-[10px] text-subtle">(lower is better)</span>
                       ) : null}
                     </span>
                   </TD>
-                  <TD numeric>
-                    {metric.value !== null ? metric.value.toFixed(2) : "–"}
-                  </TD>
+                  <TD numeric>{metric.value !== null ? metric.value.toFixed(2) : "–"}</TD>
                   <TD>
-                    {metric.percentile !== null ? (
-                      <PercentileBar
-                        percentile={metric.percentile}
-                        lowerIsBetter={metric.lower_is_better}
-                      />
+                    {metric.performance_percentile !== null ? (
+                      <>
+                        <PercentileBar
+                          percentile={metric.performance_percentile}
+                          lowerIsBetter={metric.lower_is_better}
+                        />
+                        {/* The rank in the distribution, kept for the metrics
+                            where it differs from the performance one. "4% of
+                            players are dispossessed less often" and "better
+                            than 96% of players" are the same sentence; only
+                            the second is read correctly at a glance, so it
+                            leads - and the first is still here, named, for
+                            anyone who wants the distribution itself. */}
+                        {metric.lower_is_better && metric.percentile !== null ? (
+                          <span className="mt-1 block text-[10px] text-subtle">
+                            {ordinal(metric.percentile)} by raw value
+                          </span>
+                        ) : null}
+                      </>
                     ) : (
                       <span className="text-xs text-subtle">
                         {metric.unavailable_reason ?? "Not available"}
                       </span>
                     )}
                   </TD>
-                  {/* The rank as printed, exactly as the bar beside it. The
-                      direction is already stated on the metric's own name, and
-                      two numbers on one row that orient differently is the
-                      mistake this page has made before. */}
+                  {/* Oriented too, so the two columns on a row answer the same
+                      question of two different populations. */}
                   <TD numeric className="text-xs text-muted">
-                    {metric.global_percentile !== null
-                      ? ordinal(metric.global_percentile)
+                    {metric.global_performance_percentile !== null
+                      ? ordinal(metric.global_performance_percentile)
                       : "–"}
                   </TD>
                 </TR>
@@ -496,12 +454,11 @@ export default async function PlayerProfilePage(
             {stats.global_context ? (
               <p className="text-xs leading-relaxed text-subtle">
                 The second column ranks the same figures against all{" "}
-                {formatCount(stats.global_context.population_size)} players in this
-                position across every loaded competition. Neither column is adjusted
-                for how strong a league is, because this system does not model that:
-                a player high at home and lower here has not been judged worse, they
-                have been placed in a bigger population. Which number matters is a
-                recruitment decision, not a statistical one.
+                {formatCount(stats.global_context.population_size)} players in this position across
+                every loaded competition. Neither column is adjusted for how strong a league is,
+                because this system does not model that: a player high at home and lower here has
+                not been judged worse, they have been placed in a bigger population. Which number
+                matters is a recruitment decision, not a statistical one.
               </p>
             ) : null}
           </CardFooter>
@@ -509,10 +466,7 @@ export default async function PlayerProfilePage(
       </Card>
 
       {stats?.context?.caveat ? (
-        <Callout
-          tone="warning"
-          title="Cross-league comparison is not strength-adjusted"
-        >
+        <Callout tone="warning" title="Cross-league comparison is not strength-adjusted">
           {stats.context.caveat}
         </Callout>
       ) : null}
@@ -520,11 +474,7 @@ export default async function PlayerProfilePage(
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Similar players</h2>
-          <ButtonLink
-            href={`/similar?player=${player.player_id}`}
-            variant="secondary"
-            size="sm"
-          >
+          <ButtonLink href={`/similar?player=${player.player_id}`} variant="secondary" size="sm">
             Open similarity search
           </ButtonLink>
         </div>
@@ -546,7 +496,7 @@ export default async function PlayerProfilePage(
                         said so for a while; this table did not, which meant
                         the profile was the less honest of the two. */}
                     <TH numeric>Shared</TH>
-                    <TH numeric>Coverage</TH>
+                    <TH numeric>Feature coverage</TH>
                     <TH numeric>Value</TH>
                   </TR>
                 </THead>
@@ -563,36 +513,47 @@ export default async function PlayerProfilePage(
                           </Link>
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">
-                                Different profile strength
-                              </Badge>
+                              <Badge tone="warning">Different profile strength</Badge>
                             </span>
                           ) : null}
                         </TD>
                         <TD numeric>{entry.player.age ?? "–"}</TD>
-                        <TD className="whitespace-nowrap">
-                          {entry.player.club ?? "–"}
-                        </TD>
+                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD className="whitespace-nowrap text-muted">
                           {entry.player.best_role ?? "–"}
                         </TD>
                         <TD numeric className="font-medium">
                           {Math.round(entry.similarity)}
+                          <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                            index, not %
+                          </span>
                         </TD>
                         <TD numeric className="whitespace-nowrap text-muted">
                           {entry.shared_features} / {entry.expected_features}
                         </TD>
                         <TD numeric className="whitespace-nowrap">
+                          {/* The band in words, not in a tooltip. A similarity
+                              of 99 beside a bare "55%" gets read as 99%
+                              certain; beside "Limited coverage" it reads as
+                              what it is - a confident answer to a narrower
+                              question. */}
                           <span
                             className={
-                              entry.coverage_band === "high" ||
-                              entry.coverage_band === "good"
+                              entry.coverage_band === "high" || entry.coverage_band === "good"
                                 ? "text-muted"
                                 : "text-warning"
                             }
-                            title={entry.coverage_label}
                           >
                             {Math.round(entry.feature_coverage_pct)}%
+                          </span>
+                          <span
+                            className={
+                              entry.coverage_band === "high" || entry.coverage_band === "good"
+                                ? "mt-0.5 block text-[10px] text-subtle"
+                                : "mt-0.5 block text-[10px] text-warning"
+                            }
+                          >
+                            {entry.coverage_label}
                           </span>
                         </TD>
                         <TD numeric>
@@ -607,10 +568,7 @@ export default async function PlayerProfilePage(
                         came out where it did opens it. */}
                       <TR className="border-t-0!">
                         <TD colSpan={8} className="pt-0">
-                          <SimilarityBreakdown
-                            entry={entry}
-                            targetName={player.name}
-                          />
+                          <SimilarityBreakdown entry={entry} targetName={player.name} />
                         </TD>
                       </TR>
                     </Fragment>
@@ -618,9 +576,7 @@ export default async function PlayerProfilePage(
                 </TBody>
               </Table>
             </TableWrap>
-            <p className="text-[11px] leading-relaxed text-subtle">
-              {similar.meaning}
-            </p>
+            <p className="text-[11px] leading-relaxed text-subtle">{similar.meaning}</p>
           </>
         ) : (
           <EmptyState
@@ -658,17 +614,13 @@ function WhyBestRole({ role }: { role: Score }) {
               <TR key={component.metric}>
                 <TD>{component.label}</TD>
                 <TD numeric>
-                  {component.percentile !== null
-                    ? component.percentile.toFixed(1)
-                    : "–"}
+                  {component.percentile !== null ? component.percentile.toFixed(1) : "–"}
                 </TD>
                 <TD numeric className="text-muted">
                   {Math.round(component.weight)}%
                 </TD>
                 <TD numeric className="font-medium">
-                  {component.contribution !== null
-                    ? component.contribution.toFixed(1)
-                    : "–"}
+                  {component.contribution !== null ? component.contribution.toFixed(1) : "–"}
                 </TD>
               </TR>
             ))}

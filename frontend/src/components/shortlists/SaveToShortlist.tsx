@@ -117,6 +117,10 @@ export function SaveToShortlist({
         </p>
       ) : null}
 
+      {/* Choosing from the select changes nothing until this is pressed, and
+          a select that already shows a shortlist name looks like a choice
+          that has been made. The button says the action and the line under it
+          says when it happens. */}
       <div className="flex items-center gap-2">
         <SaveButton />
         <button
@@ -124,9 +128,12 @@ export function SaveToShortlist({
           onClick={() => setOpen(false)}
           className="text-xs text-subtle hover:text-text"
         >
-          Close
+          Cancel
         </button>
       </div>
+      <p className="text-[11px] leading-relaxed text-subtle">
+        Nothing is saved until you press Add to shortlist.
+      </p>
     </form>
   );
 }
@@ -135,7 +142,7 @@ function SaveButton() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={buttonStyles("primary", "sm")}>
-      {pending ? "Saving…" : "Save"}
+      {pending ? "Adding…" : "Add to shortlist"}
     </button>
   );
 }

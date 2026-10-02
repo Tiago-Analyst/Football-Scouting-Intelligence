@@ -11,6 +11,7 @@ import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { formatCount, formatEuro } from "@/lib/format";
+import { describeProfile } from "@/lib/profile-summary";
 import {
   getCompetitions,
   getRecruitmentPresets,
@@ -25,6 +26,18 @@ export const metadata: Metadata = {
 };
 
 const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
+
+/** What to call a position group in a sentence, rather than in a filter. */
+const POSITION_LABELS: Record<string, string> = {
+  GK: "goalkeeper",
+  CB: "centre-back",
+  FB_WB: "full-back or wing-back",
+  DM: "defensive midfielder",
+  CM: "central midfielder",
+  AM: "attacking midfielder",
+  WINGER: "winger",
+  FORWARD: "forward",
+};
 
 /** The eight intelligence scores, with the spec's "Progressive #6" defaults. */
 const SCORES = [
@@ -96,6 +109,12 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
 
   // Only the unavailable scores this profile actually weights. Warning about
   // one the reader has set to zero would be noise about a choice they made.
+  const summary = describeProfile(
+    weights,
+    SCORES,
+    first(params.position_group) ? POSITION_LABELS[first(params.position_group)!] : undefined,
+  );
+
   const blockedNow = Object.keys(weights)
     .map((key) => unavailable.get(key))
     .filter((score) => score !== undefined);
@@ -258,6 +277,15 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
               />
             </Field>
           </fieldset>
+
+          {/* The weights read back. Eight numbers in eight boxes are a
+              specification nobody re-reads, and a profile edited over several
+              minutes drifts invisibly. */}
+          {summary ? (
+            <p className="rounded-md border border-border bg-surface-2 px-3 py-2.5 text-[11px] leading-relaxed text-muted">
+              {summary}
+            </p>
+          ) : null}
 
           {blockedNow.length > 0 ? (
             <div className="space-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">

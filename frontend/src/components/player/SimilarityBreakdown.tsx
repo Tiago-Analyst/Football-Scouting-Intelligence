@@ -109,7 +109,10 @@ function Side({ label, percentile }: { label: string; percentile: number | null 
   return (
     <div className="grid grid-cols-[7rem_1fr] items-center gap-2">
       <span className="truncate text-[11px] text-subtle">{label}</span>
-      <PercentileBar percentile={percentile} />
+      {/* Neutral: similarity compares raw percentiles on purpose, so these
+          are positions in a distribution and not performances. The merit
+          ramp would paint a judgement onto a number that is not making one. */}
+      <PercentileBar percentile={percentile} neutral />
     </div>
   );
 }

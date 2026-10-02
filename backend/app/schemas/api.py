@@ -53,7 +53,18 @@ class MetricOut(BaseModel):
     metric: str
     label: str
     value: float | None
+    #: Rank in the metric's own direction: a high percentile for
+    #: `dispossessed_per90` means dispossessed often. Kept because it is the
+    #: rank in the distribution and sometimes that is the question.
     percentile: float | None
+    #: The same rank oriented so higher is always better.
+    #:
+    #: This is what the site displays. A metric table that printed "4th" for a
+    #: player who is rarely dispossessed, beside a Scouting Interpretation
+    #: calling the same figure a strength, was two pages disagreeing about one
+    #: number - and 4 reads as bad to everyone who has not stopped to work out
+    #: which way the metric runs.
+    performance_percentile: float | None = None
     #: The same value ranked against every loaded competition rather than the
     #: player's own. Present only when `percentile` is a domestic rank, so the
     #: two are never the same number printed twice.
@@ -65,6 +76,9 @@ class MetricOut(BaseModel):
     #: believe is a recruitment judgement, and showing both is what lets
     #: somebody make it.
     global_percentile: float | None = None
+    #: Oriented, like `performance_percentile`, so the two columns on a row
+    #: can be read against each other.
+    global_performance_percentile: float | None = None
     #: True when a low value is the better outcome, so the UI can say so.
     lower_is_better: bool = False
     unavailable_reason: str | None = None
@@ -652,6 +666,14 @@ class ComparedPlayer(BaseModel):
     metrics: list[MetricOut]
     scores: list[ScoreOut]
     role: ScoreOut | None
+    #: The same deterministic reading the profile page shows, per column.
+    #:
+    #: A comparison of five players is forty rows before it answers "what
+    #: stands out about each of these", and that is the question it is opened
+    #: to answer. Produced by the one reader the profile already uses rather
+    #: than a second summariser, because two deterministic readings of one
+    #: player would eventually disagree on two pages.
+    interpretation: ScoutingInterpretationOut | None = None
 
 
 class ComparisonResponse(BaseModel):
@@ -835,6 +857,25 @@ class RefreshStatusOut(BaseModel):
     current: RefreshGenerationOut | None = None
 
 
+class MetricAvailabilityOut(BaseModel):
+    """A canonical metric the provider cannot supply, and what was found."""
+
+    metric: str
+    label: str
+    #: Null when nothing was recorded. Absent evidence is stated as absent
+    #: rather than filled with a plausible sentence.
+    reason: str | None = None
+
+
+class DerivedMetricOut(BaseModel):
+    """A metric with no provider field, computed from ones that exist."""
+
+    metric: str
+    label: str
+    #: The arithmetic, so the claim can be checked rather than believed.
+    formula: str
+
+
 class DataQualityResponse(BaseModel):
     """What was checked, when, and what it found."""
 
@@ -863,6 +904,14 @@ class DataQualityResponse(BaseModel):
     #: Canonical metrics the configured provider cannot supply at all. Empty in
     #: demo mode, where everything is fabricated.
     unavailable_metrics: list[str] = Field(default_factory=list)
+    #: The same metrics with the evidence that established each absence. A
+    #: list of five names says nothing about whether a gap could ever close;
+    #: "declared and null in all 691 sampled records" says it cannot.
+    unavailable_detail: list[MetricAvailabilityOut] = Field(default_factory=list)
+    #: Metrics the provider has no field for and the system computes anyway.
+    #: Reported separately because they are the opposite fact, and were being
+    #: reported as the same one.
+    derived_metrics: list[DerivedMetricOut] = Field(default_factory=list)
     analytics: AnalyticsFreshnessOut | None = None
     #: FootyStats refresh progress. `None` when no generation exists yet,
     #: which is the normal state of a database loaded before generations.

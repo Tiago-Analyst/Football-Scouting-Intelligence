@@ -7,28 +7,14 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
-import {
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  TableWrap,
-} from "@/components/ui/Table";
+import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { formatCount, formatDate } from "@/lib/format";
 import { getDataQuality } from "@/lib/system";
-import type {
-  CheckStatus,
-  ProviderQuality,
-  QualityCheck,
-  SourceFreshness,
-} from "@/types/api";
+import type { CheckStatus, ProviderQuality, QualityCheck, SourceFreshness } from "@/types/api";
 
 export const metadata: Metadata = {
   title: "Data quality",
-  description:
-    "Source freshness, coverage and the automated checks run on every load.",
+  description: "Source freshness, coverage and the automated checks run on every load.",
 };
 
 const TONE: Record<CheckStatus, BadgeTone> = {
@@ -83,24 +69,38 @@ async function Report({
         </Callout>
       ) : null}
 
+      {/* These four and the "what the API is serving" tiles further down count
+          different things, and the gaps between them are large enough to read
+          as a contradiction: 53,591 players against 5,462 served. Each hint
+          says which population it is, so nobody has to guess that identity
+          records and rankable player-seasons are not the same universe. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Players" value={formatCount(report.volumes.players)} />
+        <StatTile
+          label="Players"
+          value={formatCount(report.volumes.players)}
+          hint="Identity records, from every source. Most carry market data only."
+        />
         <StatTile
           label="Player seasons"
           value={formatCount(report.volumes.player_seasons)}
+          hint="Performance rows loaded. Fewer are rankable — see below."
         />
-        <StatTile label="Clubs" value={formatCount(report.volumes.clubs)} />
+        <StatTile
+          label="Clubs"
+          value={formatCount(report.volumes.clubs)}
+          hint="Clubs referenced by any loaded record."
+        />
         <StatTile
           label="Competitions"
           value={formatCount(report.volumes.competitions)}
+          hint="Competitions referenced by any loaded record."
         />
       </div>
 
       {failing.length > 0 ? (
         <Callout tone="caution" title={`${failing.length} check(s) failing`}>
-          A failing check means the loaded data violates something the system
-          relies on. Figures derived from it may be wrong, not merely
-          incomplete.
+          A failing check means the loaded data violates something the system relies on. Figures
+          derived from it may be wrong, not merely incomplete.
         </Callout>
       ) : null}
 
@@ -152,8 +152,7 @@ async function Report({
               </p>
             ) : (
               <p className="text-sm text-muted">
-                Not measurable: no loaded player-season carries both minute
-                counts.
+                Not measurable: no loaded player-season carries both minute counts.
               </p>
             )}
           </CardBody>
@@ -162,22 +161,52 @@ async function Report({
         <Card>
           <CardHeader
             title="Metrics the provider cannot supply"
-            description="Permanently unavailable rather than thin in this load. Nothing is substituted for them, and every score depending on one is either computed from the rest with its coverage stated, or switched off."
+            description="Permanently unavailable rather than thin in this load, each with what profiling found. Nothing is substituted for them, and every score depending on one is either computed from the rest with its coverage stated, or switched off."
           />
-          <CardBody>
-            {report.unavailable_metrics.length === 0 ? (
+          <CardBody className="space-y-4">
+            {report.unavailable_detail.length === 0 ? (
               <p className="text-sm text-muted">
-                None. Every canonical metric is supplied or derivable.
+                None. Every canonical metric is supplied or derived.
               </p>
             ) : (
-              <ul className="flex flex-wrap gap-2">
-                {report.unavailable_metrics.map((metric) => (
-                  <li key={metric}>
-                    <Badge tone="neutral">{metric}</Badge>
+              <ul className="space-y-2.5">
+                {report.unavailable_detail.map((metric) => (
+                  <li key={metric.metric}>
+                    <span className="text-sm">{metric.label}</span>
+                    {/* The evidence, not the name. "Unavailable" alone reads
+                        as "not looked at yet"; these were profiled, with
+                        sample counts, and the reason says whether the gap
+                        could ever close. */}
+                    <p className="mt-0.5 text-xs leading-relaxed text-subtle">
+                      {metric.reason ?? "No reason was recorded for this absence."}
+                    </p>
                   </li>
                 ))}
               </ul>
             )}
+
+            {report.derived_metrics.length > 0 ? (
+              <div className="border-t border-border pt-3">
+                <p className="mb-2 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+                  Supplied by derivation
+                </p>
+                {/* The opposite fact, and it used to be reported as the same
+                    one: these were listed as unavailable while appearing on
+                    every profile that has them. */}
+                <p className="mb-2 text-xs leading-relaxed text-subtle">
+                  The provider has no field for these. They are computed from fields it does supply,
+                  and the arithmetic is shown so the claim can be checked.
+                </p>
+                <ul className="space-y-1">
+                  {report.derived_metrics.map((metric) => (
+                    <li key={metric.metric} className="text-xs">
+                      <span className="text-muted">{metric.label}</span>{" "}
+                      <span className="text-subtle">= {metric.formula}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </CardBody>
         </Card>
       </div>
@@ -196,17 +225,10 @@ async function Report({
                 label="Players in the served view"
                 value={formatCount(report.analytics.players)}
               />
-              <StatTile
-                label="Competitions"
-                value={formatCount(report.analytics.competitions)}
-              />
+              <StatTile label="Competitions" value={formatCount(report.analytics.competitions)} />
               <StatTile
                 label="View built"
-                value={
-                  report.analytics.built_at
-                    ? formatDate(report.analytics.built_at)
-                    : "–"
-                }
+                value={report.analytics.built_at ? formatDate(report.analytics.built_at) : "–"}
                 hint={
                   report.analytics.is_stale
                     ? "The database has moved since"
@@ -215,13 +237,9 @@ async function Report({
               />
             </div>
             {report.analytics.is_stale ? (
-              <Callout
-                tone="note"
-                title="The database has changed since this view was built"
-              >
-                A refreshed load reaches readers when the pipeline asks the API
-                to rebuild. Until then the previous figures are served —
-                consistent, and behind.
+              <Callout tone="note" title="The database has changed since this view was built">
+                A refreshed load reaches readers when the pipeline asks the API to rebuild. Until
+                then the previous figures are served — consistent, and behind.
               </Callout>
             ) : null}
           </CardBody>
@@ -234,6 +252,20 @@ async function Report({
           description="When each source's data was last published to this site, and when its checks last ran. Three different facts, kept apart: checks run routinely against data nobody replaced, and a refresh can load into staging without ever reaching production."
         />
         <CardBody className="p-0">
+          {/* Why "unknown" appears, since a blank in a freshness column reads
+              as a failure. The publication ledger was added after this data
+              was loaded, so no row names these sources. Nothing is filled in
+              from the check time or from a staging load: both answer
+              different questions, and either would be a false claim about
+              how current the figures are. */}
+          {report.sources.some((source) => source.last_published_at === null) ? (
+            <p className="px-5 pt-4 text-xs leading-relaxed text-subtle">
+              A publication time reads <em>unknown</em> where the publication ledger holds no row
+              for that source — data loaded before the ledger existed. It is left unknown rather
+              than filled in from the check time or a staging load, which answer different
+              questions.
+            </p>
+          ) : null}
           {report.sources.length === 0 ? (
             <EmptyState
               title="No source has been checked"
@@ -269,10 +301,7 @@ async function Report({
 
       {(report.providers ?? []).length === 0 ? (
         <Card>
-          <CardHeader
-            title="Automated checks"
-            description="Nothing has recorded a check yet."
-          />
+          <CardHeader title="Automated checks" description="Nothing has recorded a check yet." />
           <CardBody>
             <EmptyState title="No checks recorded" />
           </CardBody>
@@ -299,17 +328,11 @@ function SourceRow({ source }: { source: SourceFreshness }) {
             Never filled in from the check time beside it, and never from a
             staging load that may not have reached production. */}
         {source.last_published_at !== null ? (
-          <span
-            className={dataStale ? "text-warning" : undefined}
-            title={source.last_published_at}
-          >
+          <span className={dataStale ? "text-warning" : undefined} title={source.last_published_at}>
             {formatDate(source.last_published_at)}
           </span>
         ) : (
-          <span
-            className="text-subtle"
-            title="Published before publication times were recorded, or never published"
-          >
+          <span className="text-subtle" title="No row in the publication ledger names this source">
             unknown
           </span>
         )}
@@ -320,20 +343,8 @@ function SourceRow({ source }: { source: SourceFreshness }) {
         </span>
       </TD>
       <TD numeric>{source.checks_run}</TD>
-      <TD numeric>
-        {source.warnings > 0 ? (
-          <Badge tone="warning">{source.warnings}</Badge>
-        ) : (
-          "—"
-        )}
-      </TD>
-      <TD numeric>
-        {source.failures > 0 ? (
-          <Badge tone="danger">{source.failures}</Badge>
-        ) : (
-          "—"
-        )}
-      </TD>
+      <TD numeric>{source.warnings > 0 ? <Badge tone="warning">{source.warnings}</Badge> : "—"}</TD>
+      <TD numeric>{source.failures > 0 ? <Badge tone="danger">{source.failures}</Badge> : "—"}</TD>
     </TR>
   );
 }
@@ -377,20 +388,14 @@ function ProviderCard({ provider }: { provider: ProviderQuality }) {
             <>
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label="Last published">
-                  {published.published_at
-                    ? formatDate(published.published_at)
-                    : "unknown"}
+                  {published.published_at ? formatDate(published.published_at) : "unknown"}
                 </Field>
                 <Field label="Refresh">
-                  <span className="font-mono text-xs">
-                    {published.refresh_id ?? "—"}
-                  </span>
+                  <span className="font-mono text-xs">{published.refresh_id ?? "—"}</span>
                 </Field>
                 {published.generation_id ? (
                   <Field label="Generation">
-                    <span className="font-mono text-xs">
-                      {published.generation_id}
-                    </span>
+                    <span className="font-mono text-xs">{published.generation_id}</span>
                   </Field>
                 ) : null}
                 <Field label="Quality">{summarise(published.checks)}</Field>
@@ -401,15 +406,13 @@ function ProviderCard({ provider }: { provider: ProviderQuality }) {
                 </TableWrap>
               ) : (
                 <p className="text-sm text-muted">
-                  Published before checks carried a refresh identity; no checks
-                  are attributable to this dataset.
+                  Published before checks carried a refresh identity; no checks are attributable to
+                  this dataset.
                 </p>
               )}
             </>
           ) : (
-            <p className="text-sm text-muted">
-              Nothing from this source has been published.
-            </p>
+            <p className="text-sm text-muted">Nothing from this source has been published.</p>
           )}
         </section>
 
@@ -423,35 +426,27 @@ function ProviderCard({ provider }: { provider: ProviderQuality }) {
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label="Status">Checked, awaiting publication</Field>
                 <Field label="Refresh">
-                  <span className="font-mono text-xs">
-                    {candidate.refresh_id}
-                  </span>
+                  <span className="font-mono text-xs">{candidate.refresh_id}</span>
                 </Field>
                 {candidate.generation_id ? (
                   <Field label="Generation">
-                    <span className="font-mono text-xs">
-                      {candidate.generation_id}
-                    </span>
+                    <span className="font-mono text-xs">{candidate.generation_id}</span>
                   </Field>
                 ) : null}
-                <Field label="Last validation">
-                  {formatDate(candidate.executed_at)}
-                </Field>
+                <Field label="Last validation">{formatDate(candidate.executed_at)}</Field>
                 <Field label="Quality">{summarise(candidate.checks)}</Field>
               </dl>
               <p className="text-xs text-muted">
-                Checked against a staging copy that has not reached readers.
-                Nothing here describes the data on this site; it describes what
-                the next dataset would be if it were promoted.
+                Checked against a staging copy that has not reached readers. Nothing here describes
+                the data on this site; it describes what the next dataset would be if it were
+                promoted.
               </p>
               <TableWrap>
                 <ChecksTable checks={candidate.checks} />
               </TableWrap>
             </>
           ) : (
-            <p className="text-sm text-muted">
-              Idle — no candidate refresh is waiting.
-            </p>
+            <p className="text-sm text-muted">Idle — no candidate refresh is waiting.</p>
           )}
         </section>
       </CardBody>
@@ -459,18 +454,10 @@ function ProviderCard({ provider }: { provider: ProviderQuality }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[11px] tracking-wide text-subtle uppercase">
-        {label}
-      </dt>
+      <dt className="text-[11px] tracking-wide text-subtle uppercase">{label}</dt>
       <dd className="font-medium">{children}</dd>
     </div>
   );
@@ -490,10 +477,7 @@ function ChecksTable({ checks }: { checks: QualityCheck[] }) {
         </THead>
         <TBody>
           {checks.map((check) => (
-            <CheckRow
-              key={`${check.source}-${check.entity}-${check.check_name}`}
-              check={check}
-            />
+            <CheckRow key={`${check.source}-${check.entity}-${check.check_name}`} check={check} />
           ))}
         </TBody>
       </Table>
@@ -507,9 +491,7 @@ function CheckRow({ check }: { check: QualityCheck }) {
       <TD>
         <span className="font-medium">{check.check_name}</span>
         <span className="mt-0.5 block text-xs text-subtle">{check.entity}</span>
-        {check.detail ? (
-          <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p>
-        ) : null}
+        {check.detail ? <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p> : null}
       </TD>
       <TD className="text-xs text-muted">{check.source}</TD>
       <TD numeric>{formatCount(check.record_count)}</TD>

@@ -20,11 +20,13 @@ from app.analytics.similarity import (
     MIN_FEATURES,
     MINIMUM_SIMILARITY,
     SIMILARITY_MEANING,
+    FeatureCoverage,
     FeatureRepresentation,
     SimilarityCandidate,
     SimilarityConfigError,
     SimilarityEngine,
     SimilarityFilters,
+    classify_feature_coverage,
     cosine_similarity,
     get_feature_sets,
     load_feature_sets,
@@ -694,3 +696,70 @@ class TestTheFloor:
     def test_a_caller_can_widen_the_net_deliberately(self) -> None:
         engine = build_engine(varied_cohort())
         assert engine.similar_to("p10", limit=50, minimum_similarity=0.0)
+
+
+class TestCoverageIsReportedNotFoldedIn:
+    """An index of 99 over half the features, and what the result says about it.
+
+    The brief this came from names the failure precisely: 99 read as 99%
+    certainty when the match rests on about half of what was meant to be
+    compared. The engine's answer is that the two facts travel together and
+    neither is adjusted by the other.
+    """
+
+    def _sparse_pair(self) -> list[tuple[PlayerMetrics, SimilarityCandidate]]:
+        """Two players carrying seven of the eleven midfield features.
+
+        Seven and not fewer: below five the engine declines to rank the target
+        at all, which is a different behaviour with its own test. This is the
+        case the product actually ships - a confident index resting on about
+        two thirds of the intended comparison.
+        """
+        entries = varied_cohort()
+        partial = SPEC_MIDFIELD_FEATURES[:7]
+        shared = {name: 20.0 for name in partial}
+        entries.append(make_player("sparse_a", shared, club="sa"))
+        entries.append(make_player("sparse_b", dict(shared), club="sb"))
+        return entries
+
+    def test_a_thin_comparison_reports_a_low_coverage(self) -> None:
+        engine = build_engine(self._sparse_pair())
+        match = next(
+            r for r in matches(engine, "sparse_a", limit=50) if r.candidate.player_key == "sparse_b"
+        )
+        assert match.shared_features < match.expected_features
+        assert match.feature_coverage < 1.0
+
+    def test_a_high_index_on_thin_coverage_is_still_a_high_index(self) -> None:
+        """The index is not penalised for the gap. Multiplying it by coverage
+        would produce a number that is neither, and would mark down every
+        player the provider happens to describe less fully."""
+        engine = build_engine(self._sparse_pair())
+        match = next(
+            r for r in matches(engine, "sparse_a", limit=50) if r.candidate.player_key == "sparse_b"
+        )
+        assert match.similarity > 90.0
+        assert match.feature_coverage < 1.0
+
+    def test_the_coverage_carries_a_band_and_a_sentence(self) -> None:
+        """A bare percentage is what gets ignored beside a 99."""
+        engine = build_engine(self._sparse_pair())
+        match = next(
+            r for r in matches(engine, "sparse_a", limit=50) if r.candidate.player_key == "sparse_b"
+        )
+        assert match.coverage_band is FeatureCoverage.LIMITED
+        assert match.coverage_label == "Limited coverage"
+
+    def test_the_bands_are_the_documented_thresholds(self) -> None:
+        assert classify_feature_coverage(0.85) is FeatureCoverage.HIGH
+        assert classify_feature_coverage(0.84) is FeatureCoverage.GOOD
+        assert classify_feature_coverage(0.65) is FeatureCoverage.GOOD
+        assert classify_feature_coverage(0.64) is FeatureCoverage.LIMITED
+        assert classify_feature_coverage(0.50) is FeatureCoverage.LIMITED
+        assert classify_feature_coverage(0.49) is FeatureCoverage.VERY_LIMITED
+
+    def test_a_full_comparison_is_not_marked_down_for_nothing(self) -> None:
+        engine = build_engine(varied_cohort())
+        for match in matches(engine, "p10", limit=5):
+            if match.shared_features == match.expected_features:
+                assert match.coverage_band is FeatureCoverage.HIGH

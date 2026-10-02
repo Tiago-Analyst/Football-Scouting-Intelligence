@@ -30,6 +30,7 @@ from app.api.deps import SessionDep
 from app.api.v1.auth import CurrentUser
 from app.api.v1.players import (
     PROFILE_METRICS,
+    read_profile,
     to_context,
     to_metric,
     to_sample,
@@ -324,12 +325,25 @@ def compare(
     user: CurrentUser,
     db: SessionDep,
     players: Annotated[list[str] | None, Query(alias="player")] = None,
+    scope: str = Query(default="competition"),
 ) -> ComparisonResponse:
     """Compare up to five saved players side by side.
+
+    `scope` picks the population the percentiles are measured against. It is
+    the same engine and the same call the profile makes - one argument, no
+    second percentile path - and it is what answers the warning this response
+    already carries: ranked within each player's own competition the columns
+    cannot be read across, and ranked across every loaded competition they can.
+    Neither adjusts for league strength; nothing here does.
 
     Only players on this shortlist can be compared through it, so the endpoint
     cannot be used to assemble an arbitrary multi-player extract.
     """
+    try:
+        percentile_scope = PercentileScope(scope)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Unknown comparison scope") from exc
+
     svc.get_shortlist(db, user_id=user.user_id, shortlist_id=shortlist_id)
     entries = {e.player_key: e for e in svc.list_entries(db, shortlist_id=shortlist_id)}
 
@@ -357,7 +371,7 @@ def compare(
             # still visible on the shortlist itself, where the gap is explained.
             continue
 
-        ranked = view.rank(key, PROFILE_METRICS, scope=PercentileScope.COMPETITION)
+        ranked = view.rank(key, PROFILE_METRICS, scope=percentile_scope)
         metrics = [to_metric(ranked[m]) for m in PROFILE_METRICS if m in ranked]
         metrics = [m for m in metrics if m.value is not None]
         if context is None:
@@ -367,6 +381,7 @@ def compare(
             )
 
         fit = view.role_fit(key)
+        column_scores = [to_score(s) for s in view.scores(key, scope=percentile_scope).values()]
         entry = entries[key]
         entry_status = ShortlistStatus(entry.status)
         columns.append(
@@ -379,8 +394,16 @@ def compare(
                 pros=entry.pros,
                 concerns=entry.concerns,
                 metrics=metrics,
-                scores=[to_score(s) for s in view.scores(key).values()],
+                scores=column_scores,
                 role=to_score(fit.best) if fit and fit.best else None,
+                interpretation=read_profile(
+                    best_role=to_score(fit.best) if fit and fit.best else None,
+                    alternatives=[a.label for a in fit.alternatives[:3]] if fit else [],
+                    scores=column_scores,
+                    metrics=metrics,
+                    sample=to_sample(record),
+                    position_label=record.position_group.value if record.position_group else None,
+                ),
             )
         )
 
@@ -389,10 +412,14 @@ def compare(
             status_code=404, detail="None of those players are in the current data."
         )
 
-    return ComparisonResponse(context=context, players=columns, caveat=_comparison_caveat(columns))
+    return ComparisonResponse(
+        context=context,
+        players=columns,
+        caveat=_comparison_caveat(columns, percentile_scope),
+    )
 
 
-def _comparison_caveat(columns: list[ComparedPlayer]) -> str | None:
+def _comparison_caveat(columns: list[ComparedPlayer], scope: PercentileScope) -> str | None:
     """Say so when the columns are not measured against the same population.
 
     Percentiles are computed within a position group and a competition. Putting
@@ -404,7 +431,11 @@ def _comparison_caveat(columns: list[ComparedPlayer]) -> str | None:
     caveats = []
     if len(positions) > 1:
         caveats.append(MIXED_POSITION_CAVEAT)
-    if len(competitions) > 1:
+    # Only while each column is ranked inside its own competition. Asked for
+    # global percentiles they share one population, and repeating the warning
+    # would be a false one - which is worse than none, because it trains a
+    # reader to scroll past the warnings that are true.
+    if len(competitions) > 1 and scope is PercentileScope.COMPETITION:
         caveats.append(MIXED_COMPETITION_CAVEAT)
     return " ".join(caveats) if caveats else None
 
