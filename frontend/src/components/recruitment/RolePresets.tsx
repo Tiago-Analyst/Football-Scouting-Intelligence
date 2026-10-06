@@ -133,8 +133,21 @@ export function RolePresets({
 export function ActivePreset({ preset }: { preset: RolePreset }) {
   return (
     <div className="rounded-md border border-border bg-surface-2 px-3 py-2.5">
-      <p className="text-xs font-medium">
-        Starting from <span className="text-accent">{preset.label}</span>
+      <p className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
+        <span>
+          Starting from <span className="text-accent">{preset.label}</span>
+        </span>
+        {preset.measurable_pct != null && preset.measurable_pct < 100 ? (
+          <span
+            className={
+              preset.coverage_status === "minimal"
+                ? "rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning"
+                : "rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-subtle"
+            }
+          >
+            {Math.round(preset.measurable_pct)}% measurable
+          </span>
+        ) : null}
       </p>
       {preset.description ? (
         <p className="mt-1 text-[11px] leading-relaxed text-subtle">{preset.description}</p>
@@ -149,10 +162,19 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
               {score.reason}
             </p>
           ))}
-          <p className="text-[11px] leading-relaxed text-subtle">
-            Setting that weight to zero will produce a ranking, against a narrower reading of the
-            role than the one named above.
-          </p>
+          {/* How much of the role survives the amputation, said as a number
+              before the search is run. "Setting that weight to zero" removes
+              55% of the Ball-Playing Centre-Back definition and leaves the
+              name on it; a reader should know that in advance, not deduce it
+              from results that no longer look like the role. */}
+          {preset.coverage_note ? (
+            <p className="text-[11px] leading-relaxed text-subtle">{preset.coverage_note}</p>
+          ) : (
+            <p className="text-[11px] leading-relaxed text-subtle">
+              Setting that weight to zero will produce a ranking, against a narrower reading of the
+              role than the one named above.
+            </p>
+          )}
         </div>
       ) : null}
 

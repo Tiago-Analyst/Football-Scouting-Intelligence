@@ -18,6 +18,7 @@ from app.analytics.contracts import expires_within
 from app.analytics.intelligence import ScoreDefinition
 from app.analytics.percentiles import PercentileScope
 from app.analytics.presets import get_presets
+from app.analytics.reliability import rank_by_evidence
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
 from app.analytics.similarity import SimilarityFilters
 from app.api.v1.players import metric_label, require_player, to_summary
@@ -116,20 +117,63 @@ def list_recruitment_presets() -> list[RolePresetOut]:
     cannot drift away from the role it is named after.
     """
     blocked = _unavailable_scores()
-    return [
-        RolePresetOut(
-            key=preset.key,
-            label=preset.label,
-            description=preset.description,
-            position_groups=list(preset.position_groups),
-            weights=preset.weights,
-            expressible=preset.expressible,
-            caveat=preset.caveat,
-            unmapped=[metric_label(m) for m in preset.unmapped],
-            unavailable_scores=[blocked[k] for k in preset.weights if k in blocked],
+    presets = []
+    for preset in get_presets():
+        measurable, status, note = _preset_coverage(preset.weights, blocked, preset.label)
+        presets.append(
+            RolePresetOut(
+                key=preset.key,
+                label=preset.label,
+                description=preset.description,
+                position_groups=list(preset.position_groups),
+                measurable_pct=measurable,
+                coverage_status=status,
+                coverage_note=note,
+                weights=preset.weights,
+                expressible=preset.expressible,
+                caveat=preset.caveat,
+                unmapped=[metric_label(m) for m in preset.unmapped],
+                unavailable_scores=[blocked[k] for k in preset.weights if k in blocked],
+            )
         )
-        for preset in get_presets()
-    ]
+    return presets
+
+
+#: Below this share of measurable weight, a preset no longer describes the role
+#: it is named after. Chosen so that losing one secondary emphasis is "limited"
+#: and losing a defining one is "minimal"; stated here rather than buried.
+LIMITED_COVERAGE = 0.85
+MINIMAL_COVERAGE = 0.55
+
+
+def _preset_coverage(
+    weights: dict[str, float],
+    blocked: dict[str, UnavailableScoreOut],
+    label: str,
+) -> tuple[float, str, str | None]:
+    """How much of a preset this load can measure, and what to say about it."""
+    total = sum(weights.values())
+    if total <= 0:
+        return 100.0, "full", None
+    lost = sum(weight for key, weight in weights.items() if key in blocked)
+    measurable = (total - lost) / total
+
+    if not lost:
+        return 100.0, "full", None
+
+    names = ", ".join(blocked[k].label for k in weights if k in blocked)
+    status = (
+        "minimal"
+        if measurable < MINIMAL_COVERAGE
+        else ("limited" if measurable < LIMITED_COVERAGE else "full")
+    )
+    note = (
+        f"{measurable * 100:.0f}% of this preset's configured weight is measurable "
+        f"with the current provider data. {names} cannot be produced for anybody, "
+        f"so setting those weights to zero leaves a search that no longer covers "
+        f"everything {label} is named for."
+    )
+    return measurable * 100.0, status, note
 
 
 @router.get("/recruitment/scores", response_model=list[ScoreAvailabilityOut])
@@ -266,7 +310,20 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
             )
         )
 
-    ranked.sort(key=lambda c: c.score, reverse=True)
+    # Ordered by evidence, not by the raw composite. A validation audit found
+    # a creative-winger brief whose entire top ten came from players with
+    # under 320 minutes - the first had 66 - because a per-90 percentile from
+    # two appearances is as extreme as the data allows and nothing in the
+    # ordering accounted for that. Every one of those players is still here
+    # and still scored; they are no longer at the top by default.
+    adjustments = rank_by_evidence([c.score for c in ranked], [c.player.minutes for c in ranked])
+    for candidate, adjustment in zip(ranked, adjustments, strict=True):
+        candidate.ranking_score = adjustment.ranked
+        candidate.evidence_weight = adjustment.weight
+        candidate.ranking_note = adjustment.explain(
+            minutes=candidate.player.minutes, noun="profile score"
+        )
+    ranked.sort(key=lambda c: c.ranking_score, reverse=True)
     page = ranked[request.offset : request.offset + request.limit]
 
     # Only meaningful once something was actually scored against: with no
@@ -417,23 +474,83 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
         if overall.score is None:
             continue
 
+        # A validation audit measured what renormalising does to the ORDER.
+        # Because similarity is almost always the highest of the three parts,
+        # dropping role fit RAISES the renormalised result: the average
+        # overall for candidates missing it was 81.0 against 76.8 for those
+        # that had it. Missing evidence was improving a candidate's rank.
+        #
+        # Zero-filling is not the answer - it would invent a measurement - so
+        # the comparable score is withheld instead. The candidate keeps every
+        # number that was actually computed, stays in the response, and is
+        # listed after the candidates whose score means the same thing.
+        missing_components = [
+            label
+            for label, value in (("Role fit", role_score), ("Affordability", market_fit))
+            if value is None and label in _required_components(target_role, budget)
+        ]
         candidates.append(
             ReplacementCandidate(
                 player=to_summary(record, view),
-                overall=overall.score,
+                overall=None if missing_components else overall.score,
                 similarity=result.similarity,
                 role_fit=role_score,
                 market_fit=market_fit,
                 comparable_strength=result.comparable_strength,
+                missing_components=missing_components,
+                candidate_minutes=record.minutes,
             )
         )
 
-    candidates.sort(key=lambda c: c.overall, reverse=True)
+    # Two groups, never interleaved: candidates with a complete score, then
+    # candidates whose score could not be completed. Inside each group the
+    # order is evidence-adjusted, so a 28-minute profile no longer leads a
+    # list of replacements for a player with a full season behind him.
+    complete = [c for c in candidates if c.overall is not None]
+    limited = [c for c in candidates if c.overall is None]
+    _order_by_evidence(complete, value=lambda c: c.overall or 0.0, noun="replacement score")
+    _order_by_evidence(limited, value=lambda c: c.similarity, noun="similarity")
+
+    ordered = complete + limited
     return ReplacementResponse(
         target=to_summary(target, view),
-        items=candidates[: request.limit],
+        items=ordered[: request.limit],
         meaning=REPLACEMENT_MEANING,
+        complete_count=len(complete),
     )
+
+
+def _required_components(target_role: str | None, budget: int | None) -> set[str]:
+    """Which parts must be present for a replacement score to be comparable.
+
+    Role fit is required only when the target actually has a role to be
+    replaced in; affordability only when a budget was given. Asking for a
+    component nobody could supply would withhold every score and tell the
+    reader nothing.
+    """
+    required: set[str] = set()
+    if target_role is not None:
+        required.add("Role fit")
+    if budget:
+        required.add("Affordability")
+    return required
+
+
+def _order_by_evidence(
+    candidates: list[ReplacementCandidate],
+    *,
+    value: Callable[[ReplacementCandidate], float],
+    noun: str,
+) -> None:
+    """Sort in place by the evidence-adjusted value, and say so on each row."""
+    adjustments = rank_by_evidence(
+        [value(c) for c in candidates], [c.candidate_minutes for c in candidates]
+    )
+    for candidate, adjustment in zip(candidates, adjustments, strict=True):
+        candidate.ranking_value = adjustment.ranked
+        candidate.evidence_weight = adjustment.weight
+        candidate.ranking_note = adjustment.explain(minutes=candidate.candidate_minutes, noun=noun)
+    candidates.sort(key=lambda c: c.ranking_value, reverse=True)
 
 
 @router.get("/opportunities", response_model=OpportunitiesResponse)

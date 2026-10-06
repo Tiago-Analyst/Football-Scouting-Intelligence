@@ -197,9 +197,25 @@ export interface Score {
   is_limited?: boolean;
 }
 
+export interface UnscoredRole {
+  key: string;
+  label: string;
+  /** Share of the role's definition that was measurable, 0-100. */
+  coverage_pct: number;
+  /** What this role requires before it will produce a score, 0-100. */
+  required_pct: number;
+  missing: string[];
+}
+
 export interface RoleFit {
   best: Score | null;
   alternatives: Score[];
+  /** Roles tried and not scored, closest first. Populated when there is no
+   * best role, which is exactly when a reader needs it. */
+  unscored?: UnscoredRole[];
+  /** One sentence naming the reason, replacing a bare "could not be
+   * computed" that told nobody anything they could act on. */
+  unscored_reason?: string | null;
   /** What a role score does and does not claim. */
   meaning: string;
 }
@@ -224,6 +240,13 @@ export interface Sample {
   recorded_minutes: number | null;
   /** recorded / played as a percentage, capped at 100 for display. */
   detailed_coverage_pct: number | null;
+  /** How many of the profile's metrics could actually be computed. A third,
+   * separate thing from minutes played and from the provider's detail
+   * coverage: a profile can score full marks on both and still be missing
+   * half its figures. */
+  metric_coverage_pct?: number | null;
+  metrics_available?: number | null;
+  metrics_expected?: number | null;
   /** The uncapped ratio. May exceed 100; for data quality, not for display. */
   detailed_coverage_raw_pct?: number | null;
   /** True when the provider reported more detail-minutes than played-minutes. */
@@ -306,6 +329,14 @@ export interface SimilarPlayer {
   player: PlayerSummary;
   /** Resemblance on the features the two players share, 0-100. */
   similarity: number;
+  /** What the list was ordered by: the index pulled toward the average for
+   * this search in proportion to how little football stands behind it. The
+   * index itself is never rewritten. */
+  ranking_similarity?: number;
+  /** 0-1, from minutes alone. 1 means the index was ranked as it stands. */
+  evidence_weight?: number;
+  /** Why this candidate ranks below its index, or null when it does not. */
+  ranking_note?: string | null;
   shared_features: number;
   /**
    * How many the position's vector defines. Six of eleven is much weaker
@@ -415,6 +446,14 @@ export interface RolePreset {
   position_groups: string[];
   /** Intelligence score key -> weight, in steps of five, summing to 100. */
   weights: Record<string, number>;
+  /** Share of this preset's configured weight the current data can measure,
+   * 0-100. Different from `expressible`, which is about the mapping and does
+   * not change with the data. This is about the data in front of you. */
+  measurable_pct?: number;
+  /** full | limited | minimal. */
+  coverage_status?: string;
+  /** One sentence for a reader about to run it, or null at full coverage. */
+  coverage_note?: string | null;
   /** Share of the role's own definition these weights carry, 0-1. */
   expressible: number;
   caveat: string | null;
@@ -472,9 +511,14 @@ export interface RecruitmentResults {
 
 export interface ReplacementCandidate {
   player: PlayerSummary;
-  overall: number;
+  /** Null when a component the score needs could not be computed. */
+  overall: number | null;
   similarity: number;
   role_fit: number | null;
+  missing_components?: string[];
+  ranking_value?: number;
+  evidence_weight?: number;
+  ranking_note?: string | null;
   market_fit: number | null;
   comparable_strength: boolean;
 }
@@ -482,6 +526,9 @@ export interface ReplacementCandidate {
 export interface ReplacementResults {
   target: PlayerSummary;
   items: ReplacementCandidate[];
+  /** How many leading items carry a complete, comparable overall score. The
+   * rest follow under limited evidence, ordered by similarity. */
+  complete_count?: number;
   meaning: string;
 }
 

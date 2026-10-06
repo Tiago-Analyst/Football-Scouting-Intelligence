@@ -330,7 +330,33 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted">No role fit could be computed.</p>
+              /* "No role fit could be computed." was the whole message, on
+                 profiles with a full season played and most of their metrics
+                 present. It reads as a verdict on the footballer and tells a
+                 reader nothing they can check. Every figure below is read
+                 back from the role engine: the coverage each role reached
+                 against the minimum it is configured to need. */
+              <div className="space-y-3">
+                <p className="text-sm text-muted">
+                  {roles?.unscored_reason ?? "No role fit could be computed."}
+                </p>
+                {roles?.unscored?.length ? (
+                  <ul className="space-y-1.5 text-xs">
+                    {roles.unscored.map((role) => (
+                      <li key={role.key} className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-medium">{role.label}</span>
+                        <span className="tabular text-subtle">
+                          {Math.round(role.coverage_pct)}% measurable of the{" "}
+                          {Math.round(role.required_pct)}% it requires
+                        </span>
+                        {role.missing.length > 0 ? (
+                          <span className="text-subtle">· missing {role.missing.join(", ")}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             )}
           </CardBody>
           <CardFooter className="space-y-2 text-subtle">

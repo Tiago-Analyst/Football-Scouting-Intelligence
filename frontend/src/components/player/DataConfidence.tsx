@@ -52,10 +52,12 @@ export function DataConfidence({ sample }: { sample: Sample }) {
           <span className="flex items-center gap-1.5">
             Data confidence
             <Tooltip label="What is data confidence?">
-              How much football these figures rest on, and how much of it the provider
-              recorded in enough detail to count. They are separate questions. Neither
-              affects whether this player is ranked or compared — both affect how much
-              weight the numbers deserve.
+              Three separate questions, and a profile can answer two of them well and the third
+              badly. How much football these figures rest on; how much of that football the provider
+              recorded in enough detail to count; and how many of the profile&rsquo;s own metrics
+              could actually be computed. A full season of minutes, fully recorded, still leaves the
+              last one open. None of them affects whether this player is ranked or compared — all
+              three affect how much weight the numbers deserve.
             </Tooltip>
           </span>
         }
@@ -96,7 +98,7 @@ export function DataConfidence({ sample }: { sample: Sample }) {
               }
             />
             <Row
-              term="Coverage"
+              term="Detailed minutes coverage"
               value={
                 coverage !== null ? (
                   <span className="flex items-center justify-end gap-2">
@@ -107,9 +109,7 @@ export function DataConfidence({ sample }: { sample: Sample }) {
                     {sample.coverage_band && sample.coverage_label && !inconsistent ? (
                       <Badge
                         tone={
-                          COVERAGE_TONE[sample.coverage_band] === "warning"
-                            ? "warning"
-                            : "neutral"
+                          COVERAGE_TONE[sample.coverage_band] === "warning" ? "warning" : "neutral"
                         }
                       >
                         {sample.coverage_label}
@@ -119,6 +119,33 @@ export function DataConfidence({ sample }: { sample: Sample }) {
                 ) : (
                   // Not 0%. The provider told us nothing about how much it
                   // recorded, and asserting nought would look like a measurement.
+                  "N/A"
+                )
+              }
+            />
+            {/* The third measure, and the one that was missing.
+                A profile can read "Established Sample" and "100% detailed
+                minutes coverage" and still be missing half its figures -
+                an audit found one with nine metrics of eighteen, no role and
+                no intelligence score, under both of those labels. Minutes
+                played and detail coverage say nothing about how many of the
+                profile's metrics could actually be computed. */}
+            <Row
+              term="Analytical metric coverage"
+              value={
+                sample.metric_coverage_pct != null ? (
+                  <span className="flex items-center justify-end gap-2">
+                    <span className="tabular">{Math.round(sample.metric_coverage_pct)}%</span>
+                    {sample.metrics_available != null && sample.metrics_expected != null ? (
+                      <span className="text-xs text-subtle">
+                        {sample.metrics_available} of {sample.metrics_expected} profile metrics
+                      </span>
+                    ) : null}
+                    {sample.metric_coverage_pct < 80 ? (
+                      <Badge tone="warning">Incomplete profile</Badge>
+                    ) : null}
+                  </span>
+                ) : (
                   "N/A"
                 )
               }

@@ -387,7 +387,7 @@ def compare(
         columns.append(
             ComparedPlayer(
                 player=to_summary(record, view),
-                sample=to_sample(record),
+                sample=to_sample(record, view),
                 status=entry_status.value,
                 status_label=STATUS_LABELS[entry_status],
                 note=entry.note,
@@ -401,7 +401,7 @@ def compare(
                     alternatives=[a.label for a in fit.alternatives[:3]] if fit else [],
                     scores=column_scores,
                     metrics=metrics,
-                    sample=to_sample(record),
+                    sample=to_sample(record, view),
                     position_label=record.position_group.value if record.position_group else None,
                 ),
             )

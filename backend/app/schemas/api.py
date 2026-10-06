@@ -150,9 +150,35 @@ class ScoreOut(BaseModel):
     is_limited: bool = False
 
 
+class UnscoredRoleOut(BaseModel):
+    """A role this player could have been measured for, and why they were not.
+
+    "No role fit could be computed." was the whole message, on profiles with
+    a full season played and most of their metrics present. It told a reader
+    nothing they could act on and nothing they could check. Every figure here
+    is read back from the role engine - the role's own configured minimum, the
+    coverage actually reached, and the components that were absent - so the
+    page cannot drift from what the scorer did.
+    """
+
+    key: str
+    label: str
+    #: Share of the role's definition that was measurable, 0-100.
+    coverage_pct: float
+    #: What this role requires before it will produce a score, 0-100.
+    required_pct: float
+    #: The components that were not available, by display label.
+    missing: list[str] = Field(default_factory=list)
+
+
 class RoleFitOut(BaseModel):
     best: ScoreOut | None
     alternatives: list[ScoreOut] = Field(default_factory=list)
+    #: Roles that were tried and could not be scored, with the shortfall.
+    #: Populated when there is no best role, which is when a reader needs it.
+    unscored: list[UnscoredRoleOut] = Field(default_factory=list)
+    #: One sentence naming the reason, or null when a role was produced.
+    unscored_reason: str | None = None
     #: What the number does and does not claim. Returned so it cannot be
     #: separated from the score in the UI.
     meaning: str
@@ -181,6 +207,19 @@ class SampleOut(BaseModel):
     detailed_coverage_pct: float | None = None
     #: The uncapped ratio, for data quality and debugging. May exceed 100.
     detailed_coverage_raw_pct: float | None = None
+    #: How much of the profile's metric set this player actually has, 0-100.
+    #:
+    #: A third, separate thing from the two above, and the reason it exists:
+    #: a validation audit found a profile carrying "Established Sample" and
+    #: "100% detailed coverage" that produced no role, no intelligence score
+    #: and nine of eighteen metrics. Neither existing label was wrong - one
+    #: counts minutes played, the other the share of those minutes the
+    #: provider described in detail - but together they read as "this profile
+    #: is complete", and it was not. Minutes are not metrics.
+    metric_coverage_pct: float | None = None
+    #: The two halves of that fraction, so a page can say "9 of 18".
+    metrics_available: int | None = None
+    metrics_expected: int | None = None
     #: True when the provider reported more detail-minutes than played-minutes.
     provider_minutes_inconsistent: bool = False
     #: Why, when it did.
@@ -296,6 +335,20 @@ class SimilarPlayerOut(BaseModel):
     #: the index, never mixed into it.
     coverage_band: str = "high"
     coverage_label: str = ""
+    #: What the list was ordered by.
+    #:
+    #: `similarity` above is the index and is untouched. This is that index
+    #: after being pulled toward the average for this search in proportion to
+    #: how little football stands behind it - a full season's minutes leaves it
+    #: alone. It exists because a per-90 figure from 28 minutes used to be
+    #: ranked level with one from 2,195, and nothing in the ordering could tell
+    #: them apart.
+    ranking_similarity: float = 0.0
+    #: 0-1, from minutes alone. 1.0 means the index was ranked as it stands.
+    evidence_weight: float = 1.0
+    #: One sentence saying why this candidate ranks below its index, or null
+    #: when the ordering used the index as it is. Never a bare adjusted number.
+    ranking_note: str | None = None
     #: How comparable the two profiles are in strength, 0-1. A high similarity
     #: with a low ratio means the shapes match but the levels do not.
     profile_strength_ratio: float
@@ -462,6 +515,26 @@ class RolePresetOut(BaseModel):
     label: str
     description: str
     position_groups: list[str]
+    #: Share of the preset's configured weight this load can actually measure,
+    #: 0-100.
+    #:
+    #: Different from `expressible`, which is about the mapping from a role to
+    #: the eight scores and does not change with the data. This is about the
+    #: data in front of you. A validation audit found that thirteen of the
+    #: fourteen presets carry at least one dimension the provider cannot
+    #: supply, and that zeroing them - which is what the product tells a
+    #: reader to do - removes 55% of the Ball-Playing Centre-Back profile
+    #: while leaving the name on it. The search then measures ball security
+    #: and defensive activity and is still called ball-playing.
+    #:
+    #: Nothing is substituted and no weight is invented. The number exists so
+    #: the warning can come before the search rather than after.
+    measurable_pct: float = 100.0
+    #: Short status for a badge: full | limited | minimal.
+    coverage_status: str = "full"
+    #: One sentence for a reader about to run this preset, or null at full
+    #: coverage.
+    coverage_note: str | None = None
     #: Intelligence score key -> weight, in steps of five, summing to 100.
     weights: dict[str, float]
     expressible: float
@@ -511,6 +584,16 @@ class RecruitmentCandidate(BaseModel):
     #: Why this player ranked here: the component percentiles behind the score.
     components: list[ScoreComponentOut]
     coverage: float
+    #: What the list was ordered by: `score` pulled toward the average for
+    #: this search in proportion to how little football stands behind it. A
+    #: full season's minutes leaves it untouched. The score itself is never
+    #: rewritten, and nobody is excluded for having played less.
+    ranking_score: float = 0.0
+    #: 0-1, from minutes alone.
+    evidence_weight: float = 1.0
+    #: One sentence explaining a lower placement, or null when the ordering
+    #: used the score as it stands.
+    ranking_note: str | None = None
 
 
 class RecruitmentResponse(BaseModel):
@@ -549,16 +632,36 @@ class ReplacementRequest(BaseModel):
 
 class ReplacementCandidate(BaseModel):
     player: PlayerSummary
-    overall: float
+    #: Null when a component the score needs could not be computed.
+    #:
+    #: Renormalising around a missing part used to produce a number that
+    #: looked comparable and was not: because similarity is the largest of the
+    #: three weights, losing role fit RAISED the result. Candidates missing a
+    #: required part now carry no overall rather than a flattering one, and
+    #: are listed after the ones whose score means the same thing.
+    overall: float | None = None
     similarity: float
     role_fit: float | None
     market_fit: float | None
     comparable_strength: bool
+    #: Which required parts were unavailable. Empty for a complete score.
+    missing_components: list[str] = Field(default_factory=list)
+    #: Minutes behind the candidate's figures, carried for the ordering.
+    candidate_minutes: int | None = None
+    #: What this group was ordered by: the overall for complete candidates,
+    #: the similarity for the rest, each adjusted for how much evidence
+    #: stands behind it. Never shown in place of the real number.
+    ranking_value: float = 0.0
+    evidence_weight: float = 1.0
+    ranking_note: str | None = None
 
 
 class ReplacementResponse(BaseModel):
     target: PlayerSummary
     items: list[ReplacementCandidate]
+    #: How many leading items carry a complete, comparable overall score. The
+    #: rest follow under limited evidence and are ordered by similarity.
+    complete_count: int = 0
     #: Stated with the results: this ranks a statistical profile, not a person.
     meaning: str
 

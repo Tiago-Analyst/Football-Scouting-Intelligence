@@ -145,6 +145,25 @@ class MetricReading:
     percentile: float | None
     lower_is_better: bool = False
     unavailable_reason: str | None = None
+    #: The canonical key, so a reading can tell metrics apart by identity
+    #: rather than by the words printed in a column heading.
+    metric: str | None = None
+
+
+#: Metrics that describe the team a player was on the pitch for, not the
+#: player.
+#:
+#: Goals conceded per 90 is the team's concession rate while someone was
+#: playing. For a goalkeeper that is close to a personal statistic and belongs
+#: in the reading. For a winger it is the defence's record, and a validation
+#: audit found it listed among Wilfried Zaha's and Brian White's strengths - a
+#: forward credited for how few goals his team let in. The figure stays on the
+#: profile, where a reader can see it for what it is; it stops being offered
+#: as something the player did.
+TEAM_CONTEXT_METRICS: frozenset[str] = frozenset({"goals_conceded_per90"})
+
+#: Where a team-context metric is still worth reading as personal.
+TEAM_CONTEXT_EXEMPT_POSITIONS: frozenset[str] = frozenset({"GK"})
 
 
 @dataclass(frozen=True)
@@ -198,8 +217,8 @@ def interpret(
 
     return ScoutingInterpretation(
         profile=_profile_lines(role, scores, metrics, position_label),
-        strengths=_findings(metrics, strong=True),
-        watch_outs=_findings(metrics, strong=False, only=relevant),
+        strengths=_findings(metrics, strong=True, position_label=position_label),
+        watch_outs=_findings(metrics, strong=False, only=relevant, position_label=position_label),
         unavailable=_unavailable_lines(role, metrics),
         confidence=_confidence_lines(minutes, sample_band_label, detailed_coverage_pct),
     )
@@ -318,16 +337,24 @@ def _profile_lines(
 
 
 def _findings(
-    metrics: list[MetricReading], *, strong: bool, only: frozenset[str] | None = None
+    metrics: list[MetricReading],
+    *,
+    strong: bool,
+    only: frozenset[str] | None = None,
+    position_label: str | None = None,
 ) -> list[Finding]:
     """The metrics at one end of the distribution, best evidence first.
 
     `only` narrows the pool to the metrics a role is built from, for the end
     where irrelevance would be read as a fault.
     """
+    team_context_applies = (position_label or "").upper() not in TEAM_CONTEXT_EXEMPT_POSITIONS
     candidates: list[Finding] = []
     for metric in metrics:
         if metric.percentile is None:
+            continue
+        if team_context_applies and metric.metric in TEAM_CONTEXT_METRICS:
+            # Not a thing this player did. See TEAM_CONTEXT_METRICS.
             continue
         if only is not None and metric.label not in only:
             continue

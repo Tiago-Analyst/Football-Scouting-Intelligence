@@ -91,3 +91,8 @@ desktop.ini
 docs/identity_resolution_footystats.csv
 docs/identity_resolution*.csv
 !docs/identity_resolution_example.csv
+
+# Page captures taken for review. Regenerated on demand, never a source of truth.
+/screenshots/
+/football_validation_audit/
+/football_validation_audit.zip
