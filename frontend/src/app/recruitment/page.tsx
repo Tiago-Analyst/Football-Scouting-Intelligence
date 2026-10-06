@@ -409,8 +409,23 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
                         }
                         description={`${candidate.player.age ?? "–"} years · ${candidate.player.raw_position ?? candidate.player.position_group} · ${candidate.player.club} · ${candidate.player.competition}${candidate.player.market_value_eur !== null ? ` · ${formatEuro(candidate.player.market_value_eur)}` : ""}`}
                         action={
-                          <span className="tabular text-lg font-semibold text-accent">
-                            {Math.round(candidate.score)}
+                          /* The profile score, and - when the order used
+                             something else - what the order used. A list
+                             numbered 1, 2, 3 whose visible scores do not
+                             descend reads as broken unless it says why. */
+                          <span className="flex flex-col items-end">
+                            <span className="tabular text-lg font-semibold text-accent">
+                              {Math.round(candidate.score)}
+                            </span>
+                            {candidate.evidence_weight != null && candidate.evidence_weight < 1 ? (
+                              <span
+                                className="mt-0.5 text-[10px] text-subtle"
+                                title={candidate.ranking_note ?? undefined}
+                              >
+                                ranked {Math.round(candidate.ranking_score ?? candidate.score)} ·{" "}
+                                {Math.round(candidate.evidence_weight * 100)}% of a season
+                              </span>
+                            ) : null}
                           </span>
                         }
                       />
