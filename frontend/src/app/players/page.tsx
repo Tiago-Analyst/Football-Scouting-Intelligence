@@ -264,7 +264,13 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
             </button>
           </form>
 
-          <section className="space-y-3">
+          {/* `min-w-0` is load-bearing. A `1fr` grid track sizes to its
+              content's minimum by default, so the track grew to whatever the
+              table could not shrink below and pushed the whole page sideways -
+              past the header and the footer, which stop at the viewport. The
+              table is already inside `overflow-x-auto`; this is what lets that
+              container do its job instead of being widened around it. */}
+          <section className="min-w-0 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
                 <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
