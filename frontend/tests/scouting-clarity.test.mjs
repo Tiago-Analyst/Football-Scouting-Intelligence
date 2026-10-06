@@ -96,3 +96,30 @@ test("opportunities shows the percentile beside the raw fit", () => {
   assert.match(flat(opportunities), /Raw role fit/);
   assert.match(flat(opportunities), /role fit percentile/i);
 });
+
+const presets = read("src/components/recruitment/RolePresets.tsx");
+
+test("starting from a role is presented as the recommended first step", () => {
+  // It was muted hint-sized text on a panel whose loudest control was the
+  // submit button. Somebody facing eight empty weight boxes has to invent a
+  // profile; editing a named one is easier and better.
+  assert.match(presets, /Recommended start/);
+  assert.match(presets, /text-sm font-semibold/);
+  assert.equal(
+    /summary className="cursor-pointer list-none text-xs font-medium text-muted/.test(presets),
+    false,
+  );
+});
+
+test("the roles are still a disclosure, not fourteen rows opened by default", () => {
+  // Expanding them would push the weights themselves off the screen.
+  assert.match(presets, /<details/);
+  assert.equal(/<details open/.test(presets), false);
+});
+
+test("the builder states the order it is already in", () => {
+  assert.match(
+    flat(recruitment),
+    /Start from a role, adjust the weights, apply filters, then rank candidates/,
+  );
+});

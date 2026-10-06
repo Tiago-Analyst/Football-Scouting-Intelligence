@@ -135,6 +135,12 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
           <input type="hidden" name="submitted" value="1" />
           {activeKey ? <input type="hidden" name="preset" value={activeKey} /> : null}
 
+          {/* The form is already in this order; saying so costs one line and
+              saves somebody working it out from four unlabelled sections. */}
+          <p className="text-[11px] leading-relaxed text-subtle">
+            Start from a role, adjust the weights, apply filters, then rank candidates.
+          </p>
+
           <RolePresets
             presets={presets}
             scoreKeys={SCORES.map((score) => score.key)}

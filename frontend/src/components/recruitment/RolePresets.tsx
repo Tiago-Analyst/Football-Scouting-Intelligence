@@ -66,10 +66,22 @@ export function RolePresets({
   })).filter((entry) => entry.roles.length > 0);
 
   return (
-    <details className="group rounded-md border border-border bg-surface-2 px-3 py-2.5">
-      <summary className="cursor-pointer list-none text-xs font-medium text-muted transition-colors hover:text-accent">
+    /* The first step of the workflow, and it used to read like a footnote:
+       muted text the size of a hint, on a panel whose loudest control was the
+       submit button at the bottom. Somebody arriving at eight empty weight
+       boxes has to invent a profile; starting from a named role and editing it
+       is both easier and better, so it is worth a sentence and an accent
+       border rather than a word.
+
+       Still a disclosure. Fourteen roles expanded by default would push the
+       weights themselves off the screen, which is the opposite of helping. */
+    <details className="group rounded-md border border-accent/40 bg-accent/5 px-3 py-2.5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold transition-colors hover:text-accent">
         <span className="group-open:hidden">Start from a role</span>
         <span className="hidden group-open:inline">Hide roles</span>
+        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-wide text-accent uppercase group-open:hidden">
+          Recommended start
+        </span>
       </summary>
 
       <p className="mt-2 text-[11px] leading-relaxed text-subtle">
