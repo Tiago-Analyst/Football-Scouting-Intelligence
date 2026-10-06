@@ -31,7 +31,7 @@ from app.analytics.interpretation import (
 )
 from app.analytics.metrics import LOWER_IS_BETTER, METRIC_FAMILIES, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
-from app.analytics.roles import RoleScore
+from app.analytics.roles import RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
@@ -55,6 +55,7 @@ from app.schemas.api import (
     SimilarPlayerOut,
     SimilarPlayersResponse,
     TransferOut,
+    UnscoredRoleOut,
 )
 from app.schemas.canonical import position_group_name
 from app.services.analytics_service import AnalyticsView, PlayerRecord, get_analytics_view
@@ -283,7 +284,7 @@ def read_profile(
         role=role_reading,
         scores=[ScoreReading(s.label, s.score, s.coverage) for s in scores],
         metrics=[
-            MetricReading(m.label, m.percentile, m.lower_is_better, m.unavailable_reason)
+            MetricReading(m.label, m.percentile, m.lower_is_better, m.unavailable_reason, m.metric)
             for m in metrics
         ],
         minutes=sample.minutes,
@@ -322,6 +323,13 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         feature_coverage_pct=result.feature_coverage * 100.0,
         coverage_band=result.coverage_band.value,
         coverage_label=result.coverage_label,
+        ranking_similarity=result.ranking.ranked if result.ranking else result.similarity,
+        evidence_weight=result.ranking.weight if result.ranking else 1.0,
+        ranking_note=(
+            result.ranking.explain(minutes=result.candidate_minutes, noun="similarity")
+            if result.ranking
+            else None
+        ),
         profile_strength_ratio=result.profile_strength_ratio,
         comparable_strength=result.comparable_strength,
         drivers=[_to_feature(f) for f in result.drivers()],
@@ -351,7 +359,7 @@ def require_player(view: AnalyticsView, player_id: str) -> PlayerRecord:
 # ---------------------------------------------------------------------------
 
 
-def to_sample(record: PlayerRecord) -> SampleOut:
+def to_sample(record: PlayerRecord, view: AnalyticsView | None = None) -> SampleOut:
     """The evidence behind one player-season's figures.
 
     Built in one place because it used to be built in two - here and in the
@@ -365,6 +373,27 @@ def to_sample(record: PlayerRecord) -> SampleOut:
     # Banded on the displayed figure, so a capped 100% reads as excellent
     # rather than falling through a comparison it was never meant to fail.
     band = classify_coverage(coverage)
+
+    # A third measure, and the reason it exists: a profile can carry
+    # "Established Sample" and "100% detailed coverage" and still be missing
+    # half of its metrics. Minutes played and the share of those minutes the
+    # provider described in detail say nothing about how many of the profile's
+    # figures could actually be computed. The denominator comes from the
+    # population - what a player in this position group is seen to carry -
+    # because counting goalkeeping metrics against a full-back would report
+    # every outfield profile as incomplete.
+    available_count: int | None = None
+    expected_count: int | None = None
+    metric_coverage: float | None = None
+    if view is not None:
+        applicable = view.applicable_metrics(record.position_group)
+        expected = [m for m in PROFILE_METRICS if m in applicable]
+        if expected:
+            carried = record.metrics.available()
+            available_count = len([m for m in expected if m in carried])
+            expected_count = len(expected)
+            metric_coverage = available_count / expected_count * 100.0
+
     return SampleOut(
         minutes=record.minutes,
         recorded_minutes=record.stats.recorded_minutes,
@@ -376,6 +405,9 @@ def to_sample(record: PlayerRecord) -> SampleOut:
         coverage_band=band.value if band else None,
         coverage_label=COVERAGE_BAND_LABEL[band] if band else None,
         coverage_explanation=COVERAGE_EXPLANATION if coverage is not None else None,
+        metric_coverage_pct=metric_coverage,
+        metrics_available=available_count,
+        metrics_expected=expected_count,
         band=record.sample_band.value,
         band_label=SAMPLE_BAND_LABEL[record.sample_band],
         explanation=SAMPLE_BAND_COPY[record.sample_band],
@@ -552,7 +584,7 @@ def get_player_stats(
 
     return PlayerStatsResponse(
         player_id=player_id,
-        sample=to_sample(record),
+        sample=to_sample(record, view),
         context=context,
         global_context=global_context,
         metrics=metrics,
@@ -567,10 +599,65 @@ def get_player_roles(player_id: str) -> RoleFitOut:
     fit = view.role_fit(player_id)
     if fit is None:
         raise HTTPException(status_code=404, detail="No role fit available")
+    unscored = [] if fit.best else _unscored_roles(view, player_id)
     return RoleFitOut(
         best=to_score(fit.best) if fit.best else None,
         alternatives=[to_score(s) for s in fit.alternatives],
+        unscored=unscored,
+        unscored_reason=_why_no_role(unscored) if not fit.best else None,
         meaning=fit.meaning,
+    )
+
+
+def _unscored_roles(view: AnalyticsView, player_id: str) -> list[UnscoredRoleOut]:
+    """Every role this position could have been measured for, and the shortfall.
+
+    Read back from the engine rather than described: each role is scored, and
+    the ones that came back without a number report the coverage they reached
+    against the minimum they are configured to need. Nothing here is a
+    constant, so a change to a role's definition changes this page too.
+    """
+    metrics = view.player_metrics(player_id)
+    if metrics is None or view.roles is None:
+        return []
+    shortfalls: list[UnscoredRoleOut] = []
+    for key, role in view.roles.roles.items():
+        if not role.applies_to(metrics.position_group):
+            continue
+        try:
+            result = view.roles.score(metrics, key)
+        except RoleConfigError:
+            continue
+        if result.score is not None:
+            continue
+        shortfalls.append(
+            UnscoredRoleOut(
+                key=key,
+                label=role.label,
+                coverage_pct=result.coverage * 100.0,
+                required_pct=role.min_coverage * 100.0,
+                missing=[metric_label(m) for m in result.missing],
+            )
+        )
+    # Closest first: the role that came nearest is the one worth naming.
+    shortfalls.sort(key=lambda r: r.required_pct - r.coverage_pct)
+    return shortfalls
+
+
+def _why_no_role(unscored: list[UnscoredRoleOut]) -> str:
+    """The sentence that replaces "No role fit could be computed."."""
+    if not unscored:
+        return (
+            "No role is defined for this position group, so there is nothing to "
+            "score this profile against."
+        )
+    closest = unscored[0]
+    return (
+        f"No role reached the metric coverage it requires. The closest was "
+        f"{closest.label}, which was measurable to {closest.coverage_pct:.0f}% "
+        f"of its definition against the {closest.required_pct:.0f}% it needs. "
+        f"The player is unchanged and every metric they do carry is below; what "
+        f"is missing is provider data, not performance."
     )
 
 

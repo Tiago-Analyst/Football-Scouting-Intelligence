@@ -127,6 +127,9 @@ class AnalyticsView:
     #: discarded with the view, which is rebuilt whenever the data changes -
     #: so it cannot go stale without the thing it describes going with it.
     _unproducible: dict[str, tuple[str, ...]] | None = field(default=None, repr=False)
+    _applicable: dict[PositionGroup, frozenset[DerivedMetric]] | None = field(
+        default=None, repr=False
+    )
 
     @property
     def is_empty(self) -> bool:
@@ -163,6 +166,26 @@ class AnalyticsView:
                 present |= record.metrics.available()
             self._unproducible = self.intelligence.unproducible(frozenset(present))
         return self._unproducible
+
+    def applicable_metrics(self, group: PositionGroup) -> frozenset[DerivedMetric]:
+        """Which metrics a profile in this position group can be expected to carry.
+
+        The denominator for analytical completeness. It has to come from the
+        population rather than from a hand-written list: goalkeeping metrics do
+        not apply to a full-back, and counting them would report every outfield
+        profile as two thirds complete. A metric belongs to a group when at
+        least one player in that group carries a value for it.
+
+        Scanned once per view, like `unproducible_scores`, and for the same
+        reason: one pass over the population is cheap and the view is rebuilt
+        whenever the data changes.
+        """
+        if self._applicable is None:
+            found: dict[PositionGroup, set[DerivedMetric]] = {}
+            for record in self.players.values():
+                found.setdefault(record.position_group, set()).update(record.metrics.available())
+            self._applicable = {g: frozenset(m) for g, m in found.items()}
+        return self._applicable.get(group, frozenset())
 
     def player_metrics(self, player_key: str) -> PlayerMetrics | None:
         record = self.players.get(player_key)

@@ -379,9 +379,24 @@ class TestRoles:
 
 
 class TestSimilarity:
-    def test_returns_ranked_results(self, similar: dict) -> None:
-        scores = [r["similarity"] for r in similar["results"]]
-        assert scores == sorted(scores, reverse=True)
+    def test_results_are_ordered_by_evidence_adjusted_similarity(self, similar: dict) -> None:
+        """Not by the raw index, and that is the change.
+
+        The list used to be sorted by `similarity` alone, which ranked a
+        28-minute player's volatile per-90 figures level with a full season's.
+        It is now ordered by the evidence-adjusted value; the raw index is
+        still returned, still displayed, and still means what it meant.
+        """
+        ranked = [r["ranking_similarity"] for r in similar["results"]]
+        assert ranked == sorted(ranked, reverse=True)
+
+    def test_the_raw_index_is_still_reported_untouched(self, similar: dict) -> None:
+        for result in similar["results"]:
+            assert 0.0 <= result["similarity"] <= 100.0
+            # Adjustment only ever pulls toward the population, so a ranked
+            # value above the raw one means the raw one was below average -
+            # never that the index itself was inflated.
+            assert result["ranking_similarity"] <= 100.0
 
     def test_results_share_the_targets_position(self, similar: dict) -> None:
         target_group = similar["target"]["position_group"]
@@ -558,14 +573,54 @@ class TestRecruitment:
 
 
 class TestReplacement:
-    def test_ranks_replacements(self, api: TestClient, a_replaceable_player: dict) -> None:
+    def test_ranks_replacements_by_evidence_not_by_raw_overall(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
+        """The order is no longer the raw overall, and that is the change.
+
+        Two things moved it. Candidates missing a required component now carry
+        no overall at all and are listed afterwards, and within each group the
+        order is adjusted for how much football stands behind the figures.
+        `ranking_value` is what the list was sorted by; `overall` is still the
+        score, unrounded and unrewritten.
+        """
         body = api.post(
             "/api/v1/replacement/search",
             json={"player_id": a_replaceable_player["player_id"], "limit": 10},
         ).json()
         assert body["items"]
-        scores = [c["overall"] for c in body["items"]]
-        assert scores == sorted(scores, reverse=True)
+        complete = body["items"][: body["complete_count"]]
+        limited = body["items"][body["complete_count"] :]
+
+        assert all(c["overall"] is not None for c in complete)
+        assert all(c["overall"] is None for c in limited)
+        for group in (complete, limited):
+            ranked = [c["ranking_value"] for c in group]
+            assert ranked == sorted(ranked, reverse=True)
+
+    def test_a_missing_component_never_improves_a_candidate(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
+        """The exact bias an audit measured.
+
+        Renormalising around an absent role fit used to raise the overall,
+        because similarity carries the largest weight. The average overall for
+        candidates missing it came out above the average for those that had
+        it. Nothing missing can now outrank anything complete, because an
+        incomplete candidate has no comparable score to outrank it with.
+        """
+        body = api.post(
+            "/api/v1/replacement/search",
+            json={"player_id": a_replaceable_player["player_id"], "limit": 50},
+        ).json()
+        incomplete = [c for c in body["items"] if c["missing_components"]]
+        for candidate in incomplete:
+            assert candidate["overall"] is None
+            # And the part that WAS computed is still reported, not discarded.
+            assert candidate["similarity"] is not None
+        positions = [i for i, c in enumerate(body["items"]) if c["overall"] is None]
+        if positions and body["complete_count"]:
+            assert min(positions) >= body["complete_count"]
 
     def test_market_fit_is_absent_without_a_budget(
         self, api: TestClient, a_midfielder: dict

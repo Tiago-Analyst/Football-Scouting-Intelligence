@@ -94,3 +94,5 @@ docs/identity_resolution*.csv
 
 # Page captures taken for review. Regenerated on demand, never a source of truth.
 /screenshots/
+/football_validation_audit/
+/football_validation_audit.zip

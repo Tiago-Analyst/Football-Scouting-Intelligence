@@ -275,7 +275,22 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                           {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
                         </TD>
                         <TD numeric className="font-medium text-accent">
-                          {Math.round(entry.overall)}
+                          {/* Null when a component the score needs was not
+                              available. Renormalising around the gap used to
+                              produce a number that looked comparable and was
+                              not: because similarity carries the largest
+                              weight, losing role fit RAISED the result, so a
+                              candidate with less evidence ranked higher. */}
+                          {entry.overall !== null ? (
+                            Math.round(entry.overall)
+                          ) : (
+                            <span
+                              className="text-xs font-normal text-warning"
+                              title={`No comparable overall: ${(entry.missing_components ?? []).join(", ")} could not be computed for this player.`}
+                            >
+                              Limited
+                            </span>
+                          )}
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null

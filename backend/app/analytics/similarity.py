@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from enum import StrEnum
 from functools import lru_cache
@@ -36,6 +36,7 @@ import yaml
 from app.analytics.contracts import expires_within
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
 from app.analytics.percentiles import PercentileEngine, PercentileScope, PlayerMetrics
+from app.analytics.reliability import RankingAdjustment, rank_by_evidence
 from app.core import paths
 from app.schemas.canonical import PositionGroup
 
@@ -258,6 +259,12 @@ class SimilarityResult:
     #: recruiter must not miss. Reported rather than folded into the index, so
     #: the similarity number keeps the meaning the spec gives it.
     profile_strength_ratio: float = 1.0
+    #: Minutes behind the candidate's figures. Carried so the ordering can
+    #: weigh how much evidence the index rests on; it never changes the index.
+    candidate_minutes: int | None = None
+    #: What the list was ordered by, and why. `similarity` above is untouched
+    #: and is what the product displays.
+    ranking: RankingAdjustment | None = None
     #: Per-feature absolute difference on the comparison scale, closest first.
     feature_gaps: list[tuple[str, float]] = field(default_factory=list)
     #: The same features with both sides' values, closest first. What a
@@ -552,12 +559,25 @@ class SimilarityEngine:
                     shared_features=len(shared),
                     expected_features=expected,
                     profile_strength_ratio=strength_ratio,
+                    candidate_minutes=record.minutes,
                     feature_gaps=gaps,
                     features=comparisons,
                 )
             )
 
-        results.sort(key=lambda r: r.similarity, reverse=True)
+        # The index each result keeps; the order it is given. A per-90 figure
+        # from 28 minutes and one from 2,195 are not the same evidence, and
+        # until this was added the list could not tell them apart. Nobody is
+        # removed - `minimum_similarity` below still filters on the raw index,
+        # so the published threshold keeps its published meaning.
+        adjustments = rank_by_evidence(
+            [r.similarity for r in results], [r.candidate_minutes for r in results]
+        )
+        results = [
+            replace(result, ranking=adjustment)
+            for result, adjustment in zip(results, adjustments, strict=True)
+        ]
+        results.sort(key=lambda r: r.ranking.ranked if r.ranking else r.similarity, reverse=True)
         return [r for r in results if r.similarity >= minimum_similarity][:limit]
 
 
