@@ -311,10 +311,32 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
 
         <section className="space-y-4">
           {!submitted ? (
-            <EmptyState
-              title="Set your profile weights"
-              description="Start from one of the named roles, or set the emphasis yourself. The defaults describe a progressive defensive midfielder."
-            />
+            /* Whether the profile on the left can actually be run, said before
+               the button is pressed rather than after. The form already warns
+               beside the weight it is about; this is the same fact where the
+               answer will appear, so the reader does not have to look away to
+               find out they are about to get nothing. */
+            blockedNow.length > 0 ? (
+              <EmptyState
+                title={`${blockedNow.length} weighted ${blockedNow.length === 1 ? "dimension is" : "dimensions are"} unavailable`}
+                description="This load cannot produce them for anybody, so the ranking would be empty however wide the filters are. Set those weights to zero to rank on the rest of the profile."
+              />
+            ) : total <= 0 ? (
+              <EmptyState
+                title="Choose a role preset or set your own weights"
+                description="Start from one of the named roles, or set the emphasis yourself. Nothing is weighted yet, so there is nothing to rank by."
+              />
+            ) : (
+              <EmptyState
+                title="This profile is ready to rank candidates"
+                description={summary ?? "Adjust the filters, then build the shortlist."}
+                action={
+                  <p className="text-xs text-subtle">
+                    Press <strong>Build shortlist</strong> to run it.
+                  </p>
+                }
+              />
+            )
           ) : results === null ? (
             <ErrorState
               title="Could not build the shortlist"

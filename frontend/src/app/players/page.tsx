@@ -9,7 +9,7 @@ import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatCount, formatDate, formatEuro } from "@/lib/format";
+import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 
 export const metadata: Metadata = {
@@ -53,6 +53,7 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
     // sample band. Showing them with the label beats hiding them without one,
     // and the bands say how much evidence there is rather than who counts.
     minutes_min: first(params.minutes_min),
+    sample_band: first(params.sample_band),
     market_value_max: first(params.market_value_max),
     contract_within_months: first(params.contract_within_months),
     sort: first(params.sort) ?? "minutes",
@@ -192,6 +193,33 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
               />
             </Field>
 
+            {/* Confidence, not eligibility. It sits beside Minimum minutes
+                because the two ask different questions - "at least this much
+                football" and "this much and no more" - and asking for the
+                very low band is how somebody looks for emerging players,
+                which a floor alone cannot express. Default is every band. */}
+            <Field
+              label={
+                <>
+                  Sample band{" "}
+                  <Tooltip label="What this filters">
+                    How much football the figures rest on, not whether a player counts. Nothing is
+                    excluded unless you ask: the default is every band, and this does not replace
+                    the minimum minutes filter.
+                  </Tooltip>
+                </>
+              }
+              htmlFor="sample_band"
+            >
+              <Select id="sample_band" name="sample_band" defaultValue={filters.sample_band ?? ""}>
+                <option value="">Any</option>
+                <option value="very_low">Very low sample (under 180)</option>
+                <option value="low">Low sample (180–449)</option>
+                <option value="developing">Developing sample (450–899)</option>
+                <option value="established">Established sample (900+)</option>
+              </Select>
+            </Field>
+
             <Field label="Max market value (€)" htmlFor="market_value_max">
               <TextInput
                 id="market_value_max"
@@ -239,9 +267,7 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
-                <span className="tabular font-medium text-text">
-                  {formatCount(results.total)}
-                </span>{" "}
+                <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
                 players match
                 {results.total > PAGE_SIZE ? (
                   <>
@@ -274,7 +300,13 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                         <TH>Club</TH>
                         <TH>Competition</TH>
                         <TH>Best role</TH>
-                        <TH numeric>Fit</TH>
+                        {/* "Fit" named two different numbers that this product
+                            keeps apart everywhere else. The figure here is the
+                            Raw Role Fit - the weighted composite - and the
+                            percentile under it is where that composite stands
+                            among players measured for the same role. Both
+                            already arrive in the payload; neither was named. */}
+                        <TH numeric>Raw fit</TH>
                         <TH numeric>Minutes</TH>
                         <TH numeric>Value</TH>
                         <TH numeric>Contract</TH>
@@ -295,7 +327,11 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                                 {player.raw_position ?? player.position_group}
                               </span>
                               {player.minutes !== null ? (
-                                <SampleSizeBadge band={player.sample_band} minutes={player.minutes} showTooltip={false} />
+                                <SampleSizeBadge
+                                  band={player.sample_band}
+                                  minutes={player.minutes}
+                                  showTooltip={false}
+                                />
                               ) : null}
                             </span>
                           </TD>
@@ -307,6 +343,11 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
                             {player.best_role_score !== null
                               ? Math.round(player.best_role_score)
                               : "–"}
+                            {player.best_role_percentile != null ? (
+                              <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                                {ordinal(player.best_role_percentile)} pct
+                              </span>
+                            ) : null}
                           </TD>
                           <TD numeric>
                             {player.minutes !== null ? formatCount(player.minutes) : "–"}
@@ -329,11 +370,22 @@ export default async function PlayerSearchPage(props: PageProps<"/players">) {
               </>
             )}
 
-            <Callout tone="note" title="What “Fit” means">
-              Fit is a role score: the statistical resemblance between a player&apos;s profile and
-              a role definition, on a 0–100 scale. It is not a scouting grade, a probability, or a
-              measure of quality. Scores are comparable between players within one role, but not
-              across different roles.
+            <Callout tone="note" title="The two numbers in the Raw fit column">
+              <p>
+                <strong>Raw role fit</strong> is the weighted composite behind a player&apos;s best
+                role, on a 0–100 scale. It is a score on its own terms: a raw 80 is a raw 80
+                whatever the population, which makes it comparable between players within one role,
+                but not across different roles, because differently weighted roles do not share a
+                scale.
+              </p>
+              <p className="mt-2">
+                The smaller figure is the <strong>role fit percentile</strong>: where that composite
+                stands among the players measured for the same role. It is the comparable one, and
+                the one the best role was chosen by.
+              </p>
+              <p className="mt-2">
+                Neither is a scouting grade, a probability, or a measure of quality.
+              </p>
             </Callout>
           </section>
         </div>

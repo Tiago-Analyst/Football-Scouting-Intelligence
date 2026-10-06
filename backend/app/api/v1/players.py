@@ -29,7 +29,7 @@ from app.analytics.interpretation import (
     ScoreReading,
     interpret,
 )
-from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric
+from app.analytics.metrics import LOWER_IS_BETTER, METRIC_FAMILIES, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
 from app.analytics.roles import RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
@@ -226,6 +226,7 @@ def to_metric(result: PercentileResult, wider: PercentileResult | None = None) -
         global_percentile=wider.percentile if wider is not None else None,
         global_performance_percentile=wider.oriented if wider is not None else None,
         lower_is_better=result.metric in LOWER_IS_BETTER,
+        family=METRIC_FAMILIES.get(result.metric),
         unavailable_reason=result.unavailable_reason,
     )
 
@@ -393,6 +394,13 @@ def list_players(
     age_min: int | None = Query(default=None, ge=14, le=50),
     age_max: int | None = Query(default=None, ge=14, le=50),
     minutes_min: int | None = Query(default=None, ge=0),
+    #: Confidence band, not eligibility. It sits beside `minutes_min` rather
+    #: than replacing it because the two answer different questions: "at least
+    #: this much football" and "this much and no more". Asking for the very
+    #: low band is how somebody looks for emerging players, which a minimum
+    #: alone cannot express. Default is every band, and nothing is excluded
+    #: unless the reader asks.
+    sample_band: str | None = Query(default=None),
     market_value_min: int | None = Query(default=None, ge=0),
     market_value_max: int | None = Query(default=None, ge=0),
     height_min: int | None = Query(default=None, ge=140, le=220),
@@ -427,6 +435,8 @@ def list_players(
         if age_max is not None and (record.age is None or record.age > age_max):
             return False
         if minutes_min is not None and (record.minutes or 0) < minutes_min:
+            return False
+        if sample_band is not None and record.sample_band.value != sample_band:
             return False
         if height_min is not None and (record.height_cm or 0) < height_min:
             return False

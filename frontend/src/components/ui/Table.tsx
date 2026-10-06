@@ -76,15 +76,24 @@ export function TH({
   children,
   numeric,
   scope = "col",
+  colSpan,
 }: {
   className?: string;
   children: ReactNode;
   numeric?: boolean;
-  scope?: "col" | "row";
+  /**
+   * "colgroup" is for a heading row that spans the table and introduces the
+   * rows beneath it, which is how a long comparison is broken into bands of
+   * play. A screen reader told "col" there would announce it as the header of
+   * a single column it does not head.
+   */
+  scope?: "col" | "row" | "colgroup" | "rowgroup";
+  colSpan?: number;
 }) {
   return (
     <th
       scope={scope}
+      colSpan={colSpan}
       className={cn(
         "border-b border-border px-4 py-2.5 text-xs font-medium tracking-wide text-muted uppercase",
         numeric ? "text-right" : "text-left",

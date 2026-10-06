@@ -136,6 +136,11 @@ export interface Metric {
   global_performance_percentile: number | null;
   /** A low value is the better outcome, so the UI must say so. */
   lower_is_better: boolean;
+  /**
+   * Which band of play the metric describes. Presentation only: a table that
+   * ignores it reads exactly as it did before.
+   */
+  family?: string | null;
   unavailable_reason: string | null;
 }
 

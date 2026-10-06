@@ -113,6 +113,63 @@ LOWER_IS_BETTER: frozenset[DerivedMetric] = frozenset(
     }
 )
 
+#: Which family each metric belongs to, for reading rather than for computing.
+#:
+#: These are the sections the enum above is already written in, promoted from
+#: comments to data. A comparison of five players runs to forty rows, and forty
+#: undifferentiated rows are scrolled past rather than read; naming the bands
+#: lets the table put a heading between them.
+#:
+#: Nothing analytical depends on this. No score, percentile or similarity
+#: feature is selected by family, and changing a metric's family changes only
+#: where it appears on a page. A test asserts every metric has one, so a metric
+#: added later cannot quietly fall out of the grouping.
+METRIC_FAMILIES: dict[DerivedMetric, str] = {
+    DerivedMetric.GOALS_PER90: "Goal threat",
+    DerivedMetric.NON_PENALTY_GOALS_PER90: "Goal threat",
+    DerivedMetric.ASSISTS_PER90: "Goal threat",
+    DerivedMetric.XG_PER90: "Goal threat",
+    DerivedMetric.NPXG_PER90: "Goal threat",
+    DerivedMetric.XA_PER90: "Goal threat",
+    DerivedMetric.SHOTS_PER90: "Shooting",
+    DerivedMetric.SHOTS_ON_TARGET_PER90: "Shooting",
+    DerivedMetric.SHOT_ACCURACY: "Shooting",
+    DerivedMetric.SHOT_CONVERSION: "Shooting",
+    DerivedMetric.SHOT_QUALITY: "Shooting",
+    DerivedMetric.PASSES_PER90: "Passing",
+    DerivedMetric.COMPLETED_PASSES_PER90: "Passing",
+    DerivedMetric.PASS_COMPLETION: "Passing",
+    DerivedMetric.PROGRESSIVE_PASSES_PER90: "Passing",
+    DerivedMetric.KEY_PASSES_PER90: "Creation",
+    DerivedMetric.CROSSES_PER90: "Creation",
+    DerivedMetric.ACCURATE_CROSSES_PER90: "Creation",
+    DerivedMetric.CROSS_ACCURACY: "Creation",
+    DerivedMetric.DRIBBLES_PER90: "Dribbling",
+    DerivedMetric.SUCCESSFUL_DRIBBLES_PER90: "Dribbling",
+    DerivedMetric.DRIBBLE_SUCCESS_PERCENTAGE: "Dribbling",
+    DerivedMetric.TACKLES_PER90: "Defending",
+    DerivedMetric.SUCCESSFUL_TACKLES_PER90: "Defending",
+    DerivedMetric.TACKLE_SUCCESS_PERCENTAGE: "Defending",
+    DerivedMetric.INTERCEPTIONS_PER90: "Defending",
+    DerivedMetric.BLOCKS_PER90: "Defending",
+    DerivedMetric.CLEARANCES_PER90: "Defending",
+    DerivedMetric.DUELS_PER90: "Duels",
+    DerivedMetric.DUELS_WON_PER90: "Duels",
+    DerivedMetric.DUEL_WIN_PERCENTAGE: "Duels",
+    DerivedMetric.AERIAL_DUELS_PER90: "Duels",
+    DerivedMetric.AERIAL_DUELS_WON_PER90: "Duels",
+    DerivedMetric.AERIAL_DUEL_WIN_PERCENTAGE: "Duels",
+    DerivedMetric.FOULS_COMMITTED_PER90: "Discipline and ball security",
+    DerivedMetric.FOULS_DRAWN_PER90: "Discipline and ball security",
+    DerivedMetric.DISPOSSESSED_PER90: "Discipline and ball security",
+    DerivedMetric.DRIBBLED_PAST_PER90: "Discipline and ball security",
+    DerivedMetric.SAVES_PER90: "Goalkeeping",
+    DerivedMetric.INSIDE_BOX_SAVES_PER90: "Goalkeeping",
+    DerivedMetric.GOALS_CONCEDED_PER90: "Goalkeeping",
+    DerivedMetric.SAVE_PERCENTAGE: "Goalkeeping",
+    DerivedMetric.CLEAN_SHEET_PERCENTAGE: "Goalkeeping",
+}
+
 #: Metrics expressed on a 0-100 scale rather than as a rate.
 PERCENTAGE_METRICS: frozenset[DerivedMetric] = frozenset(
     {

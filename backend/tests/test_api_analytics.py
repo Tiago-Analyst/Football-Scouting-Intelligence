@@ -144,6 +144,50 @@ class TestPlayerSearch:
             for p in body["items"]
         )
 
+    def test_sample_band_filter_narrows_to_one_band(self, api: TestClient) -> None:
+        body = api.get("/api/v1/players", params={"sample_band": "established", "limit": 20}).json()
+        assert body["items"]
+        assert all(p["sample_band"] == "established" for p in body["items"])
+
+    def test_sample_band_filter_is_off_by_default(self, api: TestClient) -> None:
+        """It is confidence, not eligibility.
+
+        The default must not quietly exclude anybody, which is the whole reason
+        this product has no hidden minimum-minute threshold.
+        """
+        unfiltered = api.get("/api/v1/players", params={"limit": 1}).json()
+        per_band = {
+            band: api.get("/api/v1/players", params={"limit": 1, "sample_band": band}).json()[
+                "total"
+            ]
+            for band in ("very_low", "low", "developing", "established")
+        }
+        # Every player sits in exactly one band, so the four parts must add up
+        # to the unfiltered whole. Anything less means the default is dropping
+        # somebody; anything more means a player is being counted twice.
+        assert sum(per_band.values()) == unfiltered["total"], per_band
+
+    def test_sample_band_filter_does_not_replace_minimum_minutes(self, api: TestClient) -> None:
+        """Both apply, and they ask different questions."""
+        body = api.get(
+            "/api/v1/players",
+            params={"sample_band": "established", "minutes_min": 2500, "limit": 20},
+        ).json()
+        assert all(
+            p["sample_band"] == "established" and p["minutes"] >= 2500 for p in body["items"]
+        )
+
+    def test_every_row_carries_its_best_role_percentile(self, api: TestClient) -> None:
+        """The search table prints the raw fit and the percentile side by side.
+
+        They are different numbers and the table names both; a payload that
+        dropped the percentile would leave the label pointing at nothing.
+        """
+        body = api.get("/api/v1/players", params={"limit": 20}).json()
+        scored = [p for p in body["items"] if p["best_role_score"] is not None]
+        assert scored
+        assert any(p.get("best_role_percentile") is not None for p in scored)
+
 
 class TestPlayerProfile:
     def test_returns_a_player(self, api: TestClient, a_midfielder: dict) -> None:
