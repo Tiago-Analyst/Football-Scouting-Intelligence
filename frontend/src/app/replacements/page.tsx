@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { formatDate, formatEuro } from "@/lib/format";
 import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
 
@@ -222,7 +223,11 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
           </button>
         </form>
 
-        <section className="space-y-4">
+        {/* `min-w-0`: a `1fr` grid track sizes to its content's minimum,
+            so a wide table widens the track and pushes the whole page
+            sideways past the header and footer. The same fix the player
+            search needed, and this table just gained a column. */}
+        <section className="min-w-0 space-y-4">
           {results.items.length === 0 ? (
             <EmptyState
               title="No replacements match these constraints"
@@ -245,6 +250,24 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                       <TH numeric>Raw role fit</TH>
                       <TH numeric>Affordability</TH>
                       <TH numeric>Overall</TH>
+                      {/* The column the list is actually sorted by.
+                          Without it the Overall column reads as broken: it is
+                          not in descending order, because a score from 270
+                          minutes is not the same evidence as one from 1,127
+                          and the ordering accounts for that. Showing the
+                          score and hiding the sort key was the worst of both. */}
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">
+                          Ranked
+                          <Tooltip label="Why this column exists">
+                            The list is ordered by this, not by Overall. A score built on part of a
+                            season is read closer to the average for this search, in proportion to
+                            how much football stands behind it; at a full season&apos;s minutes it
+                            is used as it stands. Nobody is excluded and no score is rewritten —
+                            Overall beside it is the score itself.
+                          </Tooltip>
+                        </span>
+                      </TH>
                       <TH numeric>Value</TH>
                       <TH numeric>Contract</TH>
                     </TR>
@@ -291,6 +314,16 @@ export default async function ReplacementsPage(props: PageProps<"/replacements">
                               Limited
                             </span>
                           )}
+                        </TD>
+                        <TD numeric className="font-medium">
+                          <span title={entry.ranking_note ?? undefined}>
+                            {entry.ranking_value != null ? Math.round(entry.ranking_value) : "–"}
+                          </span>
+                          {entry.evidence_weight != null && entry.evidence_weight < 1 ? (
+                            <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                              {Math.round(entry.evidence_weight * 100)}% of a season
+                            </span>
+                          ) : null}
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null

@@ -482,6 +482,13 @@ export interface RecruitmentCandidate {
   score: number;
   components: ScoreComponent[];
   coverage: number;
+  /** What the list was ordered by: `score` pulled toward the average for this
+   * search in proportion to how little football stands behind it. */
+  ranking_score?: number;
+  /** 0-1, from minutes alone. */
+  evidence_weight?: number;
+  /** Why this candidate placed lower than its score, or null when it did not. */
+  ranking_note?: string | null;
 }
 
 export interface UnavailableScore {
