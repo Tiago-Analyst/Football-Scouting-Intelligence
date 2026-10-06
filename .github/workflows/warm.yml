@@ -1,0 +1,105 @@
+# Fills the page cache after a deploy, before anybody arrives.
+#
+# WHAT GOES COLD, AND WHY IT MATTERS
+#
+# The frontend serves stored answers and refreshes them behind the reader, so
+# the database suspending is normally invisible: measured after 35 minutes of
+# inactivity, the public pages answered between 0.19s and 2.1s, against 5.2s
+# for a direct call to the API. The stale copy is served and the refresh pays
+# the wake-up.
+#
+# A fresh deployment has no stale copy to serve. The first person to open a
+# page then waits for the whole chain - the Neon compute resuming from zero,
+# then the page's own queries - and that measured 7.3s on /data-quality.
+#
+# So this is not a keep-warm ping, and deliberately not: holding the database
+# awake around the clock would spend compute hours to save a second and a half
+# that almost nobody waits. It runs once per production deploy, which is the
+# only moment the cache is genuinely empty.
+#
+# WHY `deployment_status` AND NOT `push`
+#
+# Vercel builds the frontend, not this workflow. A job triggered by the push
+# would run while that build is still going and warm the previous deployment.
+# The Vercel GitHub integration posts a deployment status when the new one is
+# live, which is exactly the event we want - and Render posts its own, under a
+# different environment name, hence the filter below.
+#
+# It requests the canonical address rather than the per-deployment URL the
+# event carries. By the time the status says success the alias points at the
+# new deployment, and the alias is what a reader actually opens; the
+# per-deployment URL can also sit behind deployment protection.
+#
+# Note for anyone editing this: `deployment_status` workflows run from the
+# version of this file on the default branch, so changes here do nothing until
+# they are merged.
+
+name: Warm the cache
+
+on:
+  deployment_status:
+  # So the cache can be filled by hand after a rollback or a manual promotion,
+  # neither of which raises the event above.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two deploys in quick succession: warming the older one is wasted work and
+  # would report timings for a deployment already replaced.
+  group: warm
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    # Render deploys the API and posts statuses too, under "main - fri-backend".
+    # Those leave the page cache untouched, so warming after one would measure
+    # nothing and say something.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Request every public page once
+        env:
+          SITE: https://football-scouting-intelligence.vercel.app
+        run: |
+          set -o pipefail
+
+          # Every page a visitor can reach without signing in. The ones behind
+          # a session - shortlists, account - are deliberately absent: they are
+          # rendered per person and have no shared cache to fill.
+          pages="/ /players /similar /replacements /recruitment /opportunities /data-quality /methodology /about /status"
+
+          failed=0
+          for page in $pages; do
+            # Generous: the first request of the first page pays for the
+            # database resuming, and timing out during that would report a
+            # healthy deploy as a broken one.
+            result=$(curl --silent --show-error --location \
+                          --max-time 90 --retry 2 --retry-delay 5 --retry-all-errors \
+                          --output /dev/null \
+                          --write-out '%{http_code} %{time_total}' \
+                          "$SITE$page") || {
+              echo "::error::$page did not answer at all."
+              failed=1
+              continue
+            }
+
+            status=${result% *}
+            seconds=${result#* }
+            printf '%-16s %s  %ss\n' "$page" "$status" "$seconds"
+
+            # A page that is slow is the point of this job. A page that is
+            # broken is a deploy that should not be left quiet.
+            if [ "$status" != "200" ]; then
+              echo "::error::$page answered $status after a production deploy."
+              failed=1
+            fi
+          done
+
+          exit "$failed"
