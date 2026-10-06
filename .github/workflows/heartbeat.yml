@@ -1,9 +1,18 @@
-# Keeps the API awake, and notices when it is not well.
+# Notices when the API is not well.
 #
-# The backend runs on a free tier that sleeps after fifteen minutes idle and
-# takes roughly fifty seconds to wake. A visitor arriving after a quiet spell
-# waits through that, and until recently was told the player they clicked did
-# not exist.
+# This file used to say it kept the API awake, and the service it described no
+# longer exists. The backend ran on a free tier that slept after fifteen
+# minutes and took about fifty seconds to wake; it now runs on a paid Render
+# instance that does not sleep at all - measured at 21 minutes idle, the first
+# request came back in 1.0s, and at 30 minutes `/health/live` answered in
+# 0.19s.
+#
+# What does still suspend is the database. The Neon compute scales to zero
+# after five minutes of inactivity, fixed at that on the free plan, and
+# resuming it cost 5.2s on a measured `/health`. That is why the timeout below
+# is still generous, and it is the only cold start left in the system. The
+# page cache absorbs it for readers; `warm.yml` covers the one moment it
+# cannot, which is a fresh deploy with nothing stored yet.
 #
 # It checks `/health` rather than `/health/live`. Render already probes the
 # liveness endpoint, which deliberately never touches the database - so
@@ -13,17 +22,18 @@
 #
 # WHAT THIS DOES NOT DO, measured rather than assumed:
 #
-# It does not keep the service awake. Asked for a beat every ten minutes over
+# It does not hold anything awake. Asked for a beat every ten minutes over
 # three days - about 430 of them - GitHub delivered 16, spaced between 116 and
 # 410 minutes apart. Scheduled runs on free tiers are queued at low priority
-# and short intervals are mostly dropped, so the backend sleeps through the
-# gaps whatever this file asks for. Keeping it awake needs something GitHub
-# does not offer: a paid Render instance, or an external uptime pinger.
+# and short intervals are mostly dropped, so the database suspends through the
+# gaps whatever this file asks for. That was the argument for paying Render
+# for an instance that never sleeps, and it is the same argument against
+# trying to keep the Neon compute up from here.
 #
 # What it does do is notice when the API is unwell, which is worth having on
-# its own. The site's own defence against the sleeping is elsewhere - the
+# its own. The site's own defence against the suspending is elsewhere - the
 # frontend serves stored answers immediately and refreshes them behind the
-# reader, so a wake-up delays a background refresh rather than a person.
+# reader, so a resume delays a background refresh rather than a person.
 #
 # Also worth knowing: GitHub disables scheduled workflows after 60 days
 # without a commit to the repository. If this stops firing entirely, that is
@@ -61,10 +71,12 @@ jobs:
         run: |
           set -o pipefail
 
-          # Generous, and deliberately so: a cold start takes about fifty
-          # seconds, and timing out during one would report the wake-up as an
-          # outage. The retries cover a wake that runs long rather than a
-          # service that is actually down - three attempts, two minutes total.
+          # Generous, and deliberately so. The service itself no longer cold
+          # starts, but `/health` queries the database, and a suspended Neon
+          # compute took 5.2s to resume when measured. Timing out during that
+          # would report a wake-up as an outage. The retries cover a resume
+          # that runs long rather than a service that is actually down - three
+          # attempts, two minutes total.
           body=$(curl --silent --show-error --location \
                       --max-time 90 --retry 2 --retry-delay 15 --retry-all-errors \
                       --write-out '\n%{http_code}' \
