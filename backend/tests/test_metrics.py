@@ -12,6 +12,7 @@ import pytest
 
 from app.analytics.metrics import (
     LOWER_IS_BETTER,
+    METRIC_FAMILIES,
     PERCENTAGE_METRICS,
     DerivedMetric,
     DerivedMetrics,
@@ -231,3 +232,32 @@ class TestAgainstTheMockDataset:
                 value = derived.get(metric)
                 if value is not None:
                     assert value >= 0.0, f"{metric} = {value}"
+
+
+class TestMetricFamilies:
+    """Grouping for reading, and the one way it can rot.
+
+    Families decide only where a metric appears on a page. The risk is not a
+    wrong answer, it is a silent omission: a metric added to the enum without a
+    family would vanish from the grouped sections of a comparison while still
+    being scored, and nothing would complain.
+    """
+
+    def test_every_metric_has_a_family(self) -> None:
+        missing = sorted(m.value for m in DerivedMetric if m not in METRIC_FAMILIES)
+        assert missing == [], f"metrics with no family: {missing}"
+
+    def test_no_family_is_declared_for_a_metric_that_does_not_exist(self) -> None:
+        known = {m for m in DerivedMetric}
+        assert set(METRIC_FAMILIES) <= known
+
+    def test_families_are_contiguous_in_enum_order(self) -> None:
+        # The table draws a heading wherever the family changes, so a family
+        # split across two stretches of the enum would print its heading twice
+        # and read as two different things.
+        seen: list[str] = []
+        for metric in DerivedMetric:
+            family = METRIC_FAMILIES[metric]
+            if not seen or seen[-1] != family:
+                seen.append(family)
+        assert len(seen) == len(set(seen)), f"family appears in more than one block: {seen}"

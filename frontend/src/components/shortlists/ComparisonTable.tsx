@@ -1,5 +1,6 @@
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { StatusBadge } from "@/components/shortlists/StatusBadge";
 import { PercentileBar } from "@/components/ui/PercentileBar";
@@ -182,10 +183,12 @@ export function ComparisonTable({
 
   const metricOrder: string[] = [];
   const labels = new Map<string, string>();
+  const families = new Map<string, string | null>();
   for (const column of players) {
     for (const metric of column.metrics) {
       if (!labels.has(metric.metric)) {
         labels.set(metric.metric, metric.label);
+        families.set(metric.metric, metric.family ?? null);
         metricOrder.push(metric.metric);
       }
     }
@@ -336,41 +339,65 @@ export function ComparisonTable({
               ))}
             </TR>
 
-            {metricOrder.map((key) => (
-              <TR key={key}>
-                <TH scope="row" className="sticky left-0 z-10 bg-surface font-normal">
-                  {labels.get(key)}
-                </TH>
-                {players.map((column) => {
-                  const metric = column.metrics.find((m) => m.metric === key);
-                  return (
-                    <TD key={column.player.player_id} numeric>
-                      {metric?.value != null ? (
-                        <div className="space-y-1">
-                          <span
-                            className={
-                              leaders.get(key) === metric.value
-                                ? "font-semibold text-accent"
-                                : undefined
-                            }
-                          >
-                            {metric.value.toFixed(2)}
-                          </span>
-                          {metric.performance_percentile !== null ? (
-                            <PercentileBar
-                              percentile={metric.performance_percentile}
-                              lowerIsBetter={metric.lower_is_better}
-                            />
-                          ) : null}
-                        </div>
-                      ) : (
-                        <span className="text-subtle">—</span>
-                      )}
-                    </TD>
-                  );
-                })}
-              </TR>
-            ))}
+            {metricOrder.map((key, index) => {
+              // A heading when the band of play changes. Five players over
+              // forty rows is a wall that gets scrolled past rather than read,
+              // and the metrics already arrive grouped - the backend names the
+              // family, this only draws the line between them. Nothing is
+              // reordered, so a reader who ignores the headings sees the table
+              // exactly as it was.
+              const family = families.get(key) ?? null;
+              const newFamily =
+                family !== null && (index === 0 || families.get(metricOrder[index - 1]) !== family);
+              return (
+                <Fragment key={key}>
+                  {newFamily ? (
+                    <TR>
+                      <TH
+                        scope="colgroup"
+                        colSpan={players.length + 1}
+                        className="sticky left-0 z-10 bg-surface-2 text-[11px] font-semibold tracking-wide text-subtle uppercase"
+                      >
+                        {family}
+                      </TH>
+                    </TR>
+                  ) : null}
+                  <TR>
+                    <TH scope="row" className="sticky left-0 z-10 bg-surface font-normal">
+                      {labels.get(key)}
+                    </TH>
+                    {players.map((column) => {
+                      const metric = column.metrics.find((m) => m.metric === key);
+                      return (
+                        <TD key={column.player.player_id} numeric>
+                          {metric?.value != null ? (
+                            <div className="space-y-1">
+                              <span
+                                className={
+                                  leaders.get(key) === metric.value
+                                    ? "font-semibold text-accent"
+                                    : undefined
+                                }
+                              >
+                                {metric.value.toFixed(2)}
+                              </span>
+                              {metric.performance_percentile !== null ? (
+                                <PercentileBar
+                                  percentile={metric.performance_percentile}
+                                  lowerIsBetter={metric.lower_is_better}
+                                />
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-subtle">—</span>
+                          )}
+                        </TD>
+                      );
+                    })}
+                  </TR>
+                </Fragment>
+              );
+            })}
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">

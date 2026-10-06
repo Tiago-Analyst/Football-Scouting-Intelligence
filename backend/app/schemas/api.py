@@ -81,6 +81,10 @@ class MetricOut(BaseModel):
     global_performance_percentile: float | None = None
     #: True when a low value is the better outcome, so the UI can say so.
     lower_is_better: bool = False
+    #: Which band of play the metric describes - passing, duels, goalkeeping.
+    #: Presentation only: nothing is computed per family, and a table that
+    #: ignores it reads exactly as it did before.
+    family: str | None = None
     unavailable_reason: str | None = None
 
 

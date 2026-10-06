@@ -9,7 +9,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
-import { formatCount, formatEuro } from "@/lib/format";
+import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import { getOpportunities } from "@/lib/players";
 
 export const metadata: Metadata = {
@@ -248,6 +248,18 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                                 : "–"}
                             </span>
                             <span className="text-xs text-subtle">/ 100</span>
+                            {/* Where that raw score stands among the players
+                                measured for the same role. Already in the
+                                payload - every opportunity carries a full
+                                player summary - so this costs nothing, and a
+                                raw 93 that is only the 60th percentile for its
+                                role is a different finding from one at the
+                                95th. */}
+                            {entry.player.best_role_percentile != null ? (
+                              <span className="text-xs text-subtle">
+                                · {ordinal(entry.player.best_role_percentile)} role fit percentile
+                              </span>
+                            ) : null}
                           </span>
                         }
                       />
