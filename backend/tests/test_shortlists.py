@@ -653,6 +653,27 @@ class TestWhatAComparisonCarries:
         assert column["pros"] == "Reads the game."
         assert column["concerns"] == "Injuries."
 
+    def test_every_compared_metric_names_its_family(self, signed_in: TestClient) -> None:
+        """The comparison draws a heading where the band of play changes.
+
+        A metric arriving without a family would silently join whatever section
+        precedes it, which is worse than no grouping: the heading would then be
+        making a claim about a row it does not cover.
+        """
+        player = a_player(signed_in)
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Families"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": player["player_id"]},
+        )
+
+        column = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()["players"][0]
+        assert column["metrics"]
+        unnamed = [m["metric"] for m in column["metrics"] if not m.get("family")]
+        assert unnamed == [], f"metrics with no family: {unnamed}"
+
     def test_an_unassessed_column_still_states_a_status(self, signed_in: TestClient) -> None:
         """Every entry has one, so a column never has a blank nobody can
         interpret: a player nobody has got to is on the longlist."""
