@@ -175,6 +175,18 @@ class ScoreOut(BaseModel):
     core_dimensions: list[CoreDimensionOut] = Field(default_factory=list)
     #: Why no standard percentile is published, when none is. Null when one is.
     role_fit_percentile_reason: str | None = None
+    #: The component carrying an unusually large share of what the score
+    #: actually came out as, when one does.
+    #:
+    #: Weights say what a role intends to measure; contributions say what it
+    #: ended up measuring for this player. They diverge, and a validation
+    #: audit found an Advanced Playmaker whose xA alone produced 44% of his
+    #: realised score - a role named for creation behaving like a ranking of
+    #: one metric. Explanatory, not punitive: nothing is reweighted and the
+    #: score is unchanged.
+    dominant_component: str | None = None
+    #: Its share of the realised total, 0-100.
+    dominant_share: float | None = None
     #: The countable events behind this score, for the scores whose components
     #: are success rates. Null where the question does not arise.
     evidence: ScoreEvidenceOut | None = None

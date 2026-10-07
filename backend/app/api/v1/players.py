@@ -224,12 +224,41 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
     )
 
 
+#: Share of a realised score above which one component is worth naming.
+#:
+#: A judgement, and a loose one. Below it, a leading component is ordinary -
+#: something has to be largest. Above it the role is behaving like a ranking
+#: of one metric, which a reader comparing two players on the same role name
+#: cannot see from the number.
+DOMINANT_CONTRIBUTION = 40.0
+
+
+def _dominant(score: IntelligenceScore | RoleScore) -> tuple[str | None, float | None]:
+    """The component carrying an outsized share of what the score came out as.
+
+    Realised contribution, not configured weight. The two diverge: a 30%
+    component on a percentile of 95 contributes more than a 40% one on a
+    percentile of 20, and it is the first that a reader is unknowingly ranking
+    by.
+    """
+    contributions = {m: c for m, c in score.contributions() if c is not None}
+    total = sum(contributions.values())
+    if not contributions or total <= 0:
+        return None, None
+    metric = max(contributions, key=lambda m: contributions[m])
+    share = contributions[metric] / total * 100.0
+    if share < DOMINANT_CONTRIBUTION:
+        return None, None
+    return metric_label(metric), share
+
+
 def to_score(
     score: IntelligenceScore | RoleScore,
     stats: PlayerSeasonStats | None = None,
     definitions: dict[str, ScoreDefinition] | None = None,
 ) -> ScoreOut:
     contributions = dict(score.contributions())
+    dominant = _dominant(score)
     return ScoreOut(
         key=score.key,
         label=score.label,
@@ -260,6 +289,8 @@ def to_score(
             for d in getattr(score, "core_dimensions", ())
         ],
         role_fit_percentile_reason=getattr(score, "role_fit_percentile_reason", None),
+        dominant_component=dominant[0],
+        dominant_share=dominant[1],
         evidence=_score_evidence(score.key, stats, definitions),
         caveat=score.caveat,
         # Roles only; intelligence scores carry neither. `getattr` keeps one

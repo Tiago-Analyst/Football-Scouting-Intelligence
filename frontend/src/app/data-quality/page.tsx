@@ -211,6 +211,50 @@ async function Report({
         </Card>
       </div>
 
+      {/* WHAT THE NUMBERS CANNOT TELL YOU THEMSELVES.
+          Three limitations that are properties of the analysis rather than of
+          the load, so no quality check can surface them. They belong on the
+          page whose job is to say what the data cannot do. */}
+      <Card>
+        <CardHeader
+          title="Limits of the analysis itself"
+          description="Not failures. Three things the figures cannot say about themselves, each one visible beside the number it qualifies."
+        />
+        <CardBody className="space-y-4 text-sm leading-relaxed">
+          <div>
+            <p className="font-medium">How far into their seasons the competitions are</p>
+            <p className="mt-1 text-muted">
+              A rank against every loaded competition sounds like a comparison with the wider game.
+              Most of those competitions are only a few matches old, so it is largely a rank against
+              players who have barely started. Every comparison population reports how many
+              competitions it covers, how many have played enough of their season for a full-season
+              figure to be possible at all, and the median minutes behind the figures being ranked.
+              This is about time, not about strength — a league that started later is not a weaker
+              one, and nothing here adjusts for league strength.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium">Whether a role can be measured at all</p>
+            <p className="mt-1 text-muted">
+              Metric coverage says how much of a role&rsquo;s definition was measurable. It cannot
+              say <em>which</em> part. A role whose defining football concept is unavailable is
+              marked as partial evidence: the raw fit is still shown, because the evidence that
+              exists is real, and the percentile is withheld, because a partial score cannot be
+              ranked against players measured from the full definition.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium">How many events a rate rests on</p>
+            <p className="mt-1 text-muted">
+              Minutes played say nothing about this: a full season of football can contain four
+              shots. Scores built from success rates carry the count of the events they divide by,
+              and below a stated floor they are reported with that count rather than offered as one
+              of a player&rsquo;s strongest dimensions. The percentile itself is never altered.
+            </p>
+          </div>
+        </CardBody>
+      </Card>
+
       {report.refresh ? <RefreshProgress refresh={report.refresh} /> : null}
 
       {report.analytics ? (
