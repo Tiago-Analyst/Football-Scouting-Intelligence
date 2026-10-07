@@ -31,7 +31,7 @@ from app.analytics.interpretation import (
 )
 from app.analytics.metrics import LOWER_IS_BETTER, METRIC_FAMILIES, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
-from app.analytics.roles import RoleConfigError, RoleScore
+from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
 from app.core.database import get_session_factory
@@ -756,7 +756,7 @@ def _unscored_roles(view: AnalyticsView, player_id: str) -> list[UnscoredRoleOut
                 key=key,
                 label=role.label,
                 coverage_pct=result.coverage * 100.0,
-                required_pct=role.min_coverage * 100.0,
+                required_pct=SECONDARY_COVERAGE_FLOOR * 100.0,
                 missing=[metric_label(m) for m in result.missing],
             )
         )

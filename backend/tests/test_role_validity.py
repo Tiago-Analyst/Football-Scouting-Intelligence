@@ -285,8 +285,11 @@ class TestTheProvisionalFloor:
         import app.analytics.roles as module
 
         text = pathlib.Path(module.__file__).read_text(encoding="utf-8")
-        at = text.index("SECONDARY_COVERAGE_FLOOR")
-        marker = text[at - 1200 : at]
+        # The comment block attached to the definition, not a fixed window
+        # before the first mention - the constant is referred to in prose
+        # elsewhere in the file and a window walks onto the wrong one.
+        at = text.index("SECONDARY_COVERAGE_FLOOR = ")
+        marker = text[max(0, at - 1400) : at]
         assert "PROVISIONAL" in marker, "the floor must say it is not a methodological finding"
         assert "football decision" in marker
 
@@ -310,3 +313,101 @@ def test_the_audited_roles_all_declare_dimensions(key: str) -> None:
     assert role.core_dimensions, f"{key} declares no defining concepts"
     for name, metrics in role.core_dimensions.items():
         assert metrics, f"{key} dimension '{name}' is empty"
+
+
+class TestTheLegacyThresholdNoLongerGates:
+    """The per-role floors encoded provider availability, not football need.
+
+    Thirteen of fifteen sat exactly one point below the maximum coverage the
+    data could reach, and because they ran before core validity they could
+    refuse a role whose defining concepts were all measured: twelve
+    full-backs at 70% coverage against a 79% floor, with both core dimensions
+    satisfied, scored nothing at all.
+    """
+
+    def test_the_field_is_named_so_it_cannot_be_reached_for_by_habit(self) -> None:
+        role = get_roles()["defensive_full_back"]
+        assert not hasattr(role, "min_coverage")
+        assert role.legacy_min_coverage == pytest.approx(0.79)
+
+    def test_the_historical_values_are_kept(self) -> None:
+        """For migration, diagnostics and the record - not for gating."""
+        floors = {k: r.legacy_min_coverage for k, r in get_roles().items()}
+        assert floors["shot_stopper"] == 1.0
+        assert floors["ball_playing_centre_back"] == pytest.approx(0.59)
+
+    def test_the_scorer_asks_the_shared_floor_and_not_the_role(self) -> None:
+        import inspect
+
+        from app.analytics import roles as module
+
+        source = inspect.getsource(module.RoleEngine.score)
+        assert "SECONDARY_COVERAGE_FLOOR" in source
+        assert "legacy_min_coverage" not in source
+
+    def test_a_core_valid_full_back_at_sixty_percent_is_full(self) -> None:
+        """The exact case: below the old 79%, above the shared floor, core met.
+
+        Twelve real players sit here. `duel_win_percentage` evidences
+        defensive resistance where `dribbled_past_per90` is absent, which is
+        the whole point of dimensions over mandatory metrics.
+        """
+        role = get_roles()["defensive_full_back"]
+        present = {
+            "tackles_per90": 70.0,
+            "interceptions_per90": 60.0,
+            "duel_win_percentage": 65.0,
+            "clearances_per90": 55.0,
+        }
+        components = [
+            ScoreComponent(metric=m.value, weight=w, value=present.get(m.value))
+            for m, w in role.metric_weights.items()
+        ]
+        from app.analytics.roles import _validity
+        from app.analytics.scoring import weighted_score
+
+        result = weighted_score(components, min_coverage=SECONDARY_COVERAGE_FLOOR)
+        assert result.score is not None, "the old floor would have refused this"
+        assert result.coverage < role.legacy_min_coverage
+
+        available = {c.metric for c in result.components if c.is_available}
+        dimensions = tuple(
+            CoreDimensionStatus(
+                name=n,
+                satisfied=any(m.value in available for m in ms),
+                available=tuple(m.value for m in ms if m.value in available),
+                missing=tuple(m.value for m in ms if m.value not in available),
+            )
+            for n, ms in role.core_dimensions.items()
+        )
+        assert all(d.satisfied for d in dimensions)
+        assert _validity(result.score, result.coverage, dimensions) is RoleValidity.FULL
+
+    def test_coverage_below_the_shared_floor_is_never_full(self) -> None:
+        """Even when the surviving metrics happen to cover every dimension."""
+        from app.analytics.roles import _validity
+
+        verdict = _validity(70.0, SECONDARY_COVERAGE_FLOOR - 0.01, (dimension("a", True),))
+        assert verdict is RoleValidity.UNAVAILABLE
+
+    def test_high_coverage_with_a_missing_core_dimension_is_never_full(self) -> None:
+        from app.analytics.roles import _validity
+
+        assert _validity(70.0, 0.98, (dimension("progression", False),)) is RoleValidity.PARTIAL
+
+    def test_an_absent_component_stays_absent(self) -> None:
+        """Retiring a gate must not start filling gaps."""
+        role = get_roles()["defensive_full_back"]
+        components = [
+            ScoreComponent(
+                metric=m.value, weight=w, value=None if m.value.startswith("aerial") else 60.0
+            )
+            for m, w in role.metric_weights.items()
+        ]
+        from app.analytics.scoring import weighted_score
+
+        result = weighted_score(components, min_coverage=SECONDARY_COVERAGE_FLOOR)
+        absent = [c for c in result.components if not c.is_available]
+        assert absent, "the aerial component must still be absent"
+        assert all(c.value is None for c in absent), "absent is not zero"
+        assert result.coverage < 1.0

@@ -125,7 +125,19 @@ class RoleDefinition:
     position_groups: tuple[PositionGroup, ...]
     metric_weights: dict[DerivedMetric, float]
     score_weights: dict[str, float]
-    min_coverage: float = 1.0
+    #: RETIRED AS A VALIDITY GATE. Kept for migration, diagnostics and the
+    #: record, never consulted when deciding whether a role may be scored.
+    #:
+    #: Measured across all fifteen roles, thirteen had this set to exactly one
+    #: point below the maximum coverage the provider could reach - so it
+    #: encoded what the data happened to supply rather than what a role needs,
+    #: and it did so one metric away from silence. It also ran BEFORE core
+    #: validity, which made the football gate secondary to an availability
+    #: readout: twelve full-backs with both core dimensions satisfied were
+    #: refused a score at 70% against this role's 79%.
+    #:
+    #: `SECONDARY_COVERAGE_FLOOR` is the only coverage gate now.
+    legacy_min_coverage: float = 1.0
     caveat: str | None = None
     #: The football concepts without which this role is not this role, each
     #: satisfiable by ANY of the metrics listed against it. Dimensions rather
@@ -507,7 +519,7 @@ def load_roles(
             position_groups=tuple(groups),
             metric_weights=metric_weights,
             score_weights=score_weights,
-            min_coverage=min_coverage,
+            legacy_min_coverage=min_coverage,
             core_dimensions=_parse_core_dimensions(key, body.get("core_dimensions"), known_metrics),
             caveat=(str(body["caveat"]).strip() if body.get("caveat") else None),
         )
@@ -646,7 +658,15 @@ class RoleEngine:
         if context is None:  # pragma: no cover - config validation prevents this
             raise RoleConfigError(f"Role '{key}' produced no components")
 
-        result = weighted_score(components, min_coverage=role.min_coverage)
+        # CORE VALIDITY IS THE GATE, NOT COVERAGE.
+        #
+        # The role's own historical floor is deliberately not consulted here.
+        # It encoded provider availability rather than football sufficiency,
+        # and because it ran first it could refuse a role whose defining
+        # concepts were all measured. What remains is a single provisional
+        # floor, shared by every role, guarding against data so incomplete
+        # that nothing meaningful could be built from it.
+        result = weighted_score(components, min_coverage=SECONDARY_COVERAGE_FLOOR)
 
         # Which defining concepts anything evidenced. A dimension is satisfied
         # by ANY of its metrics, so a full-back missing how often he is

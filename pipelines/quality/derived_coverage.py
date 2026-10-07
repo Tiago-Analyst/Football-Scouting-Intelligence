@@ -212,7 +212,7 @@ def _measure_features(  # type: ignore[no-untyped-def]
     withheld, and only running it says which happened.
     """
     from app.analytics.intelligence import get_definitions
-    from app.analytics.roles import get_roles
+    from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
 
     produced: dict[str, int] = defaultdict(int)
     caveated: dict[str, int] = defaultdict(int)
@@ -287,7 +287,9 @@ def _measure_features(  # type: ignore[no-untyped-def]
                 caveated=caveated[f"role:{name}"],
                 absent_components=missing,
                 surviving_weight=(total - lost) / total,
-                min_coverage=definition.min_coverage,
+                # A role's historical floor no longer gates it; one
+                # provisional floor does, shared by every role.
+                min_coverage=SECONDARY_COVERAGE_FLOOR,
             )
         )
 

@@ -122,7 +122,7 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
     """Roles, scores, similarity vectors, and the canonical metrics absent."""
     sys.path.insert(0, str(REPO_ROOT / "backend"))
     from app.analytics.intelligence import get_definitions
-    from app.analytics.roles import get_roles
+    from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
     from app.analytics.similarity import get_feature_sets
     from app.schemas.canonical import CanonicalMetric
     from pipelines.quality.coverage import _computed, _probe_stats
@@ -168,7 +168,11 @@ def measure() -> tuple[list[Line], list[Line], list[Line], list[str]]:
                 configured_weight=sum(weights.values()),
                 available_weight=sum(w for n, w in weights.items() if is_available(n)),
                 missing=missing,
-                min_coverage=role.min_coverage,
+                # A role's own historical floor no longer decides whether it
+                # may be scored - core football dimensions do, and a single
+                # provisional floor guards against data too incomplete to use.
+                # The report asks the question the running site now asks.
+                min_coverage=SECONDARY_COVERAGE_FLOOR,
                 configured_metrics=sorted(weights),
             )
         )
