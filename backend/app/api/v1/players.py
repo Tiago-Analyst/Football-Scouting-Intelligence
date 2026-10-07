@@ -65,31 +65,72 @@ router = APIRouter(prefix="/api/v1", tags=["players"])
 
 #: Metrics shown on a profile, in reading order. Not every derived metric: a
 #: profile that lists 43 numbers communicates less than one that lists 20.
+#: Every metric a profile shows, in reading order.
+#:
+#: THE RULE THIS LIST HAS TO KEEP
+#:
+#: Everything a role is scored from appears here. The whole claim of the role
+#: breakdown is that a reader can check it, and for six metrics they could
+#: not: a validation audit found 40% of the Poacher score - shots on target,
+#: shot conversion and shot quality - contributing to a number while appearing
+#: nowhere on the player's page. Dribbled past carried 20% of the Defensive
+#: Full-Back score and 32% of its realised contribution for one player, and
+#: was equally invisible.
+#:
+#: Hand-written lists drift. `test_every_role_metric_is_inspectable` compares
+#: this against the role configuration and fails if a role ever reaches for a
+#: metric the profile does not print, so the rule is enforced rather than
+#: remembered.
+#:
+#: Grouped the way `METRIC_FAMILIES` groups them, because the comparison draws
+#: a heading wherever the family changes and a metric out of place would split
+#: its family into two sections with the same name.
 PROFILE_METRICS: list[DerivedMetric] = [
+    # -- Passing --
     DerivedMetric.PROGRESSIVE_PASSES_PER90,
     DerivedMetric.COMPLETED_PASSES_PER90,
     DerivedMetric.PASS_COMPLETION,
+    # -- Creation --
     DerivedMetric.KEY_PASSES_PER90,
-    DerivedMetric.XA_PER90,
     DerivedMetric.ACCURATE_CROSSES_PER90,
+    # -- Dribbling --
     DerivedMetric.SUCCESSFUL_DRIBBLES_PER90,
     DerivedMetric.DRIBBLE_SUCCESS_PERCENTAGE,
+    # -- Defending --
     DerivedMetric.TACKLES_PER90,
     DerivedMetric.SUCCESSFUL_TACKLES_PER90,
     DerivedMetric.INTERCEPTIONS_PER90,
     DerivedMetric.BLOCKS_PER90,
     DerivedMetric.CLEARANCES_PER90,
+    # -- Duels --
     DerivedMetric.DUEL_WIN_PERCENTAGE,
     DerivedMetric.AERIAL_DUEL_WIN_PERCENTAGE,
+    # 20% of the Target Forward role, previously invisible.
+    DerivedMetric.AERIAL_DUELS_WON_PER90,
+    # -- Shooting --
     DerivedMetric.SHOTS_PER90,
+    # These three made up 40% of the Poacher score and appeared nowhere.
+    DerivedMetric.SHOTS_ON_TARGET_PER90,
+    DerivedMetric.SHOT_CONVERSION,
+    DerivedMetric.SHOT_QUALITY,
+    # -- Goal threat --
+    DerivedMetric.XA_PER90,
     DerivedMetric.NPXG_PER90,
     DerivedMetric.NON_PENALTY_GOALS_PER90,
+    # -- Discipline and ball security --
     DerivedMetric.FOULS_DRAWN_PER90,
     DerivedMetric.DISPOSSESSED_PER90,
+    # 20% of the Defensive Full-Back role, and 32% of one audited player's
+    # realised score. Previously invisible.
+    DerivedMetric.DRIBBLED_PAST_PER90,
+    # -- Goalkeeping --
     DerivedMetric.SAVES_PER90,
+    # 20% of the Shot Stopper role, previously invisible.
+    DerivedMetric.INSIDE_BOX_SAVES_PER90,
     DerivedMetric.SAVE_PERCENTAGE,
     DerivedMetric.GOALS_CONCEDED_PER90,
 ]
+
 
 _LABEL_OVERRIDES = {
     # Tackle *attempts*. The provider declares a successful-tackles field and
