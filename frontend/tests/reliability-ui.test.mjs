@@ -166,3 +166,36 @@ test("the page does not decide what counts as too little", () => {
 test("the percentile bar is still fed the untouched score", () => {
   assert.match(profile, /<PercentileBar percentile=\{score\.score\}/);
 });
+
+/**
+ * Full, Partial and Unavailable roles.
+ *
+ * Core validity and metric coverage answer different questions, and the page
+ * must not blur them: a partial role shows its raw fit and no percentile,
+ * names the football concept that could not be measured, and never appears as
+ * the headline Best Role.
+ */
+
+test("a partial role shows its raw fit and withholds the percentile", () => {
+  assert.match(profile, /partial_evidence/);
+  assert.match(flat(profile), /Partial role evidence/i);
+  assert.match(flat(profile), /not available for partial role definitions/i);
+});
+
+test("it names the dimension that could not be measured", () => {
+  assert.match(profile, /core_dimensions/);
+  assert.match(flat(profile), /Unavailable defining dimension/);
+});
+
+test("the page does not decide validity for itself", () => {
+  // Backend authority. A second rule here would eventually disagree with the
+  // one that produced the ordering.
+  assert.equal(/validity\s*===\s*["']full["']/.test(profile), false);
+  assert.equal(/coverage\s*[<>]=?\s*0\.5/.test(profile), false);
+});
+
+test("the reason a percentile is missing comes from the backend", () => {
+  // Two different reasons - a partial definition, or too thin a population -
+  // and guessing between them on this side would eventually guess wrong.
+  assert.match(profile, /role_fit_percentile_reason/);
+});

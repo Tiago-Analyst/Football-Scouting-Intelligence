@@ -38,6 +38,7 @@ from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
     ComparisonContextOut,
+    CoreDimensionOut,
     FeatureComparisonOut,
     FindingOut,
     MarketValuePointOut,
@@ -242,6 +243,17 @@ def to_score(
             for component in score.components
         ],
         missing=[metric_label(m) for m in score.missing],
+        validity=getattr(score, "validity", None),
+        core_dimensions=[
+            CoreDimensionOut(
+                name=d.name,
+                satisfied=d.satisfied,
+                available=[metric_label(m) for m in d.available],
+                missing=[metric_label(m) for m in d.missing],
+            )
+            for d in getattr(score, "core_dimensions", ())
+        ],
+        role_fit_percentile_reason=getattr(score, "role_fit_percentile_reason", None),
         evidence=_score_evidence(score.key, stats, definitions),
         caveat=score.caveat,
         # Roles only; intelligence scores carry neither. `getattr` keeps one
@@ -711,6 +723,7 @@ def get_player_roles(player_id: str) -> RoleFitOut:
     return RoleFitOut(
         best=to_score(fit.best) if fit.best else None,
         alternatives=[to_score(s) for s in fit.alternatives],
+        partial_evidence=[to_score(s) for s in fit.partial_evidence],
         unscored=unscored,
         unscored_reason=_why_no_role(unscored) if not fit.best else None,
         meaning=fit.meaning,

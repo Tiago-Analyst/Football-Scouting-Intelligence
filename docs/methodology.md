@@ -469,6 +469,21 @@ specification names. It is recorded here, in the two configuration files, and on
 every figure it touches - which is the difference between a documented
 adaptation and the silent substitution the project forbids.
 
+### Role validity: Full, Partial and Unavailable
+
+Metric Coverage answers *how much of the configured role definition is
+measurable*. Core Validity answers *whether the defining football concepts of
+the role are measurable at all*. They are different questions and are never
+conflated: a percentage cannot distinguish periphery missing from a defining
+component being absent.
+
+A Partial role keeps its Raw Role Fit and publishes no Role Fit Percentile,
+because a percentile ranks a score among others measured the same way and a
+partial score was not. The missing concept is named rather than left to be
+inferred. `docs/role_validity.md` has the full account, the classification of
+all fifteen roles against the validation sample, and the one limitation this
+model does not yet fix.
+
 ### The rule a substitution follows
 
 A substitution is an **alternative**, never an equivalence. Two mappings are
@@ -492,10 +507,20 @@ which is what the Defensive Full-Back did until its specification was amended.
 `test_a_proxy_never_keeps_the_weight_of_what_it_replaces` enforces this. Any
 role still scoring a proxy at the original weight has to be named in
 `ROLES_STILL_ON_A_PROXY_WEIGHT`, so each one is a decision somebody made
-rather than a default nobody noticed. Three roles are on that list today:
-Defensive Stopper, Ball-Winning Midfielder and Box-to-Box Midfielder. They are
-the same question as the Defensive Full-Back and are open for review, not
-settled.
+rather than a default nobody noticed.
+
+**That list is now empty.** The Defensive Stopper, Ball-Winning Midfielder and
+Box-to-Box Midfielder specifications have been corrected to name
+`Tackles Attempted /90` at the weights they already used. Simulation over 245
+production players showed no case for reweighting them - the Defensive Stopper
+sits at 34% mean realised dominance and the Box-to-Box at 25%, against the
+41.8% that justified changing the Defensive Full-Back, and every candidate
+reweighting made the Box-to-Box worse. So the weights stand and only the
+naming was wrong: a reader was told these roles measure tackles won when they
+measure how often a player goes for the ball.
+
+The Defensive Activity INTELLIGENCE SCORE still substitutes, and is the case
+left open.
 
 Missing stays different from zero throughout. A football concept the provider
 cannot supply is never silently replaced.

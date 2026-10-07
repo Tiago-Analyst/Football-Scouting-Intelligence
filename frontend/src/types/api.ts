@@ -188,6 +188,15 @@ export interface Score {
    * can contain four shots.
    */
   evidence?: ScoreEvidence | null;
+  /**
+   * full | partial | unavailable, for a role. Separate from `coverage`:
+   * coverage says how much of the definition was measurable, validity says
+   * whether the concepts that make the role that role were measurable at all.
+   */
+  validity?: string | null;
+  core_dimensions?: CoreDimension[];
+  /** Why no standard percentile is published, when none is. */
+  role_fit_percentile_reason?: string | null;
   components: ScoreComponent[];
   missing: string[];
   /** Hand-written, and qualitative only: limits no report can derive. */
@@ -215,6 +224,14 @@ export interface Score {
   is_limited?: boolean;
 }
 
+export interface CoreDimension {
+  name: string;
+  satisfied: boolean;
+  /** Metrics that evidenced it, and metrics that could have and did not. */
+  available: string[];
+  missing: string[];
+}
+
 export interface UnscoredRole {
   key: string;
   label: string;
@@ -228,6 +245,10 @@ export interface UnscoredRole {
 export interface RoleFit {
   best: Score | null;
   alternatives: Score[];
+  /** Roles whose defining concepts this data cannot fully measure, strongest
+   * raw fit first. Beside the best role, never as it: the number is real and
+   * the comparison is not. */
+  partial_evidence?: Score[];
   /** Roles tried and not scored, closest first. Populated when there is no
    * best role, which is exactly when a reader needs it. */
   unscored?: UnscoredRole[];

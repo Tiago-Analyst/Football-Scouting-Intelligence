@@ -44,7 +44,7 @@ SPEC_ROLES: dict[str, tuple[str, dict[str, float]]] = {
         "CB",
         {
             "interceptions_per90": 25,
-            "successful_tackles_per90": 20,
+            "tackles_per90": 20,
             "blocks_per90": 15,
             "clearances_per90": 15,
             "duel_win_percentage": 15,
@@ -84,7 +84,7 @@ SPEC_ROLES: dict[str, tuple[str, dict[str, float]]] = {
     "ball_winning_midfielder": (
         "DM",
         {
-            "successful_tackles_per90": 25,
+            "tackles_per90": 25,
             "interceptions_per90": 25,
             "duel_win_percentage": 20,
             "aerial_duel_win_percentage": 10,
@@ -106,7 +106,7 @@ SPEC_ROLES: dict[str, tuple[str, dict[str, float]]] = {
         "CM",
         {
             "progressive_passes_per90": 15,
-            "successful_tackles_per90": 15,
+            "tackles_per90": 15,
             "interceptions_per90": 15,
             "duel_win_percentage": 15,
             "successful_dribbles_per90": 10,
@@ -282,11 +282,11 @@ DECLARED_SUBSTITUTIONS = {"successful_tackles_per90": "tackles_per90"}
 #: same decision, deliberately left for review rather than swept along with
 #: it. Writing them out is what makes the scale of the thing visible: it was
 #: never one role.
-ROLES_STILL_ON_A_PROXY_WEIGHT = {
-    "defensive_stopper",
-    "ball_winning_midfielder",
-    "box_to_box_midfielder",
-}
+#: Empty, and that is the point: no role's specification now names a metric
+#: the provider cannot supply while scoring a different one against its
+#: weight. The Defensive Activity INTELLIGENCE SCORE still does, which is a
+#: separate decision recorded in docs/methodology.md.
+ROLES_STILL_ON_A_PROXY_WEIGHT: set[str] = set()
 
 
 class TestConfiguration:
