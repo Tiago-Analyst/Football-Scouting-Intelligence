@@ -75,7 +75,56 @@ Fifteen would repeat the mistake `min_coverage` already made: thresholds that
 encode what the provider happens to supply rather than what a role needs.
 Changing it is a football decision.
 
-## A limitation this implementation does not fix
+## The gate, and what it used to be
+
+Core validity is the primary gate. A role may be scored when enough of its
+definition survives to clear one shared provisional floor, and it is Full only
+when every defining concept was evidenced.
+
+Each role used to carry its own `min_coverage`, and that floor ran first.
+Thirteen of fifteen were set to exactly one point below the maximum coverage
+the provider could reach, so they encoded what the data happened to supply
+rather than what a role needs — and because they ran before validity, they
+could refuse a role whose defining concepts were all measured.
+
+Measured on 40 full-backs: twelve were refused a Defensive Full-Back score at
+70% coverage against that role's 79%, with **both** core dimensions satisfied —
+`duel_win_percentage` evidences defensive resistance where
+`dribbled_past_per90` is absent. That is the case dimensions exist for, and a
+percentage could not see it.
+
+The values are kept as `legacy_min_coverage`, for migration, diagnostics and
+the record. Nothing consults them when deciding whether a role may be scored,
+and a test asserts the scorer does not.
+
+## What retiring it changed
+
+| Role | Scored before | Scored after |
+|---|---:|---:|
+| Defensive Full-Back | 28/40 | **40/40** |
+| Box-to-Box Midfielder | 92/95 | 95/95 |
+| Attacking Full-Back | 39/40 | 40/40 |
+| Deep-Lying Playmaker | 69/70 | 70/70 |
+| Direct Winger | 54/55 | 55/55 |
+| Inside Forward | 69/70 | 70/70 |
+| Complete Forward | 39/40 | 40/40 |
+| The other eight | unchanged | unchanged |
+
+Only one role expands by more than three players, and it is the one the
+analysis predicted. All twelve recovered full-backs satisfy both core
+dimensions; none is admitted by a lowered percentage alone.
+
+**No player anywhere is scored at exactly the provisional floor.** The lowest
+coverage observed in the whole validation population is 60%, ten points above
+it — so the floor currently binds on nobody and remains untested by anything
+except intent.
+
+Eleven players change best role as a result of this change, separately from
+the sixty-four that changed when core validity was introduced. One of them is
+Joon-hyuck Kang, who appeared in the original validation audit with 1,829
+minutes, sixteen of eighteen metrics and no role at all. He now has one.
+
+## The limitation this replaces
 
 Core validity is described above as the primary gate. In the code it is not
 yet, because each role's existing `min_coverage` still runs first and can
@@ -87,11 +136,9 @@ both satisfied** — `duel_win_percentage` evidences defensive resistance where
 `dribbled_past_per90` is missing. Under the secondary floor alone they would
 all be Full.
 
-So the product currently has three gates where the model describes two, and
-the oldest of them is the strictest. Retiring `min_coverage` in favour of core
-validity plus the secondary floor is the obvious next step and has not been
-taken: it changes who is scored in every role at once, and that is a decision
-to make deliberately rather than as a side effect.
+The product had three gates where the model described two, and the oldest was
+the strictest. That has been resolved: `min_coverage` no longer decides role
+validity.
 
 ## Classification on the validation sample
 
@@ -101,22 +148,24 @@ to make deliberately rather than as a side effect.
 |---|---:|---:|---:|---|
 | Ball-Playing Centre-Back | 0 | 40 | 0 | progression |
 | Defensive Stopper | 40 | 0 | 0 | — |
-| Defensive Full-Back | 28 | 0 | 12 | — (see limitation above) |
-| Attacking Full-Back | 39 | 0 | 1 | attacking advance |
+| Defensive Full-Back | 40 | 0 | 0 | — |
+| Attacking Full-Back | 39 | 1 | 0 | attacking advance |
 | Ball-Winning Midfielder | 70 | 0 | 0 | — |
-| Deep-Lying Playmaker | 0 | 69 | 1 | progression |
-| Box-to-Box Midfielder | 92 | 0 | 3 | — |
+| Deep-Lying Playmaker | 0 | 70 | 0 | progression |
+| Box-to-Box Midfielder | 95 | 0 | 0 | — |
 | Advanced Playmaker | 65 | 0 | 0 | — |
 | Creative Winger | 55 | 0 | 0 | — |
-| Direct Winger | 54 | 0 | 1 | — |
-| Inside Forward | 69 | 0 | 1 | — |
+| Direct Winger | 55 | 0 | 0 | — |
+| Inside Forward | 70 | 0 | 0 | — |
 | Poacher | 40 | 0 | 0 | — |
-| Complete Forward | 39 | 0 | 1 | — |
+| Complete Forward | 40 | 0 | 0 | — |
 | Target Forward | 0 | 40 | 0 | aerial efficiency |
 | Shot Stopper | 40 | 0 | 0 | — |
 
-Two roles are Partial for everyone, both for the same reason: the provider
-supplies no measure of progression, and none of aerial efficiency.
+Three roles are Partial for everyone, for two reasons: the provider supplies
+no measure of progression, and none of aerial efficiency. Nothing in the
+population is Unavailable — the provisional floor binds on nobody, which is
+why it remains untested by anything except intent.
 
 ## Best role selection
 

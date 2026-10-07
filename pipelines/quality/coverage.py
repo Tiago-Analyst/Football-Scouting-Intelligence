@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.analytics.intelligence import get_definitions
 from app.analytics.metrics import DerivedMetric, compute_derived
-from app.analytics.roles import get_roles
+from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
 from app.models import DimPlayer, FactPlayerSeasonStats
 from app.schemas.canonical import CanonicalMetric, PlayerSeasonStats
 
@@ -227,7 +227,10 @@ def impact_of_absence(absent: set[CanonicalMetric]) -> Impact:
             **{s: w for s, w in role.score_weights.items()},
         }
         unavailable: set[object] = set(lost_derived) | set(lost_scores)
-        if not survives(weights, unavailable, role.min_coverage):
+        # The role's own historical floor no longer decides whether it can be
+        # scored; one provisional floor does, for every role. Asking the old
+        # question here would report roles as lost that the site still scores.
+        if not survives(weights, unavailable, SECONDARY_COVERAGE_FLOOR):
             lost_roles.add(role.key)
 
     return Impact(

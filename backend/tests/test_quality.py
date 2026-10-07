@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.analytics.intelligence import get_definitions
 from app.analytics.metrics import DerivedMetric
-from app.analytics.roles import get_roles
+from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
 from app.models import FactDataQuality
 from app.schemas.canonical import CanonicalMetric
 from app.services import quality_service as svc
@@ -162,8 +162,11 @@ class TestImpactOfAbsence:
             ("deep_lying_playmaker", 0.70),
         ):
             role = roles[key]
-            assert role.min_coverage <= available, (
-                f"{key} is configured to refuse a score it is meant to produce"
+            # The role's own historical floor no longer gates anything; the
+            # question is whether what survives clears the one provisional
+            # floor every role now shares.
+            assert available >= SECONDARY_COVERAGE_FLOOR, (
+                f"{key} would be refused a score it is meant to produce"
             )
             assert classify_role_coverage(available) is RoleCoverage.LIMITED, (
                 f"{key} would be presented as a full-confidence role"
