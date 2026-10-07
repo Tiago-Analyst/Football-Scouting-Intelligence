@@ -20,7 +20,7 @@ ambiguous.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -127,6 +127,12 @@ class RoleDefinition:
     score_weights: dict[str, float]
     min_coverage: float = 1.0
     caveat: str | None = None
+    #: The football concepts without which this role is not this role, each
+    #: satisfiable by ANY of the metrics listed against it. Dimensions rather
+    #: than mandatory metrics, because a concept usually has more than one way
+    #: to be evidenced and a provider supplying a different one should not
+    #: silence the role.
+    core_dimensions: dict[str, tuple[DerivedMetric, ...]] = field(default_factory=dict)
 
     @property
     def primary_position(self) -> PositionGroup:
@@ -139,6 +145,48 @@ class RoleDefinition:
     @property
     def inverted_metrics(self) -> tuple[DerivedMetric, ...]:
         return tuple(m for m in self.metric_weights if m in LOWER_IS_BETTER)
+
+
+class RoleValidity(StrEnum):
+    """Whether a role's football meaning survived the data.
+
+    Separate from coverage on purpose, because they answer different
+    questions. Coverage asks how much of the configured definition could be
+    measured. Validity asks whether the concepts that make the role that role
+    are measurable at all - and a percentage cannot tell the two apart. A
+    Ball-Playing Centre-Back scored without any measure of progression sits at
+    60% coverage and is not a ball-playing centre-back; a Defensive Full-Back
+    missing only how often he is dribbled past can still be read as a
+    defensive full-back, because duels evidence the same thing.
+    """
+
+    FULL = "full"
+    PARTIAL = "partial"
+    UNAVAILABLE = "unavailable"
+
+
+@dataclass(frozen=True)
+class CoreDimensionStatus:
+    """One defining concept of a role, and whether anything evidenced it."""
+
+    name: str
+    satisfied: bool
+    available: tuple[str, ...]
+    missing: tuple[str, ...]
+
+
+#: Below this share of the configured weight, whatever is left is too partial
+#: to call a role fit at all.
+#:
+#: PROVISIONAL. It is a technical guardrail, not a methodological finding, and
+#: it has never been validated against football judgement - on the current data
+#: it binds on no role, so nothing has tested it but intent. It is deliberately
+#: one number for every role rather than fifteen tuned ones, because fifteen
+#: would invite the same mistake `min_coverage` already made: thresholds that
+#: encode what the provider happens to supply rather than what a role needs.
+#:
+#: Changing it is a football decision, not a technical one.
+SECONDARY_COVERAGE_FLOOR = 0.50
 
 
 @dataclass(frozen=True)
@@ -158,6 +206,20 @@ class RoleScore:
     role_fit_percentile: float | None = None
     #: How many players that standing was measured against.
     role_population: int = 0
+    #: Whether the role's defining concepts could be measured for this player.
+    validity: RoleValidity = RoleValidity.FULL
+    #: Each defining concept and what evidenced it, for a page to explain with.
+    core_dimensions: tuple[CoreDimensionStatus, ...] = ()
+    #: Why no standard percentile is published, when none is.
+    role_fit_percentile_reason: str | None = None
+
+    @property
+    def is_full(self) -> bool:
+        return self.validity is RoleValidity.FULL
+
+    @property
+    def unmet_dimensions(self) -> tuple[str, ...]:
+        return tuple(d.name for d in self.core_dimensions if not d.satisfied)
 
     @property
     def is_available(self) -> bool:
@@ -254,10 +316,14 @@ class RoleFit:
 
     best: RoleScore | None
     alternatives: list[RoleScore]
+    #: Roles whose defining concepts this data cannot fully measure, strongest
+    #: raw fit first. Reported beside the best role, never as it: the number is
+    #: real and the comparison is not.
+    partial_evidence: list[RoleScore] = field(default_factory=list)
 
     @property
     def all_scores(self) -> list[RoleScore]:
-        return ([self.best] if self.best else []) + self.alternatives
+        return ([self.best] if self.best else []) + self.alternatives + self.partial_evidence
 
     @property
     def meaning(self) -> str:
@@ -296,18 +362,48 @@ def normalise_fits(fits: dict[str, RoleFit]) -> dict[str, RoleFit]:
     Roles with too few players to rank against keep a `None` percentile and
     fall back to their raw score, which is stated rather than hidden.
     """
+    # ONLY FULL SCORES BUILD THE DISTRIBUTION.
+    #
+    # A percentile says where a score stands among others measured the same
+    # way. A Ball-Playing Centre-Back scored without any measure of
+    # progression was not measured the same way as one scored with it, and
+    # ranking the two together is exactly the comparison the missing metric
+    # forbids. Partial scores are therefore neither placed nor used to place
+    # anyone else; their raw fit is reported and the percentile is withheld
+    # with the reason attached.
     by_role: dict[str, list[float]] = defaultdict(list)
     for fit in fits.values():
         for score in fit.all_scores:
-            if score.score is not None:
+            if score.score is not None and score.is_full:
                 by_role[score.key].append(score.score)
     for values in by_role.values():
         values.sort()
 
     def placed(score: RoleScore) -> RoleScore:
         values = by_role.get(score.key, [])
+        if not score.is_full:
+            unmet = ", ".join(score.unmet_dimensions)
+            reason = (
+                f"This role could not be measured for {unmet}, so its score is not "
+                f"comparable with players scored from the full definition."
+                if unmet
+                else "Too little of this role's definition could be measured."
+            )
+            return replace(
+                score,
+                role_fit_percentile=None,
+                role_population=len(values),
+                role_fit_percentile_reason=reason,
+            )
         if score.score is None or len(values) < MIN_ROLE_POPULATION:
-            return replace(score, role_fit_percentile=None, role_population=len(values))
+            return replace(
+                score,
+                role_fit_percentile=None,
+                role_population=len(values),
+                role_fit_percentile_reason=(
+                    "Too few players were evaluated for this role to place a score among them."
+                ),
+            )
         return replace(
             score,
             role_fit_percentile=percentile_of(score.score, values),
@@ -316,14 +412,23 @@ def normalise_fits(fits: dict[str, RoleFit]) -> dict[str, RoleFit]:
 
     normalised: dict[str, RoleFit] = {}
     for key, fit in fits.items():
-        scores = sorted(
-            (placed(s) for s in fit.all_scores),
-            key=lambda s: s.standing,
+        scores = [placed(s) for s in fit.all_scores]
+        full = sorted((s for s in scores if s.is_full), key=lambda s: s.standing, reverse=True)
+        partial = sorted(
+            (s for s in scores if s.validity is RoleValidity.PARTIAL),
+            key=lambda s: s.score or 0.0,
             reverse=True,
         )
+        # The best role is the best FULLY SUPPORTED role, and partial evidence
+        # is surfaced beside it rather than competing with it. Letting a
+        # partial score win would present an incomparable number as the
+        # headline; dropping it would hide a real finding about a player whose
+        # strongest statistical case happens to sit in a role this data cannot
+        # fully measure.
         normalised[key] = RoleFit(
-            best=scores[0] if scores else None,
-            alternatives=scores[1:],
+            best=full[0] if full else None,
+            alternatives=full[1:],
+            partial_evidence=partial,
         )
     return normalised
 
@@ -403,10 +508,64 @@ def load_roles(
             metric_weights=metric_weights,
             score_weights=score_weights,
             min_coverage=min_coverage,
+            core_dimensions=_parse_core_dimensions(key, body.get("core_dimensions"), known_metrics),
             caveat=(str(body["caveat"]).strip() if body.get("caveat") else None),
         )
 
     return definitions
+
+
+def _validity(
+    score: float | None,
+    coverage: float,
+    dimensions: tuple[CoreDimensionStatus, ...],
+) -> RoleValidity:
+    """Core validity first, coverage second. They answer different questions.
+
+    No score, or too little of the definition measured, and there is nothing
+    to call a role fit. Otherwise the role is itself only if every defining
+    concept was evidenced; short of that it is partial, and the evidence that
+    does exist is still real and still reported.
+
+    A role with no configured dimensions is treated as full, because the
+    absence of a declaration is not a finding about the football.
+    """
+    if score is None or coverage < SECONDARY_COVERAGE_FLOOR:
+        return RoleValidity.UNAVAILABLE
+    if any(not d.satisfied for d in dimensions):
+        return RoleValidity.PARTIAL
+    return RoleValidity.FULL
+
+
+def _parse_core_dimensions(
+    key: str,
+    body: object,
+    known: dict[str, DerivedMetric],
+) -> dict[str, tuple[DerivedMetric, ...]]:
+    """Read a role's defining concepts, or refuse the configuration.
+
+    As strict as the weights. A dimension naming a metric the role does not
+    score from would be a requirement nothing could satisfy, and a silent skip
+    would turn a defining concept into an optional one.
+    """
+    if body is None:
+        return {}
+    if not isinstance(body, dict) or not body:
+        raise RoleConfigError(f"Role '{key}' core_dimensions must be a non-empty mapping")
+    parsed: dict[str, tuple[DerivedMetric, ...]] = {}
+    for name, metrics in body.items():
+        if not isinstance(metrics, list) or not metrics:
+            raise RoleConfigError(f"Role '{key}' dimension '{name}' needs a list of metrics")
+        resolved = []
+        for metric_name in metrics:
+            metric = known.get(metric_name)
+            if metric is None:
+                raise RoleConfigError(
+                    f"Role '{key}' dimension '{name}' references unknown metric '{metric_name}'"
+                )
+            resolved.append(metric)
+        parsed[str(name)] = tuple(resolved)
+    return parsed
 
 
 @lru_cache(maxsize=1)
@@ -488,6 +647,24 @@ class RoleEngine:
             raise RoleConfigError(f"Role '{key}' produced no components")
 
         result = weighted_score(components, min_coverage=role.min_coverage)
+
+        # Which defining concepts anything evidenced. A dimension is satisfied
+        # by ANY of its metrics, so a full-back missing how often he is
+        # dribbled past still has defensive resistance through duels - and a
+        # centre-back with no measure of progression does not have progression
+        # however high his passing coverage is.
+        available = {c.metric for c in result.components if c.is_available}
+        dimensions = tuple(
+            CoreDimensionStatus(
+                name=name,
+                satisfied=any(m.value in available for m in metrics),
+                available=tuple(m.value for m in metrics if m.value in available),
+                missing=tuple(m.value for m in metrics if m.value not in available),
+            )
+            for name, metrics in role.core_dimensions.items()
+        )
+        validity = _validity(result.score, result.coverage, dimensions)
+
         return RoleScore(
             key=role.key,
             label=role.label,
@@ -497,6 +674,8 @@ class RoleEngine:
             components=result.components,
             missing=result.missing,
             caveat=role.caveat,
+            validity=validity,
+            core_dimensions=dimensions,
         )
 
     def fit(

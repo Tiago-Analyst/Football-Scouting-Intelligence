@@ -323,7 +323,15 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         {role.role_population ?? 0} evaluated for this role
                       </>
                     ) : (
-                      " · too few players evaluated for a standing"
+                      /* The backend decides why a percentile is withheld and
+                         says so. Two different reasons - a partial role
+                         definition, or too thin a population - and guessing
+                         between them on this side would eventually guess
+                         wrong. */
+                      <>
+                        {" · "}
+                        {role.role_fit_percentile_reason ?? "no standing available"}
+                      </>
                     )}
                     {/* How much of the role's configured weight is actually
                         backed by a metric the provider supplies. A role scored
@@ -381,6 +389,47 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 ) : null}
               </div>
             )}
+
+            {/* PARTIAL ROLE EVIDENCE
+                A role whose defining football concept this data cannot
+                measure. The raw fit is real and is shown; the percentile is
+                withheld because it would rank an incomparable number against
+                players scored from the full definition. Reported beside the
+                best role rather than competing with it, and never hidden -
+                a strong partial fit is a genuine finding about a player. */}
+            {roles?.partial_evidence?.length ? (
+              <div className="mt-4 space-y-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
+                <p className="text-[11px] font-medium text-warning">Partial role evidence</p>
+                {roles.partial_evidence.map((role) => (
+                  <div key={role.key} className="text-[11px] leading-relaxed text-subtle">
+                    <span className="font-medium text-text">{role.label}</span>
+                    {" — raw fit "}
+                    <span className="tabular">
+                      {role.score !== null ? Math.round(role.score) : "N/A"}
+                    </span>
+                    {role.coverage !== null && role.coverage !== undefined ? (
+                      <>
+                        {", metric coverage "}
+                        {Math.round(role.coverage * 100)}%
+                      </>
+                    ) : null}
+                    {role.core_dimensions?.some((d) => !d.satisfied) ? (
+                      <>
+                        {". Unavailable defining dimension: "}
+                        {role.core_dimensions
+                          .filter((d) => !d.satisfied)
+                          .map((d) => d.name)
+                          .join(", ")}
+                        {"."}
+                      </>
+                    ) : null}
+                    <span className="mt-0.5 block">
+                      Role fit percentile not available for partial role definitions.
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </CardBody>
           <CardFooter className="space-y-2 text-subtle">
             {/* Spelt out rather than hidden in a tooltip. A role scored from

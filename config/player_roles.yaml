@@ -87,6 +87,12 @@ roles:
     # into a pretence of completeness - the weights of what remains are
     # renormalised so absence does not read as poor performance, and the
     # original coverage travels separately so nobody mistakes the two.
+    core_dimensions:
+      progression:
+        - progressive_passes_per90
+      passing base:
+        - pass_completion
+        - completed_passes_per90
     min_coverage: 0.59
     caveat: >-
       Progression is the defining component of this role, so read this as
@@ -110,6 +116,15 @@ roles:
         aerial_duel_win_percentage: 10
 
   # -- Full-back / wing-back ----------------------------------------------
+    core_dimensions:
+      defensive engagement:
+        - interceptions_per90
+        - tackles_per90
+      contest outcome:
+        - duel_win_percentage
+      box defending:
+        - blocks_per90
+        - clearances_per90
     min_coverage: 0.89
     caveat: >-
       Aerial duel efficiency cannot be measured at all: the provider reports
@@ -159,6 +174,13 @@ roles:
         blocks_per90: 10
         aerial_duel_win_percentage: 10
         clearances_per90: 5
+    core_dimensions:
+      defensive engagement:
+        - tackles_per90
+        - interceptions_per90
+      defensive resistance:
+        - dribbled_past_per90
+        - duel_win_percentage
     min_coverage: 0.79
     caveat: >-
       The defensive core of the role is intact; what is thin is aerial
@@ -185,6 +207,13 @@ roles:
         pass_completion: 10
 
   # -- Defensive midfield --------------------------------------------------
+    core_dimensions:
+      final-third delivery:
+        - accurate_crosses_per90
+        - key_passes_per90
+      attacking advance:
+        - progressive_passes_per90
+        - successful_dribbles_per90
     min_coverage: 0.79
     caveat: >-
       The crossing and chance creation that define an attacking full-back
@@ -206,6 +235,12 @@ roles:
         progressive_passes_per90: 10
       scores:
         ball_security: 10
+    core_dimensions:
+      ball-winning engagement:
+        - tackles_per90
+        - interceptions_per90
+      contest outcome:
+        - duel_win_percentage
     min_coverage: 0.69
     caveat: >-
       Tackling, interceptions and duels won - the ball-winning itself - are
@@ -231,6 +266,12 @@ roles:
     # 70% available. Same reasoning as the ball-playing centre-back above, and
     # the same honesty about what is missing: enabled, banded LIMITED, and
     # carrying its caveat everywhere it is shown.
+    core_dimensions:
+      progression:
+        - progressive_passes_per90
+      passing base:
+        - completed_passes_per90
+        - pass_completion
     min_coverage: 0.69
     caveat: >-
       Progression is what distinguishes a deep-lying playmaker from a tidy
@@ -258,6 +299,15 @@ roles:
         pass_completion: 10
 
   # -- Attacking midfield --------------------------------------------------
+    core_dimensions:
+      defensive contribution:
+        - tackles_per90
+        - interceptions_per90
+        - duel_win_percentage
+      attacking contribution:
+        - npxg_per90
+        - xa_per90
+        - successful_dribbles_per90
     min_coverage: 0.84
     caveat: >-
       The defensive and attacking contributions that define a box-to-box
@@ -283,6 +333,10 @@ roles:
         npxg_per90: 5
 
   # -- Wingers -------------------------------------------------------------
+    core_dimensions:
+      creation:
+        - xa_per90
+        - key_passes_per90
     min_coverage: 0.84
     caveat: >-
       Expected assists and key passes - the creation this role is named for
@@ -301,6 +355,13 @@ roles:
         successful_dribbles_per90: 20
         dribble_success_percentage: 10
         npxg_per90: 5
+    core_dimensions:
+      creation:
+        - xa_per90
+        - key_passes_per90
+      wide threat:
+        - accurate_crosses_per90
+        - successful_dribbles_per90
 
   direct_winger:
     label: Direct Winger
@@ -317,6 +378,10 @@ roles:
         xa_per90: 10
         fouls_drawn_per90: 10
         dispossessed_per90: 5
+    core_dimensions:
+      taking players on:
+        - successful_dribbles_per90
+        - dribble_success_percentage
     min_coverage: 0.94
 
   inside_forward:
@@ -334,6 +399,13 @@ roles:
         shot_conversion: 5
 
   # -- Forwards ------------------------------------------------------------
+    core_dimensions:
+      goal threat:
+        - npxg_per90
+        - shots_per90
+      scoring:
+        - non_penalty_goals_per90
+
   poacher:
     label: Poacher
     position_groups: [FORWARD]
@@ -348,6 +420,12 @@ roles:
         shots_on_target_per90: 15
         shot_conversion: 15
         shot_quality: 10
+    core_dimensions:
+      scoring:
+        - non_penalty_goals_per90
+      getting into positions:
+        - npxg_per90
+        - shots_on_target_per90
 
   complete_forward:
     label: Complete Forward
@@ -366,6 +444,13 @@ roles:
         successful_dribbles_per90: 10
         pass_completion: 5
         fouls_drawn_per90: 5
+    core_dimensions:
+      scoring:
+        - non_penalty_goals_per90
+        - npxg_per90
+      creating:
+        - xa_per90
+        - key_passes_per90
     min_coverage: 0.89
     caveat: >-
       Aerial duel efficiency cannot be measured: the provider reports aerial
@@ -387,6 +472,16 @@ roles:
         xa_per90: 5
 
   # -- Goalkeeper ----------------------------------------------------------
+    core_dimensions:
+      # Deliberately NOT satisfiable by aerial_duels_won_per90. Aerials won
+      # is output; this dimension is efficiency, and there is no denominator
+      # to build one from. Volume cannot tell a dominant target man from one
+      # who contests constantly and loses. The role is Partial until the
+      # provider supplies aerials contested.
+      aerial efficiency:
+        - aerial_duel_win_percentage
+      physical contest:
+        - duel_win_percentage
     min_coverage: 0.74
     caveat: >-
       Aerial volume is counted; aerial efficiency cannot be, because the
@@ -409,3 +504,6 @@ roles:
         inside_box_saves_per90: 20
         goals_conceded_per90: 20
         saves_per90: 15
+    core_dimensions:
+      shot stopping:
+        - save_percentage

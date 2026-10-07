@@ -945,12 +945,22 @@ Aerial Duels Won %          10%
 
 ```text
 Interceptions /90           25%
-Successful Tackles /90      20%
+Tackles Attempted /90      20%
 Blocks /90                  15%
 Clearances /90              15%
 Duels Won %                 15%
 Aerial Duels Won %          10%
 ```
+
+**Amended — naming only, weights unchanged.** The original wrote
+`Successful Tackles /90`. The provider declares that field and never populates
+it, and the implementation has always scored tackles ATTEMPTED against it.
+Simulation over production players showed no case for reweighting this role,
+so the weight stands and only the name is corrected: a reader is no longer
+told this role measures tackles won when it measures how often a player goes
+for the ball. Attempts and successes are different concepts, and the role's
+caveat says what the difference costs.
+
 
 ## FULL-BACK / WING-BACK
 
@@ -1006,13 +1016,23 @@ Pass Completion %           10%
 ### 5. Ball-Winning Midfielder
 
 ```text
-Successful Tackles /90      25%
+Tackles Attempted /90      25%
 Interceptions /90           25%
 Duels Won %                 20%
 Aerial Duels Won %          10%
 Ball Security               10%
 Progressive Passes /90      10%
 ```
+
+**Amended — naming only, weights unchanged.** The original wrote
+`Successful Tackles /90`. The provider declares that field and never populates
+it, and the implementation has always scored tackles ATTEMPTED against it.
+Simulation over production players showed no case for reweighting this role,
+so the weight stands and only the name is corrected: a reader is no longer
+told this role measures tackles won when it measures how often a player goes
+for the ball. Attempts and successes are different concepts, and the role's
+caveat says what the difference costs.
+
 
 ### 6. Deep-Lying Playmaker
 
@@ -1031,7 +1051,7 @@ Inverse Dispossessed /90    10%
 
 ```text
 Progressive Passes /90      15%
-Successful Tackles /90      15%
+Tackles Attempted /90      15%
 Interceptions /90           15%
 Duels Won %                 15%
 Successful Dribbles /90     10%
@@ -1039,6 +1059,16 @@ xA /90                      10%
 npxG /90                    10%
 Pass Completion %           10%
 ```
+
+**Amended — naming only, weights unchanged.** The original wrote
+`Successful Tackles /90`. The provider declares that field and never populates
+it, and the implementation has always scored tackles ATTEMPTED against it.
+Simulation over production players showed no case for reweighting this role,
+so the weight stands and only the name is corrected: a reader is no longer
+told this role measures tackles won when it measures how often a player goes
+for the ball. Attempts and successes are different concepts, and the role's
+caveat says what the difference costs.
+
 
 ## ATTACKING MIDFIELD
 

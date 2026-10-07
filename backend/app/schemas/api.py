@@ -88,6 +88,18 @@ class MetricOut(BaseModel):
     unavailable_reason: str | None = None
 
 
+class CoreDimensionOut(BaseModel):
+    """One football concept a role is defined by, and whether anything measured it."""
+
+    name: str
+    satisfied: bool
+    #: Metrics that evidenced it, and metrics that could have and did not.
+    #: Both, because "aerial efficiency: missing aerial_duel_win_percentage"
+    #: tells a reader what to go and look for.
+    available: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+
+
 class ScoreEvidenceOut(BaseModel):
     """How many events a score rests on, when it rests on few.
 
@@ -133,6 +145,19 @@ class ScoreOut(BaseModel):
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
+    #: full | partial | unavailable, for a role. Absent for intelligence scores.
+    #:
+    #: Separate from `coverage` on purpose. Coverage answers how much of the
+    #: configured definition could be measured; validity answers whether the
+    #: concepts that make the role that role are measurable at all. A
+    #: percentage cannot tell those apart, which is how a centre-back with no
+    #: measure of progression came to be ranked as a ball-playing centre-back.
+    validity: str | None = None
+    #: Each defining concept and what evidenced it, so a page can name the one
+    #: that is missing rather than saying "partial" and stopping.
+    core_dimensions: list[CoreDimensionOut] = Field(default_factory=list)
+    #: Why no standard percentile is published, when none is. Null when one is.
+    role_fit_percentile_reason: str | None = None
     #: The countable events behind this score, for the scores whose components
     #: are success rates. Null where the question does not arise.
     evidence: ScoreEvidenceOut | None = None
@@ -198,6 +223,11 @@ class UnscoredRoleOut(BaseModel):
 class RoleFitOut(BaseModel):
     best: ScoreOut | None
     alternatives: list[ScoreOut] = Field(default_factory=list)
+    #: Roles whose defining concepts this data cannot fully measure, strongest
+    #: raw fit first. Beside the best role, never as it: a partial score is a
+    #: real number and an unfair comparison, so it is reported and not ranked
+    #: against fully supported roles.
+    partial_evidence: list[ScoreOut] = Field(default_factory=list)
     #: Roles that were tried and could not be scored, with the shortfall.
     #: Populated when there is no best role, which is when a reader needs it.
     unscored: list[UnscoredRoleOut] = Field(default_factory=list)
