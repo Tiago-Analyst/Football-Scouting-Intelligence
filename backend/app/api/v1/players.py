@@ -21,7 +21,7 @@ from app.analytics.coverage import (
     detailed_coverage_pct,
     minutes_are_inconsistent,
 )
-from app.analytics.intelligence import IntelligenceScore
+from app.analytics.intelligence import IntelligenceScore, ScoreDefinition
 from app.analytics.interpretation import (
     NOT_CAPTURED,
     MetricReading,
@@ -50,6 +50,7 @@ from app.schemas.api import (
     RoleFitOut,
     SampleOut,
     ScoreComponentOut,
+    ScoreEvidenceOut,
     ScoreOut,
     ScoutingInterpretationOut,
     SimilarPlayerOut,
@@ -57,7 +58,7 @@ from app.schemas.api import (
     TransferOut,
     UnscoredRoleOut,
 )
-from app.schemas.canonical import position_group_name
+from app.schemas.canonical import PlayerSeasonStats, position_group_name
 from app.services.analytics_service import AnalyticsView, PlayerRecord, get_analytics_view
 
 router = APIRouter(prefix="/api/v1", tags=["players"])
@@ -175,7 +176,11 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
     )
 
 
-def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
+def to_score(
+    score: IntelligenceScore | RoleScore,
+    stats: PlayerSeasonStats | None = None,
+    definitions: dict[str, ScoreDefinition] | None = None,
+) -> ScoreOut:
     contributions = dict(score.contributions())
     return ScoreOut(
         key=score.key,
@@ -196,6 +201,7 @@ def to_score(score: IntelligenceScore | RoleScore) -> ScoreOut:
             for component in score.components
         ],
         missing=[metric_label(m) for m in score.missing],
+        evidence=_score_evidence(score.key, stats, definitions),
         caveat=score.caveat,
         # Roles only; intelligence scores carry neither. `getattr` keeps one
         # serialiser for both rather than two that can disagree.
@@ -230,6 +236,54 @@ def to_metric(result: PercentileResult, wider: PercentileResult | None = None) -
         family=METRIC_FAMILIES.get(result.metric),
         unavailable_reason=result.unavailable_reason,
     )
+
+
+def _score_evidence(
+    key: str,
+    stats: PlayerSeasonStats | None,
+    definitions: dict[str, ScoreDefinition] | None,
+) -> ScoreEvidenceOut | None:
+    """The event count behind a rate-built score, read from the raw stats.
+
+    Derived from the configuration rather than from a list here, so adding an
+    `evidence` block to a score in `intelligence_scores.yaml` is all it takes
+    and nothing in this file has to know which scores are rate-built.
+    """
+    if stats is None or definitions is None:
+        return None
+    definition = definitions.get(key)
+    if definition is None or definition.evidence is None:
+        return None
+    count = getattr(stats, definition.evidence.metric, None)
+    if not isinstance(count, int):
+        # The provider did not supply the count. Absent, not zero: claiming
+        # nought events would be a measurement nobody made.
+        return None
+    low = count < definition.evidence.headline_threshold
+    noun = _count_noun(definition.evidence.noun, count)
+    return ScoreEvidenceOut(
+        events=count,
+        noun=definition.evidence.noun,
+        threshold=definition.evidence.headline_threshold,
+        low=low,
+        label=(f"Low evidence - {count:,} {noun}" if low else f"{count:,} {noun}"),
+    )
+
+
+def _count_noun(noun: str, count: int) -> str:
+    """ "1 dribble attempted", not "1 dribbles attempted".
+
+    The configured nouns are plural because they are almost always read that
+    way, and the one count that needs the singular is the one most worth
+    printing. Drops the trailing "s" from the head word, which covers "shots"
+    and "dribbles attempted"; an irregular noun would need its own field, and
+    none has turned up yet.
+    """
+    if count != 1:
+        return noun
+    head, _, tail = noun.partition(" ")
+    singular = head[:-1] if head.endswith("s") else head
+    return f"{singular} {tail}".strip()
 
 
 def _interpret(
@@ -282,7 +336,16 @@ def read_profile(
 
     reading = interpret(
         role=role_reading,
-        scores=[ScoreReading(s.label, s.score, s.coverage) for s in scores],
+        scores=[
+            ScoreReading(
+                s.label,
+                s.score,
+                s.coverage,
+                low_evidence=bool(s.evidence and s.evidence.low),
+                evidence_label=s.evidence.label if s.evidence else None,
+            )
+            for s in scores
+        ],
         metrics=[
             MetricReading(m.label, m.percentile, m.lower_is_better, m.unavailable_reason, m.metric)
             for m in metrics
@@ -580,7 +643,11 @@ def get_player_stats(
         ),
         None,
     )
-    scores = [to_score(s) for s in view.scores(player_id, scope=percentile_scope).values()]
+    definitions = view.intelligence.definitions if view.intelligence else None
+    scores = [
+        to_score(s, record.stats, definitions)
+        for s in view.scores(player_id, scope=percentile_scope).values()
+    ]
 
     return PlayerStatsResponse(
         player_id=player_id,

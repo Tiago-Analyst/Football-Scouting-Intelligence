@@ -155,6 +155,17 @@ export interface ScoreComponent {
   contribution: number | null;
 }
 
+export interface ScoreEvidence {
+  events: number;
+  /** "shots", "dribbles attempted". */
+  noun: string;
+  /** The configured floor below which this is not offered as a strength. */
+  threshold: number;
+  low: boolean;
+  /** One phrase for a page, e.g. "Low evidence - 8 shots". */
+  label: string;
+}
+
 export interface Score {
   key: string;
   label: string;
@@ -170,6 +181,13 @@ export interface Score {
    */
   score: number | null;
   coverage: number;
+  /**
+   * The countable events behind a score built from success rates, when it
+   * rests on few. Reported beside the percentile and never folded into it:
+   * minutes played say nothing about this, because a full season of football
+   * can contain four shots.
+   */
+  evidence?: ScoreEvidence | null;
   components: ScoreComponent[];
   missing: string[];
   /** Hand-written, and qualitative only: limits no report can derive. */

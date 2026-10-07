@@ -173,6 +173,12 @@ class ScoreReading:
     label: str
     score: float | None
     coverage: float = 1.0
+    #: True when the score rests on too few countable events to be offered as
+    #: a strength. It is still computed, still shown and still ranked; it is
+    #: simply not the sentence that says what a player is good at.
+    low_evidence: bool = False
+    #: The count, so the prose can say what it is standing aside for.
+    evidence_label: str | None = None
 
 
 @dataclass(frozen=True)
@@ -316,8 +322,15 @@ def _profile_lines(
         (s for s in scores if s.score is not None),
         key=lambda s: (-(s.score or 0.0),),
     )
-    top = [s for s in ranked if (s.score or 0.0) >= STRONG]
+    # A score built on a handful of events is not a strength, whatever its
+    # percentile. An audit found Finishing announced as the single strongest
+    # dimension of a centre-back who had taken about four shots in a season:
+    # the percentile was correct and the sentence was wrong. It stays on the
+    # page with its count beside it; it stops being the headline.
+    strong_enough = [s for s in ranked if not s.low_evidence]
+    top = [s for s in strong_enough if (s.score or 0.0) >= STRONG]
     bottom = [s for s in ranked if (s.score or 0.0) <= WEAK]
+    set_aside = [s for s in ranked if s.low_evidence and (s.score or 0.0) >= STRONG]
 
     # Named as what they are. "Profile dimensions" is a word this product uses
     # nowhere else; the page beside this one calls them intelligence scores.
@@ -331,6 +344,23 @@ def _profile_lines(
         lines.append(
             "Weakest: "
             + _list_of([f"{s.label} ({round(s.score or 0)})" for s in bottom[-3:]])
+            + "."
+        )
+    # Said out loud rather than quietly dropped. A high score that vanished
+    # from the summary with no explanation is a worse failure than the one
+    # this replaced: the reader would see it on the chart beside the prose and
+    # have no way to reconcile the two.
+    if set_aside:
+        lines.append(
+            "Scoring high but on too little to call a strength: "
+            + _list_of(
+                [
+                    f"{s.label} ({round(s.score or 0)}, {s.evidence_label.lower()})"
+                    if s.evidence_label
+                    else f"{s.label} ({round(s.score or 0)})"
+                    for s in set_aside[:3]
+                ]
+            )
             + "."
         )
     return lines

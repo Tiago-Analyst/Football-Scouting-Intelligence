@@ -134,3 +134,35 @@ test("the wider replacements table cannot push the page sideways", () => {
   // minimum. The player search had to learn this the hard way.
   assert.match(replacements, /className="min-w-0 space-y-4"/);
 });
+
+/**
+ * A percentile with almost nothing behind it.
+ *
+ * Finishing was reported as the single strongest dimension of a centre-back
+ * with roughly four shots in a season. The number was right; the sentence was
+ * not. The count now travels beside the score, and the backend decides what
+ * counts as too little - a threshold written in the score configuration where
+ * it can be argued with.
+ */
+
+test("a score shows the events it rests on", () => {
+  assert.match(profile, /score\.evidence/);
+  assert.match(profile, /score\.evidence\.label/);
+});
+
+test("a low-evidence count is marked, not hidden", () => {
+  assert.match(profile, /score\.evidence\.low/);
+  assert.match(flat(profile), /text-warning/);
+});
+
+test("the page does not decide what counts as too little", () => {
+  // The threshold is a football judgement and lives in the score
+  // configuration. A number compared here would be a second opinion that
+  // eventually disagrees with the first.
+  assert.equal(/evidence\.events\s*[<>]=?\s*\d/.test(profile), false);
+  assert.equal(/evidence\.events\s*[<>]=?\s*evidence\.threshold/.test(profile), false);
+});
+
+test("the percentile bar is still fed the untouched score", () => {
+  assert.match(profile, /<PercentileBar percentile=\{score\.score\}/);
+});

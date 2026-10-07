@@ -47,6 +47,20 @@ class ScoreConfigError(Exception):
 
 
 @dataclass(frozen=True)
+class EvidenceRequirement:
+    """How many events a score needs before it is read as a finding."""
+
+    #: A raw count the provider supplies, e.g. shots or dribbles attempted.
+    metric: str
+    #: Below this, the score is still computed, still shown and still ranked -
+    #: it is simply not offered as one of a player's strongest dimensions.
+    #: A judgement, written in the configuration so it can be argued with.
+    headline_threshold: int
+    #: What to call the events when the count is printed.
+    noun: str
+
+
+@dataclass(frozen=True)
 class ScoreDefinition:
     """One intelligence score, as configured."""
 
@@ -56,6 +70,20 @@ class ScoreDefinition:
     components: dict[DerivedMetric, float]
     min_coverage: float = 1.0
     caveat: str | None = None
+    #: The countable events this score rests on, when it rests on few.
+    #:
+    #: Some scores are built from success RATES - goals per shot, dribbles
+    #: completed per dribble attempted - and a rate over a handful of attempts
+    #: is noise wearing a percentile's clothes. A validation audit found
+    #: Finishing reported as the single strongest dimension of a centre-back
+    #: who had taken about four shots in 1,199 minutes, and as the top
+    #: dimension of another with about eight.
+    #:
+    #: The percentile is not touched. What this does is let the count travel
+    #: beside it, and keep a score built on almost nothing out of the headline
+    #: list of strengths. Minutes played say nothing about this: a full season
+    #: of football can still contain four shots.
+    evidence: EvidenceRequirement | None = None
 
     @property
     def inverted_components(self) -> tuple[DerivedMetric, ...]:
@@ -146,9 +174,33 @@ def load_definitions(path: Path = DEFAULT_CONFIG_PATH) -> dict[str, ScoreDefinit
             components=resolved,
             min_coverage=min_coverage,
             caveat=(str(body["caveat"]).strip() if body.get("caveat") else None),
+            evidence=_parse_evidence(key, body.get("evidence")),
         )
 
     return definitions
+
+
+def _parse_evidence(key: str, body: object) -> EvidenceRequirement | None:
+    """Read a score's event-volume requirement, or None when it has none.
+
+    Validated as strictly as the weights are. A threshold is a football
+    judgement and belongs in the configuration where it can be seen and
+    changed; a silently defaulted one would be a judgement nobody made.
+    """
+    if body is None:
+        return None
+    if not isinstance(body, dict):
+        raise ScoreConfigError(f"Score '{key}' evidence must be a mapping")
+    metric = body.get("metric")
+    threshold = body.get("headline_threshold")
+    noun = body.get("noun")
+    if not isinstance(metric, str) or not metric:
+        raise ScoreConfigError(f"Score '{key}' evidence needs a metric name")
+    if not isinstance(threshold, int) or threshold <= 0:
+        raise ScoreConfigError(f"Score '{key}' evidence needs a positive headline_threshold")
+    if not isinstance(noun, str) or not noun:
+        raise ScoreConfigError(f"Score '{key}' evidence needs a noun for the count")
+    return EvidenceRequirement(metric=metric, headline_threshold=threshold, noun=noun)
 
 
 @lru_cache(maxsize=1)

@@ -97,6 +97,16 @@ scores:
     description: >-
       Beating an opponent directly. Fouls drawn are included because a defender
       who has to foul has also been beaten.
+    # Dribble success rate over a handful of attempts has the same problem as
+    # finishing over a handful of shots, so the count that matters is dribbles
+    # attempted. The threshold is lower because two of the three components
+    # are volume rather than rate, and volume from a full season is a sound
+    # measurement even when it is small: "rarely takes anyone on" is a real
+    # finding.
+    evidence:
+      metric: dribbles
+      headline_threshold: 30
+      noun: dribbles attempted
     components:
       successful_dribbles_per90: 50
       dribble_success_percentage: 30
@@ -124,6 +134,22 @@ scores:
       available in a single season, so a high score describes what happened
       rather than a reliable measurement of finishing ability. Sample size
       matters more here than for any other score.
+    # Every component is a shot or a rate over shots, so the evidence behind
+    # this score is the number of shots taken - not the minutes played. A
+    # validation audit found Finishing reported as the single strongest
+    # dimension of a centre-back with roughly four shots in 1,199 minutes, and
+    # as the top dimension of another with about eight. The percentile was not
+    # wrong; offering it as that player's defining quality was.
+    #
+    # 50 is a judgement and deliberately a modest one: it is not a claim that
+    # finishing ability is measurable at 50 shots - it is not, and the caveat
+    # above says so - but a floor below which the score should not be put
+    # forward as something a player is good at. Raising it makes the product
+    # quieter about finishing; lowering it brings back the centre-backs.
+    evidence:
+      metric: shots
+      headline_threshold: 50
+      noun: shots
     components:
       non_penalty_goals_per90: 35
       npxg_per90: 20

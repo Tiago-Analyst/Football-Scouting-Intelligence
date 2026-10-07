@@ -381,7 +381,11 @@ def compare(
             )
 
         fit = view.role_fit(key)
-        column_scores = [to_score(s) for s in view.scores(key, scope=percentile_scope).values()]
+        definitions = view.intelligence.definitions if view.intelligence else None
+        column_scores = [
+            to_score(s, record.stats, definitions)
+            for s in view.scores(key, scope=percentile_scope).values()
+        ]
         entry = entries[key]
         entry_status = ShortlistStatus(entry.status)
         columns.append(
