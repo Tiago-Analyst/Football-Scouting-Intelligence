@@ -559,6 +559,24 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 matters is a recruitment decision, not a statistical one.
               </p>
             ) : null}
+            {/* WHAT THAT BIGGER POPULATION IS MADE OF.
+                "Every loaded competition" reads as the wider game. Most of
+                those competitions are a couple of matches old, so the second
+                column is largely a rank against players who have barely
+                started. That is a fact about time, not about strength - a
+                league that began in August is not weaker than one that began
+                in March - and it belongs beside the column it qualifies. */}
+            {stats.global_context?.maturity_note ? (
+              <p
+                className={
+                  stats.global_context.is_early_season
+                    ? "text-xs leading-relaxed text-warning"
+                    : "text-xs leading-relaxed text-subtle"
+                }
+              >
+                {stats.global_context.maturity_note}
+              </p>
+            ) : null}
           </CardFooter>
         ) : null}
       </Card>

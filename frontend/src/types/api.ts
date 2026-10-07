@@ -100,6 +100,21 @@ export interface ComparisonContext {
   competition_names: string[];
   population_size: number;
   /**
+   * How far into their seasons the competitions in this population are.
+   *
+   * An all-leagues rank sounds like a comparison with the wider game. On the
+   * loaded data it is mostly a comparison with two matches. The percentile is
+   * an honest rank within the population it names; these say what that
+   * population is made of.
+   */
+  competitions_in_population?: number;
+  competitions_established?: number;
+  established_share?: number;
+  median_minutes?: number;
+  /** One sentence, or null when every competition here has played enough. */
+  maturity_note?: string | null;
+  is_early_season?: boolean;
+  /**
    * The floor a caller asked for. Nought by default, because minutes do not
    * decide who is compared — so do not render it unconditionally.
    */
