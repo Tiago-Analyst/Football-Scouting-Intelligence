@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from app.analytics.metrics import LOWER_IS_BETTER, DerivedMetric, DerivedMetrics
-from app.analytics.sample import can_rate
+from app.analytics.sample import ESTABLISHED_SAMPLE_MINUTES, can_rate
 from app.schemas.canonical import PositionGroup
 
 #: Fewer comparable players than this and a percentile is noise dressed as
@@ -129,6 +129,57 @@ class ComparisonContext:
     #: future strength model has to change this deliberately.
     strength_adjusted: bool = False
 
+    # -- How far into their seasons this population is ----------------------
+    #
+    # A percentile against "all covered competitions" sounds like a comparison
+    # with the wider game. Measured on the loaded data it is mostly a
+    # comparison with two matches: of 44 competitions, nine contain a player
+    # who has reached a full season's minutes, and 82% of the population comes
+    # from the other 35. Germany's top flight is loaded at 90 minutes a
+    # player, France's and Italy's at 180.
+    #
+    # None of that makes the percentile wrong - it is an honest rank within
+    # the population it names. It makes it easy to misread as something
+    # broader, and the only thing missing was a way to say so. Nothing here
+    # changes a number; it describes the room.
+    #: How many competitions contributed a player to this population.
+    competitions_in_population: int = 0
+    #: How many of those contain a player who has reached a full season's
+    #: minutes, so a season-long figure from them is possible at all.
+    competitions_established: int = 0
+    #: Share of the population drawn from those, 0-1.
+    established_share: float = 1.0
+    #: The median minutes behind the figures being ranked.
+    median_minutes: int = 0
+
+    @property
+    def is_early_season(self) -> bool:
+        """True when most of this population has not played much football yet."""
+        return self.competitions_in_population > 1 and self.established_share < 0.5
+
+    @property
+    def maturity_note(self) -> str | None:
+        """What the population is made of, when that is worth saying.
+
+        Returned beside the percentile rather than folded into it. A reader
+        deciding whether to trust an all-leagues rank needs to know that most
+        of the players in it have played two matches; a reader looking at a
+        single mature competition does not need a sentence about it.
+        """
+        if self.competitions_in_population <= 1:
+            return None
+        established = self.competitions_established
+        total = self.competitions_in_population
+        if established == total:
+            return None
+        return (
+            f"{total} competitions, of which {established} have played enough of their "
+            f"season for a full-season figure to be possible. "
+            f"{self.established_share * 100:.0f}% of this population comes from those, and "
+            f"the median player here has {self.median_minutes:,} minutes. "
+            f"A rank against the rest is a rank against a season that has barely started."
+        )
+
     @property
     def label(self) -> str:
         """Short description of the population, for display beside the number."""
@@ -181,6 +232,16 @@ def percentile_of(value: float, sorted_values: list[float]) -> float:
     below = bisect_left(sorted_values, value)
     at_or_below = bisect_right(sorted_values, value)
     return 100.0 * (below + at_or_below) / (2 * len(sorted_values))
+
+
+@dataclass(frozen=True)
+class _Maturity:
+    """How far into their seasons a population's competitions are."""
+
+    competitions: int
+    established: int
+    established_share: float
+    median_minutes: int
 
 
 class PercentileEngine:
@@ -294,6 +355,7 @@ class PercentileEngine:
             )
         else:
             covered = sorted(competition_ids)
+        maturity = self._maturity(position_group, season_id, competition_ids)
         return ComparisonContext(
             scope=scope,
             position_group=position_group,
@@ -304,6 +366,45 @@ class PercentileEngine:
             # field reports the bar a reader had to clear to be in this
             # population; "none" and "zero" are the same bar.
             minimum_minutes=self.minimum_minutes or 0,
+            competitions_in_population=maturity.competitions,
+            competitions_established=maturity.established,
+            established_share=maturity.established_share,
+            median_minutes=maturity.median_minutes,
+        )
+
+    def _maturity(
+        self,
+        position_group: PositionGroup,
+        season_id: str,
+        competition_ids: frozenset[str] | None,
+    ) -> _Maturity:
+        """How far into their seasons the players in this population are.
+
+        Measured from the population itself rather than configured, so it
+        cannot go stale: as a season progresses the figures move on their own,
+        and when every competition has played enough the note stops appearing.
+
+        A competition counts as established when one of its players has
+        reached the Established Sample threshold - meaning a full season's
+        evidence is possible there at all, not that everyone has it.
+        """
+        records = self._population_for(position_group, season_id, competition_ids)
+        if not records:
+            return _Maturity(0, 0, 1.0, 0)
+        best: dict[str, int] = {}
+        minutes: list[int] = []
+        for record in records:
+            played = record.rateable_minutes or 0
+            minutes.append(played)
+            best[record.competition_id] = max(best.get(record.competition_id, 0), played)
+        established = {c for c, top in best.items() if top >= ESTABLISHED_SAMPLE_MINUTES}
+        from_established = sum(1 for r in records if r.competition_id in established)
+        minutes.sort()
+        return _Maturity(
+            competitions=len(best),
+            established=len(established),
+            established_share=from_established / len(records),
+            median_minutes=int(minutes[len(minutes) // 2]),
         )
 
     def rank(

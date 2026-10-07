@@ -174,6 +174,42 @@ an invisible fabrication. A competition-strength model may be added later; until
 it exists, this caveat travels with every cross-league comparison the site
 shows.
 
+### The second limitation, which is about time rather than strength
+
+> **An all-leagues population is mostly made of seasons that have barely
+> started.**
+
+Measured on the loaded data: of 44 competitions, **nine** contain a player who
+has reached a full season's minutes. The other 35 are weeks old — Germany's top
+flight at 90 minutes a player, France's and Italy's at 180 — and they hold
+**82% of the players**. So a rank against "all covered competitions" is largely
+a rank against two matches of football.
+
+This is not a strength question and must not be confused with one. A league
+whose season began in August is not weaker than one that began in March; it has
+simply played less. Treating the two as the same mistake would be exactly the
+invented coefficient the section above refuses.
+
+**The percentile is left alone.** It is an honest rank within the population it
+names, and changing its arithmetic to compensate would mean either excluding
+competitions — hiding players the product promises to include — or weighting
+the population by minutes, which is a model of the game nobody has validated.
+
+What was missing was any way to know what the population is made of. Every
+comparison context now carries it: how many competitions contributed, how many
+have played enough of their season for a full-season figure to be possible at
+all, what share of the population those account for, and the median minutes
+behind the figures being ranked. The sentence appears beside the number
+wherever a population spans more than one competition and they have not all
+played enough.
+
+It is **measured from the population, not configured**, so it cannot go stale:
+as seasons progress the figures move on their own, and when every competition
+has played enough the note stops appearing by itself.
+
+The threshold for "has played enough" is the existing Established Sample
+figure of 900 minutes, borrowed rather than invented.
+
 ---
 
 ## Intelligence scores

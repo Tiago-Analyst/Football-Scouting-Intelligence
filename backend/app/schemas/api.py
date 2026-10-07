@@ -35,6 +35,23 @@ class ComparisonContextOut(BaseModel):
     #: profile through `label`, which is why this exists.
     competition_names: list[str] = Field(default_factory=list)
     population_size: int
+    #: How far into their seasons the competitions in this population are.
+    #:
+    #: An all-leagues rank sounds like a comparison with the wider game. On
+    #: the loaded data it is mostly a comparison with two matches: nine of 44
+    #: competitions contain a player who has reached a full season's minutes,
+    #: and 82% of the population comes from the other 35. The percentile is an
+    #: honest rank within the population it names; this says what that
+    #: population is made of, so the name cannot be read as something broader.
+    competitions_in_population: int = 0
+    competitions_established: int = 0
+    established_share: float = 1.0
+    median_minutes: int = 0
+    #: One sentence, or null when every competition here has played enough and
+    #: there is nothing worth saying.
+    maturity_note: str | None = None
+    #: True when most of this population has barely started its season.
+    is_early_season: bool = False
     #: The minutes floor a caller asked for, which is nought by default because
     #: minutes do not decide who is compared.
     #:

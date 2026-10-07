@@ -182,6 +182,12 @@ def to_context(
         for competition_id in ids
     ]
     return ComparisonContextOut(
+        competitions_in_population=context.competitions_in_population,
+        competitions_established=context.competitions_established,
+        established_share=context.established_share,
+        median_minutes=context.median_minutes,
+        maturity_note=context.maturity_note,
+        is_early_season=context.is_early_season,
         scope=context.scope.value,
         position_group=context.position_group.value,
         position_label=position_group_name(context.position_group),

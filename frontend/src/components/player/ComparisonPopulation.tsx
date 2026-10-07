@@ -40,6 +40,22 @@ export function ComparisonPopulation({ context }: { context: ComparisonContext }
           ? ` · ${context.minimum_minutes.toLocaleString()} minutes or more`
           : null}
       </p>
+      {/* WHAT THAT POPULATION IS MADE OF.
+          "All covered competitions" reads as a comparison with the wider
+          game. On the loaded data most of those competitions are a couple of
+          matches old, so the rank is largely against players who have barely
+          begun. The number above is an honest rank within the group it names;
+          this is the group. Shown only where it diverges - a single mature
+          competition needs no sentence about itself. */}
+      {context.maturity_note ? (
+        <p
+          className={
+            context.is_early_season ? "leading-relaxed text-warning" : "leading-relaxed text-subtle"
+          }
+        >
+          {context.maturity_note}
+        </p>
+      ) : null}
     </div>
   );
 }

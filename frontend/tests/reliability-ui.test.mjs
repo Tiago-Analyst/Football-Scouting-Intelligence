@@ -199,3 +199,48 @@ test("the reason a percentile is missing comes from the backend", () => {
   // and guessing between them on this side would eventually guess wrong.
   assert.match(profile, /role_fit_percentile_reason/);
 });
+
+/**
+ * What an all-leagues population is made of.
+ *
+ * "Every loaded competition" reads as the wider game. Most of those
+ * competitions are a couple of matches old, so the second column is largely a
+ * rank against players who have barely started. A fact about time, not about
+ * strength, and it belongs beside the column it qualifies.
+ */
+
+const population = read("src/components/player/ComparisonPopulation.tsx");
+
+test("the population says how far into its seasons it is", () => {
+  assert.match(population, /maturity_note/);
+  assert.match(profile, /global_context\?\.maturity_note/);
+});
+
+test("an early-season population is marked", () => {
+  assert.match(population, /is_early_season/);
+  assert.match(profile, /is_early_season/);
+});
+
+test("the page does not compute maturity for itself", () => {
+  // Measured from the population server-side, so it cannot drift from the
+  // players actually being ranked.
+  for (const [name, source] of [
+    ["population", population],
+    ["profile", profile],
+  ]) {
+    assert.equal(
+      /established_share\s*[<>]=?\s*0\./.test(source),
+      false,
+      `${name} decides maturity for itself`,
+    );
+  }
+});
+
+test("maturity is never described as league strength", () => {
+  // This product refuses to rank competitions by quality, and a note about
+  // early seasons must not become one by accident.
+  const flat2 = flat(population) + flat(profile);
+  for (const word of ["weaker league", "stronger league", "league quality"]) {
+    assert.equal(flat2.toLowerCase().includes(word), false, `found "${word}"`);
+  }
+});
