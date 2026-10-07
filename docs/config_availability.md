@@ -53,7 +53,7 @@ A role component can be a derived metric or a whole intelligence score. A role i
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Ball-Playing Centre-Back | 4 / 6 | 100 | 60 | 60% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **LIMITED** |
 | Defensive Stopper | 5 / 6 | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
-| Defensive Full-Back | 4 / 6 | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
+| Defensive Full-Back | 6 / 7 | 100 | 90 | 90% | `aerial_duel_win_percentage` | **REDUCED** |
 | Attacking Full-Back | 5 / 6 | 100 | 80 | 80% | `progressive_passes_per90` | **REDUCED** |
 | Ball-Winning Midfielder | 4 / 6 | 100 | 80 | 80% | `aerial_duel_win_percentage`, `progressive_passes_per90` | **REDUCED** |
 | Deep-Lying Playmaker | 5 / 6 | 100 | 70 | 70% | `progressive_passes_per90` | **LIMITED** |

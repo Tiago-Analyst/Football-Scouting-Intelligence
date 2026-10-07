@@ -449,8 +449,13 @@ six roles. Using attempts instead costs two scores and two roles. The project
 owner chose attempts, and the deviation is declared rather than absorbed:
 
 - **What changed.** `successful_tackles_per90` is replaced by `tackles_per90` in
-  the Defensive Activity score and in Defensive Stopper, Defensive Full Back,
-  Ball-Winning Midfielder and Box-to-Box Midfielder.
+  the Defensive Activity score and in Defensive Stopper, Ball-Winning
+  Midfielder and Box-to-Box Midfielder.
+- **Where it no longer applies.** The Defensive Full-Back does not substitute.
+  Its specification was amended to name `Tackles Attempted /90` directly, at a
+  weight chosen for what attempts measure, because the substitute had been
+  inheriting the 25% set for winning the ball - and a validation audit found it
+  carrying 41% of one player's realised score. See the rule below.
 - **What it costs.** Attempts are not successes. A player who tackles often and
   fails often now reads the same as one who succeeds. That is defensible for a
   score whose own definition is "volume of defensive actions"; it is a weaker
@@ -463,6 +468,37 @@ This is the one place the platform measures something other than what the
 specification names. It is recorded here, in the two configuration files, and on
 every figure it touches - which is the difference between a documented
 adaptation and the silent substitution the project forbids.
+
+### The rule a substitution follows
+
+A substitution is an **alternative**, never an equivalence. Two mappings are
+kept apart:
+
+- **Equivalent canonical mapping.** The provider's field is the same football
+  concept under a different name. It carries the weight the specification set,
+  because nothing about the measurement has changed.
+- **Alternative or proxy metric.** The provider cannot supply the concept, and
+  something related is scored instead. Tackles attempted for tackles won is
+  this kind: one counts how often a player goes for the ball, the other how
+  often he gets it, and reading the first as the second flatters a defender who
+  dives in while punishing one who picks his moment.
+
+A proxy used in role scoring must have **its own weight**, chosen for what it
+actually measures and written into the specification; a **stated reason** for
+why it stands where it does; and the **caveat and coverage treatment** that go
+with weaker evidence. It must not inherit the weight of the thing it replaces,
+which is what the Defensive Full-Back did until its specification was amended.
+
+`test_a_proxy_never_keeps_the_weight_of_what_it_replaces` enforces this. Any
+role still scoring a proxy at the original weight has to be named in
+`ROLES_STILL_ON_A_PROXY_WEIGHT`, so each one is a decision somebody made
+rather than a default nobody noticed. Three roles are on that list today:
+Defensive Stopper, Ball-Winning Midfielder and Box-to-Box Midfielder. They are
+the same question as the Defensive Full-Back and are open for review, not
+settled.
+
+Missing stays different from zero throughout. A football concept the provider
+cannot supply is never silently replaced.
 
 **Still withheld, because nothing honest replaces them:** Ball Progression and
 Ball-Playing Centre Back and Deep-Lying Playmaker (progressive passes), and Duel

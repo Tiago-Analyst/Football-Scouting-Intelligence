@@ -956,14 +956,39 @@ Aerial Duels Won %          10%
 
 ### 3. Defensive Full-Back
 
+Amended. The original definition weighted `Successful Tackles /90` at 25%, and
+the provider declares that field and never populates it. Rather than leave the
+role unscoreable, the implementation substituted `Tackles Attempted /90` and
+let it inherit the 25% — so a weight set for the rate at which a full-back
+*wins* the ball was paid to the rate at which he *goes for* it. A validation
+audit found that substitute carrying 41% of one player's realised score.
+
+Attempts and successes are not the same football concept, and a proxy does not
+inherit the weight of the thing it stands for. `Tackles Attempted /90` is now
+named in its own right, weighted for what it actually measures, and the weight
+it no longer holds has gone to components that can be read as outcomes - duels
+won - and to two verified defensive actions the Defensive Stopper has scored
+from since it was written.
+
 ```text
-Successful Tackles /90      25%
 Interceptions /90           20%
 Inverse Dribbled Past /90   20%
-Duels Won %                 15%
-Progressive Passes /90      10%
+Duels Won %                 20%
+Tackles Attempted /90       15%
+Blocks /90                  10%
 Aerial Duels Won %          10%
+Clearances /90               5%
 ```
+
+`Progressive Passes /90` is no longer part of this role. It carried 10% and the
+provider supplies it for nobody, so it contributed nothing to any score; what
+it did do was make the role's reported coverage lower than the evidence behind
+it. Progression belongs to the Attacking Full-Back, which still weights it.
+
+Measured over 40 full-backs with a full season, using the scoring engine
+itself: the mean share of a score carried by its single largest contributor
+falls from 41.8% to 35.3%, the maximum from 71.5% to 54.6%, and the number of
+players who can be scored at all is unchanged at 28 of 40.
 
 ### 4. Attacking Full-Back
 

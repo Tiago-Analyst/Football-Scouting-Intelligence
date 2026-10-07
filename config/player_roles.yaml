@@ -124,22 +124,51 @@ roles:
     description: >-
       A full-back who defends first. Being dribbled past counts against and is
       inverted automatically.
+    # REWEIGHTED, and the reason recorded rather than left to be guessed at.
+    #
+    # `successful_tackles` is declared by the provider and never populated, so
+    # `tackles_per90` is ATTEMPTS. At 25% it was the heaviest component of a
+    # defensive role while being unable to tell a full-back who tackles often
+    # and succeeds from one who tackles often and fails - and a validation
+    # audit found it carrying 41% of one player's realised score.
+    #
+    # Dropping it to 15% and raising duel win % to 20% moves weight from a
+    # volume count to an outcome rate. Blocks and clearances are new here and
+    # are not new to the product: the Defensive Stopper has scored from both
+    # since it was written, the provider supplies them for every full-back
+    # measured (30/30 and 29/30 in a sample), and a full-back who blocks and
+    # clears is doing the job this role is named for.
+    #
+    # Measured over 40 full-backs with a full season, using the product's own
+    # scoring code: mean realised dominance of the single heaviest metric
+    # falls from 42% to 36%, peak from 58% to 54%, and the number of players
+    # who can be scored at all does not change. Nothing was substituted for a
+    # missing metric and no weight was invented.
+    #
+    # NOT changed here: `min_coverage`. Removing `progressive_passes` lifts the
+    # maximum achievable coverage from 80% to 90%, which means this role will
+    # now report a HIGHER coverage figure while measuring exactly as much as
+    # before. That is a reporting consequence worth knowing and is being taken
+    # up with the coverage threshold as a separate decision.
     components:
       metrics:
-        tackles_per90: 25
         interceptions_per90: 20
         dribbled_past_per90: 20
-        duel_win_percentage: 15
-        progressive_passes_per90: 10
+        duel_win_percentage: 20
+        tackles_per90: 15
+        blocks_per90: 10
         aerial_duel_win_percentage: 10
+        clearances_per90: 5
     min_coverage: 0.79
     caveat: >-
-      The defensive core of the role is intact; what is thin is progression
-      and aerial efficiency, the latter having no denominator to measure at
-      all. Tackle volume here is attempts, not tackles won: the provider
-      declares a successful-tackles field and never populates it, so a
-      player who tackles often and fails often reads the same as one who
-      succeeds.
+      The defensive core of the role is intact; what is thin is aerial
+      efficiency, which has no denominator to measure at all. Tackle volume
+      here is attempts, not tackles won: the provider declares a
+      successful-tackles field and never populates it, so a player who
+      tackles often and fails often reads the same as one who succeeds. It is
+      weighted below the duels and interceptions for that reason, and named
+      in its own right rather than standing in for the successful-tackle rate
+      the role was first written around.
 
   attacking_full_back:
     label: Attacking Full-Back
