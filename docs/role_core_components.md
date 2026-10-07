@@ -1,3 +1,13 @@
+> **SUPERSEDED AND PARTLY WRONG — see `role_validity_analysis.md`.**
+>
+> This draft was transcribed by hand instead of read from the configuration.
+> Checked afterwards, **eleven of its fifteen roles list the wrong metrics**,
+> and three of its conclusions are false — including the claim that
+> `inside_box_saves_per90` reaches only 8 of 40 goalkeepers, which it called
+> the strongest argument in the document. It is supplied to all 40; the 8/40
+> came from an all-positions sample. Kept only so the correction has something
+> to point at. Do not use its tables.
+
 # Core components for role validity — analysis for review
 
 **Status: analysis only. Nothing in this document is implemented.**
