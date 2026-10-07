@@ -88,6 +88,27 @@ class MetricOut(BaseModel):
     unavailable_reason: str | None = None
 
 
+class ScoreEvidenceOut(BaseModel):
+    """How many events a score rests on, when it rests on few.
+
+    Reported beside the percentile and never folded into it. A score built
+    from success rates - goals per shot, dribbles completed per attempt - is
+    noise when the denominator is small, and minutes played cannot tell you
+    that: a full season of football can contain four shots.
+    """
+
+    #: The count the provider supplied.
+    events: int
+    #: What to call them: "shots", "dribbles attempted".
+    noun: str
+    #: The configured floor below which this is not offered as a strength.
+    threshold: int
+    #: True when the count is under that floor.
+    low: bool
+    #: One phrase for a page, e.g. "Low evidence - 8 shots".
+    label: str
+
+
 class ScoreComponentOut(BaseModel):
     metric: str
     label: str
@@ -112,6 +133,9 @@ class ScoreOut(BaseModel):
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
+    #: The countable events behind this score, for the scores whose components
+    #: are success rates. Null where the question does not arise.
+    evidence: ScoreEvidenceOut | None = None
     #: Hand-written, and deliberately qualitative only: methodological limits
     #: that no availability report can derive.
     caveat: str | None = None

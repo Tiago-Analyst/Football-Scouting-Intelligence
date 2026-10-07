@@ -233,7 +233,30 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                   ) : null}
                 </span>
                 {score.score !== null ? (
-                  <PercentileBar percentile={score.score} />
+                  <span className="block">
+                    <PercentileBar percentile={score.score} />
+                    {/* The count the score divides by, beside it and never
+                        folded into it. A finishing percentile over four shots
+                        is arithmetic, not a finding, and minutes played cannot
+                        say so: a full season of football can contain four
+                        shots. The number above is untouched. */}
+                    {score.evidence ? (
+                      <span
+                        className={
+                          score.evidence.low
+                            ? "mt-1 block text-[10px] text-warning"
+                            : "mt-1 block text-[10px] text-subtle"
+                        }
+                        title={
+                          score.evidence.low
+                            ? `Below ${score.evidence.threshold} ${score.evidence.noun}, this is reported but not offered as one of the player's strongest dimensions. The percentile is unchanged.`
+                            : undefined
+                        }
+                      >
+                        {score.evidence.label}
+                      </span>
+                    ) : null}
+                  </span>
                 ) : (
                   <span className="text-xs text-subtle">
                     Not available — missing {score.missing.join(", ")}
