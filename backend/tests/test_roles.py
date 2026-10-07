@@ -51,15 +51,23 @@ SPEC_ROLES: dict[str, tuple[str, dict[str, float]]] = {
             "aerial_duel_win_percentage": 10,
         },
     ),
+    # Amended in the specification, not here. The original weighted
+    # `Successful Tackles /90` at 25%, which the provider declares and never
+    # populates; the implementation substituted tackles ATTEMPTED and let the
+    # proxy inherit the full weight, so a figure meant for winning the ball
+    # was paid to going for it. `Tackles Attempted /90` is now named in the
+    # specification in its own right, at its own weight, and no longer needs
+    # the substitution below.
     "defensive_full_back": (
         "FB_WB",
         {
-            "successful_tackles_per90": 25,
             "interceptions_per90": 20,
             "dribbled_past_per90": 20,
-            "duel_win_percentage": 15,
-            "progressive_passes_per90": 10,
+            "duel_win_percentage": 20,
+            "tackles_per90": 15,
+            "blocks_per90": 10,
             "aerial_duel_win_percentage": 10,
+            "clearances_per90": 5,
         },
     ),
     "attacking_full_back": (
@@ -248,7 +256,37 @@ def engine_for(population: list[PlayerMetrics]) -> RoleEngine:
 #: Metrics the specification names that the provider does not supply, and what
 #: stands in for them. Every entry is a declared deviation carrying a caveat on
 #: the role itself - see docs/methodology.md.
+#:
+#: A substitution here is an ALTERNATIVE, not an equivalence. Tackles attempted
+#: and tackles won are different football concepts: one counts how often a
+#: player goes for the ball, the other how often he gets it. Reading the first
+#: as the second flatters a defender who dives in and punishes one who picks
+#: his moment.
+#:
+#: Because they are not equivalent, a substitute must NOT inherit the weight
+#: the specification set for the metric it stands in for. That is the rule
+#: `test_no_substitute_inherits_the_original_weight` enforces, and it is what
+#: the Defensive Full-Back now demonstrates: its specification names tackles
+#: attempted directly, at a weight chosen for what attempts actually measure.
+#:
+#: The Defensive Stopper still substitutes, and is the case left to review.
 DECLARED_SUBSTITUTIONS = {"successful_tackles_per90": "tackles_per90"}
+
+#: Roles whose specification still names a metric the provider cannot supply
+#: and accepts a proxy in its place, with the proxy on the original weight.
+#: Listed rather than counted so that removing one is a deliberate act.
+#:
+#: All three weight `Successful Tackles /90` and score tackles ATTEMPTED
+#: against it, at 20%, 25% and 15% respectively. The Defensive Full-Back was
+#: the fourth and has been amended in the specification; these three are the
+#: same decision, deliberately left for review rather than swept along with
+#: it. Writing them out is what makes the scale of the thing visible: it was
+#: never one role.
+ROLES_STILL_ON_A_PROXY_WEIGHT = {
+    "defensive_stopper",
+    "ball_winning_midfielder",
+    "box_to_box_midfielder",
+}
 
 
 class TestConfiguration:
@@ -546,3 +584,65 @@ class TestAgainstTheMockDataset:
                 assert 0.0 <= (fit.best.score or 0.0) <= 100.0
                 with_best += 1
         assert with_best > 100
+
+
+class TestSubstitutionsAreAlternativesNotEquivalences:
+    """A proxy must not inherit the weight of the concept it stands in for.
+
+    `successful_tackles_per90` and `tackles_per90` answer different questions:
+    how often a full-back wins the ball, and how often he goes for it. The
+    implementation substituted the second for the first and let it keep the
+    25% the specification had set for winning, which a validation audit found
+    carrying 41% of one player's realised score.
+
+    The rule these tests hold: a substitution is an ALTERNATIVE. Where one is
+    used in scoring it needs a weight chosen for what it measures, stated in
+    the specification, and a caveat saying what the reader is actually looking
+    at. Missing stays different from zero, and an unavailable football concept
+    is never silently replaced.
+    """
+
+    def test_the_defensive_full_back_no_longer_leans_on_a_proxy_weight(self) -> None:
+        spec = SPEC_ROLES["defensive_full_back"][1]
+        assert "successful_tackles_per90" not in spec, (
+            "the specification should name the metric actually scored"
+        )
+        assert spec["tackles_per90"] == 15
+
+    def test_a_proxy_never_keeps_the_weight_of_what_it_replaces(self) -> None:
+        """Checked against the specification, per role, by name.
+
+        Any role that still accepts a proxy has to be listed deliberately, so
+        adding one is a decision somebody makes rather than a default.
+        """
+        for key, (_, spec) in SPEC_ROLES.items():
+            for original, proxy in DECLARED_SUBSTITUTIONS.items():
+                if original not in spec:
+                    continue
+                assert key in ROLES_STILL_ON_A_PROXY_WEIGHT, (
+                    f"{key} substitutes {proxy} for {original} on the original weight; "
+                    "either give the proxy its own weight in the specification "
+                    "or add the role to ROLES_STILL_ON_A_PROXY_WEIGHT with a reason"
+                )
+
+    def test_every_role_on_a_proxy_weight_carries_a_caveat_about_it(self) -> None:
+        roles = get_roles()
+        for key in ROLES_STILL_ON_A_PROXY_WEIGHT:
+            caveat = roles[key].caveat or ""
+            assert "tackle" in caveat.lower(), (
+                f"{key} scores a proxy on the original weight and says nothing about it"
+            )
+
+    def test_the_substituted_metric_is_genuinely_unavailable(self) -> None:
+        """The rule only applies to concepts the provider cannot supply.
+
+        If `successful_tackles_per90` ever arrives, the substitution should be
+        removed rather than quietly kept, and this is what notices.
+        """
+        from app.providers.footystats_mapping import load_mapping
+
+        mapping = load_mapping()
+        assert "successful_tackles" in {m.value for m in mapping.absent}, (
+            "the provider now supplies successful tackles; the substitution "
+            "should be retired rather than left in place"
+        )
