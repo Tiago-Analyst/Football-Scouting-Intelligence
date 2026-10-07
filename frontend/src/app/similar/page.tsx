@@ -182,9 +182,21 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
             <legend className="text-[11px] font-semibold tracking-wide text-subtle uppercase">
               Narrow the pool
             </legend>
-            <Checkbox name="different_competition" label="Different competition only" checked={!!filters.different_competition} />
-            <Checkbox name="exclude_same_club" label="Exclude same club" checked={!!filters.exclude_same_club} />
-            <Checkbox name="younger_only" label="Younger than this player" checked={!!filters.younger_only} />
+            <Checkbox
+              name="different_competition"
+              label="Different competition only"
+              checked={!!filters.different_competition}
+            />
+            <Checkbox
+              name="exclude_same_club"
+              label="Exclude same club"
+              checked={!!filters.exclude_same_club}
+            />
+            <Checkbox
+              name="younger_only"
+              label="Younger than this player"
+              checked={!!filters.younger_only}
+            />
           </fieldset>
 
           <button
@@ -217,8 +229,8 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                           Similarity
                           <Tooltip label="What is the Statistical Similarity Index?">
                             Similarity in the shape of the statistical profile, on a 0&ndash;100
-                            scale. It is not a probability that two players are equivalent, and
-                            it says nothing about quality, tactical fit or temperament.
+                            scale. It is not a probability that two players are equivalent, and it
+                            says nothing about quality, tactical fit or temperament.
                           </Tooltip>
                         </span>
                       </TH>
@@ -226,10 +238,10 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                         <span className="inline-flex items-center gap-1">
                           Feature coverage
                           <Tooltip label="Why does coverage matter?">
-                            How much of the intended comparison actually happened. An index of
-                            92 over six of eleven features is a confident answer to a narrower
-                            question than the same index over eleven, and the index alone cannot
-                            tell them apart. Reported beside it, never folded into it.
+                            How much of the intended comparison actually happened. An index of 92
+                            over six of eleven features is a confident answer to a narrower question
+                            than the same index over eleven, and the index alone cannot tell them
+                            apart. Reported beside it, never folded into it.
                           </Tooltip>
                         </span>
                       </TH>
@@ -255,12 +267,25 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                         </TD>
                         <TD numeric>{entry.player.age ?? "–"}</TD>
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
-                        <TD className="whitespace-nowrap text-muted">
-                          {entry.player.competition}
-                        </TD>
+                        <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
                         <TD className="whitespace-nowrap">{entry.player.best_role ?? "–"}</TD>
+                        {/* The index, and - at the same size - what it rests
+                            on when that is thin. A 94 printed in bold beside
+                            a 55% in small grey text reads as "94, with a
+                            footnote"; the audit found 25 of 120 reviewed
+                            pairs in exactly that shape, nearly all defenders,
+                            because the metrics the provider cannot supply are
+                            the ones that define a defender. The number is
+                            untouched - what changes is that the qualification
+                            is no longer quieter than the thing it qualifies. */}
                         <TD numeric className="font-medium">
                           {Math.round(entry.similarity)}
+                          {entry.coverage_band === "limited" ||
+                          entry.coverage_band === "very_limited" ? (
+                            <span className="mt-1 block">
+                              <Badge tone="warning">Limited evidence</Badge>
+                            </span>
+                          ) : null}
                         </TD>
                         {/* How much of the intended comparison actually
                             happened. Deliberately its own column rather than
@@ -268,9 +293,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                             the index means while leaving its name and scale
                             unchanged. */}
                         <TD numeric className="whitespace-nowrap">
-                          <span className="tabular">
-                            {Math.round(entry.feature_coverage_pct)}%
-                          </span>
+                          <span className="tabular">{Math.round(entry.feature_coverage_pct)}%</span>
                           <span className="mt-0.5 block text-[11px] text-subtle">
                             {entry.shared_features} / {entry.expected_features}
                             {entry.coverage_band === "limited" ||
@@ -294,9 +317,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
                   </TBody>
                 </Table>
               </TableWrap>
-              <p className="text-xs text-muted">
-                {formatCount(similar.results.length)} results
-              </p>
+              <p className="text-xs text-muted">{formatCount(similar.results.length)} results</p>
             </>
           )}
 
@@ -314,15 +335,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
   );
 }
 
-function Checkbox({
-  name,
-  label,
-  checked,
-}: {
-  name: string;
-  label: string;
-  checked: boolean;
-}) {
+function Checkbox({ name, label, checked }: { name: string; label: string; checked: boolean }) {
   return (
     <label className="flex items-center gap-2 text-xs text-muted">
       <input

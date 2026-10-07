@@ -357,6 +357,25 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                         </span>
                       </>
                     ) : null}
+                    {/* What the score ended up measuring, when that is one
+                        thing. Weights say what a role intends to weigh;
+                        contributions say what it actually weighed for this
+                        player, and the two diverge. A role named for creation
+                        whose xA produced 44% of the result is behaving like
+                        an xA ranking, which a reader comparing two players on
+                        the same role name cannot see from the number.
+                        Explanatory: nothing is reweighted. */}
+                    {role.dominant_component ? (
+                      <>
+                        {" · "}
+                        <span className="text-subtle">
+                          strongly driven by {role.dominant_component}
+                          {role.dominant_share != null
+                            ? ` (${Math.round(role.dominant_share)}% of the score)`
+                            : null}
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                 </div>
               ))
@@ -643,6 +662,16 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                           <span className="mt-0.5 block text-[10px] font-normal text-subtle">
                             index, not %
                           </span>
+                          {/* And, at the same size as the index, what it
+                              rests on when that is thin. A 99 printed large
+                              beside a small grey "55%" reads as "99, with a
+                              footnote". */}
+                          {entry.coverage_band === "limited" ||
+                          entry.coverage_band === "very_limited" ? (
+                            <span className="mt-1 block font-normal">
+                              <Badge tone="warning">Limited evidence</Badge>
+                            </span>
+                          ) : null}
                         </TD>
                         <TD numeric className="whitespace-nowrap text-muted">
                           {entry.shared_features} / {entry.expected_features}

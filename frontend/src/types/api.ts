@@ -212,6 +212,14 @@ export interface Score {
   core_dimensions?: CoreDimension[];
   /** Why no standard percentile is published, when none is. */
   role_fit_percentile_reason?: string | null;
+  /**
+   * The component carrying an unusually large share of what the score
+   * actually came out as. Weights say what a role intends to measure;
+   * contributions say what it ended up measuring for this player.
+   */
+  dominant_component?: string | null;
+  /** Its share of the realised total, 0-100. */
+  dominant_share?: number | null;
   components: ScoreComponent[];
   missing: string[];
   /** Hand-written, and qualitative only: limits no report can derive. */

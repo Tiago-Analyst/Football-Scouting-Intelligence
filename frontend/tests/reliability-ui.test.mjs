@@ -244,3 +244,55 @@ test("maturity is never described as league strength", () => {
     assert.equal(flat2.toLowerCase().includes(word), false, `found "${word}"`);
   }
 });
+
+/**
+ * The three remaining limitations, made visible.
+ *
+ * A 94 printed in bold beside a 55% in small grey text reads as "94, with a
+ * footnote". A role named for creation whose xA produced 44% of the result is
+ * behaving like an xA ranking. And a page whose job is to say what the data
+ * cannot do said nothing about either.
+ */
+
+const similar = read("src/app/similar/page.tsx");
+const dataQuality = read("src/app/data-quality/page.tsx");
+
+test("limited similarity evidence is marked at the index's own size", () => {
+  for (const [name, source] of [
+    ["similar", similar],
+    ["profile", profile],
+  ]) {
+    assert.match(source, /very_limited/, `${name} does not check the band`);
+    assert.match(flat(source), /Limited evidence/, `${name} does not say so`);
+  }
+});
+
+test("the similarity index itself is not altered to carry the warning", () => {
+  // Changing the number would make the chart disagree with the data and
+  // leave nobody able to check it.
+  assert.match(similar, /Math\.round\(entry\.similarity\)/);
+  assert.equal(/entry\.similarity\s*\*/.test(similar), false);
+});
+
+test("a role says when one metric carried it", () => {
+  assert.match(profile, /dominant_component/);
+  assert.match(flat(profile), /strongly driven by/);
+});
+
+test("the page does not decide what counts as dominant", () => {
+  // The threshold is a judgement and lives in the backend beside the
+  // calculation. A number compared here would be a second opinion.
+  assert.equal(/dominant_share\s*[<>]=?\s*\d/.test(profile), false);
+});
+
+test("data quality says what the figures cannot say about themselves", () => {
+  const flattened = flat(dataQuality);
+  assert.match(flattened, /Limits of the analysis itself/);
+  assert.match(flattened, /how far into their seasons/i);
+  assert.match(flattened, /partial evidence/i);
+  assert.match(flattened, /four shots/);
+});
+
+test("and it does not turn season maturity into league strength", () => {
+  assert.match(flat(dataQuality), /about time, not about strength/i);
+});
