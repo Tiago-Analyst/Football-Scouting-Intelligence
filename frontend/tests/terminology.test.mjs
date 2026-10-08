@@ -22,7 +22,7 @@ test("a raw role fit is never headed just 'Role fit'", () => {
   // The two numbers do not share a scale - raw fits from differently weighted
   // roles are not comparable and the percentile is - so a column that does not
   // say which it is, is a column nobody can read.
-  for (const file of ["src/app/replacements/page.tsx", "src/app/opportunities/page.tsx"]) {
+  for (const file of ["src/app/[lang]/replacements/page.tsx", "src/app/[lang]/opportunities/page.tsx"]) {
     const source = read(file);
     assert.equal(/<TH numeric>Role fit<\/TH>/.test(source), false, file);
     assert.match(source, /Raw role fit/i, file);
@@ -30,7 +30,7 @@ test("a raw role fit is never headed just 'Role fit'", () => {
 });
 
 test("feature coverage is called feature coverage wherever similarity is shown", () => {
-  for (const file of ["src/app/players/[slug]/page.tsx", "src/app/similar/page.tsx"]) {
+  for (const file of ["src/app/[lang]/players/[slug]/page.tsx", "src/app/[lang]/similar/page.tsx"]) {
     const source = read(file);
     assert.match(source, /Feature coverage/, file);
   }
@@ -40,7 +40,7 @@ test("metric coverage and feature coverage stay different words", () => {
   // One is the share of a role's definition backed by supplied metrics; the
   // other is the share of a similarity vector two players shared. Collapsing
   // them into "coverage" would merge two unrelated figures under one label.
-  const profile = read("src/app/players/[slug]/page.tsx");
+  const profile = read("src/app/[lang]/players/[slug]/page.tsx");
   assert.match(profile, /metric coverage/i);
   assert.match(profile, /Feature coverage/);
 });
@@ -57,9 +57,9 @@ test("similarity says what it is not, wherever it is shown", () => {
   // The denial is the point: an index of 99 is read as 99% certain unless
   // something on the page says otherwise. The similarity search says it in
   // prose; the profile table says it under the number, where the number is.
-  const search = read("src/app/similar/page.tsx").replace(/\s+/g, " ");
+  const search = read("src/app/[lang]/similar/page.tsx").replace(/\s+/g, " ");
   assert.match(search, /not a probability/);
 
-  const profile = read("src/app/players/[slug]/page.tsx");
+  const profile = read("src/app/[lang]/players/[slug]/page.tsx");
   assert.match(profile, /index, not %/);
 });

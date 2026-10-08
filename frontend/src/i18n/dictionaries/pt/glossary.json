@@ -1,0 +1,66 @@
+{
+  "roles": {
+    "ball_playing_centre_back": "Defesa-central construtor",
+    "defensive_stopper": "Defesa-central de marcação",
+    "defensive_full_back": "Lateral defensivo",
+    "attacking_full_back": "Lateral ofensivo",
+    "ball_winning_midfielder": "Médio recuperador",
+    "deep_lying_playmaker": "Organizador recuado",
+    "box_to_box_midfielder": "Médio box-to-box",
+    "advanced_playmaker": "Organizador avançado",
+    "creative_winger": "Extremo criativo",
+    "direct_winger": "Extremo driblador",
+    "inside_forward": "Avançado interior",
+    "poacher": "Finalizador de área",
+    "target_forward": "Avançado de referência",
+    "complete_forward": "Avançado completo",
+    "shot_stopper": "Guarda-redes de linha"
+  },
+  "positions": {
+    "GK": "Guarda-redes",
+    "CB": "Defesa-central",
+    "FB_WB": "Lateral",
+    "DM": "Médio defensivo",
+    "CM": "Médio centro",
+    "AM": "Médio ofensivo",
+    "WINGER": "Extremo",
+    "FORWARD": "Avançado"
+  },
+  "sampleBands": {
+    "very_low": "Amostra muito reduzida",
+    "low": "Amostra reduzida",
+    "developing": "Amostra em formação",
+    "established": "Amostra consolidada"
+  },
+  "coverageBands": {
+    "excellent": "Cobertura excelente",
+    "good": "Cobertura boa",
+    "partial": "Cobertura parcial",
+    "limited": "Cobertura limitada"
+  },
+  "roleValidity": {
+    "full": "Completa",
+    "partial": "Parcial",
+    "unavailable": "Indisponível"
+  },
+  "concepts": {
+    "rawRoleFit": "Aptidão bruta para o papel",
+    "roleFitPercentile": "Percentil de aptidão para o papel",
+    "metricCoverage": "Cobertura de métricas",
+    "analyticalMetricCoverage": "Cobertura analítica de métricas",
+    "featureCoverage": "Cobertura de atributos",
+    "similarityIndex": "Índice de semelhança",
+    "evidenceAwareRanking": "Ordenação ponderada pela evidência",
+    "sampleBand": "Escalão de amostra",
+    "partialRoleEvidence": "Evidência parcial do papel",
+    "fullRoleFit": "Aptidão completa para o papel",
+    "allLeaguesPercentile": "Percentil de todas as ligas",
+    "mixedSeasonMaturity": "épocas em fases diferentes",
+    "minutesPlayed": "Minutos jogados",
+    "recordedMinutes": "Minutos registados",
+    "season": "Época",
+    "marketValue": "Valor de mercado",
+    "contractExpires": "Contrato até",
+    "perNinety": "/90"
+  }
+}

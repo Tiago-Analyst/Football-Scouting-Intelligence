@@ -18,7 +18,7 @@ import test from "node:test";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const presets = read("src/components/recruitment/RolePresets.tsx");
-const page = read("src/app/recruitment/page.tsx");
+const page = read("src/app/[lang]/recruitment/page.tsx");
 
 test("a preset link carries every score, including the ones it does not use", () => {
   // `?? 0` is the whole guarantee: the loop runs over the form's own keys,

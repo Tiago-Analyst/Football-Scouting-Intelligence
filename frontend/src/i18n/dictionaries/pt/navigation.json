@@ -1,0 +1,50 @@
+{
+  "primaryLabel": "Principal",
+  "secondaryLabel": "Secundária",
+  "openMenu": "Abrir menu",
+  "closeMenu": "Fechar menu",
+  "home": "Football Recruitment Intelligence, início",
+  "skipToContent": "Saltar para o conteúdo",
+  "items": {
+    "players": {
+      "label": "Jogadores",
+      "description": "Pesquisar a base de dados por perfil, desempenho e critérios de mercado."
+    },
+    "similar": {
+      "label": "Semelhança",
+      "description": "Encontrar jogadores com perfis estatisticamente semelhantes."
+    },
+    "recruitment": {
+      "label": "Recrutamento",
+      "description": "Definir um perfil-alvo e ordenar candidatos em relação a ele."
+    },
+    "replacements": {
+      "label": "Substitutos",
+      "description": "Encontrar candidatos para substituir um jogador do plantel."
+    },
+    "opportunities": {
+      "label": "Oportunidades",
+      "description": "Identificar oportunidades de mercado a partir da aptidão para o papel, idade, valor e contrato."
+    },
+    "shortlists": {
+      "label": "Listas",
+      "description": "Guardar, anotar e comparar jogadores."
+    },
+    "methodology": {
+      "label": "Metodologia",
+      "description": "Como são calculadas as métricas, os percentis, as pontuações, os papéis e a semelhança."
+    },
+    "dataQuality": {
+      "label": "Qualidade dos dados",
+      "description": "Actualidade das fontes, cobertura e verificações automáticas de qualidade."
+    },
+    "status": {
+      "label": "Estado do sistema",
+      "description": "Saúde em tempo real da API e das suas dependências."
+    },
+    "about": {
+      "label": "Sobre",
+      "description": "Enquadramento do projecto."
+    }
+  }
+}

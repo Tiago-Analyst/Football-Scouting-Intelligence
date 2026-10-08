@@ -7,32 +7,43 @@ import { useEffect, useState } from "react";
 import { signOutAction } from "@/app/actions/auth";
 import { readIdentity } from "@/lib/session-identity";
 import { cn } from "@/lib/cn";
-import { PRIMARY_NAV, SECONDARY_NAV } from "@/lib/nav";
+import type { Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
+import { localePath } from "@/i18n/routing";
+import { navCopy, PRIMARY_NAV, SECONDARY_NAV } from "@/lib/nav";
 
+/**
+ * A section stays highlighted on its detail pages (/players/[slug]).
+ *
+ * Both sides are localised paths, so `/pt/players` matches `/pt/players/74972`
+ * and never `/en/players`. Comparing unlocalised hrefs would light up the
+ * same tab in both languages, which sounds harmless until the reader is on
+ * the English page and the Portuguese nav claims to be current.
+ */
 function isActive(pathname: string, href: string): boolean {
-  // A section stays highlighted on its detail pages (/players/[slug]).
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function DesktopNav() {
+export function DesktopNav({ t, locale }: { t: Dictionary; locale: Locale }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Primary" className="hidden lg:block">
+    <nav aria-label={t.navigation.primaryLabel} className="hidden lg:block">
       <ul className="flex items-center gap-0.5">
         {PRIMARY_NAV.map((item) => {
-          const active = isActive(pathname, item.href);
+          const href = localePath(locale, item.href);
+          const active = isActive(pathname, href);
           return (
             <li key={item.href}>
               <Link
-                href={item.href}
+                href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "rounded-md px-2.5 py-1.5 text-sm transition-colors",
                   active ? "bg-surface-2 font-medium text-text" : "text-muted hover:text-text",
                 )}
               >
-                {item.label}
+                {navCopy(t, item.key).label}
               </Link>
             </li>
           );
@@ -50,7 +61,7 @@ export function DesktopNav() {
  * server, on the other hand, cost the entire site its cacheability - see
  * `session-identity.ts`.
  */
-export function MobileNav() {
+export function MobileNav({ t, locale }: { t: Dictionary; locale: Locale }) {
   const pathname = usePathname();
   // Read when the menu is opened rather than while rendering: the server has
   // no idea who this is, so reading it during render would make the first
@@ -86,7 +97,9 @@ export function MobileNav() {
         }}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted transition-colors hover:text-text"
       >
-        <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
+        <span className="sr-only">
+          {open ? t.navigation.closeMenu : t.navigation.openMenu}
+        </span>
         <svg
           viewBox="0 0 20 20"
           aria-hidden
@@ -108,30 +121,34 @@ export function MobileNav() {
           id="mobile-nav"
           className="absolute inset-x-0 top-full z-40 border-b border-border bg-surface shadow-pop"
         >
-          <nav aria-label="Primary" className="mx-auto max-w-7xl px-4 py-3">
+          <nav aria-label={t.navigation.primaryLabel} className="mx-auto max-w-7xl px-4 py-3">
             <ul className="space-y-0.5">
-              {PRIMARY_NAV.map((item) => (
+              {PRIMARY_NAV.map((item) => {
+                const href = localePath(locale, item.href);
+                const copy = navCopy(t, item.key);
+                return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
-                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                    href={href}
+                    aria-current={isActive(pathname, href) ? "page" : undefined}
                     className={cn(
                       "block rounded-md px-3 py-2.5 text-sm transition-colors",
-                      isActive(pathname, item.href)
+                      isActive(pathname, href)
                         ? "bg-surface-2 font-medium text-text"
                         : "text-muted",
                     )}
                   >
-                    {item.label}
-                    <span className="mt-0.5 block text-xs text-subtle">{item.description}</span>
+                    {copy.label}
+                    <span className="mt-0.5 block text-xs text-subtle">{copy.description}</span>
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <div className="mt-3 border-t border-border pt-3 sm:hidden">
               {signedInAs ? (
                 <div className="flex items-center justify-between gap-3">
-                  <Link href="/account" className="min-w-0 truncate text-sm text-muted">
+                  <Link href={localePath(locale, "/account")} className="min-w-0 truncate text-sm text-muted">
                     {signedInAs}
                   </Link>
                   <form action={signOutAction}>
@@ -139,13 +156,16 @@ export function MobileNav() {
                       type="submit"
                       className="rounded-md border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:text-text"
                     >
-                      Sign out
+                      {t.common.account.signOut}
                     </button>
                   </form>
                 </div>
               ) : (
-                <Link href="/sign-in" className="block text-sm font-medium text-accent">
-                  Sign in
+                <Link
+                  href={localePath(locale, "/sign-in")}
+                  className="block text-sm font-medium text-accent"
+                >
+                  {t.common.account.signIn}
                 </Link>
               )}
             </div>
@@ -153,10 +173,10 @@ export function MobileNav() {
               {SECONDARY_NAV.map((item) => (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={localePath(locale, item.href)}
                     className="text-xs text-subtle transition-colors hover:text-text"
                   >
-                    {item.label}
+                    {navCopy(t, item.key).label}
                   </Link>
                 </li>
               ))}

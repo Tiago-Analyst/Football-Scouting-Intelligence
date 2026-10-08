@@ -18,10 +18,10 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const flat = (source) => source.replace(/\s+/g, " ");
 const strip = (source) => source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
-const search = read("src/app/players/(search)/page.tsx");
-const recruitment = read("src/app/recruitment/page.tsx");
+const search = read("src/app/[lang]/players/(search)/page.tsx");
+const recruitment = read("src/app/[lang]/recruitment/page.tsx");
 const comparison = read("src/components/shortlists/ComparisonTable.tsx");
-const opportunities = read("src/app/opportunities/page.tsx");
+const opportunities = read("src/app/[lang]/opportunities/page.tsx");
 
 test("the search column says which number it is showing", () => {
   // `best_role_score` is the weighted composite. Heading it "Fit" let it be

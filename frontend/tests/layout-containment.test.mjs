@@ -26,11 +26,11 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 
 /** Pages laid out as a filter sidebar beside a results column. */
 const SIDEBAR_PAGES = [
-  "src/app/players/(search)/page.tsx",
-  "src/app/similar/page.tsx",
-  "src/app/replacements/page.tsx",
-  "src/app/recruitment/page.tsx",
-  "src/app/opportunities/page.tsx",
+  "src/app/[lang]/players/(search)/page.tsx",
+  "src/app/[lang]/similar/page.tsx",
+  "src/app/[lang]/replacements/page.tsx",
+  "src/app/[lang]/recruitment/page.tsx",
+  "src/app/[lang]/opportunities/page.tsx",
 ];
 
 for (const page of SIDEBAR_PAGES) {

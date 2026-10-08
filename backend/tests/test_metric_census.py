@@ -31,11 +31,16 @@ from app.providers.footystats_mapping import get_mapping
 from app.schemas.canonical import CanonicalMetric
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
+#: Public pages that state what the provider supplies.
+#:
+#: Under `app/[lang]` since localisation added a locale segment above every
+#: route. The guard is unchanged - these pages must still read the census
+#: rather than restate it - only the paths moved with the pages.
 PUBLIC_PAGES = (
-    "app/about/page.tsx",
-    "app/methodology/page.tsx",
-    "app/data-quality/page.tsx",
-    "app/status/page.tsx",
+    "app/[lang]/about/page.tsx",
+    "app/[lang]/methodology/page.tsx",
+    "app/[lang]/data-quality/page.tsx",
+    "app/[lang]/status/page.tsx",
 )
 
 

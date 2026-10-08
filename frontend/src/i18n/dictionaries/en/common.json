@@ -1,0 +1,55 @@
+{
+  "productName": "Football Recruitment Intelligence",
+  "tagline": "Recruitment analysis built on contextual percentiles, player roles and statistical similarity. Scores describe statistical fit with a profile, not player quality.",
+  "attribution": "Performance data provided by FootyStats. Market and identity data derived from the public Transfermarkt dataset (dcaribou/transfermarkt-datasets). All provider data remains the property of its respective owner and is not redistributed in bulk.",
+  "theme": {
+    "label": "Colour theme",
+    "light": "Light",
+    "system": "System",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "change": "Change language"
+  },
+  "account": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "register": "Create account",
+    "account": "Account",
+    "signedInAs": "Signed in as {email}",
+    "yourAccount": "Your account"
+  },
+  "actions": {
+    "apply": "Apply",
+    "reset": "Reset",
+    "cancel": "Cancel",
+    "save": "Save",
+    "search": "Search",
+    "retry": "Try again",
+    "goHome": "Go home",
+    "searchPlayers": "Search players",
+    "showMore": "Show more",
+    "showLess": "Show less"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "showing": "Showing {from}–{to} of {total}"
+  },
+  "states": {
+    "loading": "Loading",
+    "empty": "Nothing to show",
+    "noResults": "No results"
+  },
+  "freshness": {
+    "label": "Data freshness",
+    "published": "published {date}"
+  },
+  "meta": {
+    "title": "Football Recruitment Intelligence",
+    "titleTemplate": "%s · Football Recruitment Intelligence",
+    "description": "Recruitment intelligence for football: contextual percentiles, player roles, statistical similarity and market analysis.",
+    "ogLocale": "en_GB"
+  }
+}

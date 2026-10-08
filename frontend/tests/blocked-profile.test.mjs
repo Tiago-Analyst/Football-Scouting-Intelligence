@@ -23,7 +23,7 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const flat = (s) => s.replace(/\s+/g, " ");
 
 const component = read("src/components/recruitment/BlockedProfile.tsx");
-const page = read("src/app/recruitment/page.tsx");
+const page = read("src/app/[lang]/recruitment/page.tsx");
 
 test("the action is disabled while the profile cannot rank anybody", () => {
   assert.match(component, /disabled=\{blocked\.length > 0\}/);

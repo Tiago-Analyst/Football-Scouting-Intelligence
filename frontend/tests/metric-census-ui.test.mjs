@@ -60,9 +60,9 @@ test("the pages hand over the whole response, not a flattened null", () => {
   // `meta?.metric_census ?? null` collapsed both failures into one value,
   // which is how the distinction was lost in the first place.
   for (const page of [
-    "src/app/about/page.tsx",
-    "src/app/methodology/page.tsx",
-    "src/app/data-quality/page.tsx",
+    "src/app/[lang]/about/page.tsx",
+    "src/app/[lang]/methodology/page.tsx",
+    "src/app/[lang]/data-quality/page.tsx",
   ]) {
     const source = read(page);
     assert.equal(

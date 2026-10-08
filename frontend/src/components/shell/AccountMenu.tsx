@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { signOutAction } from "@/app/actions/auth";
 import { buttonStyles } from "@/components/ui/Button";
+import { getDictionary } from "@/i18n/dictionaries";
 
 /**
  * The account control in the header.
@@ -16,12 +17,14 @@ import { buttonStyles } from "@/components/ui/Button";
  * links to `/account`, which is still resolved on the server against the real
  * session; nothing here decides what anyone may see.
  */
-export function AccountMenu() {
+export async function AccountMenu() {
+  const t = await getDictionary();
+
   return (
     <>
       <span data-session-anon>
         <Link href="/sign-in" className={buttonStyles("secondary", "sm", "hidden sm:inline-flex")}>
-          Sign in
+          {t.common.account.signIn}
         </Link>
       </span>
 
@@ -34,7 +37,7 @@ export function AccountMenu() {
               resolved. */}
           <Link
             href="/account"
-            aria-label="Your account"
+            aria-label={t.common.account.yourAccount}
             className={buttonStyles("ghost", "sm", "max-w-40 truncate")}
             data-session-name
           />
@@ -42,7 +45,7 @@ export function AccountMenu() {
               because something prefetched a URL. */}
           <form action={signOutAction}>
             <button type="submit" className={buttonStyles("secondary", "sm")}>
-              Sign out
+              {t.common.account.signOut}
             </button>
           </form>
         </span>
