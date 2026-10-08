@@ -393,21 +393,28 @@ rejected:
 # Absent, and what that costs
 # ----------------------------------------------------------------------------
 #
-# Two canonical metrics have no counterpart at all. Measured impact:
+# Three canonical metrics have no usable counterpart. Two of the three have a
+# field with the right name that is never populated, which is the more
+# dangerous shape: it reads as available until someone checks the values. The
+# reason is recorded per metric below, and it is not the same reason three
+# times.
 #
-# Two canonical metrics have no usable counterpart. Both have a field with
-# the right name that is never populated, which is the more dangerous
-# shape: it reads as available until someone checks the values.
+# What they cost downstream is deliberately NOT restated here. This file is
+# authoritative about FIELDS. What a missing field does to a score, a role or
+# a similarity vector is measured from the definitions themselves and
+# published in the generated docs/config_availability.md:
 #
-# Measured impact of all three together:
+#   python -m pipelines.quality.config_availability
 #
-#   3 of 8 intelligence scores  - ball_progression, ball_security,
-#                                 duel_dominance
-#   11 of 15 roles
+# An earlier version of this comment carried those counts inline - three of
+# eight intelligence scores, eleven of fifteen roles - and said "two metrics"
+# twice above a paragraph about three. Every one of those figures was wrong by
+# the time anyone read it: two scores are switched off, and no role is
+# switched off at all. A hand-kept copy of a generated measurement goes stale
+# without announcing it, and a comment that reads as authoritative is worse
+# than no comment.
 #
-# Surviving: chance_creation, defensive_activity, finishing, goal_threat and
-# one_v_one_threat; and the creative_winger, inside_forward, poacher and
-# shot_stopper roles. Everything else is disabled rather than approximated.
+# Nothing is substituted for an absent metric and nothing is zero-filled.
 absent:
   - metric: progressive_passes
     reason: >-
