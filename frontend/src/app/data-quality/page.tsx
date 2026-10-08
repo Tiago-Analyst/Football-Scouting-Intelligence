@@ -242,6 +242,14 @@ async function Report({
               This is about time, not about strength — a league that started later is not a weaker
               one, and nothing here adjusts for league strength.
             </p>
+            <p className="mt-2 text-muted">
+              Measured on the snapshot this was last audited against: nine of 44 competitions
+              contained a player who had reached a full season, and 81.7% of the players came from
+              the other 35. A player with under 180 minutes reached the top tenth of an all-leagues
+              metric 17.4% of the time, against 2.1% for a player with a full season — chance
+              would give both 10%. The percentile is left as it is and the composition is reported
+              beside it, because an adjustment folded into the number is one nobody can check.
+            </p>
           </div>
           <div>
             <p className="font-medium">Whether a role can be measured at all</p>

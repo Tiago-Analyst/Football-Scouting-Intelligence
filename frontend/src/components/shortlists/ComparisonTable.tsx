@@ -1,3 +1,8 @@
+import {
+  ALL_LEAGUES_EXPLANATION,
+  ALL_LEAGUES_LABEL,
+  ALL_LEAGUES_QUALIFIER,
+} from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import Link from "next/link";
 import { Fragment } from "react";
@@ -7,6 +12,7 @@ import { PercentileBar } from "@/components/ui/PercentileBar";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { leadingValues } from "@/lib/comparison";
 import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
@@ -218,10 +224,18 @@ export function ComparisonTable({
           href={comparisonHref(shortlistId, compared, "competition")}
         />
         <ScopeLink
-          label="All leagues"
+          label={ALL_LEAGUES_LABEL}
           active={scope === "global"}
           href={comparisonHref(shortlistId, compared, "global")}
         />
+        {/* The same qualification the profile's column carries. Two surfaces
+            show this rank and they must not describe it differently. */}
+        {scope === "global" ? (
+          <span className="inline-flex items-center gap-1 text-[11px] text-subtle">
+            {ALL_LEAGUES_QUALIFIER}
+            <Tooltip label="What the all-leagues rank is">{ALL_LEAGUES_EXPLANATION}</Tooltip>
+          </span>
+        ) : null}
       </div>
 
       <ComparisonSummary players={players} />
