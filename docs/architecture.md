@@ -2645,7 +2645,11 @@ produce a number from reduced coverage, eight *reduced* and two *limited*, with
 that coverage reported to the reader. No role is switched off entirely.
 Nothing is substituted for an absent metric and nothing is zero-filled.
 
-The `absent:` comment block in `config/footystats_mapping.yaml` still says
-three scores and eleven roles. That is an older measurement left in a comment,
-and the generated report is the one to read — the mapping file is authoritative
-about *fields*, not about what they cost downstream.
+The `absent:` comment block in `config/footystats_mapping.yaml` used to carry
+its own copy of those counts — three scores and eleven roles — and said "two
+metrics" twice above a paragraph about three. Every figure in it was wrong by
+the time anyone read it. It no longer states them: the mapping file is
+authoritative about *fields*, and what a missing field costs downstream is
+measured from the definitions and published in the generated report. A
+hand-kept copy of a generated measurement goes stale without announcing it,
+which is the same defect this whole section was written to correct.
