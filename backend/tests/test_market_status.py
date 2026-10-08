@@ -86,9 +86,16 @@ class TestItReportsWhatIsServed:
     def test_a_readable_snapshot_does_not_disguise_an_empty_database(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The inverse of the original defect, and just as misleading."""
+        """The inverse of the original defect, and just as misleading.
+
+        The snapshot has to be patched in, not left to the machine. An earlier
+        version of this test only passed where a Transfermarkt download
+        happened to sit on disk - green on a developer's laptop, red on CI,
+        and testing the filesystem rather than the code either way.
+        """
         monkeypatch.setattr(health, "market_serving", lambda _session: NOTHING)
         monkeypatch.setattr(health, "get_session_factory", _factory())
+        monkeypatch.setattr(health, "build_market_provider", _readable_snapshot())
 
         status = health._market_source(build_settings(app_mode="production"))
 
@@ -116,12 +123,18 @@ class TestWhenTheDatabaseCannotAnswer:
     def test_it_does_not_claim_an_empty_database_it_never_read(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A readable snapshot and an unknown database is not an empty one."""
+        """A readable snapshot and an unknown database is not an empty one.
+
+        The snapshot is patched in for the same reason as above: left to the
+        machine, this test takes a different branch depending on whether a
+        download happens to sit on disk.
+        """
 
         def unreachable() -> object:
             raise OSError("connection refused")
 
         monkeypatch.setattr(health, "get_session_factory", unreachable)
+        monkeypatch.setattr(health, "build_market_provider", _readable_snapshot())
 
         status = health._market_source(build_settings(app_mode="production"))
 
@@ -171,6 +184,30 @@ def _factory() -> object:
 
     # `get_session_factory()()` - a factory that makes the session.
     return lambda: lambda: _Session()
+
+
+def _readable_snapshot() -> object:
+    """A market provider that builds, as it does where the dataset is on disk.
+
+    Only the ingestion side is healthy here; the serving database is empty.
+    That combination is what the test above is about, and leaving it to
+    whether a download happens to exist locally is how the test came to pass
+    on one machine and fail on another.
+    """
+    from app.schemas.market import MarketProviderInfo
+
+    class _Provider:
+        @property
+        def info(self) -> MarketProviderInfo:
+            return MarketProviderInfo(
+                name="TransfermarktDatasetProvider",
+                is_mock=False,
+                validated=True,
+                licence="CC0",
+                notes="Snapshot readable.",
+            )
+
+    return lambda _settings: _Provider()
 
 
 def _raises() -> object:
