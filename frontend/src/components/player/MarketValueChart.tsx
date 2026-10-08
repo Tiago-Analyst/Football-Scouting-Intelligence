@@ -137,9 +137,20 @@ function Plot({ points }: { points: MarketValuePoint[] }) {
               r="2.5"
               className="fill-accent"
             >
-              <title>
-                {formatDate(point.valued_on)}: {formatEuro(point.market_value_eur)}
-              </title>
+              {/*
+               * ONE child, deliberately.
+               *
+               * `{a}: {b}` is three children - two expressions and a literal -
+               * and React renders a <title> with more than one child as EMPTY
+               * on the server while rendering it in full on the client. That
+               * is a hydration mismatch on every point of this chart, and
+               * React responds by regenerating the tree from the root, which
+               * strips the `data-theme` attribute the ThemeScript sets on
+               * <html> before first paint. The visible symptom was the whole
+               * player profile ignoring dark mode while every other route
+               * honoured it - a theme bug whose cause was an SVG tooltip.
+               */}
+              <title>{`${formatDate(point.valued_on)}: ${formatEuro(point.market_value_eur)}`}</title>
             </circle>
           ))}
 

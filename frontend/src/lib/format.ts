@@ -33,9 +33,26 @@ export function formatEuro(value: number): string {
   return `€${value}`;
 }
 
-/** Contract expiry as month and year: "Jun 2028". */
+/**
+ * Contract expiry as month and year: "Jun 2028".
+ *
+ * UTC, and not optionally. These are calendar dates from the provider -
+ * "2022-07-01" is a day, not a moment in the reader's day - and `new Date()`
+ * parses a date-only string as midnight UTC. Rendered in the reader's zone,
+ * every date landing on the 1st moves to the previous month west of
+ * Greenwich: a contract expiring "Jul 2022" reads "Jun 2022" in New York.
+ *
+ * It is also a hydration mismatch. The server renders in UTC and the browser
+ * in the reader's zone, so the two disagree, React regenerates the tree from
+ * the root, and the `data-theme` attribute set before first paint is lost -
+ * which is how this page came to ignore dark mode.
+ */
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /**
@@ -49,6 +66,9 @@ export function formatDateTime(iso: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    // Same reason as formatDate, and it bites harder here: this one shows the
+    // day, so any reader west of Greenwich sees the previous one.
+    timeZone: "UTC",
   });
 }
 
