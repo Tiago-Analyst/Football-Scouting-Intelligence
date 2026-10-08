@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const page = readFileSync(new URL("../src/app/data-quality/page.tsx", import.meta.url), "utf8");
+const page = readFileSync(new URL("../src/app/[lang]/data-quality/page.tsx", import.meta.url), "utf8");
 const flat = page.replace(/\s+/g, " ");
 
 test("an unavailable metric is shown with what profiling found", () => {

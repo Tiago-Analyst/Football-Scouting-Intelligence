@@ -25,7 +25,13 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const APP = fileURLToPath(new URL("../src/app/", import.meta.url));
+/**
+ * Routes live under the `[lang]` root segment since localisation landed.
+ * Everything these tests assert about loading boundaries is unchanged by
+ * that move - the boundaries moved WITH their routes - so the constant
+ * follows them rather than the assertions being relaxed.
+ */
+const APP = fileURLToPath(new URL("../src/app/[lang]/", import.meta.url));
 
 /** Every directory under app/, as a segment path. */
 function segments(dir = APP, prefix = "") {

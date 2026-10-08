@@ -82,8 +82,8 @@ test("no shortlist judgement reaches a score", () => {
   // The frontend does not score anything, but it does decide what to send.
   // If a status ever appears beside a weight or a search body, this is where
   // it would start.
-  const recruitment = read("src/app/recruitment/page.tsx");
-  const profile = read("src/app/players/[slug]/page.tsx");
+  const recruitment = read("src/app/[lang]/recruitment/page.tsx");
+  const profile = read("src/app/[lang]/players/[slug]/page.tsx");
   for (const [name, source] of [
     ["recruitment/page.tsx", recruitment],
     ["players/[slug]/page.tsx", profile],

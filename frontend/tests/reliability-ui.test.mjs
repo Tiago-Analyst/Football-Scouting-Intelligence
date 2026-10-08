@@ -14,11 +14,11 @@ import test from "node:test";
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const flat = (s) => s.replace(/\s+/g, " ");
 
-const replacements = read("src/app/replacements/page.tsx");
+const replacements = read("src/app/[lang]/replacements/page.tsx");
 const confidence = read("src/components/player/DataConfidence.tsx");
-const profile = read("src/app/players/[slug]/page.tsx");
+const profile = read("src/app/[lang]/players/[slug]/page.tsx");
 const presets = read("src/components/recruitment/RolePresets.tsx");
-const recruitment = read("src/app/recruitment/page.tsx");
+const recruitment = read("src/app/[lang]/recruitment/page.tsx");
 const types = read("src/types/api.ts");
 
 test("an incomplete replacement shows no comparable overall", () => {
@@ -254,8 +254,8 @@ test("maturity is never described as league strength", () => {
  * cannot do said nothing about either.
  */
 
-const similar = read("src/app/similar/page.tsx");
-const dataQuality = read("src/app/data-quality/page.tsx");
+const similar = read("src/app/[lang]/similar/page.tsx");
+const dataQuality = read("src/app/[lang]/data-quality/page.tsx");
 
 test("limited similarity evidence is marked at the index's own size", () => {
   for (const [name, source] of [
@@ -307,7 +307,7 @@ test("and it does not turn season maturity into league strength", () => {
  * finder and the recruitment builder already do.
  */
 
-const opportunities = read("src/app/opportunities/page.tsx");
+const opportunities = read("src/app/[lang]/opportunities/page.tsx");
 
 test("an opportunity shows the value its position came from", () => {
   assert.match(opportunities, /entry\.ranking_score/);

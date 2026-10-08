@@ -1,0 +1,55 @@
+{
+  "productName": "Football Recruitment Intelligence",
+  "tagline": "Análise de recrutamento assente em percentis contextuais, papéis de jogador e semelhança estatística. As pontuações descrevem a aptidão estatística para um perfil, não a qualidade do jogador.",
+  "attribution": "Dados de desempenho fornecidos pela FootyStats. Dados de mercado e de identidade derivados do conjunto de dados público do Transfermarkt (dcaribou/transfermarkt-datasets). Todos os dados do fornecedor continuam a ser propriedade do respectivo titular e não são redistribuídos em massa.",
+  "theme": {
+    "label": "Tema de cor",
+    "light": "Claro",
+    "system": "Sistema",
+    "dark": "Escuro"
+  },
+  "language": {
+    "label": "Idioma",
+    "change": "Mudar de idioma"
+  },
+  "account": {
+    "signIn": "Entrar",
+    "signOut": "Sair",
+    "register": "Criar conta",
+    "account": "Conta",
+    "signedInAs": "Sessão iniciada como {email}",
+    "yourAccount": "A sua conta"
+  },
+  "actions": {
+    "apply": "Aplicar",
+    "reset": "Repor",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "search": "Pesquisar",
+    "retry": "Tentar novamente",
+    "goHome": "Ir para o início",
+    "searchPlayers": "Pesquisar jogadores",
+    "showMore": "Mostrar mais",
+    "showLess": "Mostrar menos"
+  },
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Seguinte",
+    "showing": "A mostrar {from}–{to} de {total}"
+  },
+  "states": {
+    "loading": "A carregar",
+    "empty": "Nada a mostrar",
+    "noResults": "Sem resultados"
+  },
+  "freshness": {
+    "label": "Actualidade dos dados",
+    "published": "publicado em {date}"
+  },
+  "meta": {
+    "title": "Football Recruitment Intelligence",
+    "titleTemplate": "%s · Football Recruitment Intelligence",
+    "description": "Inteligência de recrutamento para o futebol: percentis contextuais, papéis de jogador, semelhança estatística e análise de mercado.",
+    "ogLocale": "pt_PT"
+  }
+}

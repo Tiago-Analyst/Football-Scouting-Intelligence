@@ -1,0 +1,50 @@
+{
+  "primaryLabel": "Primary",
+  "secondaryLabel": "Secondary",
+  "openMenu": "Open menu",
+  "closeMenu": "Close menu",
+  "home": "Football Recruitment Intelligence, home",
+  "skipToContent": "Skip to content",
+  "items": {
+    "players": {
+      "label": "Players",
+      "description": "Search the player database by profile, performance and market criteria."
+    },
+    "similar": {
+      "label": "Similarity",
+      "description": "Find players with statistically similar profiles."
+    },
+    "recruitment": {
+      "label": "Recruitment",
+      "description": "Define a target profile and rank candidates against it."
+    },
+    "replacements": {
+      "label": "Replacements",
+      "description": "Find candidates to replace a specific player in a squad."
+    },
+    "opportunities": {
+      "label": "Opportunities",
+      "description": "Surface potential market opportunities from role fit, age, value and contract."
+    },
+    "shortlists": {
+      "label": "Shortlists",
+      "description": "Save, annotate and compare players."
+    },
+    "methodology": {
+      "label": "Methodology",
+      "description": "How metrics, percentiles, scores, roles and similarity are calculated."
+    },
+    "dataQuality": {
+      "label": "Data quality",
+      "description": "Source freshness, coverage and automated quality checks."
+    },
+    "status": {
+      "label": "System status",
+      "description": "Live health of the API and its dependencies."
+    },
+    "about": {
+      "label": "About",
+      "description": "Project background."
+    }
+  }
+}

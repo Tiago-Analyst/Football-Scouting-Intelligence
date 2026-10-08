@@ -1,10 +1,9 @@
-import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md" | "lg";
+export type Variant = "primary" | "secondary" | "ghost" | "danger";
+export type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-accent text-accent-fg hover:bg-accent-hover border-transparent",
@@ -39,20 +38,5 @@ export function Button({ variant, size, className, children, ...rest }: ButtonPr
     <button className={buttonStyles(variant, size, className)} {...rest}>
       {children}
     </button>
-  );
-}
-
-interface ButtonLinkProps extends Omit<ComponentProps<typeof Link>, "children"> {
-  variant?: Variant;
-  size?: Size;
-  children: ReactNode;
-}
-
-/** A link styled as a button. Navigation is a link, never a button with onClick. */
-export function ButtonLink({ variant, size, className, children, ...rest }: ButtonLinkProps) {
-  return (
-    <Link className={buttonStyles(variant, size, className)} {...rest}>
-      {children}
-    </Link>
   );
 }

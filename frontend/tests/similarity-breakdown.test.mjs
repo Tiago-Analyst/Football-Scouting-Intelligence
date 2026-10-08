@@ -17,7 +17,7 @@ import test from "node:test";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const breakdown = read("src/components/player/SimilarityBreakdown.tsx");
-const profile = read("src/app/players/[slug]/page.tsx");
+const profile = read("src/app/[lang]/players/[slug]/page.tsx");
 
 test("the target row is labelled with the profile owner, not the candidate", () => {
   // `feature.target` is this page's player; `feature.candidate` is the other

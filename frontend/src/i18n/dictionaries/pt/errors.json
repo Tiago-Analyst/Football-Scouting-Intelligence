@@ -1,0 +1,15 @@
+{
+  "notFound": {
+    "title": "Página não encontrada",
+    "description": "Esta página não existe, ou o jogador que procura não está na base de dados."
+  },
+  "route": {
+    "title": "Algo correu mal",
+    "description": "Esta página não conseguiu carregar. O problema ficou registado.",
+    "reference": "Referência: {digest}"
+  },
+  "unreachable": {
+    "title": "O serviço de análise não está a responder",
+    "description": "Os valores desta página vêm da API, e não foi possível contactá-la. Nada do que fosse mostrado estaria actualizado, por isso nada é mostrado."
+  }
+}

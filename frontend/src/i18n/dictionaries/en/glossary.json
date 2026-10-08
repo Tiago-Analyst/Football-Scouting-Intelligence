@@ -1,0 +1,66 @@
+{
+  "roles": {
+    "ball_playing_centre_back": "Ball-Playing Centre-Back",
+    "defensive_stopper": "Defensive Stopper",
+    "defensive_full_back": "Defensive Full-Back",
+    "attacking_full_back": "Attacking Full-Back",
+    "ball_winning_midfielder": "Ball-Winning Midfielder",
+    "deep_lying_playmaker": "Deep-Lying Playmaker",
+    "box_to_box_midfielder": "Box-to-Box Midfielder",
+    "advanced_playmaker": "Advanced Playmaker",
+    "creative_winger": "Creative Winger",
+    "direct_winger": "Direct Winger",
+    "inside_forward": "Inside Forward",
+    "poacher": "Poacher",
+    "target_forward": "Target Forward",
+    "complete_forward": "Complete Forward",
+    "shot_stopper": "Shot Stopper"
+  },
+  "positions": {
+    "GK": "Goalkeeper",
+    "CB": "Centre-Back",
+    "FB_WB": "Full-Back",
+    "DM": "Defensive Midfield",
+    "CM": "Central Midfield",
+    "AM": "Attacking Midfield",
+    "WINGER": "Winger",
+    "FORWARD": "Centre-Forward"
+  },
+  "sampleBands": {
+    "very_low": "Very Low Sample",
+    "low": "Low Sample",
+    "developing": "Developing Sample",
+    "established": "Established Sample"
+  },
+  "coverageBands": {
+    "excellent": "Excellent coverage",
+    "good": "Good coverage",
+    "partial": "Partial coverage",
+    "limited": "Limited coverage"
+  },
+  "roleValidity": {
+    "full": "Full",
+    "partial": "Partial",
+    "unavailable": "Unavailable"
+  },
+  "concepts": {
+    "rawRoleFit": "Raw Role Fit",
+    "roleFitPercentile": "Role Fit Percentile",
+    "metricCoverage": "Metric Coverage",
+    "analyticalMetricCoverage": "Analytical metric coverage",
+    "featureCoverage": "Feature Coverage",
+    "similarityIndex": "Similarity Index",
+    "evidenceAwareRanking": "Evidence-aware ranking",
+    "sampleBand": "Sample band",
+    "partialRoleEvidence": "Partial role evidence",
+    "fullRoleFit": "Full Role Fit",
+    "allLeaguesPercentile": "All-leagues percentile",
+    "mixedSeasonMaturity": "mixed season maturity",
+    "minutesPlayed": "Minutes played",
+    "recordedMinutes": "Recorded minutes",
+    "season": "Season",
+    "marketValue": "Market value",
+    "contractExpires": "Contract until",
+    "perNinety": "/90"
+  }
+}

@@ -1,5 +1,8 @@
 "use client";
 
+import type { Locale } from "@/i18n/config";
+import { localePath } from "@/i18n/routing";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
@@ -29,9 +32,13 @@ import type { Shortlist } from "@/types/api";
 export function SaveToShortlist({
   playerId,
   playerName,
+  locale,
 }: {
   playerId: string;
   playerName: string;
+  /** The page's language. A Client Component cannot read a root parameter,
+   * so its one internal link has to be given the locale rather than find it. */
+  locale: Locale;
 }) {
   const router = useRouter();
   const [shortlists, setShortlists] = useState<Shortlist[] | null>(null);
@@ -68,7 +75,7 @@ export function SaveToShortlist({
 
   if (shortlists.length === 0) {
     return (
-      <Link href="/shortlists" className={buttonStyles("secondary", "sm")}>
+      <Link href={localePath(locale, "/shortlists")} className={buttonStyles("secondary", "sm")}>
         Create a shortlist
       </Link>
     );

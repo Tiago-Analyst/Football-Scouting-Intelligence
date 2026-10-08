@@ -4,7 +4,7 @@ import {
   ALL_LEAGUES_QUALIFIER,
 } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
-import Link from "next/link";
+import { AppLink as Link } from "@/components/ui/AppLink";
 import { Fragment } from "react";
 
 import { StatusBadge } from "@/components/shortlists/StatusBadge";

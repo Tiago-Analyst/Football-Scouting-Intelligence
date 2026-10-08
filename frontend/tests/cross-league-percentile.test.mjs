@@ -26,10 +26,10 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const flat = (s) => s.replace(/\s+/g, " ");
 
 const label = read("src/components/player/AllLeaguesLabel.tsx");
-const profile = read("src/app/players/[slug]/page.tsx");
+const profile = read("src/app/[lang]/players/[slug]/page.tsx");
 const comparison = read("src/components/shortlists/ComparisonTable.tsx");
-const methodology = read("src/app/methodology/page.tsx");
-const dataQuality = read("src/app/data-quality/page.tsx");
+const methodology = read("src/app/[lang]/methodology/page.tsx");
+const dataQuality = read("src/app/[lang]/data-quality/page.tsx");
 
 /** Every .tsx under src, so an audit of copy cannot miss a new page. */
 function sources(dir = SRC) {

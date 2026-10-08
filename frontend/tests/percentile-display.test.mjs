@@ -57,8 +57,8 @@ test("no component appends an ordinal suffix by hand", () => {
   // The bug was `{Math.round(p)}th percentile`. Anything of that shape is the
   // same bug waiting for a number ending in 1, 2 or 3.
   const files = [
-    "src/app/players/[slug]/page.tsx",
-    "src/app/recruitment/page.tsx",
+    "src/app/[lang]/players/[slug]/page.tsx",
+    "src/app/[lang]/recruitment/page.tsx",
     "src/components/shortlists/ComparisonTable.tsx",
   ];
   for (const file of files) {
@@ -143,7 +143,7 @@ test("similarity keeps raw ranks, and is not painted as merit", () => {
 
 test("the pages that show performance all show the oriented figure", () => {
   for (const file of [
-    "src/app/players/[slug]/page.tsx",
+    "src/app/[lang]/players/[slug]/page.tsx",
     "src/components/shortlists/ComparisonTable.tsx",
   ]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -153,7 +153,7 @@ test("the pages that show performance all show the oriented figure", () => {
 
 test("every surface that shows a directional metric passes the direction", () => {
   const surfaces = [
-    "src/app/players/[slug]/page.tsx",
+    "src/app/[lang]/players/[slug]/page.tsx",
     "src/components/shortlists/ComparisonTable.tsx",
   ];
   for (const file of surfaces) {
@@ -170,7 +170,7 @@ test("both percentile columns orient the same way", () => {
   // Two populations, one question. A row showing the oriented rank at home
   // and the raw rank across Europe would put two numbers side by side that
   // run in opposite directions on exactly the metrics where it matters.
-  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../src/app/[lang]/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
   assert.match(flat, /ordinal\(metric\.global_performance_percentile\)/);
   assert.equal(/100 - metric\.global_percentile/.test(flat), false);
@@ -180,7 +180,7 @@ test("the raw distribution rank is kept, not discarded", () => {
   // "4% of players are dispossessed less often" and "better than 96% of
   // players" are the same sentence. The second leads because it is read
   // correctly at a glance; the first is still on the page, named.
-  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../src/app/[lang]/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
   assert.match(flat, /ordinal\(metric\.percentile\)\} by raw value/);
   assert.match(flat, /metric\.lower_is_better && metric\.percentile !== null/);
@@ -189,7 +189,7 @@ test("the raw distribution rank is kept, not discarded", () => {
 test("the wider population is named, not left to be guessed", () => {
   // A rank among 752 beside a rank among 23 is only readable if the page
   // says which is which, and that neither corrects for league strength.
-  const page = readFileSync(new URL("../src/app/players/[slug]/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../src/app/[lang]/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
   assert.match(flat, /global_context\.population_size/);
   assert.match(flat, /adjusted for how strong a league is/);
