@@ -1,7 +1,7 @@
 {
   "roles": {
     "ball_playing_centre_back": "Defesa-central construtor",
-    "defensive_stopper": "Defesa-central de marcação",
+    "defensive_stopper": "Central de marcação",
     "defensive_full_back": "Lateral defensivo",
     "attacking_full_back": "Lateral ofensivo",
     "ball_winning_midfielder": "Médio recuperador",
@@ -11,7 +11,7 @@
     "creative_winger": "Extremo criativo",
     "direct_winger": "Extremo driblador",
     "inside_forward": "Avançado interior",
-    "poacher": "Finalizador de área",
+    "poacher": "Avançado de área",
     "target_forward": "Avançado de referência",
     "complete_forward": "Avançado completo",
     "shot_stopper": "Guarda-redes de linha"
@@ -62,5 +62,28 @@
     "marketValue": "Valor de mercado",
     "contractExpires": "Contrato até",
     "perNinety": "/90"
-  }
+  },
+  "providerPositions": {
+    "Goalkeeper": "Guarda-redes",
+    "Centre-Back": "Defesa-central",
+    "Left-Back": "Lateral esquerdo",
+    "Right-Back": "Lateral direito",
+    "Defensive Midfield": "Médio defensivo",
+    "Central Midfield": "Médio centro",
+    "Attacking Midfield": "Médio ofensivo",
+    "Left Winger": "Extremo esquerdo",
+    "Right Winger": "Extremo direito",
+    "Left Midfield": "Médio esquerdo",
+    "Right Midfield": "Médio direito",
+    "Centre-Forward": "Avançado",
+    "Second Striker": "Segundo avançado"
+  },
+  "sampleExplanations": {
+    "established": "Uma época inteira de futebol por trás destes números.",
+    "developing": "Futebol suficiente para ler uma tendência, ainda que os valores por 90 minutos continuem a oscilar.",
+    "low": "Os valores por 90 minutos são voláteis com esta amostra: um golo ou um desarme movem o rácio de forma visível.",
+    "very_low": "Um valor por 90 minutos com tão pouco futebol aproxima-se de um único lance multiplicado. Leia-o como o que aconteceu, não como um ritmo que o jogador sustenta."
+  },
+  "sampleMinutes": " Este jogador tem {minutes} minutos.",
+  "sampleTooltipLabel": "O que significa \"{label}\"?"
 }

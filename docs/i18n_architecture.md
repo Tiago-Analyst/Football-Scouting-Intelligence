@@ -204,7 +204,33 @@ unaffected throughout.
 
 | Phase | Scope |
 |---|---|
-| 1 | Architecture, `[lang]` routing, proxy, dictionaries, selector, persistence, glossary, shell and error states |
-| 2 | Player search, profile, similarity, replacements, recruitment, opportunities |
+| 1 ✅ | Architecture, `[lang]` routing, proxy, dictionaries, selector, persistence, glossary, shell and error states |
+| 2a ✅ | Terminology components, provider position vocabulary, sample-band copy, `best_role_key` on the API, **player search** |
+| 2b | Player profile, similarity, replacements, recruitment, opportunities |
 | 3 | About, methodology, data quality, status, auth, shortlists |
-| 4 | Backend codes, SEO and `hreflang`, `Intl` formatting, completeness tests — and `pt` switched on |
+| 4 | Backend message codes, `Intl` formatting, completeness tests — and `pt` switched on |
+
+### Why phase 2 is split
+
+Two things found while translating the first page.
+
+**The profile page cannot be finished before phase 4.** Much of what it shows
+is prose the API sends and the frontend prints: `unscored_reason`,
+`role_fit_percentile_reason`, `coverage_label`, `explanation`, `band_label`,
+`evidence.label`, `description`, `caveat`, and the names of a role's core
+dimensions. Translating the page's own copy leaves those sentences in English —
+which is correct for phase 2 and incomplete until the codes land. Attempting
+the profile before phase 4 would mean either waiting for it or writing the
+page twice.
+
+**Formatting is bigger than it looked.** `ordinal()` renders "100th" and
+`formatDate` renders "Jun 2027" on a Portuguese page. Making them locale-aware
+is **96 call sites in 19 files**, which is its own change rather than a detail
+of a page. It stays in phase 4, and no reader ever sees the half-formatted
+state because `pt` is not reachable until that phase lands.
+
+### What the phasing is buying
+
+`ENABLED_LOCALES` is still `["en"]`. Every intermediate state is therefore
+coherent in production: English is complete and unchanged, and Portuguese does
+not exist yet rather than existing badly.

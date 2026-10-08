@@ -219,6 +219,7 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
         market_value_eur=record.market_value_eur,
         contract_expires=record.contract_expires,
         best_role=best.label if best else None,
+        best_role_key=best.key if best else None,
         best_role_score=best.score if best else None,
         best_role_percentile=best.role_fit_percentile if best else None,
     )

@@ -62,5 +62,28 @@
     "marketValue": "Market value",
     "contractExpires": "Contract until",
     "perNinety": "/90"
-  }
+  },
+  "providerPositions": {
+    "Goalkeeper": "Goalkeeper",
+    "Centre-Back": "Centre-Back",
+    "Left-Back": "Left-Back",
+    "Right-Back": "Right-Back",
+    "Defensive Midfield": "Defensive Midfield",
+    "Central Midfield": "Central Midfield",
+    "Attacking Midfield": "Attacking Midfield",
+    "Left Winger": "Left Winger",
+    "Right Winger": "Right Winger",
+    "Left Midfield": "Left Midfield",
+    "Right Midfield": "Right Midfield",
+    "Centre-Forward": "Centre-Forward",
+    "Second Striker": "Second Striker"
+  },
+  "sampleExplanations": {
+    "established": "A full season's worth of football behind these figures.",
+    "developing": "Enough football to read a direction from, though per-90 figures still move.",
+    "low": "Per-90 figures are volatile at this sample size: one goal or tackle moves a rate noticeably.",
+    "very_low": "A per-90 from this little football is close to a single passage of play multiplied up. Read it as what happened, not as a rate the player sustains."
+  },
+  "sampleMinutes": " This player has {minutes} minutes.",
+  "sampleTooltipLabel": "What does \"{label}\" mean?"
 }

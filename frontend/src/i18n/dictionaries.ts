@@ -7,11 +7,13 @@ import enCommon from "./dictionaries/en/common.json";
 import enNavigation from "./dictionaries/en/navigation.json";
 import enErrors from "./dictionaries/en/errors.json";
 import enGlossary from "./dictionaries/en/glossary.json";
+import enPlayers from "./dictionaries/en/players.json";
 
 import ptCommon from "./dictionaries/pt/common.json";
 import ptNavigation from "./dictionaries/pt/navigation.json";
 import ptErrors from "./dictionaries/pt/errors.json";
 import ptGlossary from "./dictionaries/pt/glossary.json";
+import ptPlayers from "./dictionaries/pt/players.json";
 
 /**
  * The dictionaries, and the one way to read them.
@@ -44,12 +46,14 @@ const DICTIONARIES = {
     navigation: enNavigation,
     errors: enErrors,
     glossary: enGlossary,
+    players: enPlayers,
   },
   pt: {
     common: ptCommon,
     navigation: ptNavigation,
     errors: ptErrors,
     glossary: ptGlossary,
+    players: ptPlayers,
   },
 } as const;
 

@@ -9,25 +9,25 @@ import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { positionName } from "@/components/player/PositionName";
+import { RoleName, roleLabel } from "@/components/player/RoleName";
+import { getDictionary } from "@/i18n/dictionaries";
 import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = {
-  title: "Player search",
-  description:
-    "Search players by position, competition, age, playing time and market value. Every player is ranked against their own position group, and each result shows the sample it rests on.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.players.meta.title, description: t.players.meta.description };
+}
 
-const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
+const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"] as const;
 const PAGE_SIZE = 25;
 
-const SORTS = [
-  { value: "minutes", label: "Minutes played" },
-  { value: "role_score", label: "Role fit" },
-  { value: "market_value", label: "Market value" },
-  { value: "age", label: "Age" },
-  { value: "name", label: "Name" },
-];
+/** Sort values, in display order. The words live in the dictionary. */
+const SORTS = ["minutes", "role_score", "market_value", "age", "name"] as const;
+
+/** Contract windows offered, in months. */
+const CONTRACT_WINDOWS = [6, 12, 18, 24] as const;
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -60,6 +60,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
   };
   const offset = Number(first(params.offset) ?? 0);
 
+  const t = await getDictionary();
   const [results, competitions, roles] = await Promise.all([
     searchPlayers({ ...filters, offset, limit: PAGE_SIZE }),
     getCompetitions(),
@@ -69,15 +70,15 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Database"
-        title="Player search"
-        description="Filter by profile, playing time and market criteria. Every player is ranked against their own position group."
+        eyebrow={t.players.eyebrow}
+        title={t.players.title}
+        description={t.players.description}
       />
 
       {results === null ? (
         <ErrorState
-          title="Could not load players"
-          description="The API did not respond. Check that the backend is running."
+          title={t.players.error.title}
+          description={t.players.error.description}
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -88,40 +89,45 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Filters</h2>
+              <h2 className="text-sm font-semibold">{t.players.filters.heading}</h2>
               <Link href="/players" className="text-xs text-muted hover:text-text">
-                Reset
+                {t.players.filters.reset}
               </Link>
             </div>
 
-            <Field label="Name" htmlFor="search">
+            <Field label={t.players.filters.name} htmlFor="search">
               <TextInput
                 id="search"
                 name="search"
                 type="search"
-                placeholder="Search players…"
+                placeholder={t.players.filters.namePlaceholder}
                 defaultValue={filters.search ?? ""}
               />
             </Field>
 
-            <Field label="Position group" htmlFor="position_group">
+            <Field label={t.players.filters.positionGroup} htmlFor="position_group">
               <Select
                 id="position_group"
                 name="position_group"
                 defaultValue={filters.position_group ?? ""}
               >
-                <option value="">Any</option>
+                <option value="">{t.players.filters.any}</option>
+                {/* The VALUE stays the code the API filters on; only the
+                    words change. "FB_WB" is an identifier, not a label, and
+                    it was being shown to readers in both languages because
+                    there was nowhere to put the name until the glossary
+                    existed. */}
                 {POSITION_GROUPS.map((group) => (
                   <option key={group} value={group}>
-                    {group}
+                    {t.glossary.positions[group]}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Competition" htmlFor="competition">
+            <Field label={t.players.filters.competition} htmlFor="competition">
               <Select id="competition" name="competition" defaultValue={filters.competition ?? ""}>
-                <option value="">Any</option>
+                <option value="">{t.players.filters.any}</option>
                 {competitions.map((competition) => (
                   <option key={competition.competition_id} value={competition.competition_id}>
                     {competition.name}
@@ -130,19 +136,22 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </Select>
             </Field>
 
-            <Field label="Best role" htmlFor="role">
+            <Field label={t.players.filters.bestRole} htmlFor="role">
               <Select id="role" name="role" defaultValue={filters.role ?? ""}>
-                <option value="">Any</option>
+                <option value="">{t.players.filters.any}</option>
+                {/* A filter is a dense surface: the Portuguese name alone.
+                    `roleLabel` rather than <RoleName> because an <option>
+                    takes text, not an element. */}
                 {roles.map((role) => (
                   <option key={role.key} value={role.key}>
-                    {role.label}
+                    {roleLabel(t, role.key)}
                   </option>
                 ))}
               </Select>
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Min age" htmlFor="age_min">
+              <Field label={t.players.filters.minAge} htmlFor="age_min">
                 <TextInput
                   id="age_min"
                   name="age_min"
@@ -153,7 +162,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   defaultValue={filters.age_min ?? ""}
                 />
               </Field>
-              <Field label="Max age" htmlFor="age_max">
+              <Field label={t.players.filters.maxAge} htmlFor="age_max">
                 <TextInput
                   id="age_max"
                   name="age_max"
@@ -169,14 +178,9 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             <Field
               label={
                 <>
-                  Minimum minutes
-                  <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default regardless of
-                    minutes played — every player with a valid rate is listed, ranked and
-                    compared, and shapes the population everyone else is measured against.
-                    Per-90 figures are volatile over short spells, so each row carries a
-                    sample label saying how much playing-time evidence is behind its
-                    figures. Set a floor here only if you want one.
+                  {t.players.filters.minimumMinutes}
+                  <Tooltip label={t.players.filters.minimumMinutesTooltipLabel}>
+                    {t.players.filters.minimumMinutesTooltip}
                   </Tooltip>
                 </>
               }
@@ -201,26 +205,25 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             <Field
               label={
                 <>
-                  Sample band{" "}
-                  <Tooltip label="What this filters">
-                    How much football the figures rest on, not whether a player counts. Nothing is
-                    excluded unless you ask: the default is every band, and this does not replace
-                    the minimum minutes filter.
+                  {t.players.filters.sampleBand}{" "}
+                  <Tooltip label={t.players.filters.sampleBandTooltipLabel}>
+                    {t.players.filters.sampleBandTooltip}
                   </Tooltip>
                 </>
               }
               htmlFor="sample_band"
             >
               <Select id="sample_band" name="sample_band" defaultValue={filters.sample_band ?? ""}>
-                <option value="">Any</option>
-                <option value="very_low">Very low sample (under 180)</option>
-                <option value="low">Low sample (180–449)</option>
-                <option value="developing">Developing sample (450–899)</option>
-                <option value="established">Established sample (900+)</option>
+                <option value="">{t.players.filters.any}</option>
+                {(["very_low", "low", "developing", "established"] as const).map((band) => (
+                  <option key={band} value={band}>
+                    {t.players.filters.sampleBands[band]}
+                  </option>
+                ))}
               </Select>
             </Field>
 
-            <Field label="Max market value (€)" htmlFor="market_value_max">
+            <Field label={t.players.filters.maxMarketValue} htmlFor="market_value_max">
               <TextInput
                 id="market_value_max"
                 name="market_value_max"
@@ -232,25 +235,26 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               />
             </Field>
 
-            <Field label="Contract expires within" htmlFor="contract_within_months">
+            <Field label={t.players.filters.contractWithin} htmlFor="contract_within_months">
               <Select
                 id="contract_within_months"
                 name="contract_within_months"
                 defaultValue={filters.contract_within_months ?? ""}
               >
-                <option value="">Any</option>
-                <option value="6">6 months</option>
-                <option value="12">12 months</option>
-                <option value="18">18 months</option>
-                <option value="24">24 months</option>
+                <option value="">{t.players.filters.any}</option>
+                {CONTRACT_WINDOWS.map((months) => (
+                  <option key={months} value={months}>
+                    {t.players.filters.months.replace("{count}", String(months))}
+                  </option>
+                ))}
               </Select>
             </Field>
 
-            <Field label="Sort by" htmlFor="sort">
+            <Field label={t.players.filters.sortBy} htmlFor="sort">
               <Select id="sort" name="sort" defaultValue={filters.sort}>
-                {SORTS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {SORTS.map((value) => (
+                  <option key={value} value={value}>
+                    {t.players.filters.sorts[value]}
                   </option>
                 ))}
               </Select>
@@ -260,7 +264,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               type="submit"
               className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
             >
-              Apply filters
+              {t.players.filters.apply}
             </button>
           </form>
 
@@ -274,24 +278,27 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
                 <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
-                players match
+                {t.players.results.matching}
                 {results.total > PAGE_SIZE ? (
                   <>
                     {" "}
-                    · showing {offset + 1}–{Math.min(offset + PAGE_SIZE, results.total)}
+                    ·{" "}
+                    {t.players.results.showing
+                      .replace("{from}", String(offset + 1))
+                      .replace("{to}", String(Math.min(offset + PAGE_SIZE, results.total)))}
                   </>
                 ) : null}
               </p>
-              {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
+              {results.is_mock ? <Badge tone="warning">{t.players.results.demoData}</Badge> : null}
             </div>
 
             {results.items.length === 0 ? (
               <EmptyState
-                title="No players match these filters"
-                description="Try widening the age range, lowering the minimum minutes, or clearing the role filter."
+                title={t.players.results.emptyTitle}
+                description={t.players.results.emptyDescription}
                 action={
                   <ButtonLink href="/players" variant="secondary" size="sm">
-                    Reset filters
+                    {t.players.results.resetFilters}
                   </ButtonLink>
                 }
               />
@@ -301,21 +308,21 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   <Table>
                     <THead>
                       <TR>
-                        <TH>Player</TH>
-                        <TH numeric>Age</TH>
-                        <TH>Club</TH>
-                        <TH>Competition</TH>
-                        <TH>Best role</TH>
+                        <TH>{t.players.table.player}</TH>
+                        <TH numeric>{t.players.table.age}</TH>
+                        <TH>{t.players.table.club}</TH>
+                        <TH>{t.players.table.competition}</TH>
+                        <TH>{t.players.table.bestRole}</TH>
                         {/* "Fit" named two different numbers that this product
                             keeps apart everywhere else. The figure here is the
                             Raw Role Fit - the weighted composite - and the
                             percentile under it is where that composite stands
                             among players measured for the same role. Both
                             already arrive in the payload; neither was named. */}
-                        <TH numeric>Raw fit</TH>
-                        <TH numeric>Minutes</TH>
-                        <TH numeric>Value</TH>
-                        <TH numeric>Contract</TH>
+                        <TH numeric>{t.players.table.rawFit}</TH>
+                        <TH numeric>{t.players.table.minutes}</TH>
+                        <TH numeric>{t.players.table.value}</TH>
+                        <TH numeric>{t.players.table.contract}</TH>
                       </TR>
                     </THead>
                     <TBody>
@@ -330,7 +337,11 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                             </Link>
                             <span className="mt-0.5 flex items-center gap-1.5">
                               <span className="text-xs text-subtle">
-                                {player.raw_position ?? player.position_group}
+                                {positionName(t, player.raw_position) ??
+                                  t.glossary.positions[
+                                    player.position_group as keyof typeof t.glossary.positions
+                                  ] ??
+                                  player.position_group}
                               </span>
                               {player.minutes !== null ? (
                                 <SampleSizeBadge
@@ -344,14 +355,21 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                           <TD numeric>{player.age ?? "–"}</TD>
                           <TD className="whitespace-nowrap">{player.club ?? "–"}</TD>
                           <TD className="whitespace-nowrap text-muted">{player.competition}</TD>
-                          <TD className="whitespace-nowrap">{player.best_role ?? "–"}</TD>
+                          <TD className="whitespace-nowrap">
+                            {/* A table row: the Portuguese name alone. */}
+                            {player.best_role_key ? (
+                              <RoleName role={player.best_role_key} />
+                            ) : (
+                              (player.best_role ?? "–")
+                            )}
+                          </TD>
                           <TD numeric className="font-medium">
                             {player.best_role_score !== null
                               ? Math.round(player.best_role_score)
                               : "–"}
                             {player.best_role_percentile != null ? (
                               <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                                {ordinal(player.best_role_percentile)} pct
+                                {ordinal(player.best_role_percentile)} {t.players.table.percentileSuffix}
                               </span>
                             ) : null}
                           </TD>
@@ -376,22 +394,16 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </>
             )}
 
-            <Callout tone="note" title="The two numbers in the Raw fit column">
-              <p>
-                <strong>Raw role fit</strong> is the weighted composite behind a player&apos;s best
-                role, on a 0–100 scale. It is a score on its own terms: a raw 80 is a raw 80
-                whatever the population, which makes it comparable between players within one role,
-                but not across different roles, because differently weighted roles do not share a
-                scale.
-              </p>
-              <p className="mt-2">
-                The smaller figure is the <strong>role fit percentile</strong>: where that composite
-                stands among the players measured for the same role. It is the comparable one, and
-                the one the best role was chosen by.
-              </p>
-              <p className="mt-2">
-                Neither is a scouting grade, a probability, or a measure of quality.
-              </p>
+            {/*
+             * Three paragraphs with inline <strong>, so the translation keeps
+             * the emphasis where the sentence needs it rather than losing it
+             * to a flat string. `dangerouslySetInnerHTML` would be the easy
+             * way and is not worth the hole; splitting on the tag is.
+             */}
+            <Callout tone="note" title={t.players.rawFitNote.title}>
+              <Emphasised text={t.players.rawFitNote.first} />
+              <Emphasised className="mt-2" text={t.players.rawFitNote.second} />
+              <Emphasised className="mt-2" text={t.players.rawFitNote.third} />
             </Callout>
           </section>
         </div>
@@ -444,5 +456,29 @@ function Pagination({
         <span />
       )}
     </nav>
+  );
+}
+
+/**
+ * A paragraph whose `<strong>` spans survive translation.
+ *
+ * The alternative was to split each sentence into three dictionary keys and
+ * reassemble them, which puts the word order in the code rather than in the
+ * translation - and Portuguese does not order these sentences the way English
+ * does. The tag set is exactly `<strong>`, parsed here, never injected as
+ * HTML.
+ */
+function Emphasised({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/(<strong>.*?<\/strong>)/g).filter(Boolean);
+  return (
+    <p className={className}>
+      {parts.map((part, index) =>
+        part.startsWith("<strong>") ? (
+          <strong key={index}>{part.slice(8, -9)}</strong>
+        ) : (
+          <span key={index}>{part}</span>
+        ),
+      )}
+    </p>
   );
 }

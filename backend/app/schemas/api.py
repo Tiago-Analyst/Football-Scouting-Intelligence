@@ -334,6 +334,14 @@ class PlayerSummary(BaseModel):
     market_value_eur: int | None
     contract_expires: date | None
     best_role: str | None
+    #: The role's identifier, beside its English label.
+    #:
+    #: Additive and nullable on purpose. The label is prose and belongs to
+    #: whoever is reading; the key is an identifier and is the same in every
+    #: language, so a localised frontend renders from this and never by
+    #: matching the English sentence it used to print. Existing readers of
+    #: `best_role` are unaffected.
+    best_role_key: str | None = None
     #: Raw Role Fit for the best role: the weighted profile score.
     best_role_score: float | None
     #: Where that raw score stands among players evaluated for the same role.

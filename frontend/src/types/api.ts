@@ -362,6 +362,14 @@ export interface PlayerSummary {
   market_value_eur: number | null;
   contract_expires: string | null;
   best_role: string | null;
+  /**
+   * The role's identifier, beside its English label.
+   *
+   * Nullable because it is additive on the API: `best_role` is prose and
+   * belongs to whoever is reading, while this is the same in every language.
+   * The UI names a role from this and never from the English sentence.
+   */
+  best_role_key?: string | null;
   /** Raw Role Fit for the best role. */
   best_role_score: number | null;
   /** Its standing among players evaluated for that same role. */

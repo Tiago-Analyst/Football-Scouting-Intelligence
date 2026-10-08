@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "title": "Player search",
+    "description": "Search players by position, competition, age, playing time and market value. Every player is ranked against their own position group, and each result shows the sample it rests on."
+  },
+  "eyebrow": "Database",
+  "title": "Player search",
+  "description": "Filter by profile, playing time and market criteria. Every player is ranked against their own position group.",
+  "error": {
+    "title": "Could not load players",
+    "description": "The API did not respond. Check that the backend is running."
+  },
+  "filters": {
+    "heading": "Filters",
+    "reset": "Reset",
+    "apply": "Apply filters",
+    "any": "Any",
+    "name": "Name",
+    "namePlaceholder": "Search players…",
+    "positionGroup": "Position group",
+    "competition": "Competition",
+    "bestRole": "Best role",
+    "minAge": "Min age",
+    "maxAge": "Max age",
+    "minimumMinutes": "Minimum minutes",
+    "minimumMinutesTooltipLabel": "Does this exclude players by default?",
+    "minimumMinutesTooltip": "Optional filter. All players are eligible by default regardless of minutes played — every player with a valid rate is listed, ranked and compared, and shapes the population everyone else is measured against. Per-90 figures are volatile over short spells, so each row carries a sample label saying how much playing-time evidence is behind its figures. Set a floor here only if you want one.",
+    "sampleBand": "Sample band",
+    "sampleBandTooltipLabel": "What this filters",
+    "sampleBandTooltip": "How much football the figures rest on, not whether a player counts. Nothing is excluded unless you ask: the default is every band, and this does not replace the minimum minutes filter.",
+    "sampleBands": {
+      "very_low": "Very low sample (under 180)",
+      "low": "Low sample (180–449)",
+      "developing": "Developing sample (450–899)",
+      "established": "Established sample (900+)"
+    },
+    "maxMarketValue": "Max market value (€)",
+    "contractWithin": "Contract expires within",
+    "months": "{count} months",
+    "sortBy": "Sort by",
+    "sorts": {
+      "minutes": "Minutes played",
+      "role_score": "Role fit",
+      "market_value": "Market value",
+      "age": "Age",
+      "name": "Name"
+    }
+  },
+  "results": {
+    "matching": "players match",
+    "showing": "showing {from}–{to}",
+    "demoData": "Demo data",
+    "emptyTitle": "No players match these filters",
+    "emptyDescription": "Try widening the age range, lowering the minimum minutes, or clearing the role filter.",
+    "resetFilters": "Reset filters"
+  },
+  "table": {
+    "player": "Player",
+    "age": "Age",
+    "club": "Club",
+    "competition": "Competition",
+    "bestRole": "Best role",
+    "rawFit": "Raw fit",
+    "minutes": "Minutes",
+    "value": "Value",
+    "contract": "Contract",
+    "percentileSuffix": "pct"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {pages}"
+  },
+  "rawFitNote": {
+    "title": "The two numbers in the Raw fit column",
+    "first": "<strong>Raw role fit</strong> is the weighted composite behind a player's best role, on a 0–100 scale. It is a score on its own terms: a raw 80 is a raw 80 whatever the population, which makes it comparable between players within one role, but not across different roles, because differently weighted roles do not share a scale.",
+    "second": "The smaller figure is the <strong>role fit percentile</strong>: where that composite stands among the players measured for the same role. It is the comparable one, and the one the best role was chosen by.",
+    "third": "Neither is a scouting grade, a probability, or a measure of quality."
+  }
+}

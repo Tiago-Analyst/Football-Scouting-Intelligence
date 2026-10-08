@@ -6,6 +6,8 @@ import { deleteShortlistAction, renameShortlistAction } from "@/app/actions/shor
 import { AuthForm } from "@/components/auth/AuthForm";
 import { ComparisonTable } from "@/components/shortlists/ComparisonTable";
 import { EntriesTable } from "@/components/shortlists/EntriesTable";
+import { sampleCopy } from "@/components/ui/SampleSizeBadge";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -28,6 +30,7 @@ export default async function ShortlistPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
+  const t = await getDictionary();
 
   if (!(await getCurrentUser())) redirect(`/sign-in?next=/shortlists/${id}`);
 
@@ -83,7 +86,12 @@ export default async function ShortlistPage({
           action={<ButtonLink href="/players">Search players</ButtonLink>}
         />
       ) : (
-        <EntriesTable entries={shortlist.entries} shortlistId={shortlistId} statuses={statuses} />
+        <EntriesTable
+          entries={shortlist.entries}
+          shortlistId={shortlistId}
+          statuses={statuses}
+          sampleCopy={sampleCopyByBand(t)}
+        />
       )}
 
       {comparison ? (
@@ -152,5 +160,20 @@ export default async function ShortlistPage({
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * Every band's wording, resolved once for the client table below.
+ *
+ * Four strings rather than a lookup per row, because the rows cannot look
+ * anything up: they render in the browser, where the dictionary does not go.
+ */
+function sampleCopyByBand(t: Dictionary) {
+  return Object.fromEntries(
+    (["very_low", "low", "developing", "established"] as const).map((band) => [
+      band,
+      sampleCopy(t, band),
+    ]),
   );
 }

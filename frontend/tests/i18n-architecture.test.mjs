@@ -61,7 +61,7 @@ function keysOf(value, prefix = "") {
   return [prefix];
 }
 
-const FILES = ["common", "navigation", "errors", "glossary"];
+const FILES = ["common", "navigation", "errors", "glossary", "players"];
 
 // ---------------------------------------------------------------- completeness
 
