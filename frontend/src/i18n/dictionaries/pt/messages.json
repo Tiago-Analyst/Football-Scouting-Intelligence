@@ -1,0 +1,16 @@
+{
+  "role_partial_definition": "Este papel não pôde ser medido quanto a {dimensions}, pelo que a sua pontuação não é comparável com a de jogadores avaliados a partir da definição completa.",
+  "role_definition_unmeasurable": "Foi medida uma parte demasiado pequena da definição deste papel.",
+  "role_population_too_small": "Foram avaliados poucos jogadores para este papel para situar uma pontuação entre eles.",
+  "no_role_defined_for_position": "Não há nenhum papel definido para este grupo posicional, pelo que não existe nada contra que avaliar este perfil.",
+  "no_role_reached_coverage": "Nenhum papel atingiu a cobertura de métricas que exige. O mais próximo foi {role}, mensurável em {coverage_pct}% da sua definição contra os {required_pct}% de que precisa. O jogador não mudou e todas as métricas que tem estão abaixo; o que falta são dados do fornecedor, não desempenho.",
+  "low_evidence_count": "Evidência reduzida — {count} {noun}",
+  "evidence_count": "{count} {noun}",
+  "low_evidence_title": "Abaixo de {threshold} {noun}, isto é reportado mas não apresentado como uma das dimensões mais fortes do jogador. O percentil não é alterado.",
+  "score_unavailable_missing": "{score} precisa de {metrics}, que o fornecedor de dados de desempenho não disponibiliza. Alargar os filtros nunca produzirá esta pontuação.",
+  "score_unavailable_no_candidate": "Não foi possível calcular {score} para nenhum candidato desta pesquisa.",
+  "coverage_explanation": "A fracção dos minutos jogados que as estatísticas detalhadas cobrem. Abaixo da cobertura total, um valor por 90 minutos é calculado a partir dos minutos registados, e não de todos os minutos jogados.",
+  "minutes_discrepancy_label": "Os dois valores de minutos do fornecedor não coincidem",
+  "minutes_discrepancy_explanation": "Os minutos jogados e os minutos registados vêm de campos diferentes e não coincidem para este jogador. Os valores por 90 minutos são calculados a partir daquele por que cada métrica é efectivamente dividida, e a diferença é mostrada em vez de resolvida.",
+  "role_coverage_explanation": "Fracção do peso configurado deste papel que é sustentada por métricas que o fornecedor disponibiliza. Os componentes em falta não são contados como zero; os pesos do que resta são reescalados, e este número é quanto da definição esteve por trás da pontuação."
+}

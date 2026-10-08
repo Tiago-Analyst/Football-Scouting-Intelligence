@@ -42,6 +42,7 @@ from app.schemas.api import (
     FeatureComparisonOut,
     FindingOut,
     MarketValuePointOut,
+    Message,
     MetricOut,
     PlayerDetail,
     PlayerListResponse,
@@ -290,6 +291,7 @@ def to_score(
             for d in getattr(score, "core_dimensions", ())
         ],
         role_fit_percentile_reason=getattr(score, "role_fit_percentile_reason", None),
+        role_fit_percentile_reason_message=_withheld_percentile_message(score),
         dominant_component=dominant[0],
         dominant_share=dominant[1],
         evidence=_score_evidence(score.key, stats, definitions),
@@ -358,7 +360,28 @@ def _score_evidence(
         threshold=definition.evidence.headline_threshold,
         low=low,
         label=(f"Low evidence - {count:,} {noun}" if low else f"{count:,} {noun}"),
+        # The count and WHAT is being counted, separately. The English
+        # sentence above picks singular or plural for English; another
+        # language picks for itself, from the same two facts.
+        message=Message(
+            code="low_evidence_count" if low else "evidence_count",
+            values={
+                "count": count,
+                "noun_key": _noun_key(definition.evidence.noun),
+                "threshold": definition.evidence.headline_threshold,
+            },
+        ),
     )
+
+
+def _noun_key(noun: str) -> str:
+    """The configured English plural as an identifier.
+
+    "dribbles attempted" -> "dribbles_attempted". The nouns are written in the
+    score configuration, where they are English words doing the work of a key;
+    this is the key they were always being used as.
+    """
+    return noun.strip().lower().replace(" ", "_")
 
 
 def _count_noun(noun: str, count: int) -> str:
@@ -764,6 +787,7 @@ def get_player_roles(player_id: str) -> RoleFitOut:
         partial_evidence=[to_score(s) for s in fit.partial_evidence],
         unscored=unscored,
         unscored_reason=_why_no_role(unscored) if not fit.best else None,
+        unscored_reason_message=(_why_no_role_message(unscored) if not fit.best else None),
         meaning=fit.meaning,
     )
 
@@ -817,6 +841,28 @@ def _why_no_role(unscored: list[UnscoredRoleOut]) -> str:
         f"of its definition against the {closest.required_pct:.0f}% it needs. "
         f"The player is unchanged and every metric they do carry is below; what "
         f"is missing is provider data, not performance."
+    )
+
+
+def _why_no_role_message(unscored: list[UnscoredRoleOut]) -> Message:
+    """The same answer, for a reader whose language is not this one.
+
+    The role is carried as its KEY rather than its English label, so the
+    sentence can name it in whatever language it is read in. That is the whole
+    reason these exist: an English label interpolated here would have to be
+    matched and re-translated on the other side, and the match breaks the first
+    time somebody improves the wording.
+    """
+    if not unscored:
+        return Message(code="no_role_defined_for_position")
+    closest = unscored[0]
+    return Message(
+        code="no_role_reached_coverage",
+        values={
+            "role": closest.key,
+            "coverage_pct": round(closest.coverage_pct),
+            "required_pct": round(closest.required_pct),
+        },
     )
 
 
@@ -950,3 +996,22 @@ def get_transfers(player_id: str) -> list[TransferOut]:
             )
             for t in transfers(session, player_id)
         ]
+
+
+def _withheld_percentile_message(score: object) -> Message | None:
+    """Why a role has no percentile, as a code rather than a sentence.
+
+    The unmet dimensions travel as the identifiers they are configured as -
+    "progression", "aerial efficiency" - so the reader's language can name the
+    football concept rather than receiving somebody else's noun phrase. They
+    are joined into one value because `values` is flat on purpose; the
+    frontend splits and translates each.
+    """
+    code = getattr(score, "role_fit_percentile_reason_code", None)
+    if not code:
+        return None
+    unmet = getattr(score, "role_fit_percentile_unmet", ())
+    values: dict[str, str | int | float] = {}
+    if unmet:
+        values["dimensions"] = ",".join(unmet)
+    return Message(code=code, values=values)

@@ -85,5 +85,96 @@
     "very_low": "A per-90 from this little football is close to a single passage of play multiplied up. Read it as what happened, not as a rate the player sustains."
   },
   "sampleMinutes": " This player has {minutes} minutes.",
-  "sampleTooltipLabel": "What does \"{label}\" mean?"
+  "sampleTooltipLabel": "What does \"{label}\" mean?",
+  "metrics": {
+    "completed_passes_per90": "Completed passes /90",
+    "pass_completion": "Pass completion %",
+    "key_passes_per90": "Key passes /90",
+    "accurate_crosses_per90": "Accurate crosses /90",
+    "successful_dribbles_per90": "Successful dribbles /90",
+    "dribble_success_percentage": "Dribble success %",
+    "tackles_per90": "Tackles attempted /90",
+    "interceptions_per90": "Interceptions /90",
+    "blocks_per90": "Blocks /90",
+    "clearances_per90": "Clearances /90",
+    "duel_win_percentage": "Duel win %",
+    "aerial_duels_won_per90": "Aerial duels won /90",
+    "shots_per90": "Shots /90",
+    "shots_on_target_per90": "Shots on target /90",
+    "shot_conversion": "Shot conversion %",
+    "shot_quality": "Shot quality",
+    "xa_per90": "xA /90",
+    "npxg_per90": "npxG /90",
+    "non_penalty_goals_per90": "Non penalty goals /90",
+    "fouls_drawn_per90": "Fouls drawn /90",
+    "dispossessed_per90": "Dispossessed /90",
+    "dribbled_past_per90": "Dribbled past /90",
+    "goals_conceded_per90": "Goals conceded /90",
+    "save_percentage": "Save percentage %",
+    "inside_box_saves_per90": "Inside-box saves /90",
+    "progressive_passes_per90": "Progressive passes /90",
+    "aerial_duel_win_percentage": "Aerial duel win %",
+    "penalties_taken": "Penalties taken"
+  },
+  "scores": {
+    "ball_progression": {
+      "label": "Ball Progression",
+      "description": "Moving the ball upfield, by pass or by carry. High volume of progressive passing is the dominant signal; dribbling contributes because carrying is the other way to advance play."
+    },
+    "ball_security": {
+      "label": "Ball Security",
+      "description": "Keeping possession. Pass completion dominates; being dispossessed counts against, and is inverted automatically."
+    },
+    "chance_creation": {
+      "label": "Chance Creation",
+      "description": "Generating shots for team-mates. Weighted towards expected assists and key passes rather than assists themselves, which depend on whether a team-mate finished the chance."
+    },
+    "defensive_activity": {
+      "label": "Defensive Activity",
+      "description": "Volume of defensive actions. Measures how much a player does out of possession, not how well their team defends."
+    },
+    "duel_dominance": {
+      "label": "Duel Dominance",
+      "description": "Winning direct contests. Success rates are weighted above volume, because contesting many duels badly is not dominance."
+    },
+    "one_v_one_threat": {
+      "label": "1v1 Threat",
+      "description": "Beating an opponent directly. Fouls drawn are included because a defender who has to foul has also been beaten."
+    },
+    "goal_threat": {
+      "label": "Goal Threat",
+      "description": "Getting into positions to score. Built on expected goals and shot volume rather than goals, so it reflects the chances a player generates rather than whether they went in."
+    },
+    "finishing": {
+      "label": "Finishing",
+      "description": "Converting the chances taken. Read this with care."
+    }
+  },
+  "dimensions": {
+    "aerial efficiency": "aerial efficiency",
+    "attacking advance": "attacking advance",
+    "attacking contribution": "attacking contribution",
+    "ball-winning engagement": "ball-winning engagement",
+    "box defending": "box defending",
+    "contest outcome": "contest outcome",
+    "creating": "creating",
+    "creation": "creation",
+    "defensive contribution": "defensive contribution",
+    "defensive engagement": "defensive engagement",
+    "defensive resistance": "defensive resistance",
+    "final-third delivery": "final-third delivery",
+    "getting into positions": "getting into positions",
+    "goal threat": "goal threat",
+    "passing base": "passing base",
+    "physical contest": "physical contest",
+    "progression": "progression",
+    "scoring": "scoring",
+    "shot stopping": "shot stopping",
+    "taking players on": "taking players on",
+    "wide threat": "wide threat"
+  },
+  "evidenceNouns": {
+    "shots": "shots",
+    "dribbles_attempted": "dribbles attempted"
+  }
 }

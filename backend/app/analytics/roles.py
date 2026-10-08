@@ -224,6 +224,15 @@ class RoleScore:
     core_dimensions: tuple[CoreDimensionStatus, ...] = ()
     #: Why no standard percentile is published, when none is.
     role_fit_percentile_reason: str | None = None
+    #: The same, as a stable code and the values its sentence needs.
+    #:
+    #: Decided here rather than at the API boundary, because this is where the
+    #: three cases are actually told apart. Re-deriving them from the English
+    #: sentence one layer up would be the pattern-matching these codes exist
+    #: to remove.
+    role_fit_percentile_reason_code: str | None = None
+    #: Unmet dimensions as configured identifiers, for the code above.
+    role_fit_percentile_unmet: tuple[str, ...] = ()
 
     @property
     def is_full(self) -> bool:
@@ -406,6 +415,10 @@ def normalise_fits(fits: dict[str, RoleFit]) -> dict[str, RoleFit]:
                 role_fit_percentile=None,
                 role_population=len(values),
                 role_fit_percentile_reason=reason,
+                role_fit_percentile_reason_code=(
+                    "role_partial_definition" if unmet else "role_definition_unmeasurable"
+                ),
+                role_fit_percentile_unmet=tuple(score.unmet_dimensions),
             )
         if score.score is None or len(values) < MIN_ROLE_POPULATION:
             return replace(
@@ -415,6 +428,7 @@ def normalise_fits(fits: dict[str, RoleFit]) -> dict[str, RoleFit]:
                 role_fit_percentile_reason=(
                     "Too few players were evaluated for this role to place a score among them."
                 ),
+                role_fit_percentile_reason_code="role_population_too_small",
             )
         return replace(
             score,

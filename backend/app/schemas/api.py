@@ -14,6 +14,41 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class Message(BaseModel):
+    """A sentence the reader's own language composes, as a code and its values.
+
+    WHY THESE EXIST BESIDE THE PROSE AND NOT INSTEAD OF IT
+
+    This API has always returned finished English sentences - "Too few players
+    were evaluated for this role to place a score among them." - and the
+    interface printed them. That works until the interface has a second
+    language, at which point the only way to translate them is to match the
+    English, which breaks the moment anybody improves the wording.
+
+    So the backend keeps saying what is true and stops being the only one who
+    can say it. `code` names the situation; `values` carries the numbers and
+    identifiers the sentence needs. The English prose stays exactly where it
+    was and is still correct, so every existing reader is unaffected and the
+    API remains usable without a dictionary.
+
+    The frontend renders from the code and never from the sentence. A test
+    asserts that every code emitted here has copy on the other side, in both
+    languages, so a code added without words fails the build rather than
+    reaching a reader as a bare identifier.
+
+    `values` is deliberately flat and primitive. A nested structure would be a
+    template language growing inside a schema, and the frontend already has
+    one: its own dictionary.
+    """
+
+    #: snake_case, stable, and the same in every language.
+    code: str
+    #: Numbers and identifiers the sentence interpolates. Identifiers stay
+    #: identifiers - a role key, a metric key - so the frontend can translate
+    #: those too rather than receiving them pre-rendered in English.
+    values: dict[str, str | int | float] = Field(default_factory=dict)
+
+
 class ComparisonContextOut(BaseModel):
     """The population a percentile was measured against.
 
@@ -136,6 +171,12 @@ class ScoreEvidenceOut(BaseModel):
     low: bool
     #: One phrase for a page, e.g. "Low evidence - 8 shots".
     label: str
+    #: The same phrase as a code the reader's language can compose.
+    #:
+    #: `noun` above is the configured English plural ("shots", "dribbles
+    #: attempted"); `noun_key` is its identifier, so a translation names the
+    #: thing rather than matching the word.
+    message: Message | None = None
 
 
 class ScoreComponentOut(BaseModel):
@@ -175,6 +216,9 @@ class ScoreOut(BaseModel):
     core_dimensions: list[CoreDimensionOut] = Field(default_factory=list)
     #: Why no standard percentile is published, when none is. Null when one is.
     role_fit_percentile_reason: str | None = None
+    #: The same, as a code. `role_partial_definition` carries the unmet
+    #: dimensions as configured identifiers, not as an English list.
+    role_fit_percentile_reason_message: Message | None = None
     #: The component carrying an unusually large share of what the score
     #: actually came out as, when one does.
     #:
@@ -262,6 +306,8 @@ class RoleFitOut(BaseModel):
     unscored: list[UnscoredRoleOut] = Field(default_factory=list)
     #: One sentence naming the reason, or null when a role was produced.
     unscored_reason: str | None = None
+    #: The same, as a code the reader's language composes.
+    unscored_reason_message: Message | None = None
     #: What the number does and does not claim. Returned so it cannot be
     #: separated from the score in the UI.
     meaning: str

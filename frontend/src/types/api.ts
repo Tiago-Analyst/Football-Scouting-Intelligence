@@ -195,6 +195,17 @@ export interface ScoreComponent {
   contribution: number | null;
 }
 
+/**
+ * A sentence the API decided, as a code the reader's language composes.
+ *
+ * Sent beside the English prose it replaces, never instead of it: existing
+ * readers of this API keep working, and the frontend renders from the code.
+ */
+export interface ApiMessage {
+  code: string;
+  values?: Record<string, string | number>;
+}
+
 export interface ScoreEvidence {
   events: number;
   /** "shots", "dribbles attempted". */
@@ -204,6 +215,8 @@ export interface ScoreEvidence {
   low: boolean;
   /** One phrase for a page, e.g. "Low evidence - 8 shots". */
   label: string;
+  /** The same, as a code and its values. */
+  message?: ApiMessage | null;
 }
 
 export interface Score {
@@ -237,6 +250,7 @@ export interface Score {
   core_dimensions?: CoreDimension[];
   /** Why no standard percentile is published, when none is. */
   role_fit_percentile_reason?: string | null;
+  role_fit_percentile_reason_message?: ApiMessage | null;
   /**
    * The component carrying an unusually large share of what the score
    * actually came out as. Weights say what a role intends to measure;
@@ -303,6 +317,7 @@ export interface RoleFit {
   /** One sentence naming the reason, replacing a bare "could not be
    * computed" that told nobody anything they could act on. */
   unscored_reason?: string | null;
+  unscored_reason_message?: ApiMessage | null;
   /** What a role score does and does not claim. */
   meaning: string;
 }

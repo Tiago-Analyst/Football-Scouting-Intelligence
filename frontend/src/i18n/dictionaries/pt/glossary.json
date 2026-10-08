@@ -85,5 +85,96 @@
     "very_low": "Um valor por 90 minutos com tão pouco futebol aproxima-se de um único lance multiplicado. Leia-o como o que aconteceu, não como um ritmo que o jogador sustenta."
   },
   "sampleMinutes": " Este jogador tem {minutes} minutos.",
-  "sampleTooltipLabel": "O que significa \"{label}\"?"
+  "sampleTooltipLabel": "O que significa \"{label}\"?",
+  "metrics": {
+    "completed_passes_per90": "Passes completos /90",
+    "pass_completion": "Sucesso de passe %",
+    "key_passes_per90": "Passes-chave /90",
+    "accurate_crosses_per90": "Cruzamentos certos /90",
+    "successful_dribbles_per90": "Dribles bem sucedidos /90",
+    "dribble_success_percentage": "Sucesso no drible %",
+    "tackles_per90": "Desarmes tentados /90",
+    "interceptions_per90": "Intercepções /90",
+    "blocks_per90": "Bloqueios /90",
+    "clearances_per90": "Alívios /90",
+    "duel_win_percentage": "Duelos ganhos %",
+    "aerial_duels_won_per90": "Duelos aéreos ganhos /90",
+    "shots_per90": "Remates /90",
+    "shots_on_target_per90": "Remates enquadrados /90",
+    "shot_conversion": "Conversão de remate %",
+    "shot_quality": "Qualidade do remate",
+    "xa_per90": "xA /90",
+    "npxg_per90": "npxG /90",
+    "non_penalty_goals_per90": "Golos sem penáltis /90",
+    "fouls_drawn_per90": "Faltas sofridas /90",
+    "dispossessed_per90": "Perdas de bola /90",
+    "dribbled_past_per90": "Dribles sofridos /90",
+    "goals_conceded_per90": "Golos sofridos /90",
+    "save_percentage": "Defesas %",
+    "inside_box_saves_per90": "Defesas dentro da área /90",
+    "progressive_passes_per90": "Passes progressivos /90",
+    "aerial_duel_win_percentage": "Duelos aéreos ganhos %",
+    "penalties_taken": "Penáltis marcados"
+  },
+  "scores": {
+    "ball_progression": {
+      "label": "Progressão de bola",
+      "description": "Fazer a bola avançar no terreno, por passe ou em condução. O volume de passe progressivo é o sinal dominante; o drible contribui porque conduzir é a outra forma de fazer o jogo progredir."
+    },
+    "ball_security": {
+      "label": "Segurança de bola",
+      "description": "Manter a posse. O sucesso de passe domina; perder a bola conta contra, e é invertido automaticamente."
+    },
+    "chance_creation": {
+      "label": "Criação de oportunidades",
+      "description": "Gerar remates para os companheiros. Ponderado para as assistências esperadas e os passes-chave, e não para as assistências em si, que dependem de o companheiro ter concretizado."
+    },
+    "defensive_activity": {
+      "label": "Actividade defensiva",
+      "description": "Volume de acções defensivas. Mede quanto um jogador faz sem bola, não o quão bem defende a sua equipa."
+    },
+    "duel_dominance": {
+      "label": "Domínio nos duelos",
+      "description": "Ganhar disputas directas. As taxas de sucesso pesam mais do que o volume, porque disputar muitos duelos e perdê-los não é domínio."
+    },
+    "one_v_one_threat": {
+      "label": "Ameaça no 1x1",
+      "description": "Ultrapassar directamente um adversário. As faltas sofridas contam porque um defesa que tem de fazer falta também foi ultrapassado."
+    },
+    "goal_threat": {
+      "label": "Ameaça de golo",
+      "description": "Chegar a posições de finalização. Assente nos golos esperados e no volume de remate, e não nos golos, pelo que reflecte as oportunidades que o jogador gera e não se elas entraram."
+    },
+    "finishing": {
+      "label": "Finalização",
+      "description": "Concretizar as oportunidades criadas. Ler com cuidado."
+    }
+  },
+  "dimensions": {
+    "aerial efficiency": "eficácia aérea",
+    "attacking advance": "progressão ofensiva",
+    "attacking contribution": "contribuição ofensiva",
+    "ball-winning engagement": "pressão para recuperar",
+    "box defending": "defesa da área",
+    "contest outcome": "resultado dos duelos",
+    "creating": "criação",
+    "creation": "criação",
+    "defensive contribution": "contribuição defensiva",
+    "defensive engagement": "intervenção defensiva",
+    "defensive resistance": "resistência defensiva",
+    "final-third delivery": "entrega no último terço",
+    "getting into positions": "posicionamento para finalizar",
+    "goal threat": "ameaça de golo",
+    "passing base": "base de passe",
+    "physical contest": "disputa física",
+    "progression": "progressão",
+    "scoring": "finalização",
+    "shot stopping": "defesa de remates",
+    "taking players on": "1x1 ofensivo",
+    "wide threat": "ameaça pelas alas"
+  },
+  "evidenceNouns": {
+    "shots": "remates",
+    "dribbles_attempted": "dribles tentados"
+  }
 }

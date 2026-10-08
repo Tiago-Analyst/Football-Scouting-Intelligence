@@ -7,12 +7,14 @@ import enCommon from "./dictionaries/en/common.json";
 import enNavigation from "./dictionaries/en/navigation.json";
 import enErrors from "./dictionaries/en/errors.json";
 import enGlossary from "./dictionaries/en/glossary.json";
+import enMessages from "./dictionaries/en/messages.json";
 import enPlayers from "./dictionaries/en/players.json";
 
 import ptCommon from "./dictionaries/pt/common.json";
 import ptNavigation from "./dictionaries/pt/navigation.json";
 import ptErrors from "./dictionaries/pt/errors.json";
 import ptGlossary from "./dictionaries/pt/glossary.json";
+import ptMessages from "./dictionaries/pt/messages.json";
 import ptPlayers from "./dictionaries/pt/players.json";
 
 /**
@@ -46,6 +48,7 @@ const DICTIONARIES = {
     navigation: enNavigation,
     errors: enErrors,
     glossary: enGlossary,
+    messages: enMessages,
     players: enPlayers,
   },
   pt: {
@@ -53,6 +56,7 @@ const DICTIONARIES = {
     navigation: ptNavigation,
     errors: ptErrors,
     glossary: ptGlossary,
+    messages: ptMessages,
     players: ptPlayers,
   },
 } as const;

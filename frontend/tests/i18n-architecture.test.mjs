@@ -61,7 +61,7 @@ function keysOf(value, prefix = "") {
   return [prefix];
 }
 
-const FILES = ["common", "navigation", "errors", "glossary", "players"];
+const FILES = ["common", "navigation", "errors", "glossary", "messages", "players"];
 
 // ---------------------------------------------------------------- completeness
 
@@ -89,6 +89,13 @@ test("no translated value is left as the English one by accident", () => {
     "concepts.perNinety",
     "roles.box_to_box_midfielder",
     "theme.label",
+    // Notation, not words. xA and npxG are written the same way by Portuguese
+    // analysts, and translating them would make the figures unreadable to the
+    // people who use them. Listed here rather than exempted by a pattern, so
+    // the list of things kept in English stays short and visible.
+    "metrics.xa_per90",
+    "metrics.npxg_per90",
+    "evidenceNouns.shots",
   ]);
   for (const name of FILES) {
     const en = loadJson("en", name);
@@ -97,6 +104,10 @@ test("no translated value is left as the English one by accident", () => {
       const a = key.split(".").reduce((o, k) => o?.[k], en);
       const b = key.split(".").reduce((o, k) => o?.[k], pt);
       if (typeof a !== "string" || a.length < 4) continue;
+      // A string that is nothing but placeholders has no words in it:
+      // "{count} {noun}" is the same sentence in every language because
+      // it is not a sentence.
+      if (!a.replace(/\{\w+\}/g, "").trim()) continue;
       if (ALLOWED_IDENTICAL.has(key)) continue;
       // Identifiers and codes are keys, not copy.
       if (/^[A-Z_]+$/.test(a)) continue;

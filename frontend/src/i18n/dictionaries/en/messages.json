@@ -1,0 +1,16 @@
+{
+  "role_partial_definition": "This role could not be measured for {dimensions}, so its score is not comparable with players scored from the full definition.",
+  "role_definition_unmeasurable": "Too little of this role's definition could be measured.",
+  "role_population_too_small": "Too few players were evaluated for this role to place a score among them.",
+  "no_role_defined_for_position": "No role is defined for this position group, so there is nothing to score this profile against.",
+  "no_role_reached_coverage": "No role reached the metric coverage it requires. The closest was {role}, which was measurable to {coverage_pct}% of its definition against the {required_pct}% it needs. The player is unchanged and every metric they do carry is below; what is missing is provider data, not performance.",
+  "low_evidence_count": "Low evidence — {count} {noun}",
+  "evidence_count": "{count} {noun}",
+  "low_evidence_title": "Below {threshold} {noun}, this is reported but not offered as one of the player's strongest dimensions. The percentile is unchanged.",
+  "score_unavailable_missing": "{score} needs {metrics}, which the performance provider does not supply. No amount of widening the filters will produce it.",
+  "score_unavailable_no_candidate": "{score} could not be computed for any candidate in this search.",
+  "coverage_explanation": "The share of played minutes the detailed statistics cover. Below full coverage, a per-90 is computed from the minutes that were recorded, not from every minute played.",
+  "minutes_discrepancy_label": "The provider's two minute figures disagree",
+  "minutes_discrepancy_explanation": "Played minutes and recorded minutes come from different fields and do not match for this player. Per-90 figures are computed from the one each metric is actually divided by, and the difference is shown rather than resolved.",
+  "role_coverage_explanation": "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
+}
