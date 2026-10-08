@@ -235,12 +235,12 @@ None of the three would have announced itself in the data.
 
 ## What this does not do
 
-A previous version of this section was headed *what this does not yet do* and
-listed the whole of it. FootyStats identities are matched, and the matching is applied. An earlier
-version of this section said the opposite — that FootyStats had never been
-called and that Phase 15 could not begin until Phases 12 and 13 had. Both
-phases ran: a real API key was used, the field mapping was written against
-recorded responses, and `FootyStatsProvider` is what production builds.
+FootyStats identities are matched, and the matching is applied. Until this was
+corrected the section was headed *what this does not yet do* and said the
+opposite — that FootyStats identities had never been matched because FootyStats
+had never been called, and that Phase 15 could not begin until Phases 12 and 13
+had. Both phases ran: a real API key was used, the field mapping was written
+against recorded responses, and `FootyStatsProvider` is what production builds.
 
 It is not a one-off run either.
 `python -m pipelines.identity_resolution.resolve --apply` is a step of the

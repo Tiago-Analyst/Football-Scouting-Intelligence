@@ -245,15 +245,18 @@ boundary.
 ```
 PerformanceDataProvider (abstract)
   ├─ MockPerformanceProvider     fabricated data, no network
-  └─ FootyStatsProvider          not written; requires schema profiling first
+  └─ FootyStatsProvider          BUILT — was 'not written; requires schema
+                                 profiling first' at Phase 1A; the profiling
+                                 happened, see the note below
         ↓
 Canonical model (app/schemas/canonical.py)
         ↓
 everything else
 ```
 
-> **SUPERSEDED — the provider was written.** The diagram records Phase 1A, when
-> the mock was the only implementation. `FootyStatsProvider` now exists in
+> **SUPERSEDED — the provider was written.** What the diagram's
+> `FootyStatsProvider` line used to say is quoted inside it: Phase 1A, when the
+> mock was the only implementation. `FootyStatsProvider` now exists in
 > `backend/app/providers/footystats.py` and is what production builds. It reads
 > `config/footystats_mapping.yaml`, where 34 native fields and 2 derived
 > metrics are recorded against real `league-players` and `player-stats`
@@ -2592,7 +2595,8 @@ model:
 ```
 PerformanceDataProvider (interface)
   ├─ MockPerformanceProvider     built
-  └─ FootyStatsProvider          Phase 13, after Phase 12 profiling
+  └─ FootyStatsProvider          BUILT — was 'Phase 13, after Phase 12
+                                 profiling'; both phases ran
         ↓
 Canonical internal model  ← everything above this line depends only on this
         ↓
