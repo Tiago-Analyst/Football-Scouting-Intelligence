@@ -63,7 +63,7 @@ export default async function AboutPage() {
         <br />
         <br />
         What that does not mean is finished.{" "}
-        <MetricCensusSentence census={meta?.metric_census ?? null} /> The{" "}
+        <MetricCensusSentence meta={meta ?? null} /> The{" "}
         <Link href="/data-quality" className="underline">
           data quality
         </Link>{" "}

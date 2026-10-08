@@ -37,7 +37,7 @@ export default async function MethodologyPage() {
         Every metric below was checked against real recorded responses rather than against the
         provider&apos;s documentation, and the arithmetic of each was reproduced against the
         provider&apos;s own published per-90 figures where it publishes one.{" "}
-        <MetricCensusSentence census={meta?.metric_census ?? null} /> The{" "}
+        <MetricCensusSentence meta={meta ?? null} /> The{" "}
         <Link href="/data-quality" className="underline">
           data quality
         </Link>{" "}
