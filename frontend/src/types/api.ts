@@ -53,6 +53,29 @@ export interface SourcePublication {
   rows_published: number;
 }
 
+/**
+ * How many canonical metrics exist, and what became of each.
+ *
+ * The only place public copy may take these numbers from. Four pages used to
+ * state them in their own prose and three disagreed with the mapping and with
+ * each other — "thirty-four of thirty-nine mapped" beside "36 of 39", "five
+ * not supplied" beside three.
+ *
+ * `native + derived + unavailable === total`. A derived metric is assembled
+ * from fields the provider does supply, so it exists; it is not a substitute
+ * for something missing. `rejected_provider_fields` counts provider fields
+ * refused during profiling and is deliberately outside that sum — it is where
+ * the wrong "five" came from.
+ */
+export interface MetricCensus {
+  total: number;
+  native: number;
+  derived: number;
+  unavailable: number;
+  usable: number;
+  rejected_provider_fields: number;
+}
+
 export interface MetaResponse {
   app_name: string;
   app_mode: AppMode;
@@ -60,6 +83,8 @@ export interface MetaResponse {
   /** Present in demo mode so the UI can show a persistent banner. */
   demo_data_notice: string | null;
   data_sources: DataSourceStatus[];
+  /** Null when no provider mapping has been verified — a real state, not zero. */
+  metric_census: MetricCensus | null;
   /**
    * When each source's data was last loaded, per source and never summed.
    * The performance and market pipelines run on different schedules, so one
@@ -603,8 +628,23 @@ export interface ReplacementResults {
 
 export interface Opportunity {
   player: PlayerSummary;
+  /** The Raw Role Fit, untouched — not what the list is ordered by. */
   best_role_score: number | null;
   reasons: string[];
+  /**
+   * What the list IS ordered by: the raw fit pulled toward the average for
+   * this screen in proportion to how little football stands behind it.
+   *
+   * Discovery was ranking a 98 from 24 minutes above a 93 from a full season.
+   * Both percentiles are honest; they are not equally strong evidence. The
+   * same adjustment the replacement finder and the recruitment builder use.
+   * Nobody is excluded and no minutes floor exists.
+   */
+  ranking_score: number;
+  /** 0–1, from minutes alone. */
+  evidence_weight: number;
+  /** The backend's own sentence, or null when the order used the fit as it stands. */
+  ranking_note: string | null;
 }
 
 export interface ScreenStep {

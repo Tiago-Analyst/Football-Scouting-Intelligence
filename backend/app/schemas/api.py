@@ -751,8 +751,30 @@ class ReplacementResponse(BaseModel):
 
 class OpportunityOut(BaseModel):
     player: PlayerSummary
+    #: The Raw Role Fit, untouched. This is the analytical figure and it is
+    #: not what the list is ordered by.
     best_role_score: float | None
     reasons: list[str]
+    #: What the list IS ordered by: `best_role_score` pulled toward the average
+    #: for this screen in proportion to how little football stands behind it.
+    #:
+    #: This is a discovery surface, and it was ranking a 98 from 24 minutes
+    #: above a 93 from a season. Both are honest percentiles; they are not
+    #: equally strong evidence that the player is worth a phone call, and the
+    #: order was treating them as if they were. The same adjustment the
+    #: replacement finder and the recruitment builder already use, so there is
+    #: one formula rather than a second opinion.
+    #:
+    #: Nobody is excluded, no minutes floor is introduced, and the Raw Role Fit
+    #: and Role Fit Percentile are unchanged. A short-sample player who is
+    #: genuinely exceptional still places well; three minutes no longer carries
+    #: the confidence of eighteen hundred.
+    ranking_score: float = 0.0
+    #: 0-1, from minutes alone.
+    evidence_weight: float = 1.0
+    #: One sentence explaining a lower placement, or null when the ordering
+    #: used the fit as it stands.
+    ranking_note: str | None = None
 
 
 class ScreenStepOut(BaseModel):

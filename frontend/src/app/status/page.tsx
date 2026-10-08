@@ -85,7 +85,12 @@ export default async function StatusPage() {
                   <span className="text-sm font-medium">{source.name}</span>
                   <span className="font-mono text-xs text-subtle">{source.provider}</span>
                   {source.is_mock ? <Badge tone="warning">Mock data</Badge> : null}
-                  {/* Remains until the provider schema is profiled in Phase 12. */}
+                  {/* Whether this source's schema has been profiled against real
+                      responses, decided by the backend. For market data that is a
+                      question about the rows being served, not about an ingestion
+                      snapshot sitting on the API host's disk - which is absent there
+                      by design, and used to be reported as the data being
+                      unavailable while every profile showed a market value. */}
                   {source.validated ? (
                     <Badge tone="positive">Validated</Badge>
                   ) : (

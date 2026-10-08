@@ -231,6 +231,7 @@ class FootyStatsProvider(PerformanceDataProvider):
     def info(self) -> ProviderInfo:
         available = self._mapping.available_metrics
         missing = sorted(m.value for m in self._mapping.missing())
+        census = self._mapping.census()
         return ProviderInfo(
             name="FootyStatsProvider",
             is_mock=False,
@@ -245,8 +246,12 @@ class FootyStatsProvider(PerformanceDataProvider):
                 metric.value: entry.reason for metric, entry in self._mapping.absent.items()
             },
             notes=(
-                f"{len(available)} of {len(available) + len(missing)} canonical metrics "
-                f"mapped from verified responses. Unavailable: {', '.join(missing)}. "
+                # Counted from the census rather than from whatever is in scope
+                # here, because four public pages each did their own arithmetic
+                # on this mapping and three of them got a different answer.
+                f"{census.usable} of {census.total} canonical metrics usable: "
+                f"{census.native} supplied as fields and {census.derived} derived from "
+                f"fields that are. Unavailable: {', '.join(missing)}. "
                 "Position group is supplied only for goalkeepers; the provider's "
                 "four-value position vocabulary cannot determine the others."
             ),

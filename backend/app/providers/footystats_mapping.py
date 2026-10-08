@@ -88,6 +88,39 @@ class AbsentField:
 
 
 @dataclass(frozen=True)
+class MetricCensus:
+    """How many canonical metrics there are, and what became of each.
+
+    Every public statement about metric counts is read from here, because four
+    pages reading the same object and categorising it differently is how they
+    came to contradict each other.
+
+    `native + derived + unavailable == total`, and a test holds it to that.
+    """
+
+    #: Canonical metrics the project defines.
+    total: int
+    #: Supplied by the provider as a field of its own.
+    native: int
+    #: Assembled from fields the provider does supply. These exist: a derived
+    #: metric is computed from observed values, not substituted for a missing
+    #: one. See `available_metrics`.
+    derived: int
+    #: Cannot be produced at all, however the data is combined.
+    unavailable: int
+    #: PROVIDER FIELDS examined during profiling and refused - not canonical
+    #: metrics, and not a subset of any count above. Kept because it is where
+    #: a wrong public number came from, and a reader comparing the two
+    #: deserves to see both.
+    rejected_provider_fields: int
+
+    @property
+    def usable(self) -> int:
+        """Everything a score may be built on, native or derived."""
+        return self.native + self.derived
+
+
+@dataclass(frozen=True)
 class FootyStatsMapping:
     """What FootyStats has been verified to supply.
 
@@ -125,6 +158,43 @@ class FootyStatsMapping:
     def missing(self) -> frozenset[CanonicalMetric]:
         """Canonical metrics FootyStats has not been verified to supply."""
         return frozenset(CanonicalMetric) - self.available_metrics
+
+    def census(self) -> MetricCensus:
+        """The counts four public pages were each stating differently.
+
+        ONE QUESTION, FOUR ANSWERS
+        --------------------------
+
+        Methodology said thirty-four of thirty-nine were mapped and in use and
+        that the remaining five were not supplied. System Status said
+        thirty-six of thirty-nine were mapped and named three as unavailable.
+        About said five were not supplied. Data Quality said three could not be
+        supplied and listed two more as derived.
+
+        Every one of those numbers was read from this object, and the readings
+        disagreed because the categories were being conflated:
+
+          - `metrics` is what the provider supplies as a field: 34.
+          - `derived` is what it supplies in pieces this project assembles,
+            which exist just as much as the rest: 2.
+          - `absent` is what cannot be produced at all: 3.
+          - `rejected` is a count of PROVIDER FIELDS examined and refused - a
+            declared-but-empty tackles column, a percentage that reads zero
+            for everybody. It is five, and it is where "five canonical metrics
+            are not supplied" came from. It is not a count of canonical
+            metrics, and two of those five are fields belonging to metrics
+            counted once in `absent`.
+
+        Derived here rather than in four pieces of page copy, so the pages
+        cannot drift apart again. See `test_metric_census_is_the_only_source`.
+        """
+        return MetricCensus(
+            total=len(CanonicalMetric),
+            native=len(self.metrics),
+            derived=len(self.derived),
+            unavailable=len(self.missing()),
+            rejected_provider_fields=len(self.rejected),
+        )
 
     def require(self) -> None:
         """Raise unless at least one metric has been verified.

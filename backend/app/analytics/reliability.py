@@ -129,42 +129,77 @@ class RankingAdjustment:
         """Whether the order saw anything different from the raw value."""
         return abs(self.ranked - self.raw) >= 0.05
 
-    def explain(self, *, minutes: int | None, noun: str = "score") -> str | None:
-        """One sentence a reader can check, or None when nothing was done."""
+    def explain(
+        self, *, minutes: int | None, noun: str = "score", centre: str = "for this search"
+    ) -> str | None:
+        """One sentence a reader can check, or None when nothing was done.
+
+        `centre` names the population the average was taken over, because it
+        is not always the candidates on screen. A recruitment search ranks
+        everybody, so "the average for this search" is exactly right there.
+        Opportunities screens on role fit first and then shrinks toward the
+        average of every player who has one, so the same words would point at
+        a number a reader cannot find anywhere on the page.
+        """
         if not self.adjusted:
             return None
         played = "no recorded minutes" if not minutes else f"{minutes:,} minutes"
         return (
             f"Ranked at {self.ranked:.0f} rather than {self.raw:.0f}: with {played}, "
             f"this {noun} carries {self.weight * 100:.0f}% of a full season's evidence, "
-            f"so it is read closer to the average for this search "
+            f"so it is read closer to the average {centre} "
             f"({self.mean:.0f}) than a full season would be. "
             f"The {noun} itself is unchanged."
         )
 
 
 def rank_by_evidence(
-    values: Sequence[float], minutes: Sequence[int | None]
+    values: Sequence[float], minutes: Sequence[int | None], *, mean: float | None = None
 ) -> list[RankingAdjustment]:
     """Adjustments for one population, in the order they were given.
 
     Deterministic: the same candidates in the same order always produce the
     same numbers, because the mean is taken over exactly the population being
     ranked.
+
+    WHEN THE CANDIDATES ARE ALREADY A SELECTION
+    -------------------------------------------
+
+    `mean` overrides that, and exists because the default is wrong for a list
+    that has been screened before it is ranked.
+
+    Shrinkage pulls a thin figure toward what an ordinary player looks like.
+    Where the candidates are everybody - a recruitment search over every
+    player in a position group - the mean of the candidates *is* that, and
+    leaving the candidate out of its own mean is the only correction needed.
+
+    Opportunities is not that. It screens to players already above a role-fit
+    floor before anyone is ranked, so the mean of the survivors is the average
+    of an elite, not of an ordinary player. Shrinking toward it told every
+    thin candidate they were probably excellent. Measured on the live list:
+    a 57-minute fit of 81 was lifted to 87.8 and would have ranked SECOND,
+    above a 973-minute 84 pushed down to twelfth. The ordering would have
+    rewarded having played less - the exact failure it exists to prevent,
+    inverted.
+
+    So the caller may state the prior, and Opportunities states the mean of
+    every player who has a role fit at all. Same formula, same k; what changes
+    is which population "ordinary" is measured over, and that is a choice
+    worth making explicitly rather than inheriting from a filter.
     """
     if len(values) != len(minutes):
         raise ValueError("values and minutes must describe the same candidates")
 
     adjustments: list[RankingAdjustment] = []
     for index, (value, played) in enumerate(zip(values, minutes, strict=True)):
-        mean = population_mean(values, excluding=index)
+        centre = population_mean(values, excluding=index) if mean is None else mean
         weight = evidence_weight(played)
         adjustments.append(
             RankingAdjustment(
                 raw=value,
-                ranked=shrink(value, mean=mean, weight=weight),
+                ranked=shrink(value, mean=centre, weight=weight),
                 weight=weight,
-                mean=mean,
+                mean=centre,
             )
         )
     return adjustments

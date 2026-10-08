@@ -8,6 +8,13 @@ import { cn } from "@/lib/cn";
  * Wide tables scroll inside their own container rather than forcing the page
  * to scroll horizontally, which is what keeps dense stat tables usable on a
  * phone. Numeric cells opt into tabular numerals so figures align in a column.
+ *
+ * `scroll-shadow` is how a reader knows there is more. Containment alone hides
+ * the overflow perfectly, which is the point and also the problem: on a 390px
+ * screen a twelve-column table shows four of them and looks finished. The
+ * shadow appears only on a side that has something behind it and vanishes
+ * when the table fits, so it costs nothing on a desktop and adds no permanent
+ * furniture. See the rule in `globals.css`.
  */
 export function TableWrap({
   className,
@@ -19,7 +26,7 @@ export function TableWrap({
   return (
     <div
       className={cn(
-        "overflow-x-auto rounded-lg border border-border bg-surface",
+        "scroll-shadow overflow-x-auto rounded-lg border border-border bg-surface",
         className,
       )}
     >

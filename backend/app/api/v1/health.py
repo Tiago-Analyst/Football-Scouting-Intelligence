@@ -27,10 +27,11 @@ from app.schemas.system import (
     HealthResponse,
     LivenessResponse,
     MetaResponse,
+    MetricCensusOut,
     SourcePublicationOut,
 )
 from app.services.analytics_service import get_analytics_view, view_is_stale
-from app.services.quality_service import last_publications
+from app.services.quality_service import last_publications, market_serving
 
 log = get_logger(__name__)
 
@@ -121,7 +122,9 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
     # verified against a real response is read from the mapping file, so this
     # answer changes when the profiling pipeline runs rather than when someone
     # remembers to edit this string.
-    verified = len(get_mapping().available_metrics)
+    mapping = get_mapping()
+    census = mapping.census()
+    verified = len(mapping.available_metrics)
     if verified == 0:
         return DependencyStatus(
             name="footystats",
@@ -138,8 +141,13 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
         name="footystats",
         status="ok",
         detail=(
-            f"{verified} metric(s) mapped and verified against real responses. "
-            "Not contacted by this check."
+            # Counted from the census, like every other public statement about
+            # these numbers. Four pages each did their own arithmetic on this
+            # mapping and three reached different answers.
+            f"{census.usable} of {census.total} canonical metrics usable: "
+            f"{census.native} supplied as fields, {census.derived} derived from fields "
+            f"that are, {census.unavailable} unavailable. Verified against real "
+            "responses; not contacted by this check."
         ),
     )
 
@@ -231,21 +239,81 @@ def _performance_source(settings: Settings) -> DataSourceStatus:
 
 
 def _market_source(settings: Settings) -> DataSourceStatus:
-    """Describe the market provider actually in use."""
+    """Describe the market data the product is serving.
+
+    THE QUESTION THIS ANSWERS
+    -------------------------
+
+    "Is the market data currently serving the product available and valid?" -
+    not "is an ingestion snapshot sitting on this machine's disk".
+
+    It used to answer the second. `build_market_provider` opens the downloaded
+    Transfermarkt dataset, which is an ingestion precondition: the download
+    happens in a pipeline, the API runs elsewhere, and on the serving host that
+    file is absent by design. So production served a market value, a valuation
+    history and a transfer list on every profile, ran the Opportunities market
+    filters, and showed Transfermarkt on the Data Quality page as a serving
+    source with rows and passing checks - while System Status called market
+    data unavailable and told the reader to run a download command.
+
+    Nothing was broken. The page was asking a question nobody reading it was
+    asking. It now counts the rows the pages are built from, and falls back to
+    the provider only to explain an absence it has established for itself.
+    """
+    if settings.app_mode.value == "demo":
+        # Demo serves fabricated market data. Counting its rows would be
+        # counting an invention, and the provider already says so.
+        serving = None
+    else:
+        try:
+            with get_session_factory()() as session:
+                serving = market_serving(session)
+        except Exception as exc:  # pragma: no cover - the health check reports this
+            log.warning("market_serving_unknown", error=type(exc).__name__)
+            serving = None
+
+    if serving is not None and serving.available:
+        return DataSourceStatus(
+            name="Market data",
+            kind="market",
+            provider="Transfermarkt (serving database)",
+            is_mock=False,
+            validated=True,
+            notes=(
+                f"Serving {serving.players_with_value} current valuations, "
+                f"{serving.valuations} historical valuations and {serving.transfers} "
+                f"transfers; {serving.players_with_contract} players carry a contract "
+                "expiry. Counted from the database behind the pages, not from an "
+                "ingestion snapshot."
+            ),
+        )
+
     try:
         info = build_market_provider(settings).info
     except AppError as exc:
         log.warning("market_provider_unavailable", code=exc.code, message=exc.message)
+        detail = (
+            "No market data is being served, and no snapshot is available to load one. "
+            if serving is not None
+            else ""
+        )
         return DataSourceStatus(
             name="Market data",
             kind="market",
             provider="unavailable",
             is_mock=False,
             validated=False,
-            notes=exc.message,
+            notes=f"{detail}{exc.message}",
         )
 
     notes = info.notes
+    if serving is not None:
+        notes = (
+            "A snapshot is readable but no market rows are being served: the pages that "
+            f"need them will be empty. {notes}"
+            if notes
+            else "A snapshot is readable but no market rows are being served."
+        )
     if info.licence:
         notes = f"{notes} Licence: {info.licence}." if notes else f"Licence: {info.licence}."
     return DataSourceStatus(
@@ -295,6 +363,27 @@ def _data_freshness() -> list[SourcePublicationOut]:
         return []
 
 
+def _metric_census() -> MetricCensusOut | None:
+    """The counts every public page reads instead of writing its own.
+
+    Null rather than zeroes when no mapping has been verified: a page that
+    cannot tell "not profiled yet" from "39 metrics and none of them supplied"
+    will eventually publish the second while the first is true.
+    """
+    mapping = get_mapping()
+    if mapping.is_empty:
+        return None
+    census = mapping.census()
+    return MetricCensusOut(
+        total=census.total,
+        native=census.native,
+        derived=census.derived,
+        unavailable=census.unavailable,
+        usable=census.usable,
+        rejected_provider_fields=census.rejected_provider_fields,
+    )
+
+
 @router.get("/api/v1/meta", response_model=MetaResponse)
 def meta(settings: SettingsDep, request: Request) -> MetaResponse:
     """Application metadata for the frontend shell (mode banner, provenance)."""
@@ -311,6 +400,7 @@ def meta(settings: SettingsDep, request: Request) -> MetaResponse:
         version=APP_VERSION,
         demo_data_notice=DEMO_NOTICE if is_demo else None,
         data_sources=data_sources,
+        metric_census=_metric_census(),
         data_freshness=_data_freshness(),
         build_access=has_build_access(request, settings.build_token),
     )

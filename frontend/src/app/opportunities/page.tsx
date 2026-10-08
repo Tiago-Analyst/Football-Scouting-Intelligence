@@ -149,7 +149,11 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
             </button>
           </form>
 
-          <section className="space-y-4">
+          {/* `min-w-0` for the same reason the player search and the
+          similarity table carry it: a `1fr` track sizes to its
+          content's minimum, so one wide row pushes the whole
+          document sideways instead of scrolling inside itself. */}
+          <section className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
                 <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
@@ -238,6 +242,7 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                              whichever one the reader expects. This is the raw
                              role fit for the player's best role, on the 0-100
                              scale the rest of the product reserves for it. */
+                          <span className="flex flex-col items-end">
                           <span className="flex items-baseline gap-2">
                             <span className="text-[10px] tracking-wide text-subtle uppercase">
                               Raw role fit
@@ -258,6 +263,25 @@ export default async function OpportunitiesPage(props: PageProps<"/opportunities
                             {entry.player.best_role_percentile != null ? (
                               <span className="text-xs text-subtle">
                                 · {ordinal(entry.player.best_role_percentile)} role fit percentile
+                              </span>
+                            ) : null}
+                          </span>
+                            {/* What the list is actually ordered by, shown
+                                only where the order moved. A card numbered
+                                after one with a higher Raw Fit reads as a
+                                broken sort unless it says why; printing
+                                "100% of a season" on every full-season card
+                                would train a reader to stop seeing it. The
+                                sentence is the backend's own - a second
+                                wording here would eventually disagree with
+                                the first. */}
+                            {entry.evidence_weight < 1 ? (
+                              <span
+                                className="mt-0.5 text-[10px] text-subtle"
+                                title={entry.ranking_note ?? undefined}
+                              >
+                                ranked {Math.round(entry.ranking_score)} ·{" "}
+                                {Math.round(entry.evidence_weight * 100)}% of a season
                               </span>
                             ) : null}
                           </span>

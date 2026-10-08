@@ -163,3 +163,39 @@ html[data-session="user"] [data-session-user] {
 [data-session-name]::after {
   content: var(--session-name, "");
 }
+
+/* A wide table that scrolls, and says so.
+
+   Containment was the bug: a twelve-column table used to push the whole
+   document sideways on a phone. Fixed, and that fix created a smaller
+   problem - the table now scrolls neatly inside its own box, and nothing
+   tells a reader the box has more in it. Columns past the right edge are
+   simply invisible.
+
+   The classic two-gradient shadow, and no JavaScript. Two layers are painted
+   in the element's own coordinate space (`local`) and two in the viewport's
+   (`scroll`); where the content is flush against an edge the first covers
+   the second, so each shadow appears only on the side that has something
+   hidden behind it, and both disappear entirely when the table fits.
+
+   `--surface` on the cover layers, because that is the background of the
+   container it is masking. */
+.scroll-shadow {
+  background-image:
+    linear-gradient(to right, var(--surface) 30%, transparent),
+    linear-gradient(to left, var(--surface) 30%, transparent),
+    linear-gradient(to right, light-dark(rgb(0 0 0 / 0.17), rgb(0 0 0 / 0.55)), transparent),
+    linear-gradient(to left, light-dark(rgb(0 0 0 / 0.17), rgb(0 0 0 / 0.55)), transparent);
+  background-position:
+    left center,
+    right center,
+    left center,
+    right center;
+  background-repeat: no-repeat;
+  background-size:
+    2.5rem 100%,
+    2.5rem 100%,
+    1.25rem 100%,
+    1.25rem 100%;
+  background-attachment: local, local, scroll, scroll;
+}

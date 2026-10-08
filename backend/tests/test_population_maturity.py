@@ -23,6 +23,23 @@ from app.analytics.sample import ESTABLISHED_SAMPLE_MINUTES
 from app.schemas.canonical import PositionGroup
 
 
+def _maturity_source() -> str:
+    """Everything the engine runs to answer "how mature is this population?".
+
+    Two methods rather than one: the measurement is memoised, because running
+    it per metric per player cost a recruitment search thirty of its
+    thirty-four seconds. The guards below are about the measurement, so they
+    read both and do not care which half the work currently sits in.
+    """
+    import inspect
+
+    from app.analytics import percentiles
+
+    return inspect.getsource(percentiles.PercentileEngine._maturity) + inspect.getsource(
+        percentiles.PercentileEngine._measure_maturity
+    )
+
+
 def context(**kwargs: object) -> ComparisonContext:
     base: dict[str, object] = {
         "scope": PercentileScope.GLOBAL,
@@ -115,21 +132,12 @@ class TestMeasuredFromThePopulation:
 
     def test_the_threshold_is_the_established_band_not_a_new_one(self) -> None:
         """Borrowed rather than invented, like every other minutes figure."""
-        import inspect
-
-        from app.analytics import percentiles
-
-        source = inspect.getsource(percentiles.PercentileEngine._maturity)
-        assert "ESTABLISHED_SAMPLE_MINUTES" in source
+        assert "ESTABLISHED_SAMPLE_MINUTES" in _maturity_source()
         assert ESTABLISHED_SAMPLE_MINUTES == 900
 
     def test_nothing_about_this_changes_a_percentile(self, api: TestClient) -> None:
         """The whole point: the room is described, the rank is untouched."""
-        import inspect
-
-        from app.analytics import percentiles
-
-        source = inspect.getsource(percentiles.PercentileEngine._maturity)
+        source = _maturity_source()
         for forbidden in ("percentile_of", "oriented", "return None  # excluded"):
             assert forbidden not in source
         # And the population builder is shared, so maturity is measured over

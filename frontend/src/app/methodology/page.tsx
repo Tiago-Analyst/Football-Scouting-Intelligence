@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { MetricCensusSentence } from "@/components/quality/MetricCensus";
 import { Callout } from "@/components/ui/States";
+import { getMeta } from "@/lib/system";
 
 export const metadata: Metadata = {
   title: "Methodology",
@@ -20,7 +22,9 @@ export const metadata: Metadata = {
  * to claim. Nothing here asserts that a specific provider metric exists;
  * availability is marked pending validation until verified.
  */
-export default function MethodologyPage() {
+export default async function MethodologyPage() {
+  const meta = await getMeta();
+
   return (
     <div className="max-w-3xl space-y-10">
       <PageHeader
@@ -31,10 +35,9 @@ export default function MethodologyPage() {
 
       <Callout tone="note" title="Which metrics the provider actually supplies">
         Every metric below was checked against real recorded responses rather than against the
-        provider&apos;s documentation: thirty-four of thirty-nine are mapped and in use, and the
-        arithmetic of each was reproduced against the provider&apos;s own published per-90 figures
-        where it publishes one. The remaining five are not supplied at all. They are disabled and
-        labelled, never substituted with a different statistic, and the{" "}
+        provider&apos;s documentation, and the arithmetic of each was reproduced against the
+        provider&apos;s own published per-90 figures where it publishes one.{" "}
+        <MetricCensusSentence census={meta?.metric_census ?? null} /> The{" "}
         <Link href="/data-quality" className="underline">
           data quality
         </Link>{" "}

@@ -26,10 +26,12 @@ from app.models import (
     DimCompetition,
     DimPlayer,
     FactDataQuality,
+    FactMarketValue,
     FactPlayerSeasonStats,
     FactRefreshGeneration,
     FactSourceLoad,
     FactSourcePublication,
+    FactTransfer,
 )
 from app.providers.registry import build_performance_provider
 from app.schemas.canonical import CanonicalMetric
@@ -651,6 +653,67 @@ def unavailable_metrics(settings: Settings) -> list[str]:
         # true and useless; saying nothing is the honest shape of "unknown".
         return []
     return sorted(metric.value for metric in CanonicalMetric if metric not in available)
+
+
+@dataclass(frozen=True)
+class MarketServing:
+    """How much market data the product is currently serving.
+
+    SERVING, NOT INGESTIBLE
+    -----------------------
+
+    There are two market questions and they had been collapsed into one.
+
+    "Can a Transfermarkt snapshot be read from disk right now?" is an
+    *ingestion* precondition. It is answered by the downloaded dataset, it is
+    false on the serving host by design - the API does not do the downloading -
+    and it says nothing about what a reader sees.
+
+    "Is market data available and valid for the product?" is a *serving*
+    question, answered by the rows in this database. Those rows are what the
+    market value, the valuation history, the transfer list, the Opportunities
+    filters and the replacement affordability context are all built from.
+
+    The status page asked the first and published the answer as if it were the
+    second: production served market values on every profile while System
+    Status called market data unavailable and told the reader to run a
+    download command. Both statements were about different things and only one
+    of them was about the product.
+    """
+
+    #: Players carrying a current valuation - the figure profiles display.
+    players_with_value: int
+    #: Players with a contract expiry, which the recruitment filters screen on.
+    players_with_contract: int
+    #: Rows behind the market value chart.
+    valuations: int
+    #: Rows behind the transfer history.
+    transfers: int
+
+    @property
+    def available(self) -> bool:
+        """Whether any market figure on the site has something behind it."""
+        return self.players_with_value > 0 or self.valuations > 0 or self.transfers > 0
+
+
+def market_serving(session: Session) -> MarketServing:
+    """Count the market data actually behind the pages. Four cheap counts."""
+    return MarketServing(
+        players_with_value=session.scalar(
+            select(func.count())
+            .select_from(DimPlayer)
+            .where(DimPlayer.current_market_value_eur.is_not(None))
+        )
+        or 0,
+        players_with_contract=session.scalar(
+            select(func.count())
+            .select_from(DimPlayer)
+            .where(DimPlayer.contract_expires.is_not(None))
+        )
+        or 0,
+        valuations=session.scalar(select(func.count()).select_from(FactMarketValue)) or 0,
+        transfers=session.scalar(select(func.count()).select_from(FactTransfer)) or 0,
+    )
 
 
 def volumes(session: Session) -> Volumes:

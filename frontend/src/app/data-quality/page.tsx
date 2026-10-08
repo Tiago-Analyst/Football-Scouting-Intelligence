@@ -9,7 +9,8 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { formatCount, formatDate } from "@/lib/format";
-import { getDataQuality } from "@/lib/system";
+import { MetricCensusLine } from "@/components/quality/MetricCensus";
+import { getDataQuality, getMeta } from "@/lib/system";
 import type { CheckStatus, ProviderQuality, QualityCheck, SourceFreshness } from "@/types/api";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ const STATUS_LABEL: Record<CheckStatus, string> = {
 };
 
 export default async function DataQualityPage() {
-  const report = await getDataQuality();
+  const [report, meta] = await Promise.all([getDataQuality(), getMeta()]);
 
   return (
     <div className="space-y-8">
@@ -46,7 +47,7 @@ export default async function DataQualityPage() {
           description="The API could not be reached. That is itself a data quality problem — nothing on this page should be assumed current until it loads."
         />
       ) : (
-        <Report report={report} />
+        <Report report={report} meta={meta} />
       )}
     </div>
   );
@@ -54,8 +55,10 @@ export default async function DataQualityPage() {
 
 async function Report({
   report,
+  meta,
 }: {
   report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>>;
+  meta: Awaited<ReturnType<typeof getMeta>>;
 }) {
   // `checks` is the published set - candidates are excluded by the service -
   // so a failure here is a failure in the data readers are being served.
@@ -164,6 +167,13 @@ async function Report({
             description="Permanently unavailable rather than thin in this load, each with what profiling found. Nothing is substituted for them, and every score depending on one is either computed from the rest with its coverage stated, or switched off."
           />
           <CardBody className="space-y-4">
+            {/* The whole census, so this page and the three that also talk
+                about metric counts are visibly describing one set of
+                numbers. They used to each state their own and disagree. */}
+            <p className="text-xs text-subtle tabular">
+              <MetricCensusLine census={meta?.metric_census ?? null} />
+            </p>
+
             {report.unavailable_detail.length === 0 ? (
               <p className="text-sm text-muted">
                 None. Every canonical metric is supplied or derived.
@@ -432,7 +442,23 @@ function ProviderCard({ provider }: { provider: ProviderQuality }) {
             <>
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label="Last published">
-                  {published.published_at ? formatDate(published.published_at) : "unknown"}
+                  {published.published_at ? (
+                    formatDate(published.published_at)
+                  ) : (
+                    /* Not a gap in the page: the publication ledger holds no
+                       row for this dataset, because it was promoted before
+                       the ledger existed. Nothing is substituted from the
+                       check time or from a staging load - both answer
+                       different questions, and either would read as a claim
+                       about how current these figures are. The next
+                       promotion writes the row and this fills itself in. */
+                    <span
+                      className="text-subtle"
+                      title="No row in the publication ledger: this dataset was promoted before publications were recorded. The next refresh records one."
+                    >
+                      not recorded
+                    </span>
+                  )}
                 </Field>
                 <Field label="Refresh">
                   <span className="font-mono text-xs">{published.refresh_id ?? "—"}</span>
