@@ -59,9 +59,14 @@ test("a profile that cannot rank anybody says so before it is submitted", () => 
   // reads as "no player matched your filters". The filters are not the
   // problem, and blaming them sends the reader to widen something that will
   // never help.
-  const flat = page.replace(/\s+/g, " ");
-  assert.match(flat, /This profile will rank nobody/);
-  assert.match(flat, /getRecruitmentScores/);
+  //
+  // The sentence now lives in `BlockedProfile`, with the button it governs:
+  // the two have to move together, and the button has to react to a weight
+  // the reader has just typed rather than the one the server rendered.
+  const blocked = read("src/components/recruitment/BlockedProfile.tsx").replace(/\s+/g, " ");
+  assert.match(blocked, /This profile will rank nobody/);
+  assert.match(page.replace(/\s+/g, " "), /getRecruitmentScores/);
+  assert.match(page, /<BlockedProfile/);
 });
 
 test("only the unavailable scores this profile actually weights are warned about", () => {

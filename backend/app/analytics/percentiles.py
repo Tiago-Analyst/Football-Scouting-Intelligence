@@ -292,6 +292,17 @@ class PercentileEngine:
         for record in self._eligible:
             self._by_group[(record.position_group, record.season_id)].append(record)
         self._cache: dict[tuple, list[float]] = {}
+        #: Season maturity per population, memoised on the same grounds as
+        #: `_cache`: the populations above are built once in this constructor
+        #: and never mutated, so the answer for a given population cannot
+        #: change within an engine's life.
+        #:
+        #: Without this the measurement ran once per metric per player. A
+        #: recruitment search over 947 candidates called it 30,304 times, each
+        #: walking the whole population, and spent 32 of its 34 seconds here -
+        #: past the thirty the frontend waits, so every brief that matched
+        #: anybody failed in production. See `test_percentile_performance.py`.
+        self._maturity_cache: dict[tuple, _Maturity] = {}
 
     @property
     def eligible_count(self) -> int:
@@ -388,6 +399,21 @@ class PercentileEngine:
         reached the Established Sample threshold - meaning a full season's
         evidence is possible there at all, not that everyone has it.
         """
+        key = (position_group, season_id, competition_ids)
+        memoised = self._maturity_cache.get(key)
+        if memoised is not None:
+            return memoised
+        measured = self._measure_maturity(position_group, season_id, competition_ids)
+        self._maturity_cache[key] = measured
+        return measured
+
+    def _measure_maturity(
+        self,
+        position_group: PositionGroup,
+        season_id: str,
+        competition_ids: frozenset[str] | None,
+    ) -> _Maturity:
+        """The walk itself, separated so the memo above has one job."""
         records = self._population_for(position_group, season_id, competition_ids)
         if not records:
             return _Maturity(0, 0, 1.0, 0)

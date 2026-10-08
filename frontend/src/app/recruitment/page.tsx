@@ -2,6 +2,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BlockedProfile } from "@/components/recruitment/BlockedProfile";
 import { ActivePreset, RolePresets } from "@/components/recruitment/RolePresets";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -293,29 +294,28 @@ export default async function RecruitmentPage(props: PageProps<"/recruitment">) 
             </p>
           ) : null}
 
-          {blockedNow.length > 0 ? (
-            <div className="space-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
-              <p className="text-[11px] font-medium text-warning">This profile will rank nobody.</p>
-              {blockedNow.map((score) => (
-                <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
-                  {score.reason}
-                </p>
-              ))}
-              <p className="text-[11px] leading-relaxed text-subtle">
-                Set that weight to zero to get a ranking from the rest of the profile.
-              </p>
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
-          >
-            Build shortlist
-          </button>
+          {/* The warning and the button move together, which they cannot do
+              from the server: the weights are plain form inputs, so a reader
+              who has just typed 20 into an unavailable dimension has not
+              reloaded anything. The server computes the first paint; the
+              component keeps it true afterwards. Which dimensions are
+              unavailable is still the backend's answer - see
+              `BlockedProfile`. */}
+          <BlockedProfile
+            unavailable={[...unavailable.values()].map((score) => ({
+              key: score.key,
+              label: score.label,
+              reason: score.reason,
+            }))}
+            initiallyBlocked={blockedNow.map((score) => score.key)}
+          />
         </form>
 
-        <section className="space-y-4">
+        {/* `min-w-0` for the same reason the player search and the
+        similarity table carry it: a `1fr` track sizes to its
+        content's minimum, so one wide row pushes the whole
+        document sideways instead of scrolling inside itself. */}
+        <section className="min-w-0 space-y-4">
           {!submitted ? (
             /* Whether the profile on the left can actually be run, said before
                the button is pressed rather than after. The form already warns

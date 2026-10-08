@@ -207,7 +207,13 @@ export default async function SimilarPlayersPage(props: PageProps<"/similar">) {
           </button>
         </form>
 
-        <section className="space-y-3">
+        {/* `min-w-0`: a grid track sizes to its content's minimum, and the
+            minimum of a twelve-column table is the whole table. Without
+            this the track grew to 1305px inside a 390px viewport and the
+            entire document slid sideways, header included - the table's
+            own `overflow-x-auto` never got a width to scroll within. The
+            player search learned this first; see its results section. */}
+        <section className="min-w-0 space-y-3">
           {similar.results.length === 0 ? (
             <EmptyState
               title="No similar players match these filters"

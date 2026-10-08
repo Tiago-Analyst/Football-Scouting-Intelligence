@@ -296,3 +296,56 @@ test("data quality says what the figures cannot say about themselves", () => {
 test("and it does not turn season maturity into league strength", () => {
   assert.match(flat(dataQuality), /about time, not about strength/i);
 });
+
+/**
+ * Discovery, ordered by evidence.
+ *
+ * Opportunities listed a Raw Fit of 98 from 24 minutes first and a 93 from 3
+ * minutes third, above a 973-minute 84. Every label was correct - each row
+ * carried its sample band - and the order still sent a scout to the wrong
+ * name. The page now shows what it is sorted by, the way the replacement
+ * finder and the recruitment builder already do.
+ */
+
+const opportunities = read("src/app/opportunities/page.tsx");
+
+test("an opportunity shows the value its position came from", () => {
+  assert.match(opportunities, /entry\.ranking_score/);
+  assert.match(flat(opportunities), /ranked \{Math\.round\(entry\.ranking_score\)\}/);
+});
+
+test("the raw role fit is still the headline number", () => {
+  // The analytical figure. Replacing it with the ranking would hide the thing
+  // a reader checks the ordering against.
+  assert.match(flat(opportunities), /Raw role fit/);
+  assert.match(opportunities, /Math\.round\(entry\.best_role_score\)/);
+});
+
+test("the ranking is only shown where the order actually moved", () => {
+  assert.match(opportunities, /entry\.evidence_weight < 1/);
+  assert.match(flat(opportunities), /% of a season/);
+});
+
+test("the explanation is the backend's sentence, not a second one", () => {
+  assert.match(opportunities, /entry\.ranking_note/);
+});
+
+test("the page does not compute the ordering for itself", () => {
+  const combinesWithAScore =
+    /(score|overall|ranking_value|ranking_score)[^\n]*\*[^\n]*evidence_weight/;
+  assert.equal(combinesWithAScore.test(opportunities), false);
+  assert.equal(/ranking_score\s*=[^=]/.test(opportunities), false);
+});
+
+test("the role fit percentile is untouched by the ordering", () => {
+  // A rank among players measured for the same role. It is not a placement
+  // in this list and must not start reading as one.
+  assert.match(opportunities, /entry\.player\.best_role_percentile/);
+  assert.equal(/best_role_percentile[^\n]*ranking/.test(opportunities), false);
+});
+
+test("nothing on the page hides a short-sample player", () => {
+  // Minutes are a reliability signal, never an eligibility gate.
+  assert.equal(/minutes\s*[<>]=?\s*\d{3,}/.test(opportunities), false);
+  assert.match(opportunities, /SampleSizeBadge/);
+});

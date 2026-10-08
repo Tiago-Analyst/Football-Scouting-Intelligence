@@ -641,7 +641,46 @@ def market_opportunities(
             )
         )
 
-    found.sort(key=lambda o: o.best_role_score or 0.0, reverse=True)
+    # Ordered by evidence, not by the raw fit.
+    #
+    # This is a discovery surface and it was putting a Raw Fit of 98 from 24
+    # minutes above a 93 from a full season. Both percentiles are honest; they
+    # are not equally strong evidence that a player is worth pursuing, and an
+    # ordering that cannot tell them apart sends a scout to the wrong name
+    # first.
+    #
+    # The same utility the replacement finder and the recruitment builder use,
+    # deliberately rather than a second formula: one way of reading thin
+    # evidence, applied in every place the product ranks anybody. Nobody is
+    # removed, no minutes floor appears, and `best_role_score` is untouched -
+    # it is still what the page shows as Raw Fit, and still what the Role Fit
+    # Percentile is built from.
+    #
+    # The prior is the average role fit of every player who HAS one, not of
+    # the survivors. The screen runs before the ranking, so the survivors are
+    # an elite by construction: shrinking toward their average told every thin
+    # candidate they were probably excellent. Measured on the live list, a
+    # 57-minute fit of 81 would have been read as 87.8 and ranked second,
+    # above a 973-minute 84 read as 83.8 and ranked twelfth. Nobody intended
+    # an ordering that rewards having played less.
+    adjustments = rank_by_evidence(
+        [o.best_role_score or 0.0 for o in found],
+        [o.player.minutes for o in found],
+        mean=_ordinary_role_fit(view),
+    )
+    for opportunity, adjustment in zip(found, adjustments, strict=True):
+        opportunity.ranking_score = adjustment.ranked
+        opportunity.evidence_weight = adjustment.weight
+        opportunity.ranking_note = adjustment.explain(
+            minutes=opportunity.player.minutes,
+            noun="role fit",
+            # Not "for this search": the screen runs first, so the average of
+            # what is on screen is an elite's. The number in the sentence is
+            # the one the shrinkage actually used.
+            centre="across every player with a role fit",
+        )
+
+    found.sort(key=lambda o: o.ranking_score, reverse=True)
     return OpportunitiesResponse(
         items=found[:limit],
         total=len(found),
@@ -651,6 +690,29 @@ def market_opportunities(
         explanation=_explain_screen(funnel, len(found)),
         is_mock=view.is_mock,
     )
+
+
+def _ordinary_role_fit(view: AnalyticsView) -> float:
+    """What an ordinary player's best role fit looks like, across everybody.
+
+    The centre a short sample is read toward on the Opportunities screen. It
+    is deliberately measured over every player who has a role fit at all,
+    rather than over the handful who cleared the screen: the screen selects
+    for a high fit, so its survivors' average describes an elite and shrinking
+    toward it is a compliment rather than a correction.
+
+    Zero players with a fit returns 0.0, which cannot happen alongside a
+    non-empty result - the screen requires a fit - and is the right answer if
+    it somehow did.
+    """
+    scores = [
+        fit.best.score
+        for fit in view.best_roles.values()
+        if fit.best is not None and fit.best.score is not None
+    ]
+    if not scores:
+        return 0.0
+    return sum(scores) / len(scores)
 
 
 def _best_role_score(view: AnalyticsView, record: PlayerRecord) -> float:

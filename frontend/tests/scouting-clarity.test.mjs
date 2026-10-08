@@ -18,7 +18,7 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const flat = (source) => source.replace(/\s+/g, " ");
 const strip = (source) => source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
-const search = read("src/app/players/page.tsx");
+const search = read("src/app/players/(search)/page.tsx");
 const recruitment = read("src/app/recruitment/page.tsx");
 const comparison = read("src/components/shortlists/ComparisonTable.tsx");
 const opportunities = read("src/app/opportunities/page.tsx");

@@ -72,6 +72,27 @@ class SourcePublicationOut(BaseModel):
     rows_published: int
 
 
+class MetricCensusOut(BaseModel):
+    """How many canonical metrics there are, and what became of each.
+
+    Four public pages each stated these counts in their own prose and three of
+    the four were wrong, in different directions: thirty-four mapped against
+    thirty-six, five unsupplied against three. Every number came from the same
+    mapping; the categories had been conflated.
+
+    They are now read from here. `native + derived + unavailable == total`,
+    and `rejected_provider_fields` is deliberately outside that sum because it
+    counts provider fields, not canonical metrics.
+    """
+
+    total: int
+    native: int
+    derived: int
+    unavailable: int
+    usable: int
+    rejected_provider_fields: int
+
+
 class MetaResponse(BaseModel):
     """Public application metadata, consumed by the frontend shell."""
 
@@ -83,6 +104,11 @@ class MetaResponse(BaseModel):
         description="Populated in demo mode so the UI can display a persistent banner.",
     )
     data_sources: list[DataSourceStatus]
+    #: The one place public copy may read metric counts from. Null when no
+    #: provider mapping has been verified, which is a real state and not a
+    #: zero: "nothing profiled yet" and "39 metrics, none supplied" are
+    #: different facts and a page must be able to tell them apart.
+    metric_census: MetricCensusOut | None = None
     #: Empty when nothing has been loaded since load times began to be
     #: recorded, or when the database could not be reached. Absent rather
     #: than guessed from when the checks last ran, which is a different

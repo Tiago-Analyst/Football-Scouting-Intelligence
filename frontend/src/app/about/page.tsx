@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { MetricCensusSentence } from "@/components/quality/MetricCensus";
 import { Callout } from "@/components/ui/States";
+import { getMeta } from "@/lib/system";
 
 export const metadata: Metadata = {
   title: "About",
@@ -12,7 +14,9 @@ export const metadata: Metadata = {
     "What this platform is for, how it is built, where its data comes from, and what it currently does and does not do.",
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const meta = await getMeta();
+
   return (
     <div className="max-w-3xl space-y-10">
       <PageHeader
@@ -58,9 +62,8 @@ export default function AboutPage() {
         checks. Figures shown are computed from that data, not placeholders.
         <br />
         <br />
-        What that does not mean is finished. Five of the thirty-nine canonical metrics are not
-        supplied by the provider at all and every score depending on one is either computed from the
-        rest with its coverage stated, or switched off and labelled. The{" "}
+        What that does not mean is finished.{" "}
+        <MetricCensusSentence census={meta?.metric_census ?? null} /> The{" "}
         <Link href="/data-quality" className="underline">
           data quality
         </Link>{" "}
