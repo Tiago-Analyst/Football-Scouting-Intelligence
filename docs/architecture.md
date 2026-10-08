@@ -252,6 +252,26 @@ Canonical model (app/schemas/canonical.py)
 everything else
 ```
 
+> **SUPERSEDED — the provider was written.** The diagram records Phase 1A, when
+> the mock was the only implementation. `FootyStatsProvider` now exists in
+> `backend/app/providers/footystats.py` and is what production builds. It reads
+> `config/footystats_mapping.yaml`, where 34 native fields and 2 derived
+> metrics are recorded against real `league-players` and `player-stats`
+> responses, all verified on 2026-08-29. Twenty-four of the 34 were confirmed
+> arithmetically — the provider's own per-90 field reproduced from the total
+> and the recorded minutes — across 346 player-seasons of Premier League
+> 2026/27, with 373 records for `dispossessed` and 290 for
+> `successful_dribbles`. The remaining ten were observed but have no per-90
+> counterpart to check against, and say so individually.
+> [`footystats_provider_status.md`](footystats_provider_status.md) is generated
+> from that mapping and is the current list. Three canonical metrics are still
+> absent — see *What is actually left* near the end of this file.
+>
+> The rule this diagram was written to protect is unchanged: no FootyStats
+> field name appears in code at all. Every one lives in the mapping file, only
+> a person may write it there, and only against a response the probe recorded.
+> What changed is that the responses were recorded.
+
 Nothing above the provider layer knows which provider is in use, and no
 provider-specific field name escapes it.
 
@@ -284,6 +304,14 @@ raises `DataNotValidatedError` because the field mapping has not been written
 against observed responses. There is no path from production mode to fabricated
 figures, and a test asserts that property directly rather than testing the two
 branches separately.
+
+> **Superseded in part.** The second raise was a consequence of the mapping
+> being empty, not a separate rule, which is why it needed no edit when the
+> mapping was written: `registry.build_performance_provider` still calls
+> `mapping.require()`, and `require()` raises only `if self.is_empty`. The
+> mapping is no longer empty, so a present key now builds the real provider.
+> The gate remains in place for the case it was written for — a mapping that
+> grants nothing — and the property the test asserts is untouched.
 
 `/api/v1/meta` reports the provider it actually constructed, so the UI cannot
 claim a provider the backend failed to build.
@@ -1268,6 +1296,13 @@ monitoring. Fixing it means moving the loading boundary below the routes that
 call `notFound()`, which is a change to every page and not a Phase 11 decision.
 
 ## FootyStats validation gate (groundwork for Phase 12)
+
+> **SUPERSEDED on the facts, not on the design.** A real key has since been
+> used, responses were recorded, and the mapping grants 34 native fields and 2
+> derived metrics — see
+> [`footystats_provider_status.md`](footystats_provider_status.md). Every
+> sentence below about the apparatus is still accurate; the sentences about it
+> granting nothing record where the project was.
 
 No FootyStats API key has ever been available to this project, so no FootyStats
 response has ever been observed, so no FootyStats field is mapped. That is not
@@ -2537,7 +2572,18 @@ filter as "Best role score at least 80". A confident account of the wrong thing
 is worse than no account, so each criterion now carries its own test and the
 wording is derived from them - they cannot drift apart again.
 
-## Planned, not yet built
+## Planned, not yet built (superseded)
+
+> **Everything this section called unbuilt was built.** It is kept because it
+> records what was outstanding at the time, and because the paragraph beneath
+> the diagram states a rule that is still in force. `FootyStatsProvider`
+> exists, Phase 12 profiling happened against a real API key, and the whole
+> chain the diagram placed below the canonical model — analytics, PostgreSQL,
+> FastAPI, Next.js — runs on real data. The README **Current status** section
+> is the live inventory;
+> [`footystats_provider_status.md`](footystats_provider_status.md) is what the
+> provider supplies. *What is actually left*, below, is what the section would
+> say if written today.
 
 The provider abstraction and the mock implementation exist (Phase 1A). What
 remains unbuilt is the real provider and everything downstream of the canonical
@@ -2555,3 +2601,47 @@ Analytics → PostgreSQL → FastAPI → Next.js
 
 No FootyStats field name appears anywhere in the codebase, and none will until
 it has been observed in a real API response.
+
+### What is actually left
+
+The rule in the sentence above survived unchanged and should be read as still
+current: no FootyStats field name appears in code. Every one of them lives in
+`config/footystats_mapping.yaml`, which only a person may write, and only
+against a response `pipelines/footystats/probe.py` recorded. What changed is
+that the responses were recorded — on 2026-08-29, from `league-players` and
+`player-stats` — and 34 native fields plus 2 derived metrics were concluded
+from them.
+
+What is genuinely outstanding is three canonical metrics the provider does not
+supply. The reason is recorded per metric in the mapping, and it is not the
+same reason three times:
+
+- **`progressive_passes`** — `progressive_passes_total_overall` exists as a key
+  and is null in all 691 sampled records. It is 45% of the `ball_progression`
+  score, which is why its absence is the most expensive of the three.
+- **`aerial_duels`** — only `aerial_duels_won_total_overall` is supplied. The
+  attempt count is absent, and `aerial_duels_won_percentage_overall`, which
+  would allow deriving it, returns 0 for every sampled record. The key
+  `aerial_duels_total_overall` never appears at all.
+- **`successful_tackles`** — `tackles_successful_total_overall` is declared and
+  never populated: non-null in 0 of the 10,464 sampled records that carry the
+  key. `tackles_total_overall` is supplied and is not a substitute, because
+  attempts and successes are different measurements.
+
+A declared-but-unpopulated key is the more dangerous of the two shapes. It
+reads as available until someone checks the values, which is how
+`tackles_successful_total_overall` came to be mapped once on the strength of a
+naming pattern and then withdrawn.
+
+The cost is measured rather than asserted, in the generated
+[`config_availability.md`](config_availability.md): two of the eight
+intelligence scores are switched off — Ball Progression, with 55% of its
+weight available, and Duel Dominance, with 70% — and ten of the fifteen roles
+produce a number from reduced coverage, eight *reduced* and two *limited*, with
+that coverage reported to the reader. No role is switched off entirely.
+Nothing is substituted for an absent metric and nothing is zero-filled.
+
+The `absent:` comment block in `config/footystats_mapping.yaml` still says
+three scores and eleven roles. That is an older measurement left in a comment,
+and the generated report is the one to read — the mapping file is authoritative
+about *fields*, not about what they cost downstream.
