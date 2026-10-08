@@ -67,8 +67,19 @@ goalkeeper in the validation sample. The role is Full throughout.
 
 `SECONDARY_COVERAGE_FLOOR` is **0.50**, and it is **provisional**. It is a
 technical guardrail, not a methodological finding, and it has never been
-validated against football judgement — on the current data it binds on no role,
-so nothing has tested it except intent.
+validated against football judgement.
+
+It does bind. Measured over the whole loaded population — 14,449 role
+evaluations across 5,462 players — it refuses **3,685 of them, 25.5%**. Almost
+all are thin: 43.6% of role evaluations for players under 180 minutes fall
+below it, against **0.1%** for players with a full season. That is the shape a
+safety floor should have, and it is the floor's best argument.
+
+An earlier version of this section said the opposite — that it bound on nobody.
+That was measured on the 245-player validation sample below, every one of them
+established, and stated as though it described the whole dataset. Half the
+loaded population has played under 180 minutes; the sample could not see them.
+See [`calibration_audit.md`](calibration_audit.md).
 
 It is deliberately one number for every role rather than fifteen tuned ones.
 Fifteen would repeat the mistake `min_coverage` already made: thresholds that
@@ -114,10 +125,13 @@ Only one role expands by more than three players, and it is the one the
 analysis predicted. All twelve recovered full-backs satisfy both core
 dimensions; none is admitted by a lowered percentage alone.
 
-**No player anywhere is scored at exactly the provisional floor.** The lowest
-coverage observed in the whole validation population is 60%, ten points above
-it — so the floor currently binds on nobody and remains untested by anything
-except intent.
+**No player in the validation sample is scored near the provisional floor.**
+The lowest coverage observed among those 245 is 60%, ten points above it.
+
+That is a fact about the sample and not about the dataset. Across all 5,462
+loaded players the floor refuses a quarter of role evaluations, and coverage
+runs the whole way down to zero. The sample is established players; the
+dataset is mostly not.
 
 Eleven players change best role as a result of this change, separately from
 the sixty-four that changed when core validity was introduced. One of them is
@@ -142,7 +156,9 @@ validity.
 
 ## Classification on the validation sample
 
-245 players, measured through the scoring engine:
+245 players, measured through the scoring engine. **Every one of them is in the
+Established band**, which is what the sample was chosen for and what makes it
+unrepresentative of the loaded data: see the full-population table below.
 
 | Role | Full | Partial | Unavailable | Missing concept |
 |---|---:|---:|---:|---|
@@ -163,9 +179,36 @@ validity.
 | Shot Stopper | 40 | 0 | 0 | — |
 
 Three roles are Partial for everyone, for two reasons: the provider supplies
-no measure of progression, and none of aerial efficiency. Nothing in the
-population is Unavailable — the provisional floor binds on nobody, which is
-why it remains untested by anything except intent.
+no measure of progression, and none of aerial efficiency. Nothing in this
+sample is Unavailable, because everybody in it has played a full season.
+
+## Classification on the whole loaded population
+
+5,462 players, 14,449 role evaluations, measured the same way:
+
+| Role | Evaluated | Full | Partial | Unavailable |
+|---|---:|---:|---:|---:|
+| Advanced Playmaker | 980 | 718 | 0 | 262 |
+| Attacking Full-Back | 763 | 352 | 112 | 299 |
+| Ball-Playing Centre-Back | 947 | 0 | 612 | 335 |
+| Ball-Winning Midfielder | 997 | 638 | 1 | 358 |
+| Box-to-Box Midfielder | 1,394 | 1,090 | 0 | 304 |
+| Complete Forward | 635 | 569 | 0 | 66 |
+| Creative Winger | 1,199 | 834 | 73 | 292 |
+| Deep-Lying Playmaker | 997 | 0 | 852 | 145 |
+| Defensive Full-Back | 763 | 535 | 2 | 226 |
+| Defensive Stopper | 947 | 673 | 6 | 268 |
+| Direct Winger | 1,199 | 719 | 166 | 314 |
+| Inside Forward | 1,437 | 1,292 | 0 | 145 |
+| Poacher | 635 | 569 | 0 | 66 |
+| Shot Stopper | 921 | 460 | 0 | 461 |
+| Target Forward | 635 | 0 | 491 | 144 |
+| **Total** | **14,449** | **8,449** | **2,315** | **3,685** |
+
+The three roles that are Partial for everybody hold at this scale, which is the
+point of repeating the measurement. What the sample could not show is the
+Unavailable column: a quarter of all evaluations, almost entirely players whose
+feed covers too little of a definition to build one from.
 
 ## Best role selection
 

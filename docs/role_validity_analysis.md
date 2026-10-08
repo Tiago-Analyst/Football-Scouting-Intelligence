@@ -271,5 +271,11 @@ every Shot Stopper score disappears at once.
    entirely. Both are useful roles today. Is that the right trade?
 2. **The 50% floor** is my judgement and nothing more. It binds on no role in
    the current data, which means it is untested by anything except intent.
+
+   *Since corrected.* That was measured on the established players in this
+   analysis and is false of the loaded dataset: the floor refuses 25.5% of all
+   role evaluations, and 43.6% of those for players under 180 minutes. See
+   [`calibration_audit.md`](calibration_audit.md). The question above still
+   stands — the number is still a judgement — but it is no longer untested.
 3. **The three proxy roles**: name-only correction, or reweight? The evidence
    above argues for name-only, against my own earlier instinct.
