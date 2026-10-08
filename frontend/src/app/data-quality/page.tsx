@@ -171,7 +171,7 @@ async function Report({
                 about metric counts are visibly describing one set of
                 numbers. They used to each state their own and disagree. */}
             <p className="text-xs text-subtle tabular">
-              <MetricCensusLine census={meta?.metric_census ?? null} />
+              <MetricCensusLine meta={meta ?? null} />
             </p>
 
             {report.unavailable_detail.length === 0 ? (
