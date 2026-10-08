@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AllLeaguesHeading } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { DataConfidence } from "@/components/player/DataConfidence";
 import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
@@ -509,9 +510,13 @@ export default async function PlayerProfilePage(props: PageProps<"/players/[slug
                 <TH className="w-52">In this league</TH>
                 {/* A rank among 23 defenders and a rank among 752 are both
                     honest and are not the same claim. Showing only the first
-                    lets a thin league read as a strong player. */}
-                <TH numeric className="w-28">
-                  All leagues
+                    lets a thin league read as a strong player.
+
+                    The qualification is on the heading, not only in the
+                    footer below: a reader who takes the number at face value
+                    never reaches the footer. See `AllLeaguesLabel`. */}
+                <TH numeric className="w-40">
+                  <AllLeaguesHeading />
                 </TH>
               </TR>
             </THead>

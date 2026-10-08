@@ -98,6 +98,55 @@ export default async function MethodologyPage() {
       />
 
       <Section
+        title="What an all-leagues percentile is a rank against"
+        body={
+          <>
+            <p>
+              The second percentile column ranks a player&rsquo;s{" "}
+              <strong>observed per-90 value</strong> against every player-season the dataset
+              currently serves in their position. That is the whole definition, and it is
+              deliberately a rank of what was observed rather than an estimate of what a player
+              would do over a full season.
+            </p>
+            <p>
+              The competitions loaded at any moment are at different points in their seasons,
+              because they do not start in the same month. On the snapshot this was last measured
+              on, nine of 44 competitions contained a player who had reached a full season&rsquo;s
+              minutes, and <strong>81.7%</strong> of the players came from the other 35. The median
+              player in Italy&rsquo;s top flight had 36 minutes; in South Korea&rsquo;s, 1,057. Both
+              are in the same population.
+            </p>
+            <p>
+              A per-90 figure from one match is as extreme as the data allows, and that shows in the
+              distribution. A player with under 180 minutes reaches the top tenth of an all-leagues
+              metric <strong>17.4%</strong> of the time; a player with a full season does so{" "}
+              <strong>2.1%</strong> of the time. Chance would give both 10%.
+            </p>
+            <p>
+              <strong>The percentile is not adjusted for any of this.</strong> It is not adjusted
+              for season maturity, not adjusted for league strength, and not adjusted for how much
+              evidence stands behind the player&rsquo;s own figure. Those are reported separately —
+              as the composition of the comparison population, as minutes, and as a sample band —
+              because an adjustment folded into a published number is one a reader cannot check.
+            </p>
+            <p>
+              So a player can honestly show a low all-leagues percentile and a full season of
+              minutes at the same time. The percentile describes where their observed value sits in
+              the observed distribution; the sample describes how much football produced that value.
+              They answer different questions and neither corrects the other.
+            </p>
+            <p>
+              Discovery surfaces — recruitment, replacements, opportunities, similar players — do
+              apply an evidence-aware ordering, and they show both numbers: the raw analytical value
+              and the value the list was ordered by, with the reason. That ordering never changes
+              the displayed percentile. Raw analytics and discovery ranking are kept apart on
+              purpose.
+            </p>
+          </>
+        }
+      />
+
+      <Section
         title="Intelligence scores"
         body={
           <>
@@ -208,10 +257,13 @@ export default async function MethodologyPage() {
           finishing ability.
         </Callout>
 
-        <Callout tone="caution" title="Cross-league percentiles are not strength-adjusted">
-          Percentiles calculated across multiple competitions do not account for differences in
-          competition strength. No strength coefficient is applied, because an unvalidated one would
-          introduce error while appearing authoritative.
+        <Callout tone="caution" title="An all-leagues percentile is not a world ranking">
+          It is the rank of an observed per-90 value among the player-seasons currently served. No
+          strength coefficient is applied, because an unvalidated one would introduce error while
+          appearing authoritative; no season-maturity adjustment is applied, because it would
+          replace an observed figure with a modelled one that a reader could not check against the
+          per-90 printed beside it. Neither a high nor a low placement here is a verdict on a
+          player.
         </Callout>
 
         <Callout tone="caution" title="Market value is not a transfer fee">
