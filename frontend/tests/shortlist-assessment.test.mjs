@@ -19,6 +19,12 @@ import test from "node:test";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const row = read("src/components/shortlists/EntryRow.tsx");
+
+/** The words the rows are given, which live in the dictionaries. */
+const copy = {
+  en: JSON.parse(read("src/i18n/dictionaries/en/shortlists.json")),
+  pt: JSON.parse(read("src/i18n/dictionaries/pt/shortlists.json")),
+};
 const table = read("src/components/shortlists/EntriesTable.tsx");
 const actions = read("src/app/actions/shortlists.ts");
 
@@ -50,11 +56,13 @@ test("pros and concerns are separate boxes, not one", () => {
 test("an unassessed player is not described as never reviewed", () => {
   // They were saved and nothing has been claimed about them. That is a
   // different and fairer thing to say about a row nobody has got to.
-  assert.match(row, /Not yet assessed/);
+  assert.match(copy.en.row.notAssessed, /Not yet assessed/);
+  assert.match(copy.pt.row.notAssessed, /Ainda sem avalia\u00e7\u00e3o/);
   // Comments stripped first: the source explains why that phrasing was
   // avoided, and the explanation must not fail the test it describes.
   const code = row.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.equal(/never reviewed/i.test(code), false);
+  assert.equal(/nunca revisto/i.test(JSON.stringify(copy.pt)), false);
 });
 
 test("the status vocabulary comes from the server, not from the component", () => {
@@ -69,9 +77,10 @@ test("filtering by status hides rows and says so", () => {
   // A hidden player is still on the shortlist, still counted and still in the
   // export. A filter that looks like a deletion is worse than no filter.
   // Whitespace-insensitive: this text is wrapped by the formatter.
-  const flat = table.replace(/\s+/g, " ");
-  assert.match(flat, /hidden by this filter/);
-  assert.match(flat, /still in the export/);
+  assert.match(copy.en.entries.hiddenOne, /hidden by this filter/);
+  assert.match(copy.en.entries.hiddenMany, /still in the export/);
+  assert.match(copy.pt.entries.hiddenOne, /escondido por este filtro/);
+  assert.match(copy.pt.entries.hiddenMany, /continuam na exporta\u00e7\u00e3o/);
 });
 
 test("the filter only offers statuses that are actually in use", () => {

@@ -17,6 +17,10 @@ class DependencyStatus(BaseModel):
         default=None,
         description="Short, non-sensitive explanation. Never contains driver or SQL detail.",
     )
+    #: The same diagnostic as a code, so a page can say it in either
+    #: language. `detail` stays, in English, for a caller reading it -
+    #: and for the one case nothing here wrote: a driver's own refusal.
+    detail_message: Message | None = None
 
 
 class HealthResponse(BaseModel):
@@ -49,6 +53,13 @@ class DataSourceStatus(BaseModel):
         )
     )
     notes: str | None = None
+    #: The same note as a code, so a page can say it in either language.
+    #:
+    #: `notes` stays, in English, for a caller already reading it.
+    notes_message: Message | None = None
+    #: The licence, where the source states one. Said separately because
+    #: it is appended to several different notes.
+    licence: str | None = None
 
 
 class SourcePublicationOut(BaseModel):

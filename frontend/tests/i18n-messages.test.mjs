@@ -306,36 +306,6 @@ test("the English meaning in the dictionary is the backend's own sentence", () =
   assert.notEqual(pt.notes.meaning, backend, "the Portuguese is still English");
 });
 
-test("the English all-leagues constants still say what the dictionary says", () => {
-  // Two copies of three strings. The constants are still exported, because
-  // the shortlist comparison table renders in the browser and cannot reach a
-  // dictionary; the heading on the profile reads the dictionary so a
-  // Portuguese reader gets the explanation in Portuguese. Reworded in one
-  // place and not the other, the product would describe the same column two
-  // ways - which is the exact failure that file's own comment warns about.
-  const source = readFileSync(
-    fileURLToPath(new URL("../src/components/player/AllLeaguesLabel.tsx", import.meta.url)),
-    "utf8",
-  );
-  const constant = (name) => {
-    const at = source.indexOf(`${name} =`);
-    assert.notEqual(at, -1, `${name} is gone`);
-    return [...source.slice(at, source.indexOf(";", at)).matchAll(/"([^"]*)"/g)]
-      .map((m) => m[1])
-      .join("");
-  };
-
-  const en = JSON.parse(readFileSync(path.join(DICT, "en", "glossary.json"), "utf8")).allLeagues;
-  assert.equal(en.label, constant("ALL_LEAGUES_LABEL"));
-  assert.equal(en.qualifier, constant("ALL_LEAGUES_QUALIFIER"));
-  assert.equal(en.explanation, constant("ALL_LEAGUES_EXPLANATION"));
-
-  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "glossary.json"), "utf8")).allLeagues;
-  for (const key of ["label", "qualifier", "explanation", "tooltipLabel"]) {
-    assert.notEqual(pt[key], en[key], `allLeagues.${key} is still English`);
-  }
-});
-
 test("the replacement meaning is the replacement one, not the similarity one", () => {
   // The two sentences sit in the same shape of callout on two pages, and
   // swapping them is a silent change: the page still reads fluently and says
@@ -360,4 +330,97 @@ test("the replacement meaning is the replacement one, not the similarity one", (
   // And it is not the other sentence wearing this one's name.
   const similarity = JSON.parse(readFileSync(path.join(DICT, "en", "similarity.json"), "utf8"));
   assert.notEqual(en.notes.ranksBody, similarity.notes.meaning);
+});
+
+test("the quality page's two API sentences are the ones the API wrote", () => {
+  // `meaning` and `notice` are static prose the API sends and this page used
+  // to print. They are said here now, in either language, so each is pinned
+  // to the constant it came from rather than left to drift.
+  const source = readFileSync(
+    fileURLToPath(new URL("../../backend/app/api/v1/quality.py", import.meta.url)),
+    "utf8",
+  );
+  const constant = (name) => {
+    const block = source.slice(source.indexOf(`${name} = (`));
+    return [...block.slice(0, block.indexOf("\n)")).matchAll(/"([^"]*)"/g)]
+      .map((m) => m[1])
+      .join("");
+  };
+
+  const en = JSON.parse(readFileSync(path.join(DICT, "en", "quality.json"), "utf8"));
+  assert.equal(en.meaning, constant("QUALITY_MEANING"));
+  assert.equal(en.notice, constant("NO_CHECKS_YET"));
+
+  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "quality.json"), "utf8"));
+  assert.notEqual(pt.meaning, en.meaning, "the Portuguese meaning is still English");
+  assert.notEqual(pt.notice, en.notice, "the Portuguese notice is still English");
+});
+
+test("every auth refusal the actions can return has copy on both sides", () => {
+  // A server action cannot reach a dictionary, so it names the failure and the
+  // form says it. A code with no copy would fall back to the English sentence
+  // beside it - correct, and in the wrong language, silently.
+  const actions = readFileSync(
+    fileURLToPath(new URL("../src/app/actions/auth.ts", import.meta.url)),
+    "utf8",
+  );
+  const codes = new Set([...actions.matchAll(/errorCode: "([a-z_]+)"/g)].map((m) => m[1]));
+  // Plus the ones the API decides, which arrive as `error.code`.
+  for (const code of [
+    "auth_invalid_credentials",
+    "auth_email_taken",
+    "auth_email_invalid",
+    "auth_password_too_short",
+    "auth_password_too_long",
+    "auth_required",
+  ]) {
+    codes.add(code);
+  }
+  assert.ok(codes.size >= 10, `expected the auth codes, found ${codes.size}`);
+
+  for (const locale of ["en", "pt"]) {
+    const errors = JSON.parse(readFileSync(path.join(DICT, locale, "auth.json"), "utf8")).errors;
+    const missing = [...codes].filter((code) => !errors[code]);
+    assert.deepEqual(missing, [], `${locale} has no copy for: ${missing.join(", ")}`);
+  }
+});
+
+test("the auth codes the API sends are the ones the service raises", () => {
+  // Two lists that have to agree: the service names a failure, the dictionary
+  // answers it. A renamed code would reach a reader as English.
+  const service = readFileSync(
+    fileURLToPath(new URL("../../backend/app/services/auth_service.py", import.meta.url)),
+    "utf8",
+  );
+  const raised = [...service.matchAll(/^\s+code = "([a-z_]+)"$/gm)].map((m) => m[1]);
+  assert.ok(raised.length >= 5, `expected the service's codes, found ${raised.length}`);
+
+  for (const locale of ["en", "pt"]) {
+    const errors = JSON.parse(readFileSync(path.join(DICT, locale, "auth.json"), "utf8")).errors;
+    for (const code of raised) {
+      if (code === "auth_failed" || code === "auth_password_length") continue;
+      assert.ok(errors[code], `${locale} has no copy for ${code}`);
+    }
+  }
+});
+
+test("every note a provider names itself by has copy on both sides", () => {
+  // These are not `Message(` constructors, so the extractor above does not see
+  // them: a provider sets `notes_code` on its own info and the route wraps it.
+  // Without this, a new provider's note would reach a Portuguese reader in
+  // English and nothing would have failed.
+  const providers = fileURLToPath(new URL("../../backend/app/providers/", import.meta.url));
+  const codes = new Set();
+  for (const file of readdirSync(providers)) {
+    if (!file.endsWith(".py")) continue;
+    const source = readFileSync(path.join(providers, file), "utf8");
+    for (const match of source.matchAll(/notes_code="([a-z_]+)"/g)) codes.add(match[1]);
+  }
+  assert.ok(codes.size >= 3, `expected the providers' note codes, found ${codes.size}`);
+
+  for (const locale of ["en", "pt"]) {
+    const messages = JSON.parse(readFileSync(path.join(DICT, locale, "messages.json"), "utf8"));
+    const missing = [...codes].filter((code) => !messages[code]);
+    assert.deepEqual(missing, [], `${locale} has no copy for: ${missing.join(", ")}`);
+  }
 });

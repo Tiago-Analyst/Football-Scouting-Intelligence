@@ -14,6 +14,7 @@ import { CardSkeleton, Skeleton, TableSkeleton } from "@/components/ui/Skeleton"
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, ComingSoonState, EmptyState, ErrorState } from "@/components/ui/States";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { getDictionary } from "@/i18n/dictionaries";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 
@@ -26,7 +27,12 @@ export const metadata: Metadata = { title: "Design system" };
  * regressions and theme problems are visible on one page instead of being
  * discovered feature by feature. Deliberately not linked from site navigation.
  */
-export default function DesignSystemPage() {
+export default async function DesignSystemPage() {
+  // The gallery is not translated - it is an internal component index,
+  // kept out of the navigation and out of the crawlers. It reads the
+  // dictionary only because the components it shows now take their words
+  // as a prop.
+  const t = await getDictionary();
   return (
     <div className="space-y-14">
       <PageHeader
@@ -118,10 +124,10 @@ export default function DesignSystemPage() {
           ))}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <StatusPill state="ok" />
-          <StatusPill state="degraded" />
-          <StatusPill state="unavailable" />
-          <StatusPill state="not_configured" />
+          <StatusPill state="ok" copy={t.status.pills} />
+          <StatusPill state="degraded" copy={t.status.pills} />
+          <StatusPill state="unavailable" copy={t.status.pills} />
+          <StatusPill state="not_configured" copy={t.status.pills} />
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <SampleSizeBadge band="established" minutes={2400} />

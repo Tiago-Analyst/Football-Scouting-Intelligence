@@ -1,3 +1,4 @@
+import type { Dictionary } from "@/i18n/dictionaries";
 import type { MetricCensus, MetaResponse } from "@/types/api";
 
 /**
@@ -12,8 +13,12 @@ import type { MetricCensus, MetaResponse } from "@/types/api";
  *
  * The backend counts them and the pages render this. The counts cannot drift
  * apart because there is only one of them.
+ *
+ * The same argument applies to the words: one sentence per language, in the
+ * dictionary, rather than one per page. The dictionary arrives as a prop
+ * because the four callers are server pages that already have it.
  */
-export function MetricCensusSentence({ meta }: { meta: MetaResponse | null }) {
+export function MetricCensusSentence({ t, meta }: { t: Dictionary; meta: MetaResponse | null }) {
   if (meta === null) {
     // THE API COULD NOT BE ASKED.
     //
@@ -24,13 +29,7 @@ export function MetricCensusSentence({ meta }: { meta: MetaResponse | null }) {
     //
     // Everything below is true whatever the counts turn out to be, so a page
     // built during an outage still says only things that hold.
-    return (
-      <>
-        Some canonical metrics are not supplied by the provider at all, and every score depending on
-        one is either computed from the rest with its coverage stated, or switched off and labelled.
-        Nothing unavailable is ever substituted with something else.
-      </>
-    );
+    return <>{t.common.metricCensus.unreachable}</>;
   }
 
   const census = meta.metric_census;
@@ -38,36 +37,28 @@ export function MetricCensusSentence({ meta }: { meta: MetaResponse | null }) {
     // Asked, and the answer is that nothing has been profiled yet. A real
     // state, and not zero: "no mapping verified" and "39 metrics, none of them
     // supplied" would read identically if this rendered a count.
-    return (
-      <>
-        No provider mapping has been verified yet, so there is nothing truthful to say about how
-        many metrics are available.
-      </>
-    );
+    return <>{t.common.metricCensus.notVerified}</>;
   }
 
-  return (
-    <>
-      Of the {census.total} canonical metrics this project defines, {census.usable} are usable:{" "}
-      {census.native} supplied by the provider as fields of their own and {census.derived} assembled
-      from fields that are. The remaining {census.unavailable} cannot be produced at all, and every
-      score that depends on one is either computed from the rest with its coverage stated, or
-      switched off and labelled. Nothing unavailable is ever substituted with something else.
-    </>
-  );
+  return <>{fill(t.common.metricCensus.sentence, census)}</>;
 }
 
 /**
  * The same counts as a short line, for places with no room for the sentence.
  */
-export function MetricCensusLine({ meta }: { meta: MetaResponse | null }) {
-  if (meta === null) return <>Metric counts unavailable: the API could not be reached</>;
+export function MetricCensusLine({ t, meta }: { t: Dictionary; meta: MetaResponse | null }) {
+  if (meta === null) return <>{t.common.metricCensus.lineUnreachable}</>;
   const census: MetricCensus | null = meta.metric_census;
-  if (census === null) return <>Provider mapping not yet verified</>;
-  return (
-    <>
-      {census.usable} of {census.total} usable · {census.native} supplied · {census.derived} derived
-      · {census.unavailable} unavailable
-    </>
-  );
+  if (census === null) return <>{t.common.metricCensus.lineNotVerified}</>;
+  return <>{fill(t.common.metricCensus.line, census)}</>;
+}
+
+/** The five counts into whichever sentence asked for them. */
+function fill(template: string, census: MetricCensus): string {
+  return template
+    .replace("{total}", String(census.total))
+    .replace("{usable}", String(census.usable))
+    .replace("{native}", String(census.native))
+    .replace("{derived}", String(census.derived))
+    .replace("{unavailable}", String(census.unavailable));
 }

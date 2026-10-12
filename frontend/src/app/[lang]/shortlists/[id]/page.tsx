@@ -7,7 +7,8 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { ComparisonTable } from "@/components/shortlists/ComparisonTable";
 import { EntriesTable } from "@/components/shortlists/EntriesTable";
 import { sampleCopy } from "@/components/ui/SampleSizeBadge";
-import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import { getDictionary, getLocale, type Dictionary } from "@/i18n/dictionaries";
+import { localePath } from "@/i18n/routing";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -18,8 +19,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { MAX_COMPARE } from "@/lib/limits";
 import { getShortlistStatuses } from "@/lib/players";
 import { getComparison, getShortlist } from "@/lib/shortlists";
+import type { ShortlistStatus } from "@/types/api";
 
-export const metadata: Metadata = { title: "Shortlist" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.shortlists.meta.detailTitle };
+}
 
 export default async function ShortlistPage({
   params,
@@ -31,8 +36,11 @@ export default async function ShortlistPage({
   const { id } = await params;
   const query = await searchParams;
   const t = await getDictionary();
+  const d = t.shortlists.detail;
 
-  if (!(await getCurrentUser())) redirect(`/sign-in?next=/shortlists/${id}`);
+  if (!(await getCurrentUser())) {
+    redirect(localePath(await getLocale(), `/sign-in?next=/shortlists/${id}`));
+  }
 
   const shortlistId = Number(id);
   if (!Number.isInteger(shortlistId)) notFound();
@@ -55,13 +63,13 @@ export default async function ShortlistPage({
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Shortlist"
+        eyebrow={d.eyebrow}
         title={shortlist.name}
         description={shortlist.description ?? undefined}
         actions={
           <>
             <ButtonLink href="/shortlists" variant="ghost" size="sm">
-              All shortlists
+              {d.allShortlists}
             </ButtonLink>
             {shortlist.entry_count > 0 ? (
               // A plain link, not a fetch: the browser handles the download,
@@ -72,7 +80,7 @@ export default async function ShortlistPage({
                 size="sm"
                 prefetch={false}
               >
-                Export CSV
+                {d.exportCsv}
               </ButtonLink>
             ) : null}
           </>
@@ -81,21 +89,23 @@ export default async function ShortlistPage({
 
       {shortlist.entries.length === 0 ? (
         <EmptyState
-          title="No players saved yet"
-          description="Open a player profile and save them to this shortlist."
-          action={<ButtonLink href="/players">Search players</ButtonLink>}
+          title={d.emptyTitle}
+          description={d.emptyDescription}
+          action={<ButtonLink href="/players">{d.searchPlayers}</ButtonLink>}
         />
       ) : (
         <EntriesTable
           entries={shortlist.entries}
           shortlistId={shortlistId}
-          statuses={statuses}
+          statuses={localisedStatuses(t, statuses)}
           sampleCopy={sampleCopyByBand(t)}
+          copy={{ ...t.shortlists.entries, row: t.shortlists.row }}
         />
       )}
 
       {comparison ? (
         <ComparisonTable
+          t={t}
           comparison={comparison}
           scope={scope}
           shortlistId={shortlistId}
@@ -105,18 +115,21 @@ export default async function ShortlistPage({
 
       {requested.length > 0 && !comparison ? (
         <p className="text-sm text-muted">
-          That comparison could not be shown. Choose up to {MAX_COMPARE} players from this
-          shortlist.
+          {d.comparisonFailed.replace("{max}", String(MAX_COMPARE))}
         </p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Rename" />
+          <CardHeader title={d.renameTitle} />
           <CardBody>
-            <AuthForm action={renameShortlistAction} submitLabel="Save changes">
+            <AuthForm
+              action={renameShortlistAction}
+              submitLabel={d.saveChanges}
+              copy={{ ...t.auth.form, errors: t.auth.errors }}
+            >
               <input type="hidden" name="shortlist_id" value={shortlistId} />
-              <Field label="Name" htmlFor="name">
+              <Field label={t.shortlists.index.name} htmlFor="name">
                 <TextInput
                   id="name"
                   name="name"
@@ -125,7 +138,11 @@ export default async function ShortlistPage({
                   defaultValue={shortlist.name}
                 />
               </Field>
-              <Field label="Description" htmlFor="description" hint="Optional.">
+              <Field
+                label={t.shortlists.index.descriptionLabel}
+                htmlFor="description"
+                hint={t.shortlists.index.optional}
+              >
                 <TextInput
                   id="description"
                   name="description"
@@ -139,22 +156,22 @@ export default async function ShortlistPage({
 
         <Card>
           <CardHeader
-            title="Delete this shortlist"
-            description="The players and your notes go with it. This cannot be undone."
+            title={d.deleteTitle}
+            description={d.deleteDescription}
           />
           <CardBody>
             <form action={deleteShortlistAction}>
               <input type="hidden" name="shortlist_id" value={shortlistId} />
               <Button type="submit" variant="danger">
-                Delete “{shortlist.name}”
+                {d.deleteButton.replace("{name}", shortlist.name)}
               </Button>
             </form>
             <p className="mt-3 text-xs text-subtle">
-              Only you can see this list.{" "}
+              {d.privateBefore}
               <Link href="/methodology" className="underline hover:text-text">
-                How the numbers are calculated
+                {d.privateLink}
               </Link>
-              .
+              {d.privateAfter}
             </p>
           </CardBody>
         </Card>
@@ -176,4 +193,22 @@ function sampleCopyByBand(t: Dictionary) {
       sampleCopy(t, band),
     ]),
   );
+}
+
+/**
+ * The statuses, named in the reader's language.
+ *
+ * The API sends a key and an English label, and the key is the one thing that
+ * cannot change. Rows render in the browser, so the naming happens here and
+ * travels with them.
+ */
+function localisedStatuses(t: Dictionary, statuses: ShortlistStatus[]): ShortlistStatus[] {
+  return statuses.map((status) => ({
+    ...status,
+    label: t.shortlists.statuses[status.key as keyof typeof t.shortlists.statuses] ?? status.label,
+    description:
+      t.shortlists.statusDescriptions[
+        status.key as keyof typeof t.shortlists.statusDescriptions
+      ] ?? status.description,
+  }));
 }

@@ -56,5 +56,13 @@
     "titleTemplate": "%s · Football Recruitment Intelligence",
     "description": "Inteligência de recrutamento para o futebol: percentis contextuais, papéis de jogador, semelhança estatística e análise de mercado.",
     "ogLocale": "pt_PT"
+  },
+  "metricCensus": {
+    "unreachable": "Algumas métricas canónicas não são de todo fornecidas pelo fornecedor, e cada pontuação que dependa de uma delas ou é calculada a partir das restantes com a sua cobertura declarada, ou é desligada e assinalada. Nada indisponível é alguma vez substituído por outra coisa.",
+    "notVerified": "Ainda não foi verificado nenhum mapeamento do fornecedor, pelo que não há nada de verdadeiro a dizer sobre quantas métricas estão disponíveis.",
+    "sentence": "Das {total} métricas canónicas que este projecto define, {usable} são utilizáveis: {native} fornecidas como campos próprios e {derived} montadas a partir de campos que o são. As restantes {unavailable} não podem ser produzidas de todo, e cada pontuação que dependa de uma delas ou é calculada a partir das restantes com a sua cobertura declarada, ou é desligada e assinalada. Nada indisponível é alguma vez substituído por outra coisa.",
+    "lineUnreachable": "Contagens de métricas indisponíveis: não foi possível contactar a API",
+    "lineNotVerified": "Mapeamento do fornecedor ainda não verificado",
+    "line": "{usable} de {total} utilizáveis · {native} fornecidas · {derived} derivadas · {unavailable} indisponíveis"
   }
 }

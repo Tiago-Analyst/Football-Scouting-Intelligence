@@ -43,6 +43,7 @@ export function EntryRow({
   selectionDisabled,
   onToggle,
   sampleCopy,
+  copy,
 }: {
   entry: ShortlistEntry;
   shortlistId: number;
@@ -53,6 +54,8 @@ export function EntryRow({
   /** The sample wording for every band, resolved by the server page.
    * A Client Component cannot read the dictionary itself. */
   sampleCopy: Record<string, SampleCopy>;
+  /** Same reason: the words come from the server page, not a dictionary. */
+  copy: Record<string, string>;
 }) {
   const { player } = entry;
 
@@ -67,7 +70,10 @@ export function EntryRow({
           // still lines up with the others.
           disabled={player === null || (selectionDisabled && !selected)}
           onChange={() => onToggle(entry.player_key)}
-          aria-label={`Compare ${player?.name ?? entry.saved_as ?? entry.player_key}`}
+          aria-label={copy.compareAria.replace(
+            "{name}",
+            player?.name ?? entry.saved_as ?? entry.player_key,
+          )}
           className="size-4 accent-[var(--accent)] disabled:opacity-40"
         />
       </TD>
@@ -90,7 +96,7 @@ export function EntryRow({
               {player.club ? <span>· {player.club}</span> : null}
               {player.minutes !== null ? (
                 <>
-                  <span>· {formatCount(player.minutes)} min</span>
+                  <span>· {copy.minutes.replace("{minutes}", formatCount(player.minutes))}</span>
                   <SampleSizeBadgeView
                     band={player.sample_band}
                     copy={sampleCopy[player.sample_band]}
@@ -99,7 +105,7 @@ export function EntryRow({
               ) : null}
             </>
           ) : (
-            <Badge tone="warning">Not in current data</Badge>
+            <Badge tone="warning">{copy.notInData}</Badge>
           )}
         </div>
         {entry.unavailable_reason ? (
@@ -116,12 +122,12 @@ export function EntryRow({
         <StatusBadge status={entry.status} label={entry.status_label} />
         <div className="mt-1 text-[11px] text-subtle">
           {entry.last_reviewed_at ? (
-            `Reviewed ${formatDateTime(entry.last_reviewed_at)}`
+            copy.reviewed.replace("{when}", formatDateTime(entry.last_reviewed_at))
           ) : (
             // Not "never reviewed": the player was saved and nothing has been
             // claimed about them yet, which is a different and fairer thing to
             // say about a row nobody has got to.
-            <span className="italic">Not yet assessed</span>
+            <span className="italic">{copy.notAssessed}</span>
           )}
         </div>
       </TD>
@@ -136,6 +142,7 @@ export function EntryRow({
           entry={entry}
           shortlistId={shortlistId}
           statuses={statuses}
+          copy={copy}
         />
       </TD>
 
@@ -143,14 +150,17 @@ export function EntryRow({
         <form action={removePlayerAction}>
           <input type="hidden" name="shortlist_id" value={shortlistId} />
           <input type="hidden" name="player_id" value={entry.player_key} />
-          <RemoveButton name={player?.name ?? entry.saved_as ?? "this player"} />
+          <RemoveButton
+            name={player?.name ?? entry.saved_as ?? copy.thisPlayer}
+            copy={copy}
+          />
         </form>
       </TD>
     </TR>
   );
 }
 
-function RemoveButton({ name }: { name: string }) {
+function RemoveButton({ name, copy }: { name: string; copy: Record<string, string> }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -158,8 +168,8 @@ function RemoveButton({ name }: { name: string }) {
       disabled={pending}
       className="rounded-md border border-transparent px-2 py-1 text-xs text-muted transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
     >
-      {pending ? "Removing…" : "Remove"}
-      <span className="sr-only"> {name} from this shortlist</span>
+      {pending ? copy.removing : copy.remove}
+      <span className="sr-only">{copy.removeSrOnly.replace("{name}", name)}</span>
     </button>
   );
 }
@@ -168,10 +178,12 @@ function AssessmentEditor({
   entry,
   shortlistId,
   statuses,
+  copy,
 }: {
   entry: ShortlistEntry;
   shortlistId: number;
   statuses: ShortlistStatus[];
+  copy: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(
@@ -195,13 +207,13 @@ function AssessmentEditor({
             {/* Which sides of the argument exist, without printing both into
                 a table cell. An entry with only one is worth noticing. */}
             <span className="block text-[11px] text-subtle">
-              {entry.pros ? "For" : null}
+              {entry.pros ? copy.for : null}
               {entry.pros && entry.concerns ? " · " : null}
-              {entry.concerns ? "Against" : null}
+              {entry.concerns ? copy.against : null}
             </span>
           </>
         ) : (
-          <span className="text-subtle italic">Add an assessment</span>
+          <span className="text-subtle italic">{copy.addAssessment}</span>
         )}
       </button>
     );
@@ -213,7 +225,7 @@ function AssessmentEditor({
       <input type="hidden" name="player_id" value={entry.player_key} />
 
       <label className="block space-y-1">
-        <span className="text-[11px] font-medium text-subtle">Status</span>
+        <span className="text-[11px] font-medium text-subtle">{copy.statusLabel}</span>
         <select
           name="status"
           defaultValue={entry.status}
@@ -222,7 +234,9 @@ function AssessmentEditor({
         >
           {statuses.map((status) => (
             <option key={status.key} value={status.key}>
-              {status.label} — {status.description}
+              {copy.statusOption
+                .replace("{label}", status.label)
+                .replace("{description}", status.description)}
             </option>
           ))}
         </select>
@@ -230,27 +244,27 @@ function AssessmentEditor({
 
       <AssessmentField
         name="note"
-        label="Note"
+        label={copy.note}
         rows={3}
         maxLength={2000}
         value={entry.note}
-        placeholder="What you want to remember about this player."
+        placeholder={copy.notePlaceholder}
       />
       <AssessmentField
         name="pros"
-        label="For"
+        label={copy.for}
         rows={2}
         maxLength={1000}
         value={entry.pros}
-        placeholder="What makes them worth pursuing."
+        placeholder={copy.prosPlaceholder}
       />
       <AssessmentField
         name="concerns"
-        label="Against"
+        label={copy.against}
         rows={2}
         maxLength={1000}
         value={entry.concerns}
-        placeholder="What would stop you."
+        placeholder={copy.concernsPlaceholder}
       />
 
       {state.error ? (
@@ -259,17 +273,17 @@ function AssessmentEditor({
         </p>
       ) : null}
       <div className="flex items-center gap-2">
-        <SaveAssessmentButton />
+        <SaveAssessmentButton copy={copy} />
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="text-xs text-subtle hover:text-text"
         >
-          Cancel
+          {copy.cancel}
         </button>
       </div>
       <p className="text-[11px] leading-relaxed text-subtle">
-        Saving records today as the review date. An empty box clears it.
+        {copy.savingNote}
       </p>
     </form>
   );
@@ -305,7 +319,7 @@ function AssessmentField({
   );
 }
 
-function SaveAssessmentButton() {
+function SaveAssessmentButton({ copy }: { copy: Record<string, string> }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -313,7 +327,7 @@ function SaveAssessmentButton() {
       disabled={pending}
       className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-fg disabled:opacity-50"
     >
-      {pending ? "Saving…" : "Save assessment"}
+      {pending ? copy.saving : copy.save}
     </button>
   );
 }

@@ -15,6 +15,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { actionPath } from "@/i18n/redirect";
+
 import { ApiError, apiFetch } from "@/lib/api";
 import { sessionHeader } from "@/lib/auth";
 import type { FormState } from "@/lib/forms";
@@ -87,13 +89,13 @@ export async function createShortlistAction(
   }
 
   refresh();
-  redirect(`/shortlists/${created.shortlist_id}`);
+  redirect(await actionPath(`/shortlists/${created.shortlist_id}`));
 }
 
 export async function deleteShortlistAction(data: FormData): Promise<void> {
   const id = Number(field(data, "shortlist_id"));
   const cookie = await sessionHeader();
-  if (!cookie || !Number.isInteger(id)) redirect("/shortlists");
+  if (!cookie || !Number.isInteger(id)) redirect(await actionPath("/shortlists"));
 
   try {
     await apiFetch(`/api/v1/shortlists/${id}`, { method: "DELETE", cookie });
@@ -102,7 +104,7 @@ export async function deleteShortlistAction(data: FormData): Promise<void> {
   }
 
   refresh(id);
-  redirect("/shortlists");
+  redirect(await actionPath("/shortlists"));
 }
 
 export async function renameShortlistAction(
@@ -232,7 +234,7 @@ export async function removePlayerAction(data: FormData): Promise<void> {
   const id = Number(field(data, "shortlist_id"));
   const playerId = field(data, "player_id");
   const cookie = await sessionHeader();
-  if (!cookie) redirect("/sign-in");
+  if (!cookie) redirect(await actionPath("/sign-in"));
 
   try {
     await apiFetch(

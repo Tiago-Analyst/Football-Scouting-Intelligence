@@ -28,8 +28,20 @@ const flat = (s) => s.replace(/\s+/g, " ");
 const label = read("src/components/player/AllLeaguesLabel.tsx");
 const profile = read("src/app/[lang]/players/[slug]/page.tsx");
 const comparison = read("src/components/shortlists/ComparisonTable.tsx");
-const methodology = read("src/app/[lang]/methodology/page.tsx");
-const dataQuality = read("src/app/[lang]/data-quality/page.tsx");
+
+/** The one description of this column, per language. */
+const allLeagues = {
+  en: JSON.parse(read("src/i18n/dictionaries/en/glossary.json")).allLeagues,
+  pt: JSON.parse(read("src/i18n/dictionaries/pt/glossary.json")).allLeagues,
+};
+const method = {
+  en: JSON.parse(read("src/i18n/dictionaries/en/methodology.json")),
+  pt: JSON.parse(read("src/i18n/dictionaries/pt/methodology.json")),
+};
+const quality = {
+  en: JSON.parse(read("src/i18n/dictionaries/en/quality.json")),
+  pt: JSON.parse(read("src/i18n/dictionaries/pt/quality.json")),
+};
 
 /** Every .tsx under src, so an audit of copy cannot miss a new page. */
 function sources(dir = SRC) {
@@ -50,38 +62,49 @@ function copyOf(file) {
 }
 
 test("the qualification travels with the number, not only in a footer", () => {
-  assert.match(label, /mixed season maturity/);
+  assert.match(allLeagues.en.qualifier, /mixed season maturity/);
   assert.match(profile, /<AllLeaguesHeading \/>/);
 });
 
 test("every surface showing the rank uses the one description", () => {
   // Two surfaces show it. A second wording would eventually disagree with the
-  // first, which is the whole reason this lives in one file.
-  assert.match(comparison, /ALL_LEAGUES_QUALIFIER/);
-  assert.match(comparison, /ALL_LEAGUES_EXPLANATION/);
+  // first, which is the whole reason the words live in one dictionary entry.
+  assert.match(comparison, /t\.glossary\.allLeagues\.qualifier/);
+  assert.match(comparison, /t\.glossary\.allLeagues\.explanation/);
+  assert.match(label, /copy\.qualifier/);
+  assert.match(label, /copy\.explanation/);
   assert.equal(
     /"All leagues"/.test(comparison),
     false,
-    "the comparison table hardcodes the label instead of importing it",
+    "the comparison table hardcodes the label instead of reading the glossary",
   );
 });
 
+test("the column is described in both languages, and not twice in English", () => {
+  for (const key of ["label", "qualifier", "explanation", "tooltipLabel"]) {
+    assert.ok(allLeagues.pt[key], `pt is missing allLeagues.${key}`);
+    assert.notEqual(allLeagues.pt[key], allLeagues.en[key], `allLeagues.${key} is still English`);
+  }
+});
+
 test("the explanation says what it is a rank of", () => {
-  const flattened = flat(label);
-  assert.match(flattened, /observed per-90 value/);
-  assert.match(flattened, /currently served/);
+  assert.match(allLeagues.en.explanation, /observed per-90 value/);
+  assert.match(allLeagues.en.explanation, /currently served/);
+  assert.match(allLeagues.pt.explanation, /valor por 90 minutos observado/);
 });
 
 test("the explanation says what it is not adjusted for", () => {
-  const flattened = flat(label);
-  assert.match(flattened, /not adjusted/);
-  assert.match(flattened, /how strong a league is/);
+  assert.match(allLeagues.en.explanation, /not adjusted/);
+  assert.match(allLeagues.en.explanation, /how strong a league is/);
+  assert.match(allLeagues.pt.explanation, /n\u00e3o \u00e9 ajustada/);
+  assert.match(allLeagues.pt.explanation, /for\u00e7a de cada liga/);
 });
 
 test("it points sample evidence at the separate thing it is", () => {
   // A low percentile beside an established sample is not a contradiction, and
   // the explanation has to say so or the two read as a conflict.
-  assert.match(flat(label), /minutes and a sample band/);
+  assert.match(allLeagues.en.explanation, /minutes and a sample band/);
+  assert.match(allLeagues.pt.explanation, /minutos e numa faixa de amostra/);
 });
 
 /**
@@ -142,34 +165,51 @@ test("the disclaimer exemption cannot be used to smuggle a claim in", () => {
 });
 
 test("methodology explains the decision rather than assuming it", () => {
-  const flattened = flat(methodology);
-  assert.match(flattened, /What an all-leagues percentile is a rank against/);
-  assert.match(flattened, /observed per-90 value/i);
-  assert.match(flattened, /different points in their seasons/i);
-  assert.match(flattened, /not adjusted for season maturity/i);
-  assert.match(flattened, /not adjusted for league strength/i);
+  // The page still makes every one of these claims; they are written in the
+  // dictionaries now, so that is where they are checked.
+  const en = flat(JSON.stringify(method.en.allLeagues));
+  assert.match(en, /What an all-leagues percentile is a rank against/);
+  assert.match(en, /observed per-90 value/i);
+  assert.match(en, /different points in their seasons/i);
+  assert.match(en, /not adjusted for season maturity/i);
+  assert.match(en, /not adjusted for league strength/i);
+
+  // And makes them in Portuguese, or the Portuguese page states a rank
+  // without the qualifications that make it honest.
+  const pt = flat(JSON.stringify(method.pt.allLeagues));
+  assert.match(pt, /valor por 90 minutos observado/i);
+  assert.match(pt, /pontos diferentes das suas \u00e9pocas/i);
+  assert.match(pt, /n\u00e3o \u00e9 ajustado \u00e0 maturidade da \u00e9poca/i);
+  assert.match(pt, /n\u00e3o \u00e9 ajustado \u00e0 for\u00e7a da liga/i);
 });
 
 test("methodology says a low rank beside a full season is not a contradiction", () => {
-  assert.match(flat(methodology), /answer different questions and neither corrects the other/i);
+  assert.match(method.en.allLeagues.bothAtOnce, /answer different questions and neither corrects the other/i);
+  assert.match(method.pt.allLeagues.bothAtOnce, /nenhum corrige o outro/i);
 });
 
 test("methodology says discovery ordering does not touch the displayed value", () => {
-  assert.match(flat(methodology), /never changes the displayed percentile/i);
+  assert.match(method.en.allLeagues.discovery, /never changes the displayed percentile/i);
+  assert.match(method.pt.allLeagues.discovery, /nunca altera o percentil apresentado/i);
 });
 
 test("the cross-league caution no longer offers strength as the only limit", () => {
   // It used to name league strength and stop there, which left a reader to
   // assume everything else about the number was handled.
-  assert.match(flat(methodology), /is not a world ranking/i);
-  assert.match(flat(methodology), /season-maturity adjustment/i);
+  assert.match(method.en.limits.notWorldRankingTitle, /is not a world ranking/i);
+  assert.match(method.en.limits.notWorldRanking, /season-maturity adjustment/i);
+  assert.match(method.pt.limits.notWorldRankingTitle, /n\u00e3o \u00e9 uma classifica\u00e7\u00e3o mundial/i);
+  assert.match(method.pt.limits.notWorldRanking, /ajuste de maturidade de \u00e9poca/i);
 });
 
 test("data quality keeps the season-maturity section and carries measurements", () => {
-  const flattened = flat(dataQuality);
-  assert.match(flattened, /How far into their seasons the competitions are/);
-  assert.match(flattened, /17\.4%/);
-  assert.match(flattened, /2\.1%/);
+  for (const locale of ["en", "pt"]) {
+    const limits = quality[locale].limits;
+    assert.ok(limits.maturityTitle, `${locale} has no maturity section`);
+    assert.match(limits.maturityMeasured, /17[.,]4%/);
+    assert.match(limits.maturityMeasured, /2[.,]1%/);
+  }
+  assert.match(quality.en.limits.maturityTitle, /How far into their seasons the competitions are/);
 });
 
 test("nothing introduced a maturity eligibility rule", () => {

@@ -11,6 +11,13 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+
+import { dictionary } from "./helpers/dictionaries.mjs";
+
+const copy = {
+  en: dictionary("en", "shortlists").comparison,
+  pt: dictionary("pt", "shortlists").comparison,
+};
 import test from "node:test";
 
 import { leadingValues } from "../src/lib/comparison.ts";
@@ -99,5 +106,9 @@ test("the table marks the value, never the percentile", () => {
   assert.equal(/leaders[^\n]*percentile/.test(source), false);
   // And says so, because a highlighted number with no stated rule reads as
   // "best player".
-  assert.match(source.replace(/\s+/g, " "), /largest per 90 minutes, not the best player/);
+  // The sentence moved into the dictionaries, so the claim is checked where
+  // it is written - and in both languages, because a rule stated only in
+  // English is a rule half the readers never see.
+  assert.match(copy.en.footnote, /largest per 90 minutes, not the best player/);
+  assert.match(copy.pt.footnote, /maior por 90 minutos, n\u00e3o o melhor jogador/);
 });

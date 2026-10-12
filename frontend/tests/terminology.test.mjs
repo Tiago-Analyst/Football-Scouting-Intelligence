@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { copy } from "./helpers/dictionaries.mjs";
+import { copy, dictionary } from "./helpers/dictionaries.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
@@ -54,11 +54,15 @@ test("metric coverage and feature coverage stay different words", () => {
 });
 
 test("the comparison names all three role numbers it shows", () => {
-  const table = read("src/components/shortlists/ComparisonTable.tsx");
-  const flat = table.replace(/\s+/g, " ");
-  assert.match(flat, /raw fit/);
-  assert.match(flat, /role fit percentile/);
-  assert.match(flat, /metric coverage/);
+  const en = dictionary("en", "shortlists").comparison;
+  assert.match(en.rawFit, /raw fit/);
+  assert.match(en.roleFitPercentile, /role fit percentile/);
+  assert.match(en.metricCoverage, /metric coverage/);
+  // Three different numbers, named as three in Portuguese too.
+  const pt = dictionary("pt", "shortlists").comparison;
+  assert.match(pt.rawFit, /aptid\u00e3o bruta/);
+  assert.match(pt.roleFitPercentile, /percentil .* aptid\u00e3o para o papel/);
+  assert.match(pt.metricCoverage, /cobertura de m\u00e9tricas/);
 });
 
 test("similarity says what it is not, wherever it is shown", () => {

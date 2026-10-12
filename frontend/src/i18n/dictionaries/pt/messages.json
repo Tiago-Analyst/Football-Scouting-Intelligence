@@ -54,5 +54,21 @@
   "recruitment_blocked_scores": "Nenhum jogador pôde ser ordenado: {scores} não pode ser produzida a partir dos dados carregados. Cada candidato precisa de todas as pontuações pedidas, pelo que um perfil que pondere uma que não existe não corresponde a ninguém. Retirá-la do perfil resolve; estreitar os filtros não.",
   "recruitment_none_scored": "{considered} jogadores corresponderam aos filtros, mas nenhum pôde receber todas as pontuações pedidas — em regra por haver demasiado poucos jogadores comparáveis na sua competição e posição para servirem de referência.",
   "ranking_shrunk": "Ordenada em {ranked} e não em {raw}: com {minutes} minutos, esta {ranked_noun} sustenta-se em {pct}% da evidência de uma época completa, pelo que é lida mais perto da média {centre} ({mean}) do que uma época completa seria. A {ranked_noun} em si mantém-se inalterada.",
-  "ranking_shrunk_no_minutes": "Ordenada em {ranked} e não em {raw}: sem minutos registados, esta {ranked_noun} sustenta-se em {pct}% da evidência de uma época completa, pelo que é lida mais perto da média {centre} ({mean}) do que uma época completa seria. A {ranked_noun} em si mantém-se inalterada."
+  "ranking_shrunk_no_minutes": "Ordenada em {ranked} e não em {raw}: sem minutos registados, esta {ranked_noun} sustenta-se em {pct}% da evidência de uma época completa, pelo que é lida mais perto da média {centre} ({mean}) do que uma época completa seria. A {ranked_noun} em si mantém-se inalterada.",
+  "provider_notes_footystats": "{usable} de {total} métricas canónicas utilizáveis: {native} fornecidas como campos e {derived} derivadas de campos que o são. Indisponíveis: {metrics}. O grupo posicional só é fornecido para guarda-redes; o vocabulário de quatro valores do fornecedor não permite determinar os restantes.",
+  "provider_notes_transfermarkt": "Instantâneo de um conjunto de dados público. O tipo de transferência e a segunda nacionalidade não são trazidos por esta fonte e ficam por preencher.",
+  "provider_notes_demo": "Dados de demonstração fabricados. Os jogadores, clubes e competições são inventados e nenhum valor descreve um desempenho real.",
+  "market_notes_serving": "A servir {valued} avaliações actuais, {valuations} avaliações históricas e {transfers} transferências; {contracts} jogadores têm fim de contrato registado. Contado a partir da base de dados por trás das páginas, e não de um instantâneo de ingestão.",
+  "market_notes_none_served": "Não estão a ser servidos dados de mercado, e não há instantâneo disponível para carregar nenhuns.",
+  "market_notes_snapshot_not_served": "Um instantâneo é legível mas não estão a ser servidas linhas de mercado: as páginas que precisam delas ficarão vazias.",
+  "health_database_unreachable": "Não foi possível estabelecer ligação à base de dados.",
+  "health_database_unmigrated": "Base de dados acessível, mas as migrações não foram aplicadas.",
+  "health_footystats_no_key_demo": "Nenhuma chave de API fornecida. Estão em uso dados de desempenho fictícios.",
+  "health_footystats_no_key": "Nenhuma chave de API fornecida. Os dados de desempenho de produção estão indisponíveis.",
+  "health_footystats_unprofiled": "Chave de API presente, mas nenhum campo foi verificado contra uma resposta real da API. Corra o pipeline de levantamento.",
+  "health_footystats_ok": "{usable} de {total} métricas canónicas utilizáveis: {native} fornecidas como campos, {derived} derivadas de campos que o são, {unavailable} indisponíveis. Verificadas contra respostas reais; não contactadas por esta verificação.",
+  "health_analytics_empty": "Não há dados de jogadores carregados. Corra o pipeline de ingestão; até lá, a pesquisa, os perfis e as ordenações não têm nada para servir.",
+  "health_analytics_stale": "A servir {seasons} épocas de jogador construídas em {built}. A base de dados foi carregada desde então; reinicie a API para servir os novos dados.",
+  "health_analytics_ok": "{seasons} épocas de jogador em {competitions} competições, construídas em {built}.",
+  "health_analytics_ok_excluded": "{seasons} épocas de jogador em {competitions} competições, construídas em {built}. {excluded} excluídos por não terem grupo posicional."
 }

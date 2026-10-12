@@ -70,6 +70,7 @@ class MockMarketProvider(MarketDataProvider):
             licence=None,
             source_url=None,
             notes=DEMO_DATA_WARNING,
+            notes_code="provider_notes_demo",
         )
 
     def get_competitions(self) -> list[MarketCompetition]:

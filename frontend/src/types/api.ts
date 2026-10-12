@@ -15,6 +15,8 @@ export interface DependencyStatus {
   name: string;
   status: DependencyState;
   detail: string | null;
+  /** The same diagnostic as a code, which this side can say in either language. */
+  detail_message?: ApiMessage | null;
 }
 
 export interface HealthResponse {
@@ -39,6 +41,10 @@ export interface DataSourceStatus {
    */
   validated: boolean;
   notes: string | null;
+  /** The same note as a code, which this side can say in either language. */
+  notes_message?: ApiMessage | null;
+  /** The licence the source states, said separately from the note. */
+  licence?: string | null;
 }
 
 export interface SourcePublication {
@@ -936,6 +942,8 @@ export interface RefreshGeneration {
 
 export interface RefreshStatus {
   state: string;
+  /** The same five states as a key, which this side names itself. */
+  state_key: string;
   published: RefreshGeneration | null;
   current: RefreshGeneration | null;
 }

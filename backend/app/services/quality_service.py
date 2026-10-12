@@ -762,6 +762,8 @@ class RefreshStatus:
 
     #: Fetching | Validating | Ready to publish | Failed | Idle.
     state: str
+    #: The same five states as a key, for an interface that names them itself.
+    state_key: str
     published: GenerationSummary | None
     current: GenerationSummary | None
 
@@ -797,18 +799,21 @@ def refresh_status(session: Session) -> RefreshStatus | None:
         None,
     )
 
-    state = "Idle"
+    # The word and the key beside it: the word is the English sentence, the
+    # key is what an interface in another language names the same state by.
+    state, state_key = "Idle", "idle"
     if current is not None:
-        state = {
-            "IN_PROGRESS": "Fetching",
-            "COMPLETE": "Validating",
-            "VALIDATED": "Ready to publish",
+        state, state_key = {
+            "IN_PROGRESS": ("Fetching", "fetching"),
+            "COMPLETE": ("Validating", "validating"),
+            "VALIDATED": ("Ready to publish", "ready_to_publish"),
         }[current.status]
     elif rows[-1].status == "FAILED":
-        state = "Failed"
+        state, state_key = "Failed", "failed"
 
     return RefreshStatus(
         state=state,
+        state_key=state_key,
         published=_summarise(published) if published else None,
         current=_summarise(current) if current else None,
     )

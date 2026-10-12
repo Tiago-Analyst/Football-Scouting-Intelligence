@@ -65,24 +65,48 @@ GENERIC_SIGNIN_ERROR = "Email or password is incorrect."
 
 
 class AuthError(Exception):
-    """Authentication or registration could not proceed."""
+    """Authentication or registration could not proceed.
+
+    Carries a CODE as well as the sentence. The sentence is English and the
+    form that shows it may be rendering in another language, so the interface
+    needs to be able to say this itself rather than print what arrived. The
+    sentence stays for any caller already reading it, and `values` carries the
+    numbers a translated sentence would need.
+    """
+
+    code = "auth_failed"
+
+    def __init__(self, message: str, *, values: dict[str, int] | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.values = values or {}
 
 
 class EmailAlreadyRegistered(AuthError):
-    pass
+    code = "auth_email_taken"
 
 
 class InvalidCredentials(AuthError):
+    code = "auth_invalid_credentials"
+
     def __init__(self) -> None:
         super().__init__(GENERIC_SIGNIN_ERROR)
 
 
 class WeakPassword(AuthError):
-    pass
+    code = "auth_password_length"
+
+
+class PasswordTooShort(WeakPassword):
+    code = "auth_password_too_short"
+
+
+class PasswordTooLong(WeakPassword):
+    code = "auth_password_too_long"
 
 
 class InvalidEmail(AuthError):
-    pass
+    code = "auth_email_invalid"
 
 
 @dataclass(frozen=True)
@@ -118,9 +142,15 @@ def validate_password(password: str) -> None:
     denial-of-service vector.
     """
     if len(password) < MIN_PASSWORD_LENGTH:
-        raise WeakPassword(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
+        raise PasswordTooShort(
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters.",
+            values={"length": MIN_PASSWORD_LENGTH},
+        )
     if len(password) > MAX_PASSWORD_LENGTH:
-        raise WeakPassword(f"Password must be at most {MAX_PASSWORD_LENGTH} characters.")
+        raise PasswordTooLong(
+            f"Password must be at most {MAX_PASSWORD_LENGTH} characters.",
+            values={"length": MAX_PASSWORD_LENGTH},
+        )
 
 
 def hash_password(password: str) -> str:

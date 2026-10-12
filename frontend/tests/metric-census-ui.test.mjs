@@ -20,9 +20,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-const flat = (s) => s.replace(/\s+/g, " ");
 
 const component = read("src/components/quality/MetricCensus.tsx");
+
+/** The sentence itself, which lives in the dictionaries. */
+const census = {
+  en: JSON.parse(read("src/i18n/dictionaries/en/common.json")).metricCensus,
+  pt: JSON.parse(read("src/i18n/dictionaries/pt/common.json")).metricCensus,
+};
 
 /** The unreachable branch, comments stripped: only what actually renders. */
 function unreachableBranch() {
@@ -40,20 +45,28 @@ test("an unreachable API makes no claim about what was verified", () => {
 });
 
 test("what it says instead is true whatever the counts are", () => {
-  assert.match(flat(component), /Some canonical metrics are not supplied by the provider at all/);
+  assert.match(census.en.unreachable, /Some canonical metrics are not supplied by the provider at all/);
+  assert.ok(census.pt.unreachable);
   // No number, because it does not have one.
+  assert.equal(/\d\d/.test(census.en.unreachable), false);
   assert.equal(/\d\d/.test(unreachableBranch()), false);
 });
 
 test("an empty mapping is still reported as an empty mapping", () => {
   // The other real state, and it must not be lost in fixing the first.
-  assert.match(flat(component), /No provider mapping has been verified yet/);
+  assert.match(census.en.notVerified, /No provider mapping has been verified yet/);
+  assert.ok(census.pt.notVerified);
   assert.match(component, /census === null/);
 });
 
 test("the counts are rendered only when they were actually received", () => {
   assert.match(component, /meta\.metric_census/);
-  assert.match(flat(component), /canonical metrics this project defines/);
+  assert.match(census.en.sentence, /canonical metrics this project defines/);
+  // The same five counts in both, or one language states a different census.
+  for (const name of ["total", "usable", "native", "derived", "unavailable"]) {
+    assert.ok(census.en.sentence.includes(`{${name}}`), `en census omits {${name}}`);
+    assert.ok(census.pt.sentence.includes(`{${name}}`), `pt census omits {${name}}`);
+  }
 });
 
 test("the pages hand over the whole response, not a flattened null", () => {

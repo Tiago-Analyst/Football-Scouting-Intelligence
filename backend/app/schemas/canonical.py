@@ -393,6 +393,13 @@ class ProviderInfo(BaseModel):
     validated: bool
     available_metrics: frozenset[CanonicalMetric]
     notes: str | None = None
+    #: The same note as a code, for an interface that says it itself.
+    #:
+    #: `notes` is English and the status page may be rendering in another
+    #: language. The sentence stays for any caller already reading it.
+    notes_code: str | None = None
+    #: The numbers that sentence needs, flat and primitive.
+    notes_values: dict[str, str | int | float] = Field(default_factory=dict)
     #: Metrics in `available_metrics` the provider has no field for, computed
     #: from ones it does supply. Non-penalty goals is goals minus penalty
     #: goals; FootyStats carries no non-penalty figure of its own. Kept

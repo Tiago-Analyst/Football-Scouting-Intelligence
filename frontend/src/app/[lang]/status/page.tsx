@@ -5,31 +5,38 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/States";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { apiMessage } from "@/components/player/ApiMessage";
+import { getDictionary } from "@/i18n/dictionaries";
 import { getHealth, getMeta } from "@/lib/system";
 
-export const metadata: Metadata = { title: "System status" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.status.meta.title };
+}
 
 export default async function StatusPage() {
+  const t = await getDictionary();
+  const s = t.status;
   const [health, meta] = await Promise.all([getHealth(), getMeta()]);
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        eyebrow="Operations"
-        title="System status"
-        description="Live health of the API and every dependency it needs, read directly from the backend."
-      />
+      <PageHeader eyebrow={s.eyebrow} title={s.title} description={s.description} />
 
       {health === null ? (
         <ErrorState
-          title="Backend unreachable"
+          title={s.unreachableTitle}
           description={
             <>
-              No response from the API. Start it with{" "}
-              <code className="font-mono text-xs">uvicorn app.main:app --reload --port 8000</code>{" "}
-              from <code className="font-mono text-xs">backend/</code>, and check that{" "}
-              <code className="font-mono text-xs">API_BASE_URL</code> in{" "}
-              <code className="font-mono text-xs">frontend/.env.local</code> points at it.
+              {s.unreachableBefore}
+              <code className="font-mono text-xs">uvicorn app.main:app --reload --port 8000</code>
+              {s.unreachableMiddle}
+              <code className="font-mono text-xs">backend/</code>
+              {s.unreachableThen}
+              <code className="font-mono text-xs">API_BASE_URL</code>
+              {s.unreachableIn}
+              <code className="font-mono text-xs">frontend/.env.local</code>
+              {s.unreachableAfter}
             </>
           }
         />
@@ -37,21 +44,26 @@ export default async function StatusPage() {
         <>
           <Card>
             <CardHeader
-              title="Application"
-              action={<StatusPill state={health.status === "ok" ? "ok" : "degraded"} />}
+              title={s.appTitle}
+              action={
+                <StatusPill
+                  state={health.status === "ok" ? "ok" : "degraded"}
+                  copy={s.pills}
+                />
+              }
             />
             <CardBody>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-                <Detail label="Mode" value={health.app_mode} />
-                <Detail label="Environment" value={health.app_env} />
-                <Detail label="Version" value={health.version} />
-                <Detail label="Schema revision" value={health.schema_revision ?? "not migrated"} />
+                <Detail label={s.mode} value={health.app_mode} />
+                <Detail label={s.environment} value={health.app_env} />
+                <Detail label={s.version} value={health.version} />
+                <Detail label={s.schema} value={health.schema_revision ?? s.notMigrated} />
               </dl>
             </CardBody>
           </Card>
 
           <Card>
-            <CardHeader title="Dependencies" />
+            <CardHeader title={s.dependencies} />
             <ul className="divide-y divide-border">
               {health.dependencies.map((dependency) => (
                 <li
@@ -61,10 +73,12 @@ export default async function StatusPage() {
                   <div className="min-w-0 space-y-1">
                     <p className="font-mono text-sm">{dependency.name}</p>
                     {dependency.detail ? (
-                      <p className="text-xs text-muted">{dependency.detail}</p>
+                      <p className="text-xs text-muted">
+                        {apiMessage(t, dependency.detail_message) ?? dependency.detail}
+                      </p>
                     ) : null}
                   </div>
-                  <StatusPill state={dependency.status} />
+                  <StatusPill state={dependency.status} copy={s.pills} />
                 </li>
               ))}
             </ul>
@@ -74,17 +88,16 @@ export default async function StatusPage() {
 
       {meta ? (
         <Card>
-          <CardHeader
-            title="Data provenance"
-            description="Which provider is behind each figure, and whether its schema has been verified."
-          />
+          <CardHeader title={s.provenanceTitle} description={s.provenanceDescription} />
           <ul className="divide-y divide-border">
             {meta.data_sources.map((source) => (
               <li key={source.name} className="space-y-2 px-5 py-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{source.name}</span>
+                  <span className="text-sm font-medium">
+                    {s.sources[source.kind as keyof typeof s.sources] ?? source.name}
+                  </span>
                   <span className="font-mono text-xs text-subtle">{source.provider}</span>
-                  {source.is_mock ? <Badge tone="warning">Mock data</Badge> : null}
+                  {source.is_mock ? <Badge tone="warning">{s.mock}</Badge> : null}
                   {/* Whether this source's schema has been profiled against real
                       responses, decided by the backend. For market data that is a
                       question about the rows being served, not about an ingestion
@@ -92,12 +105,22 @@ export default async function StatusPage() {
                       by design, and used to be reported as the data being
                       unavailable while every profile showed a market value. */}
                   {source.validated ? (
-                    <Badge tone="positive">Validated</Badge>
+                    <Badge tone="positive">{s.validated}</Badge>
                   ) : (
-                    <Badge tone="neutral">Pending validation</Badge>
+                    <Badge tone="neutral">{s.pending}</Badge>
                   )}
                 </div>
-                {source.notes ? <p className="text-xs text-muted">{source.notes}</p> : null}
+                {/* The note is the API's answer and the words are this side's,
+                    where it named one. A refusal the registry wrote arrives with
+                    no code and is reported exactly as it came. */}
+                {source.notes ? (
+                  <p className="text-xs text-muted">
+                    {apiMessage(t, source.notes_message) ?? source.notes}
+                    {source.licence
+                      ? ` ${s.sources.licence.replace("{licence}", source.licence)}`
+                      : null}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

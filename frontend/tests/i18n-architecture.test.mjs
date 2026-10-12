@@ -340,3 +340,29 @@ test("the plain button stays free of server-only imports", () => {
   assert.equal(/AppLink/.test(button), false, "Button imports AppLink again");
   assert.equal(/root-params|i18n\/dictionaries/.test(button), false);
 });
+
+test("no redirect leaves the locale behind", () => {
+  // `redirect("/sign-in")` from a page under `[lang]` sends a Portuguese
+  // reader to a path with no locale in it. The proxy then picks one from the
+  // cookie or from Accept-Language, which is usually right and sometimes is
+  // not: a reader who opened a shared `/pt/...` link has stated a language in
+  // the URL and may have no cookie saying so. They landed in English, mid
+  // flow, with the page they had asked for behind them.
+  //
+  // A page knows its locale from the root parameter; an action cannot, so it
+  // reads the stored preference. Either way the path is built, never bare.
+  const bare = /redirect\(\s*[`"']\//;
+  for (const file of sources()) {
+    const relative = file.slice(file.indexOf("src"));
+    const normalised = relative.split(path.sep).join("/");
+    if (!normalised.includes("src/app/")) continue;
+    const source = readFileSync(file, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    assert.equal(
+      bare.test(source),
+      false,
+      `${relative} redirects to a path with no locale in it`,
+    );
+  }
+});

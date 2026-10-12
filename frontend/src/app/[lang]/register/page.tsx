@@ -6,36 +6,42 @@ import { registerAction } from "@/app/actions/auth";
 import { AuthForm, EmailField, PasswordField } from "@/components/auth/AuthForm";
 import { Card, CardBody, CardFooter } from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
+import { getDictionary, getLocale } from "@/i18n/dictionaries";
+import { localePath } from "@/i18n/routing";
 import { getCurrentUser } from "@/lib/auth";
 
-export const metadata: Metadata = {
-  title: "Create an account",
-  description: "Create an account to save shortlists, notes and searches.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.auth.register.metaTitle, description: t.auth.register.metaDescription };
+}
 
 export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string }>;
 }) {
+  const t = await getDictionary();
+  const copy = { ...t.auth.form, errors: t.auth.errors };
   const params = await searchParams;
-  if (await getCurrentUser()) redirect("/account");
+  if (await getCurrentUser()) redirect(localePath(await getLocale(), "/account"));
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
-        <p className="text-sm text-muted">
-          Only to hold your own shortlists and notes. Nothing you can already read requires one.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.auth.register.title}</h1>
+        <p className="text-sm text-muted">{t.auth.register.description}</p>
       </div>
 
       <Card>
         <CardBody>
-          <AuthForm action={registerAction} submitLabel="Create account">
+          <AuthForm action={registerAction} submitLabel={t.auth.register.submit} copy={copy}>
             <input type="hidden" name="next" value={params.next ?? "/"} />
-            <EmailField autoFocus />
-            <Field label="Display name" htmlFor="display_name" hint="Optional.">
+            <EmailField copy={copy} autoFocus />
+            <Field
+              label={t.auth.register.displayName}
+              htmlFor="display_name"
+              hint={t.auth.register.displayNameHint}
+            >
               <TextInput
                 id="display_name"
                 name="display_name"
@@ -45,22 +51,23 @@ export default async function RegisterPage({
               />
             </Field>
             <PasswordField
+              label={t.auth.form.password}
               autoComplete="new-password"
               minLength={10}
-              hint="At least 10 characters. Length is what matters — a passphrase of ordinary words is stronger than a short one with symbols."
+              hint={t.auth.register.passwordHint}
             />
             <PasswordField
               name="confirm_password"
-              label="Confirm password"
+              label={t.auth.register.confirmPassword}
               autoComplete="new-password"
               minLength={10}
             />
           </AuthForm>
         </CardBody>
         <CardFooter className="text-center text-muted">
-          Already have an account?{" "}
+          {t.auth.register.haveAccount}{" "}
           <Link href="/sign-in" className="font-medium text-accent hover:underline">
-            Sign in
+            {t.auth.register.signIn}
           </Link>
         </CardFooter>
       </Card>

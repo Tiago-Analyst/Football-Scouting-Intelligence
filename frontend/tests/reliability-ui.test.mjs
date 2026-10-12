@@ -294,7 +294,6 @@ test("maturity is never described as league strength", () => {
  */
 
 const similar = read("src/app/[lang]/similar/page.tsx");
-const dataQuality = read("src/app/[lang]/data-quality/page.tsx");
 
 test("limited similarity evidence is marked at the index's own size", () => {
   for (const [name, source] of [
@@ -328,15 +327,25 @@ test("the page does not decide what counts as dominant", () => {
 });
 
 test("data quality says what the figures cannot say about themselves", () => {
-  const flattened = flat(dataQuality);
-  assert.match(flattened, /Limits of the analysis itself/);
-  assert.match(flattened, /how far into their seasons/i);
-  assert.match(flattened, /partial evidence/i);
-  assert.match(flattened, /four shots/);
+  const limits = dictionary("en", "quality").limits;
+  assert.match(limits.title, /Limits of the analysis itself/);
+  assert.match(limits.maturityTitle, /how far into their seasons/i);
+  assert.match(limits.roleAfter, /partial evidence/i);
+  assert.match(limits.eventsBody, /four shots/);
+  // And says all three in Portuguese: a page that drops them in one language
+  // presents the same figures with fewer qualifications.
+  const pt = dictionary("pt", "quality").limits;
+  for (const key of ["title", "maturityTitle", "roleTitle", "eventsTitle", "eventsBody"]) {
+    assert.ok(pt[key], `pt is missing limits.${key}`);
+  }
 });
 
 test("and it does not turn season maturity into league strength", () => {
-  assert.match(flat(dataQuality), /about time, not about strength/i);
+  assert.match(dictionary("en", "quality").limits.maturityBody, /about time, not about strength/i);
+  assert.match(
+    dictionary("pt", "quality").limits.maturityBody,
+    /sobre tempo, n\u00e3o sobre for\u00e7a/i,
+  );
 });
 
 /**

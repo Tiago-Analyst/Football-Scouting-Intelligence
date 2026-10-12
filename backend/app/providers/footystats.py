@@ -255,6 +255,15 @@ class FootyStatsProvider(PerformanceDataProvider):
                 "Position group is supplied only for goalkeepers; the provider's "
                 "four-value position vocabulary cannot determine the others."
             ),
+            notes_code="provider_notes_footystats",
+            notes_values={
+                "usable": census.usable,
+                "total": census.total,
+                "native": census.native,
+                "derived": census.derived,
+                # Metric KEYS, joined. The interface names them.
+                "metrics": ",".join(sorted(missing)),
+            },
         )
 
     # -- HTTP ---------------------------------------------------------------
