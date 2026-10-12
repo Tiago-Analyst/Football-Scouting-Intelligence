@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
+import { getDictionary } from "@/i18n/dictionaries";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount } from "@/lib/format";
@@ -41,7 +42,8 @@ import type { Sample } from "@/types/api";
  * Neither number withholds anything. This player is ranked, scored and
  * comparable whatever these say.
  */
-export function DataConfidence({ sample }: { sample: Sample }) {
+export async function DataConfidence({ sample }: { sample: Sample }) {
+  const t = await getDictionary();
   const coverage = sample.detailed_coverage_pct;
   const inconsistent = sample.provider_minutes_inconsistent === true;
 
@@ -49,9 +51,7 @@ export function DataConfidence({ sample }: { sample: Sample }) {
     <Card>
       <CardHeader
         title={
-          <span className="flex items-center gap-1.5">
-            Data confidence
-            <Tooltip label="What is data confidence?">
+          <span className="flex items-center gap-1.5">{t.components.dataConfidence.title}<Tooltip label={t.components.dataConfidence.tooltipLabel}>
               Three separate questions, and a profile can answer two of them well and the third
               badly. How much football these figures rest on; how much of that football the provider
               recorded in enough detail to count; and how many of the profile&rsquo;s own metrics
@@ -63,14 +63,14 @@ export function DataConfidence({ sample }: { sample: Sample }) {
         }
       />
       <CardBody>
-        <Group title="Playing sample">
+        <Group title={t.components.dataConfidence.playingSample}>
           <dl className="divide-y divide-border">
             <Row
-              term="Minutes played"
+              term={t.components.dataConfidence.minutesPlayed}
               value={sample.minutes !== null ? formatCount(sample.minutes) : "N/A"}
             />
             <Row
-              term="Sample"
+              term={t.components.dataConfidence.sample}
               value={
                 <Badge tone={SAMPLE_TONE[sample.band] === "warning" ? "warning" : "neutral"}>
                   {sample.band_label || SAMPLE_LABEL[sample.band]}
@@ -80,14 +80,14 @@ export function DataConfidence({ sample }: { sample: Sample }) {
           </dl>
         </Group>
 
-        <Group title="Detailed data" className="mt-5">
+        <Group title={t.components.dataConfidence.detailedData} className="mt-5">
           <dl className="divide-y divide-border">
             <Row
               term={
                 <span className="flex items-center gap-1.5">
                   Recorded minutes
                   {sample.coverage_explanation ? (
-                    <Tooltip label="Why does this differ from minutes played?">
+                    <Tooltip label={t.components.dataConfidence.recordedTooltipLabel}>
                       {sample.coverage_explanation}
                     </Tooltip>
                   ) : null}
@@ -98,7 +98,7 @@ export function DataConfidence({ sample }: { sample: Sample }) {
               }
             />
             <Row
-              term="Detailed minutes coverage"
+              term={t.components.dataConfidence.detailedCoverage}
               value={
                 coverage !== null ? (
                   <span className="flex items-center justify-end gap-2">
@@ -106,13 +106,15 @@ export function DataConfidence({ sample }: { sample: Sample }) {
                       {/* Capped. See the note above the component. */}
                       {inconsistent ? "100%+" : `${Math.round(coverage)}%`}
                     </span>
-                    {sample.coverage_band && sample.coverage_label && !inconsistent ? (
+                    {sample.coverage_band && !inconsistent ? (
                       <Badge
                         tone={
                           COVERAGE_TONE[sample.coverage_band] === "warning" ? "warning" : "neutral"
                         }
                       >
-                        {sample.coverage_label}
+                        {t.glossary.coverageBands[
+                          sample.coverage_band as keyof typeof t.glossary.coverageBands
+                        ] ?? sample.coverage_label}
                       </Badge>
                     ) : null}
                   </span>
@@ -131,18 +133,20 @@ export function DataConfidence({ sample }: { sample: Sample }) {
                 played and detail coverage say nothing about how many of the
                 profile's metrics could actually be computed. */}
             <Row
-              term="Analytical metric coverage"
+              term={t.components.dataConfidence.analyticalCoverage}
               value={
                 sample.metric_coverage_pct != null ? (
                   <span className="flex items-center justify-end gap-2">
                     <span className="tabular">{Math.round(sample.metric_coverage_pct)}%</span>
                     {sample.metrics_available != null && sample.metrics_expected != null ? (
                       <span className="text-xs text-subtle">
-                        {sample.metrics_available} of {sample.metrics_expected} profile metrics
+                        {t.components.dataConfidence.profileMetrics
+                          .replace("{available}", String(sample.metrics_available))
+                          .replace("{expected}", String(sample.metrics_expected))}
                       </span>
                     ) : null}
                     {sample.metric_coverage_pct < 80 ? (
-                      <Badge tone="warning">Incomplete profile</Badge>
+                      <Badge tone="warning">{t.components.dataConfidence.incomplete}</Badge>
                     ) : null}
                   </span>
                 ) : (
@@ -152,15 +156,15 @@ export function DataConfidence({ sample }: { sample: Sample }) {
             />
             {inconsistent ? (
               <Row
-                term="Status"
+                term={t.components.dataConfidence.status}
                 value={
                   <span className="flex items-center justify-end gap-1.5">
                     <Badge tone="warning">
-                      {sample.minutes_discrepancy_label ?? "Provider minute discrepancy"}
+                      {t.components.dataConfidence.providerDiscrepancy}
                     </Badge>
                     {sample.minutes_discrepancy_explanation ? (
-                      <Tooltip label="What does that mean?">
-                        {sample.minutes_discrepancy_explanation}
+                      <Tooltip label={t.components.dataConfidence.whatMeansLabel}>
+                        {t.messages.minutes_discrepancy_explanation}
                       </Tooltip>
                     ) : null}
                   </span>
@@ -170,7 +174,9 @@ export function DataConfidence({ sample }: { sample: Sample }) {
           </dl>
         </Group>
 
-        <p className="mt-4 text-xs leading-relaxed text-muted">{sample.explanation}</p>
+        <p className="mt-4 text-xs leading-relaxed text-muted">
+          {t.glossary.sampleExplanations[sample.band]}
+        </p>
       </CardBody>
     </Card>
   );

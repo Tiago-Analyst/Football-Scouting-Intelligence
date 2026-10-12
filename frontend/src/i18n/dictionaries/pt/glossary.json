@@ -176,5 +176,44 @@
   "evidenceNouns": {
     "shots": "remates",
     "dribbles_attempted": "dribles tentados"
+  },
+  "roleCaveats": {
+    "advanced_playmaker": "As assistências esperadas e os passes-chave — a criação que dá nome a este papel — estão intactos. A progressão é a parte não medida.",
+    "attacking_full_back": "O cruzamento e a criação de oportunidades que definem um lateral ofensivo estão intactos; conduzir a bola para a frente é a parte não medida.",
+    "ball_playing_centre_back": "A progressão é o componente que define este papel, pelo que isto deve ser lido como volume e precisão de passe de um defesa-central e não como progressão de bola medida. Não é comparável em confiança com um papel avaliado a partir da sua definição completa.",
+    "ball_winning_midfielder": "Desarmes, intercepções e duelos ganhos — a recuperação em si — estão medidos. O que não está é a eficácia aérea, que não tem denominador. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "box_to_box_midfielder": "As contribuições defensiva e ofensiva que definem um médio box-to-box estão intactas; conduzir a bola para a frente é a parte não medida. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "complete_forward": "A eficácia nos duelos aéreos não pode ser medida: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador.",
+    "deep_lying_playmaker": "A progressão é o que distingue um organizador recuado de um passador arrumado, pelo que isto deve ser lido como volume, precisão e criação de passe a partir de trás, e não como progressão medida. Não é comparável em confiança com um papel avaliado a partir da sua definição completa.",
+    "defensive_full_back": "O núcleo defensivo do papel está intacto; o que é frágil é a eficácia aérea, que não tem denominador nenhum para ser medida. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta. É por isso ponderado abaixo dos duelos e das intercepções, e nomeado pelo que é em vez de substituir a taxa de desarmes bem sucedidos em torno da qual o papel foi inicialmente escrito.",
+    "defensive_stopper": "A eficácia nos duelos aéreos não pode ser medida de todo: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "shot_stopper": "As estatísticas básicas de guarda-redes dependem muito do contexto da equipa: um guardião atrás de uma defesa fraca enfrenta mais e melhores oportunidades, o que inflaciona o volume de defesas e deprime a percentagem. Sem uma métrica de golos esperados pós-remate, a excelência na defesa de remates não pode ser inferida destes números.",
+    "target_forward": "A eficácia nos duelos aéreos não pode ser medida: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador. Para um papel em que os duelos aéreos são quase metade do peso, isso não é um pormenor: o volume não distingue um avançado dominante de um que disputa constantemente e perde."
+  },
+  "rankingNouns": {
+    "score": "pontuação",
+    "profile_score": "pontuação do perfil",
+    "role_fit": "aptidão para o papel",
+    "similarity": "semelhança",
+    "replacement_score": "pontuação de substituição"
+  },
+  "rankingCentres": {
+    "search": "desta pesquisa",
+    "every_player_with_role_fit": "de todos os jogadores com uma aptidão para o papel"
+  },
+  "feet": {
+    "left": "esquerdo",
+    "right": "direito",
+    "both": "ambos"
+  },
+  "allLeagues": {
+    "label": "Todas as ligas",
+    "qualifier": "maturidade de época mista",
+    "tooltipLabel": "O que é a posição entre todas as ligas",
+    "explanation": "Ordena o valor por 90 minutos observado deste jogador face a todas as épocas de jogador actualmente servidas na sua posição. Essas competições estão em pontos diferentes das suas épocas, e a posição não é ajustada a isso, nem à força de cada liga. Quanto futebol sustenta o valor do próprio jogador é reportado à parte, em minutos e numa faixa de amostra."
+  },
+  "replacementComponents": {
+    "role_fit": "Aptidão para o papel",
+    "affordability": "Comportabilidade"
   }
 }

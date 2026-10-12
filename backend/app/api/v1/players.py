@@ -24,6 +24,7 @@ from app.analytics.coverage import (
 from app.analytics.intelligence import IntelligenceScore, ScoreDefinition
 from app.analytics.interpretation import (
     NOT_CAPTURED,
+    Finding,
     MetricReading,
     RoleReading,
     ScoreReading,
@@ -34,6 +35,7 @@ from app.analytics.percentiles import ComparisonContext, PercentileResult, Perce
 from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
+from app.api.v1.messages import ranking_message as _ranking_message
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
@@ -280,6 +282,7 @@ def to_score(
             for component in score.components
         ],
         missing=[metric_label(m) for m in score.missing],
+        missing_keys=[str(m) for m in score.missing],
         validity=getattr(score, "validity", None),
         core_dimensions=[
             CoreDimensionOut(
@@ -407,6 +410,7 @@ def _interpret(
     return read_profile(
         best_role=roles.best if roles is not None else None,
         alternatives=[a.label for a in roles.alternatives[:3]] if roles is not None else [],
+        alternative_keys=[a.key for a in roles.alternatives[:3]] if roles is not None else [],
         scores=stats.scores,
         metrics=stats.metrics,
         sample=stats.sample,
@@ -418,6 +422,9 @@ def read_profile(
     *,
     best_role: ScoreOut | None,
     alternatives: list[str],
+    #: The same alternatives as identifiers. A localised reading names them
+    #: from these; the labels above stay for the English sentence.
+    alternative_keys: list[str] | None = None,
     scores: list[ScoreOut],
     metrics: list[MetricOut],
     sample: SampleOut,
@@ -439,6 +446,7 @@ def read_profile(
         best = best_role
         role_reading = RoleReading(
             label=best.label,
+            key=best.key,
             score=best.score,
             percentile=best.role_fit_percentile,
             coverage=best.coverage,
@@ -446,6 +454,8 @@ def read_profile(
             missing=tuple(best.missing),
             alternatives=tuple(alternatives),
             components=tuple(c.label for c in best.components),
+            missing_keys=tuple(best.missing_keys),
+            alternative_keys=tuple(alternative_keys or ()),
         )
 
     reading = interpret(
@@ -457,6 +467,7 @@ def read_profile(
                 s.coverage,
                 low_evidence=bool(s.evidence and s.evidence.low),
                 evidence_label=s.evidence.label if s.evidence else None,
+                key=s.key,
             )
             for s in scores
         ],
@@ -466,25 +477,40 @@ def read_profile(
         ],
         minutes=sample.minutes,
         sample_band_label=sample.band_label,
+        sample_band=sample.band,
         detailed_coverage_pct=sample.detailed_coverage_pct,
         position_label=position_label,
     )
     if reading.is_empty:
         return None
 
+    def finding(f: Finding) -> FindingOut:
+        return FindingOut(
+            label=f.label,
+            percentile=f.percentile,
+            reading=f.reading,
+            metric=f.metric,
+            reading_code=f.reading_code,
+        )
+
+    def messages(pairs: list[tuple[str, dict[str, str | int | float]]]) -> list[Message]:
+        return [Message(code=code, values=values) for code, values in pairs]
+
     return ScoutingInterpretationOut(
         profile=reading.profile,
-        strengths=[
-            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
-            for f in reading.strengths
-        ],
-        watch_outs=[
-            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
-            for f in reading.watch_outs
-        ],
+        strengths=[finding(f) for f in reading.strengths],
+        watch_outs=[finding(f) for f in reading.watch_outs],
         unavailable=reading.unavailable,
         confidence=reading.confidence,
         not_captured=list(NOT_CAPTURED),
+        profile_messages=messages(reading.profile_messages),
+        unavailable_messages=messages(reading.unavailable_messages),
+        confidence_messages=messages(reading.confidence_messages),
+        # Six fixed statements. Numbered rather than matched, so the list can
+        # grow without anything having to recognise a sentence.
+        not_captured_messages=[
+            Message(code=f"not_captured_{index + 1}") for index in range(len(NOT_CAPTURED))
+        ],
     )
 
 
@@ -504,6 +530,13 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         evidence_weight=result.ranking.weight if result.ranking else 1.0,
         ranking_note=(
             result.ranking.explain(minutes=result.candidate_minutes, noun="similarity")
+            if result.ranking
+            else None
+        ),
+        ranking_note_message=(
+            _ranking_message(
+                result.ranking, minutes=result.candidate_minutes, noun_key="similarity"
+            )
             if result.ranking
             else None
         ),

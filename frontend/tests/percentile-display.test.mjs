@@ -24,6 +24,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { copy } from "./helpers/dictionaries.mjs";
+
 import { ordinal } from "../src/lib/format.ts";
 
 test("ordinals: the ones that are obvious", () => {
@@ -182,7 +184,9 @@ test("the raw distribution rank is kept, not discarded", () => {
   // correctly at a glance; the first is still on the page, named.
   const page = readFileSync(new URL("../src/app/[lang]/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
-  assert.match(flat, /ordinal\(metric\.percentile\)\} by raw value/);
+  assert.match(flat, /t\.profile\.performance\.byRawValue/);
+  assert.match(copy("en", "profile"), /\{percentile\} by raw value/);
+  assert.match(copy("pt", "profile"), /\{percentile\} por valor bruto/);
   assert.match(flat, /metric\.lower_is_better && metric\.percentile !== null/);
 });
 
@@ -192,5 +196,6 @@ test("the wider population is named, not left to be guessed", () => {
   const page = readFileSync(new URL("../src/app/[lang]/players/[slug]/page.tsx", import.meta.url), "utf8");
   const flat = page.replace(/\s+/g, " ");
   assert.match(flat, /global_context\.population_size/);
-  assert.match(flat, /adjusted for how strong a league is/);
+  assert.match(copy("en", "profile"), /adjusted for how strong a league is/);
+  assert.match(copy("pt", "profile"), /ajustada à força da liga/);
 });

@@ -26,9 +26,25 @@ export interface WeightedScore {
   label: string;
 }
 
-function joinWords(items: string[]): string {
+/** The sentence fragments this builder assembles, in one language. */
+export interface SummaryCopy {
+  subjectPlayer: string;
+  subjectPosition: string;
+  prioritising: string;
+  even: string;
+  moderate: string;
+  limited: string;
+  withClause: string;
+  joinAnd: string;
+  joinComma: string;
+  clauseJoin: string;
+  sentenceJoin: string;
+  fullStop: string;
+}
+
+function joinWords(items: string[], copy: SummaryCopy): string {
   if (items.length <= 1) return items[0] ?? "";
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  return `${items.slice(0, -1).join(copy.joinComma)}${copy.joinAnd}${items[items.length - 1]}`;
 }
 
 /**
@@ -36,10 +52,24 @@ function joinWords(items: string[]): string {
  *
  * Returns null when nothing is weighted, because "you are looking for a player
  * prioritising nothing" is worse than silence.
+ *
+ * WHY THE FRAGMENTS ARE PASSED IN
+ *
+ * This used to build an English sentence with English grammar: "with" to
+ * introduce the first secondary clause and "and" to join the second, a comma
+ * before the last of a list. None of that survives translation unchanged -
+ * Portuguese orders these clauses differently and joins them with different
+ * words - so the shape of the sentence has to come from the dictionary rather
+ * than from this file.
+ *
+ * It takes copy rather than reading it, because the recruitment page is where
+ * the dictionary is already in hand and this is a plain function, not a
+ * component.
  */
 export function describeProfile(
   weights: Record<string, number>,
   scores: WeightedScore[],
+  copy: SummaryCopy,
   positionLabel?: string,
 ): string | null {
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
@@ -55,33 +85,39 @@ export function describeProfile(
   const moderate = named.filter((item) => item.share >= MODERATE && item.share < PRIMARY);
   const slight = named.filter((item) => item.share < MODERATE);
 
+  const subject = positionLabel
+    ? copy.subjectPosition.replace("{position}", positionLabel.toLowerCase())
+    : copy.subjectPlayer;
+
   // When nothing clears the primary band the profile is genuinely even, and
   // saying "prioritising X" of a weight barely above the others would invent
   // an emphasis the person did not express.
-  const subject = positionLabel ? `a ${positionLabel.toLowerCase()}` : "a player";
-  const parts: string[] = [];
-
-  if (leading.length > 0) {
-    parts.push(`prioritising ${joinWords(leading.map((item) => item.label))}`);
-  } else {
-    return (
-      `You are looking for ${subject} with no single emphasis: ` +
-      `${joinWords(named.map((item) => item.label))} weighted evenly.`
-    );
+  if (leading.length === 0) {
+    return copy.even
+      .replace("{subject}", subject)
+      .replace("{items}", joinWords(named.map((item) => item.label), copy));
   }
-  // "with" introduces the first secondary clause and "and" joins a second to
-  // it. Hard-coding one word each produced "prioritising X and Y, and limited
-  // weight on Z" whenever the middle band happened to be empty.
+
+  const parts: string[] = [
+    copy.prioritising
+      .replace("{subject}", subject)
+      .replace("{items}", joinWords(leading.map((item) => item.label), copy)),
+  ];
+
   const secondary: string[] = [];
   if (moderate.length > 0) {
-    secondary.push(`moderate weight on ${joinWords(moderate.map((item) => item.label))}`);
+    secondary.push(
+      copy.moderate.replace("{items}", joinWords(moderate.map((item) => item.label), copy)),
+    );
   }
   if (slight.length > 0) {
-    secondary.push(`limited weight on ${joinWords(slight.map((item) => item.label))}`);
+    secondary.push(
+      copy.limited.replace("{items}", joinWords(slight.map((item) => item.label), copy)),
+    );
   }
   if (secondary.length > 0) {
-    parts.push(`with ${secondary.join(", and ")}`);
+    parts.push(copy.withClause.replace("{clauses}", secondary.join(copy.clauseJoin)));
   }
 
-  return `You are looking for ${subject} ${parts.join(", ")}.`;
+  return `${parts.join(copy.sentenceJoin)}${copy.fullStop}`;
 }

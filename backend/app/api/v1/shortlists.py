@@ -403,6 +403,7 @@ def compare(
                 interpretation=read_profile(
                     best_role=to_score(fit.best) if fit and fit.best else None,
                     alternatives=[a.label for a in fit.alternatives[:3]] if fit else [],
+                    alternative_keys=[a.key for a in fit.alternatives[:3]] if fit else [],
                     scores=column_scores,
                     metrics=metrics,
                     sample=to_sample(record, view),

@@ -16,6 +16,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { copy } from "./helpers/dictionaries.mjs";
+
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
 test("a raw role fit is never headed just 'Role fit'", () => {
@@ -23,16 +25,20 @@ test("a raw role fit is never headed just 'Role fit'", () => {
   // roles are not comparable and the percentile is - so a column that does not
   // say which it is, is a column nobody can read.
   for (const file of ["src/app/[lang]/replacements/page.tsx", "src/app/[lang]/opportunities/page.tsx"]) {
-    const source = read(file);
-    assert.equal(/<TH numeric>Role fit<\/TH>/.test(source), false, file);
-    assert.match(source, /Raw role fit/i, file);
+    assert.equal(/<TH numeric>Role fit<\/TH>/.test(read(file)), false, file);
+  }
+  for (const dict of ["replacements", "opportunities"]) {
+    assert.match(copy("en", dict), /Raw role fit/i, dict);
+    // "Aptidão bruta" carries the same distinction: bruta is the
+    // unranked composite, and the percentile is named separately.
+    assert.match(copy("pt", dict), /Aptidão bruta/i, dict);
   }
 });
 
 test("feature coverage is called feature coverage wherever similarity is shown", () => {
-  for (const file of ["src/app/[lang]/players/[slug]/page.tsx", "src/app/[lang]/similar/page.tsx"]) {
-    const source = read(file);
-    assert.match(source, /Feature coverage/, file);
+  for (const dict of ["profile", "similarity"]) {
+    assert.match(copy("en", dict), /Feature coverage/, dict);
+    assert.match(copy("pt", dict), /Cobertura de atributos/, dict);
   }
 });
 
@@ -40,9 +46,11 @@ test("metric coverage and feature coverage stay different words", () => {
   // One is the share of a role's definition backed by supplied metrics; the
   // other is the share of a similarity vector two players shared. Collapsing
   // them into "coverage" would merge two unrelated figures under one label.
-  const profile = read("src/app/[lang]/players/[slug]/page.tsx");
-  assert.match(profile, /metric coverage/i);
-  assert.match(profile, /Feature coverage/);
+  assert.match(copy("en", "profile"), /metric coverage/i);
+  assert.match(copy("pt", "profile"), /cobertura de métricas/i);
+  // Different words in Portuguese too: métricas against atributos.
+  assert.match(copy("en", "profile"), /Feature coverage/);
+  assert.match(copy("pt", "profile"), /Cobertura de atributos/);
 });
 
 test("the comparison names all three role numbers it shows", () => {
@@ -60,6 +68,6 @@ test("similarity says what it is not, wherever it is shown", () => {
   const search = read("src/app/[lang]/similar/page.tsx").replace(/\s+/g, " ");
   assert.match(search, /not a probability/);
 
-  const profile = read("src/app/[lang]/players/[slug]/page.tsx");
-  assert.match(profile, /index, not %/);
+  assert.match(copy("en", "profile"), /index, not %/);
+  assert.match(copy("pt", "profile"), /índice, não %/);
 });

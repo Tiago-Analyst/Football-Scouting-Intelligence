@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 import { AppLink as Link } from "@/components/ui/AppLink";
 import { notFound } from "next/navigation";
 
-import { getLocale } from "@/i18n/dictionaries";
+import { apiMessage } from "@/components/player/ApiMessage";
+import { positionName } from "@/components/player/PositionName";
+import { RoleName, roleLabel } from "@/components/player/RoleName";
+import { getDictionary, getLocale } from "@/i18n/dictionaries";
 
 import { AllLeaguesHeading } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
@@ -95,17 +98,26 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
 
   const { player, stats, roles, similar } = profile;
   const locale = await getLocale();
+  const t = await getDictionary();
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Player profile"
+        eyebrow={t.profile.eyebrow}
         title={player.name}
         description={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {player.age !== null ? <span>{player.age} years</span> : null}
+            {player.age !== null ? (
+              <span>{t.profile.years.replace("{age}", String(player.age))}</span>
+            ) : null}
             <Sep />
-            <span>{player.raw_position ?? player.position_group}</span>
+            <span>
+              {positionName(t, player.raw_position) ??
+                t.glossary.positions[
+                  player.position_group as keyof typeof t.glossary.positions
+                ] ??
+                player.position_group}
+            </span>
             {player.nationality ? (
               <>
                 <Sep />
@@ -123,25 +135,37 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
             {player.preferred_foot ? (
               <>
                 <Sep />
-                <span>{player.preferred_foot} footed</span>
+                {/* A closed three-value vocabulary from the provider, so it is
+                    named rather than printed: "pé right" is the kind of half-
+                    translated line this phase exists to remove. An unmapped
+                    value still shows, rather than disappearing. */}
+                <span>
+                  {t.profile.footed.replace(
+                    "{foot}",
+                    t.glossary.feet[
+                      player.preferred_foot as keyof typeof t.glossary.feet
+                    ] ?? player.preferred_foot,
+                  )}
+                </span>
               </>
             ) : null}
             {player.height_cm ? (
               <>
                 <Sep />
-                <span>{player.height_cm}cm</span>
+                <span>{t.profile.height.replace("{cm}", String(player.height_cm))}</span>
               </>
             ) : null}
           </span>
         }
         actions={
           <>
-            {player.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
+            {player.is_mock ? <Badge tone="warning">{t.profile.demoData}</Badge> : null}
             <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
             <SaveToShortlist
               playerId={player.player_id}
               playerName={player.name}
               locale={locale}
+              copy={t.components.saveToShortlist}
             />
           </>
         }
@@ -149,7 +173,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label="Best role"
+          label={t.profile.tiles.bestRole}
           // The standing, not the raw score. Raw role scores from differently
           // weighted roles do not share a scale, so the headline number is the
           // one that can be compared. The raw fit is shown in full below.
@@ -164,24 +188,28 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           unit={
             roles?.best?.role_fit_percentile !== undefined &&
             roles?.best?.role_fit_percentile !== null
-              ? "pctl"
-              : "/ 100"
+              ? t.profile.tiles.percentileUnit
+              : t.profile.tiles.outOfHundred
           }
-          hint={roles?.best?.label ?? "Not available"}
+          hint={
+            roles?.best?.key
+              ? roleLabel(t, roles.best.key)
+              : t.profile.tiles.notAvailable
+          }
           tone="accent"
         />
         <StatTile
-          label="Minutes played"
+          label={t.profile.tiles.minutesPlayed}
           value={player.minutes !== null ? formatCount(player.minutes) : "–"}
-          hint="2026/27 season"
+          hint={t.profile.tiles.season.replace("{season}", "2026/27")}
         />
         <StatTile
-          label="Market value"
+          label={t.profile.tiles.marketValue}
           value={player.market_value_eur !== null ? formatEuro(player.market_value_eur) : "–"}
-          hint="Estimate, not a fee"
+          hint={t.profile.tiles.marketValueHint}
         />
         <StatTile
-          label="Contract until"
+          label={t.profile.tiles.contractUntil}
           value={player.contract_expires ? formatDate(player.contract_expires) : "–"}
         />
       </div>
@@ -206,9 +234,9 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           // follow - and four matches into a season it would be on every
           // player in half the competitions.
           tone="note"
-          title={stats.sample.band_label}
+          title={t.glossary.sampleBands[stats.sample.band]}
         >
-          {stats.sample.explanation}
+          {t.glossary.sampleExplanations[stats.sample.band]}
         </Callout>
       ) : null}
 
@@ -217,28 +245,38 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           <CardHeader
             title={
               <span className="flex items-center gap-1.5">
-                Intelligence profile
-                <Tooltip label="What are intelligence scores?">
-                  Each score combines several metrics, converted to percentiles within the
-                  comparison group first, then weighted. A score of 0–100 says where this player
-                  sits on that composite — not how good they are.
+                {t.profile.intelligence.title}
+                <Tooltip label={t.profile.intelligence.tooltipLabel}>
+                  {t.profile.intelligence.tooltip}
                 </Tooltip>
               </span>
             }
-            description="Composite scores built from contextual percentiles."
+            description={t.profile.intelligence.description}
           />
           <CardBody className="space-y-3.5">
             {(stats?.scores ?? []).map((score) => (
               <div key={score.key} className="grid grid-cols-[9.5rem_1fr] items-center gap-3">
                 <span className="flex items-center gap-1 text-xs text-muted">
-                  {score.label}
-                  {score.description || score.caveat ? (
-                    <Tooltip label={`What is ${score.label}?`}>
-                      {score.description ? <>{score.description} </> : null}
-                      Expressed relative to comparable players, not as a measure of quality.
-                      {score.caveat ? <> {score.caveat}</> : null}
-                    </Tooltip>
-                  ) : null}
+                  {t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                    score.label}
+                  <Tooltip
+                    label={t.profile.intelligence.scoreTooltipLabel.replace(
+                      "{score}",
+                      t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                        score.label,
+                    )}
+                  >
+                    {t.glossary.scores[score.key as keyof typeof t.glossary.scores]
+                      ?.description ? (
+                      <>
+                        {
+                          t.glossary.scores[score.key as keyof typeof t.glossary.scores]
+                            .description
+                        }{" "}
+                      </>
+                    ) : null}
+                    {t.profile.intelligence.relativeNote}
+                  </Tooltip>
                 </span>
                 {score.score !== null ? (
                   <span className="block">
@@ -257,17 +295,31 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         }
                         title={
                           score.evidence.low
-                            ? `Below ${score.evidence.threshold} ${score.evidence.noun}, this is reported but not offered as one of the player's strongest dimensions. The percentile is unchanged.`
+                            ? (apiMessage(t, {
+                                code: "low_evidence_title",
+                                values: {
+                                  threshold: score.evidence.threshold,
+                                  noun: score.evidence.noun,
+                                },
+                              }) ?? undefined)
                             : undefined
                         }
                       >
-                        {score.evidence.label}
+                        {apiMessage(t, score.evidence.message) ?? score.evidence.label}
                       </span>
                     ) : null}
                   </span>
                 ) : (
                   <span className="text-xs text-subtle">
-                    Not available — missing {score.missing.join(", ")}
+                    {t.profile.intelligence.unavailable.replace(
+                      "{metrics}",
+                      score.missing
+                        .map(
+                          (m) =>
+                            t.glossary.metrics[m as keyof typeof t.glossary.metrics] ?? m,
+                        )
+                        .join(", "),
+                    )}
                   </span>
                 )}
               </div>
@@ -284,20 +336,13 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           <CardHeader
             title={
               <span className="flex items-center gap-1.5">
-                Role compatibility
-                <Tooltip label="Raw Role Fit and Role Fit Percentile">
-                  Raw Role Fit is the weighted statistical profile score, built from the components
-                  listed below it. Role Fit Percentile is where that score stands among every player
-                  evaluated for the same role. Roles weight their components differently, so raw
-                  scores from two roles are not directly comparable — the percentile is, and it is
-                  what the best role is chosen by. Metric Coverage, shown when it is below full, is
-                  the share of the role&rsquo;s configured weight backed by metrics the provider
-                  actually supplies; missing components are left out rather than counted as zero.
-                  None of the three is player quality.
+                {t.profile.roles.title}
+                <Tooltip label={t.profile.roles.tooltipLabel}>
+                  {t.profile.roles.tooltip}
                 </Tooltip>
               </span>
             }
-            description="Statistical fit against each role compatible with this position."
+            description={t.profile.roles.description}
           />
           <CardBody className="space-y-3.5">
             {roles?.best ? (
@@ -311,24 +356,31 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                           : "flex items-center gap-1.5 text-xs text-muted"
                       }
                     >
-                      {role.label}
+                      {/* A row: the Portuguese name alone. */}
+                      <RoleName role={role.key} />
                       {/* A role missing enough of its own definition that the
                           name promises more than was measured. Marked, rather
                           than left to be inferred from a coverage figure
                           further down the row. */}
-                      {role.is_limited ? <Badge tone="warning">Limited</Badge> : null}
+                      {role.is_limited ? <Badge tone="warning">{t.profile.roles.limited}</Badge> : null}
                     </span>
                     {/* The bar shows the standing where there is one, because
                         that is what can be read across rows. */}
                     <PercentileBar percentile={role.role_fit_percentile ?? role.score ?? 0} />
                   </div>
                   <p className="pl-[9.5rem] text-[11px] text-subtle tabular">
-                    Raw Role Fit {role.score !== null ? Math.round(role.score) : "N/A"}
+                    {t.profile.roles.rawRoleFit.replace(
+                      "{score}",
+                      role.score !== null
+                        ? String(Math.round(role.score))
+                        : t.profile.roles.notAvailableShort,
+                    )}
                     {role.role_fit_percentile !== null && role.role_fit_percentile !== undefined ? (
                       <>
                         {" · "}
-                        {ordinal(role.role_fit_percentile)} percentile of{" "}
-                        {role.role_population ?? 0} evaluated for this role
+                        {t.profile.roles.percentileOf
+                          .replace("{percentile}", ordinal(role.role_fit_percentile))
+                          .replace("{population}", String(role.role_population ?? 0))}
                       </>
                     ) : (
                       /* The backend decides why a percentile is withheld and
@@ -338,7 +390,8 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                          wrong. */
                       <>
                         {" · "}
-                        {role.role_fit_percentile_reason ?? "no standing available"}
+                        {apiMessage(t, role.role_fit_percentile_reason_message) ??
+                          t.profile.roles.noStanding}
                       </>
                     )}
                     {/* How much of the role's configured weight is actually
@@ -355,13 +408,19 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         {" · "}
                         <span
                           className={role.is_limited ? "text-warning" : "text-subtle"}
-                          title={
-                            role.explanation ??
-                            "Share of this role's configured weight backed by metrics the provider supplies. The missing components are not counted as zero; the weights of what remains are rescaled, and this figure is how much of the definition was behind the score."
-                          }
+                          title={t.messages.role_coverage_explanation}
                         >
-                          {Math.round(role.coverage * 100)}% metric coverage
-                          {role.coverage_label ? ` · ${role.coverage_label}` : null}
+                          {t.profile.roles.metricCoverage.replace(
+                            "{pct}",
+                            String(Math.round(role.coverage * 100)),
+                          )}
+                          {role.coverage_band
+                            ? ` · ${
+                                t.glossary.coverageBands[
+                                  role.coverage_band as keyof typeof t.glossary.coverageBands
+                                ] ?? ""
+                              }`
+                            : null}
                         </span>
                       </>
                     ) : null}
@@ -377,9 +436,17 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                       <>
                         {" · "}
                         <span className="text-subtle">
-                          strongly driven by {role.dominant_component}
+                          {t.profile.roles.drivenBy.replace(
+                            "{component}",
+                            t.glossary.metrics[
+                              role.dominant_component as keyof typeof t.glossary.metrics
+                            ] ?? role.dominant_component,
+                          )}
                           {role.dominant_share != null
-                            ? ` (${Math.round(role.dominant_share)}% of the score)`
+                            ? ` (${t.profile.roles.drivenByShare.replace(
+                                "{pct}",
+                                String(Math.round(role.dominant_share)),
+                              )})`
                             : null}
                         </span>
                       </>
@@ -396,19 +463,33 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                  against the minimum it is configured to need. */
               <div className="space-y-3">
                 <p className="text-sm text-muted">
-                  {roles?.unscored_reason ?? "No role fit could be computed."}
+                  {apiMessage(t, roles?.unscored_reason_message) ?? roles?.unscored_reason}
                 </p>
                 {roles?.unscored?.length ? (
                   <ul className="space-y-1.5 text-xs">
                     {roles.unscored.map((role) => (
                       <li key={role.key} className="flex flex-wrap items-baseline gap-x-2">
-                        <span className="font-medium">{role.label}</span>
+                        <span className="font-medium">
+                          <RoleName role={role.key} />
+                        </span>
                         <span className="tabular text-subtle">
-                          {Math.round(role.coverage_pct)}% measurable of the{" "}
-                          {Math.round(role.required_pct)}% it requires
+                          {t.profile.roles.unscoredCoverage
+                            .replace("{coverage}", String(Math.round(role.coverage_pct)))
+                            .replace("{required}", String(Math.round(role.required_pct)))}
                         </span>
                         {role.missing.length > 0 ? (
-                          <span className="text-subtle">· missing {role.missing.join(", ")}</span>
+                          <span className="text-subtle">
+                            ·{" "}
+                            {t.profile.roles.unscoredMissing.replace(
+                              "{metrics}",
+                              role.missing
+                                .map(
+                                  (m) =>
+                                    t.glossary.metrics[m as keyof typeof t.glossary.metrics] ?? m,
+                                )
+                                .join(", "),
+                            )}
+                          </span>
                         ) : null}
                       </li>
                     ))}
@@ -426,32 +507,45 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                 a strong partial fit is a genuine finding about a player. */}
             {roles?.partial_evidence?.length ? (
               <div className="mt-4 space-y-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
-                <p className="text-[11px] font-medium text-warning">Partial role evidence</p>
+                <p className="text-[11px] font-medium text-warning">
+                  {t.profile.roles.partialTitle}
+                </p>
                 {roles.partial_evidence.map((role) => (
                   <div key={role.key} className="text-[11px] leading-relaxed text-subtle">
-                    <span className="font-medium text-text">{role.label}</span>
-                    {" — raw fit "}
+                    <span className="font-medium text-text">
+                      <RoleName role={role.key} />
+                    </span>
+                    {` — ${t.profile.roles.partialRawFit} `}
                     <span className="tabular">
-                      {role.score !== null ? Math.round(role.score) : "N/A"}
+                      {role.score !== null
+                        ? Math.round(role.score)
+                        : t.profile.roles.notAvailableShort}
                     </span>
                     {role.coverage !== null && role.coverage !== undefined ? (
                       <>
-                        {", metric coverage "}
+                        {`, ${t.profile.roles.partialCoverage} `}
                         {Math.round(role.coverage * 100)}%
                       </>
                     ) : null}
                     {role.core_dimensions?.some((d) => !d.satisfied) ? (
                       <>
-                        {". Unavailable defining dimension: "}
-                        {role.core_dimensions
-                          .filter((d) => !d.satisfied)
-                          .map((d) => d.name)
-                          .join(", ")}
-                        {"."}
+                        {". "}
+                        {t.profile.roles.partialUnavailableDimension.replace(
+                          "{dimensions}",
+                          role.core_dimensions
+                            .filter((d) => !d.satisfied)
+                            .map(
+                              (d) =>
+                                t.glossary.dimensions[
+                                  d.name as keyof typeof t.glossary.dimensions
+                                ] ?? d.name,
+                            )
+                            .join(", "),
+                        )}
                       </>
                     ) : null}
                     <span className="mt-0.5 block">
-                      Role fit percentile not available for partial role definitions.
+                      {t.profile.roles.partialNoPercentile}
                     </span>
                   </div>
                 ))}
@@ -467,11 +561,13 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
               .filter((role) => role?.is_limited && (role?.explanation ?? role?.caveat))
               .map((role) => (
                 <p key={role!.key} className="text-[11px] leading-relaxed">
-                  <span className="font-medium">{role!.label}:</span>{" "}
-                  {role!.explanation ?? role!.caveat}
+                  <span className="font-medium">
+                    <RoleName role={role!.key} />:
+                  </span>{" "}
+                  {t.messages.role_coverage_explanation}
                 </p>
               ))}
-            <p>{roles?.meaning ?? "Role score measures resemblance to a profile."}</p>
+            <p>{t.profile.roles.meaning}</p>
           </CardFooter>
         </Card>
       </div>
@@ -494,16 +590,12 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
 
       <Card>
         <CardHeader
-          title="Performance"
+          title={t.profile.performance.title}
           description={
             <span className="flex items-center gap-1.5">
-              Per 90 minutes, with percentile rank
-              <Tooltip label="What does a percentile mean here?">
-                A 94th percentile means this player comes out better than 94% of the comparison
-                group on that metric. Higher is always better here, whichever way the metric runs: a
-                player who is rarely dispossessed reads high, not low. Where that flips the reading,
-                the rank by raw value is printed underneath. The comparison group is stated below
-                the table and is never hidden.
+              {t.profile.performance.description}
+              <Tooltip label={t.profile.performance.tooltipLabel}>
+                {t.profile.performance.tooltip}
               </Tooltip>
             </span>
           }
@@ -512,9 +604,9 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           <Table>
             <THead>
               <TR>
-                <TH>Metric</TH>
-                <TH numeric>Per 90</TH>
-                <TH className="w-52">In this league</TH>
+                <TH>{t.profile.performance.metric}</TH>
+                <TH numeric>{t.profile.performance.perNinety}</TH>
+                <TH className="w-52">{t.profile.performance.inThisLeague}</TH>
                 {/* A rank among 23 defenders and a rank among 752 are both
                     honest and are not the same claim. Showing only the first
                     lets a thin league read as a strong player.
@@ -532,9 +624,12 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                 <TR key={metric.metric}>
                   <TD>
                     <span className="flex items-center gap-1.5">
-                      {metric.label}
+                      {t.glossary.metrics[metric.metric as keyof typeof t.glossary.metrics] ??
+                        metric.label}
                       {metric.lower_is_better ? (
-                        <span className="text-[10px] text-subtle">(lower is better)</span>
+                        <span className="text-[10px] text-subtle">
+                          {t.profile.performance.lowerIsBetter}
+                        </span>
                       ) : null}
                     </span>
                   </TD>
@@ -555,13 +650,16 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             anyone who wants the distribution itself. */}
                         {metric.lower_is_better && metric.percentile !== null ? (
                           <span className="mt-1 block text-[10px] text-subtle">
-                            {ordinal(metric.percentile)} by raw value
+                            {t.profile.performance.byRawValue.replace(
+                              "{percentile}",
+                              ordinal(metric.percentile),
+                            )}
                           </span>
                         ) : null}
                       </>
                     ) : (
                       <span className="text-xs text-subtle">
-                        {metric.unavailable_reason ?? "Not available"}
+                        {metric.unavailable_reason ?? t.profile.performance.notAvailable}
                       </span>
                     )}
                   </TD>
@@ -582,12 +680,10 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
             <ComparisonPopulation context={stats.context} />
             {stats.global_context ? (
               <p className="text-xs leading-relaxed text-subtle">
-                The second column ranks the same figures against all{" "}
-                {formatCount(stats.global_context.population_size)} players in this position across
-                every loaded competition. Neither column is adjusted for how strong a league is,
-                because this system does not model that: a player high at home and lower here has
-                not been judged worse, they have been placed in a bigger population. Which number
-                matters is a recruitment decision, not a statistical one.
+                {t.profile.performance.globalNote.replace(
+                  "{population}",
+                  formatCount(stats.global_context.population_size),
+                )}
               </p>
             ) : null}
             {/* WHAT THAT BIGGER POPULATION IS MADE OF.
@@ -605,7 +701,26 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                     : "text-xs leading-relaxed text-subtle"
                 }
               >
-                {stats.global_context.maturity_note}
+                {/* Composed from the figures the context carries, like the
+                    note inside ComparisonPopulation: the API's own sentence
+                    is English and only its numbers are wanted here. */}
+                {t.components.comparison.maturityNote
+                  .replace(
+                    "{total}",
+                    String(stats.global_context.competitions_in_population ?? 0),
+                  )
+                  .replace(
+                    "{established}",
+                    String(stats.global_context.competitions_established ?? 0),
+                  )
+                  .replace(
+                    "{share}",
+                    String(Math.round((stats.global_context.established_share ?? 1) * 100)),
+                  )
+                  .replace("{median}", String(stats.global_context.median_minutes ?? 0))}
+                {stats.global_context.is_early_season
+                  ? t.components.comparison.maturityEarly
+                  : null}
               </p>
             ) : null}
           </CardFooter>
@@ -613,16 +728,16 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
       </Card>
 
       {stats?.context?.caveat ? (
-        <Callout tone="warning" title="Cross-league comparison is not strength-adjusted">
+        <Callout tone="warning" title={t.profile.performance.crossLeagueTitle}>
           {stats.context.caveat}
         </Callout>
       ) : null}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Similar players</h2>
+          <h2 className="text-sm font-semibold">{t.profile.similar.title}</h2>
           <ButtonLink href={`/similar?player=${player.player_id}`} variant="secondary" size="sm">
-            Open similarity search
+            {t.profile.similar.open}
           </ButtonLink>
         </div>
 
@@ -632,19 +747,19 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
               <Table>
                 <THead>
                   <TR>
-                    <TH>Player</TH>
-                    <TH numeric>Age</TH>
-                    <TH>Club</TH>
-                    <TH>Best role</TH>
-                    <TH numeric>Similarity</TH>
+                    <TH>{t.profile.similar.player}</TH>
+                    <TH numeric>{t.profile.similar.age}</TH>
+                    <TH>{t.profile.similar.club}</TH>
+                    <TH>{t.profile.similar.bestRole}</TH>
+                    <TH numeric>{t.profile.similar.similarity}</TH>
                     {/* A similarity of 92 from six shared features and one
                         from eleven are not the same claim, and they look
                         identical as a single number. The dedicated page has
                         said so for a while; this table did not, which meant
                         the profile was the less honest of the two. */}
-                    <TH numeric>Shared</TH>
-                    <TH numeric>Feature coverage</TH>
-                    <TH numeric>Value</TH>
+                    <TH numeric>{t.profile.similar.shared}</TH>
+                    <TH numeric>{t.profile.similar.featureCoverage}</TH>
+                    <TH numeric>{t.profile.similar.value}</TH>
                   </TR>
                 </THead>
                 <TBody>
@@ -660,19 +775,23 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                           </Link>
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">Different profile strength</Badge>
+                              <Badge tone="warning">{t.profile.similar.differentStrength}</Badge>
                             </span>
                           ) : null}
                         </TD>
                         <TD numeric>{entry.player.age ?? "–"}</TD>
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD className="whitespace-nowrap text-muted">
-                          {entry.player.best_role ?? "–"}
+                          {entry.player.best_role_key ? (
+                            <RoleName role={entry.player.best_role_key} />
+                          ) : (
+                            (entry.player.best_role ?? "–")
+                          )}
                         </TD>
                         <TD numeric className="font-medium">
                           {Math.round(entry.similarity)}
                           <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                            index, not %
+                            {t.profile.similar.indexNotPercent}
                           </span>
                           {/* And, at the same size as the index, what it
                               rests on when that is thin. A 99 printed large
@@ -681,7 +800,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                           {entry.coverage_band === "limited" ||
                           entry.coverage_band === "very_limited" ? (
                             <span className="mt-1 block font-normal">
-                              <Badge tone="warning">Limited evidence</Badge>
+                              <Badge tone="warning">{t.profile.similar.limitedEvidence}</Badge>
                             </span>
                           ) : null}
                         </TD>
@@ -733,12 +852,14 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                 </TBody>
               </Table>
             </TableWrap>
-            <p className="text-[11px] leading-relaxed text-subtle">{similar.meaning}</p>
+            <p className="text-[11px] leading-relaxed text-subtle">
+              {t.similarity.notes.meaning}
+            </p>
           </>
         ) : (
           <EmptyState
-            title="No similar players found"
-            description="There may be too few comparable players in this position group."
+            title={t.profile.similar.emptyTitle}
+            description={t.profile.similar.emptyDescription}
           />
         )}
       </section>
@@ -746,30 +867,36 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
   );
 }
 
-function WhyBestRole({ role }: { role: Score }) {
+async function WhyBestRole({ role }: { role: Score }) {
+  const t = await getDictionary();
   const components = [...role.components].sort(
     (a, b) => (b.contribution ?? 0) - (a.contribution ?? 0),
   );
   return (
     <Card>
       <CardHeader
-        title={`Why ${role.label} = ${role.score !== null ? Math.round(role.score) : "–"}`}
-        description="Every component that produced the score, and what each contributed."
+        title={t.profile.whyRole.title
+          .replace("{role}", roleLabel(t, role.key))
+          .replace("{score}", role.score !== null ? String(Math.round(role.score)) : "–")}
+        description={t.profile.whyRole.description}
       />
       <TableWrap className="rounded-none border-0">
         <Table>
           <THead>
             <TR>
-              <TH>Component</TH>
-              <TH numeric>Percentile</TH>
-              <TH numeric>Weight</TH>
-              <TH numeric>Contributes</TH>
+              <TH>{t.profile.whyRole.component}</TH>
+              <TH numeric>{t.profile.whyRole.percentile}</TH>
+              <TH numeric>{t.profile.whyRole.weight}</TH>
+              <TH numeric>{t.profile.whyRole.contributes}</TH>
             </TR>
           </THead>
           <TBody>
             {components.map((component) => (
               <TR key={component.metric}>
-                <TD>{component.label}</TD>
+                <TD>
+                  {t.glossary.metrics[component.metric as keyof typeof t.glossary.metrics] ??
+                    component.label}
+                </TD>
                 <TD numeric>
                   {component.percentile !== null ? component.percentile.toFixed(1) : "–"}
                 </TD>
@@ -784,9 +911,16 @@ function WhyBestRole({ role }: { role: Score }) {
           </TBody>
         </Table>
       </TableWrap>
+      {/* Configured prose, keyed by role in player_roles.yaml. The English
+          is read straight out of that file into the dictionary, so the two
+          cannot drift; the API still sends it and is the fallback. */}
       {role.caveat ? (
         <CardFooter>
-          <span className="text-warning">{role.caveat}</span>
+          <span className="text-warning">
+            {t.glossary.roleCaveats[
+              role.key as keyof typeof t.glossary.roleCaveats
+            ] ?? role.caveat}
+          </span>
         </CardFooter>
       ) : null}
     </Card>

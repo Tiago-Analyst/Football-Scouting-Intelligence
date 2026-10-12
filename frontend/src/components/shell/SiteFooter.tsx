@@ -43,7 +43,7 @@ export async function SiteFooter({ freshness = [] }: { freshness?: SourcePublica
             number is should be able to find out without being told on every
             page that they should be worrying about it. */}
         <div className="mt-6">
-          <DataFreshness sources={freshness} />
+          <DataFreshness sources={freshness} copy={t.common.freshness} />
         </div>
 
         {/* Attribution is a licensing obligation, not decoration. */}

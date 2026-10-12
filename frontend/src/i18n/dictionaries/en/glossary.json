@@ -176,5 +176,44 @@
   "evidenceNouns": {
     "shots": "shots",
     "dribbles_attempted": "dribbles attempted"
+  },
+  "roleCaveats": {
+    "advanced_playmaker": "Expected assists and key passes - the creation this role is named for - are intact. Progression is the part not measured.",
+    "attacking_full_back": "The crossing and chance creation that define an attacking full-back are intact; carrying the ball forward is the part not measured.",
+    "ball_playing_centre_back": "Progression is the defining component of this role, so read this as passing volume and accuracy from a centre-back rather than as measured ball progression. It is not comparable in confidence with a role scored from its full definition.",
+    "ball_winning_midfielder": "Tackling, interceptions and duels won - the ball-winning itself - are measured. What is not is aerial efficiency, which has no denominator. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "box_to_box_midfielder": "The defensive and attacking contributions that define a box-to-box midfielder are intact; carrying the ball forward is the part not measured. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "complete_forward": "Aerial duel efficiency cannot be measured: the provider reports aerial duels won but not attempted, so there is no denominator.",
+    "deep_lying_playmaker": "Progression is what distinguishes a deep-lying playmaker from a tidy passer, so read this as passing volume, accuracy and creation from deep rather than as measured progression. It is not comparable in confidence with a role scored from its full definition.",
+    "defensive_full_back": "The defensive core of the role is intact; what is thin is aerial efficiency, which has no denominator to measure at all. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds. It is weighted below the duels and interceptions for that reason, and named in its own right rather than standing in for the successful-tackle rate the role was first written around.",
+    "defensive_stopper": "Aerial duel efficiency cannot be measured at all: the provider reports aerial duels won but not attempted, so there is no denominator. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "shot_stopper": "Basic goalkeeping statistics are heavily dependent on team context: a keeper behind a poor defence faces more and better chances, which inflates save volume and deflates save percentage. Without a post-shot expected goals metric, elite shot-stopping cannot be inferred from these figures.",
+    "target_forward": "Aerial volume is counted; aerial efficiency cannot be, because the provider reports duels won but not attempted. Read this as aerial presence rather than aerial success."
+  },
+  "rankingNouns": {
+    "score": "score",
+    "profile_score": "profile score",
+    "role_fit": "role fit",
+    "similarity": "similarity",
+    "replacement_score": "replacement score"
+  },
+  "rankingCentres": {
+    "search": "for this search",
+    "every_player_with_role_fit": "across every player with a role fit"
+  },
+  "feet": {
+    "left": "Left",
+    "right": "Right",
+    "both": "Both"
+  },
+  "allLeagues": {
+    "label": "All leagues",
+    "qualifier": "mixed season maturity",
+    "tooltipLabel": "What the all-leagues rank is",
+    "explanation": "Ranks this player's observed per-90 value against every player-season currently served in their position. Those competitions are at different points in their seasons, and the rank is not adjusted for that, nor for how strong a league is. How much football stands behind the player's own figure is reported separately, as minutes and a sample band."
+  },
+  "replacementComponents": {
+    "role_fit": "Role fit",
+    "affordability": "Affordability"
   }
 }

@@ -61,7 +61,8 @@ function keysOf(value, prefix = "") {
   return [prefix];
 }
 
-const FILES = ["common", "navigation", "errors", "glossary", "messages", "players"];
+const FILES = ["common", "components", "navigation", "errors", "glossary", "messages", "opportunities", "players",
+  "profile", "recruitment", "replacements", "similarity"];
 
 // ---------------------------------------------------------------- completeness
 
@@ -82,20 +83,32 @@ test("no translated value is left as the English one by accident", () => {
   // Some values are identical on purpose - a product name, "/90", a locale
   // tag. Everything else being identical means a key was copied and not
   // translated, which is the failure mode a completeness test alone misses.
+  // File-qualified, so "height" in one dictionary cannot excuse "height" in
+  // another. Short and visible on purpose: everything here is a thing that
+  // genuinely reads the same in both languages, and the list is the argument.
   const ALLOWED_IDENTICAL = new Set([
-    "productName",
-    "meta.title",
-    "meta.titleTemplate",
-    "concepts.perNinety",
-    "roles.box_to_box_midfielder",
-    "theme.label",
+    "common.productName",
+    "common.meta.title",
+    "common.meta.titleTemplate",
+    "common.theme.label",
     // Notation, not words. xA and npxG are written the same way by Portuguese
     // analysts, and translating them would make the figures unreadable to the
-    // people who use them. Listed here rather than exempted by a pattern, so
-    // the list of things kept in English stays short and visible.
-    "metrics.xa_per90",
-    "metrics.npxg_per90",
-    "evidenceNouns.shots",
+    // people who use them.
+    "glossary.concepts.perNinety",
+    "glossary.metrics.xa_per90",
+    "glossary.metrics.npxg_per90",
+    "glossary.evidenceNouns.shots",
+    // What the position is called in Portuguese football.
+    "glossary.roles.box_to_box_midfielder",
+    // Unit symbols and an abbreviation both languages already use.
+    "profile.height",
+    "profile.tiles.percentileUnit",
+    "profile.tiles.outOfHundred",
+    "players.table.percentileSuffix",
+    "opportunities.results.outOfHundred",
+    "opportunities.results.minutes",
+    "opportunities.results.stepRemoved",
+
   ]);
   for (const name of FILES) {
     const en = loadJson("en", name);
@@ -108,7 +121,7 @@ test("no translated value is left as the English one by accident", () => {
       // "{count} {noun}" is the same sentence in every language because
       // it is not a sentence.
       if (!a.replace(/\{\w+\}/g, "").trim()) continue;
-      if (ALLOWED_IDENTICAL.has(key)) continue;
+      if (ALLOWED_IDENTICAL.has(`${name}.${key}`)) continue;
       // Identifiers and codes are keys, not copy.
       if (/^[A-Z_]+$/.test(a)) continue;
       assert.notEqual(b, a, `${name}.${key} is still English in the pt dictionary: "${a}"`);

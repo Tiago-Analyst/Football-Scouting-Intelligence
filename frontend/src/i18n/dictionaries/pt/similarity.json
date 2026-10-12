@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "title": "Jogadores semelhantes",
+    "description": "Encontrar jogadores cujo perfil estatístico se assemelha ao de um jogador escolhido, dentro de um grupo posicional compatível."
+  },
+  "eyebrow": "Análise",
+  "title": "Jogadores semelhantes",
+  "description": "Encontrar jogadores cujo perfil estatístico se assemelha ao de um jogador escolhido, dentro de um grupo posicional compatível.",
+  "picker": {
+    "title": "Escolher um jogador para comparar",
+    "placeholder": "Pesquisar por nome…",
+    "search": "Pesquisar",
+    "startOver": "Recomeçar",
+    "viewProfile": "Ver perfil",
+    "changePlayer": "Mudar de jogador",
+    "noneFoundTitle": "Nenhum jogador encontrado",
+    "noneFoundDescription": "Experimente outro nome.",
+    "notFoundTitle": "Jogador não encontrado",
+    "notFoundDescription": "Esse jogador não está na base de dados."
+  },
+  "filters": {
+    "heading": "Filtros",
+    "narrow": "Restringir o conjunto",
+    "apply": "Aplicar filtros",
+    "any": "Qualquer",
+    "maxAge": "Idade máxima",
+    "maxValue": "Valor de mercado máx. (€)",
+    "contractWithin": "Contrato termina dentro de",
+    "months": "{count} meses",
+    "differentCompetition": "Apenas competição diferente",
+    "excludeSameClub": "Excluir o mesmo clube",
+    "youngerThan": "Mais novo do que este jogador"
+  },
+  "table": {
+    "player": "Jogador",
+    "age": "Idade",
+    "club": "Clube",
+    "competition": "Competição",
+    "bestRole": "Melhor papel",
+    "similarity": "Semelhança",
+    "featureCoverage": "Cobertura de atributos",
+    "value": "Valor",
+    "contract": "Contrato",
+    "differentStrength": "Força de perfil diferente",
+    "limitedEvidence": "Evidência limitada"
+  },
+  "empty": {
+    "title": "Nenhum jogador semelhante corresponde a estes filtros",
+    "description": "Experimente aliviar as restrições de idade, valor ou competição."
+  },
+  "notes": {
+    "indexTitle": "O que é o Índice de Semelhança Estatística?",
+    "indexBody": "Semelhança na forma do perfil estatístico, numa escala de 0 a 100. Não é a probabilidade de dois jogadores serem equivalentes, e nada diz sobre qualidade, encaixe táctico ou temperamento.",
+    "coverageTitle": "Porque é que a cobertura importa?",
+    "coverageBody": "Quanto da comparação pretendida se concretizou de facto. Um índice de 92 sobre seis de onze atributos é uma resposta segura a uma pergunta mais estreita do que o mesmo índice sobre onze, e o índice sozinho não os distingue. Reportada ao lado, nunca incorporada nele.",
+    "notProbabilityTitle": "Semelhança não é probabilidade",
+    "strengthTitle": "“Força de perfil diferente”",
+    "strengthBefore": "A semelhança compara a ",
+    "strengthEmphasis": "forma",
+    "strengthAfter": " de dois perfis. Um jogador pode ter uma forma muito parecida sendo consistentemente mais forte ou mais fraco em tudo — esse distintivo assinala esses casos, para que um jogador muito mais forte não seja tomado por um substituto directo.",
+    "meaning": "O Índice de Semelhança Estatística descreve o quão próximos são os perfis estatísticos de dois jogadores nos atributos que partilham, numa escala de 0 a 100. Não é uma probabilidade, e nada diz sobre qualidade, adequação táctica ou temperamento. A cobertura de atributos é reportada ao lado e não está incorporada nele: um índice de 92 sobre seis de onze atributos é uma resposta segura a uma pergunta mais estreita do que o mesmo índice sobre onze."
+  },
+  "targetTitle": "Jogadores semelhantes a {player}"
+}

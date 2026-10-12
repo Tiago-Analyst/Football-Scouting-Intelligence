@@ -31,11 +31,22 @@ export interface BlockedScore {
 export function BlockedProfile({
   unavailable,
   initiallyBlocked,
+  copy,
 }: {
   /** Every score the data cannot produce for anybody. From the backend. */
   unavailable: BlockedScore[];
   /** Which of those the rendered URL already weights, so the first paint is right. */
   initiallyBlocked: string[];
+  /** The words, resolved by the server page: this renders in the browser,
+   * where the dictionary does not go. */
+  copy: {
+    willRankNobody: string;
+    setToZero: string;
+    build: string;
+    cannotProduce: string;
+    setOne: string;
+    setMany: string;
+  };
 }) {
   const [blockedKeys, setBlockedKeys] = useState<string[]>(initiallyBlocked);
   const anchor = useRef<HTMLDivElement>(null);
@@ -76,14 +87,14 @@ export function BlockedProfile({
     <div ref={anchor} className="space-y-4">
       {blocked.length > 0 ? (
         <div className="space-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
-          <p className="text-[11px] font-medium text-warning">This profile will rank nobody.</p>
+          <p className="text-[11px] font-medium text-warning">{copy.willRankNobody}</p>
           {blocked.map((score) => (
             <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
               {score.reason}
             </p>
           ))}
           <p className="text-[11px] leading-relaxed text-subtle">
-            Set that weight to zero to get a ranking from the rest of the profile.
+            {copy.setToZero}
           </p>
         </div>
       ) : null}
@@ -97,17 +108,20 @@ export function BlockedProfile({
         aria-describedby={blocked.length > 0 ? "blocked-profile-reason" : undefined}
         title={
           blocked.length > 0
-            ? `${blocked.map((score) => score.label).join(", ")} cannot be produced for any player, so this profile matches nobody.`
+            ? copy.cannotProduce.replace(
+                "{scores}",
+                blocked.map((score) => score.label).join(", "),
+              )
             : undefined
         }
         className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-subtle"
       >
-        Build shortlist
+        {copy.build}
       </button>
 
       {blocked.length > 0 ? (
         <p id="blocked-profile-reason" className="text-[11px] leading-relaxed text-subtle">
-          Set {blocked.length === 1 ? "that weight" : "those weights"} to zero to run the search.
+          {blocked.length === 1 ? copy.setOne : copy.setMany}
         </p>
       ) : null}
     </div>

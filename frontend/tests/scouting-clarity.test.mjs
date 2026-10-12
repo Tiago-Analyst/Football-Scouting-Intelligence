@@ -14,6 +14,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { copy } from "./helpers/dictionaries.mjs";
+
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const flat = (source) => source.replace(/\s+/g, " ");
 const strip = (source) => source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -83,9 +85,11 @@ test("recruitment says whether the profile can run before it is run", () => {
   // The three states the right-hand pane has to tell apart. It used to say
   // "Set your profile weights" to all three.
   const code = strip(recruitment);
-  assert.match(code, /ready to rank candidates/i);
+  assert.match(copy("en", "recruitment"), /ready to rank candidates/i);
+  assert.match(copy("pt", "recruitment"), /pronto para ordenar candidatos/i);
   assert.match(code, /unavailable/i);
-  assert.match(code, /Choose a role preset or set your own weights/i);
+  assert.match(copy("en", "recruitment"), /Choose a role preset or set your own weights/i);
+  assert.match(copy("pt", "recruitment"), /Escolha um papel predefinido/i);
   assert.equal(/title="Set your profile weights"/.test(code), false);
 });
 
@@ -115,8 +119,10 @@ test("a metric with no family does not print an empty heading", () => {
 
 test("opportunities shows the percentile beside the raw fit", () => {
   assert.match(opportunities, /best_role_percentile/);
-  assert.match(flat(opportunities), /Raw role fit/);
-  assert.match(flat(opportunities), /role fit percentile/i);
+  assert.match(copy("en", "opportunities"), /Raw role fit/);
+  assert.match(copy("pt", "opportunities"), /Aptidão bruta/);
+  assert.match(copy("en", "opportunities"), /role fit percentile/i);
+  assert.match(copy("pt", "opportunities"), /percentil \{percentile\} de aptidão/i);
 });
 
 const presets = read("src/components/recruitment/RolePresets.tsx");
@@ -125,7 +131,8 @@ test("starting from a role is presented as the recommended first step", () => {
   // It was muted hint-sized text on a panel whose loudest control was the
   // submit button. Somebody facing eight empty weight boxes has to invent a
   // profile; editing a named one is easier and better.
-  assert.match(presets, /Recommended start/);
+  assert.match(copy("en", "components"), /Recommended start/);
+  assert.match(copy("pt", "components"), /Ponto de partida recomendado/);
   assert.match(presets, /text-sm font-semibold/);
   assert.equal(
     /summary className="cursor-pointer list-none text-xs font-medium text-muted/.test(presets),
@@ -141,7 +148,11 @@ test("the roles are still a disclosure, not fourteen rows opened by default", ()
 
 test("the builder states the order it is already in", () => {
   assert.match(
-    flat(recruitment),
+    copy("en", "recruitment"),
     /Start from a role, adjust the weights, apply filters, then rank candidates/,
+  );
+  assert.match(
+    copy("pt", "recruitment"),
+    /Comece por um papel, ajuste os pesos, aplique filtros e ordene os candidatos/,
   );
 });

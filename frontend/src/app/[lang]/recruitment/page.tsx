@@ -1,5 +1,9 @@
 import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
+
+import { apiMessage } from "@/components/player/ApiMessage";
+import { positionName } from "@/components/player/PositionName";
+import { getDictionary } from "@/i18n/dictionaries";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { BlockedProfile } from "@/components/recruitment/BlockedProfile";
@@ -20,25 +24,14 @@ import {
   runRecruitmentSearch,
 } from "@/lib/players";
 
-export const metadata: Metadata = {
-  title: "Recruitment builder",
-  description:
-    "Build a ranked shortlist by weighting the qualities that matter to you, then read why each candidate placed where it did. Every score arrives with the percentiles behind it.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.recruitment.meta.title, description: t.recruitment.meta.description };
+}
 
 const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
 
 /** What to call a position group in a sentence, rather than in a filter. */
-const POSITION_LABELS: Record<string, string> = {
-  GK: "goalkeeper",
-  CB: "centre-back",
-  FB_WB: "full-back or wing-back",
-  DM: "defensive midfielder",
-  CM: "central midfielder",
-  AM: "attacking midfielder",
-  WINGER: "winger",
-  FORWARD: "forward",
-};
 
 /** The eight intelligence scores, with the spec's "Progressive #6" defaults. */
 const SCORES = [
@@ -58,6 +51,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitment">) {
+  const t = await getDictionary();
   const params = await props.searchParams;
   const submitted = first(params.submitted) === "1";
 
@@ -112,8 +106,19 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
   // one the reader has set to zero would be noise about a choice they made.
   const summary = describeProfile(
     weights,
-    SCORES,
-    first(params.position_group) ? POSITION_LABELS[first(params.position_group)!] : undefined,
+    // Score names from the glossary, so the sentence is built from the same
+    // words the weight boxes above it are labelled with.
+    SCORES.map((score) => ({
+      key: score.key,
+      label:
+        t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ?? score.label,
+    })),
+    t.recruitment.summary,
+    first(params.position_group)
+      ? t.components.presets.positions[
+          first(params.position_group)! as keyof typeof t.components.presets.positions
+        ]
+      : undefined,
   );
 
   const blockedNow = Object.keys(weights)
@@ -123,9 +128,9 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Recruitment"
-        title="Recruitment profile builder"
-        description="Define the profile you are recruiting for, weight what matters, and rank candidates against it. Every result shows the percentiles that placed it there."
+        eyebrow={t.recruitment.eyebrow}
+        title={t.recruitment.meta.title}
+        description={t.recruitment.meta.description}
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -138,9 +143,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
 
           {/* The form is already in this order; saying so costs one line and
               saves somebody working it out from four unlabelled sections. */}
-          <p className="text-[11px] leading-relaxed text-subtle">
-            Start from a role, adjust the weights, apply filters, then rank candidates.
-          </p>
+          <p className="text-[11px] leading-relaxed text-subtle">{t.recruitment.intro}</p>
 
           <RolePresets
             presets={presets}
@@ -152,25 +155,32 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
 
           <div>
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Profile weights</h2>
+              <h2 className="text-sm font-semibold">{t.recruitment.weights.heading}</h2>
               <span className="tabular text-xs text-muted">{total}%</span>
             </div>
-            <p className="mt-1 text-[11px] text-subtle">
-              Weights are normalised, so they need not add to exactly 100.
-            </p>
+            <p className="mt-1 text-[11px] text-subtle">{t.recruitment.weights.normalised}</p>
           </div>
 
           <div className="space-y-2.5">
             {SCORES.map((score) => (
               <label key={score.key} className="flex items-center gap-3">
                 <span className="flex-1 text-xs text-muted">
-                  {score.label}
+                  {t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                    score.label}
                   {unavailable.has(score.key) ? (
                     <span
                       className="ml-1.5 text-[10px] text-warning"
-                      title={unavailable.get(score.key)!.reason ?? undefined}
+                      title={
+                        apiMessage(t, {
+                          code: "score_unavailable_missing",
+                          values: {
+                            score: score.key,
+                            metrics: (unavailable.get(score.key)!.missing ?? []).join(","),
+                          },
+                        }) ?? undefined
+                      }
                     >
-                      unavailable
+                      {t.recruitment.weights.unavailable}
                     </span>
                   ) : null}
                 </span>
@@ -189,32 +199,30 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
           </div>
 
           <fieldset className="space-y-3 border-t border-border pt-4">
-            <legend className="text-[11px] font-semibold tracking-wide text-subtle uppercase">
-              Filters
-            </legend>
+            <legend className="text-[11px] font-semibold tracking-wide text-subtle uppercase">{t.recruitment.filters.heading}</legend>
 
-            <Field label="Position group" htmlFor="position_group">
+            <Field label={t.recruitment.filters.positionGroup} htmlFor="position_group">
               <Select
                 id="position_group"
                 name="position_group"
                 defaultValue={first(params.position_group) ?? ""}
               >
-                <option value="">Any</option>
+                <option value="">{t.recruitment.filters.any}</option>
                 {POSITION_GROUPS.map((group) => (
                   <option key={group} value={group}>
-                    {group}
+                    {t.glossary.positions[group as keyof typeof t.glossary.positions] ?? group}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field label="Competition" htmlFor="competition">
+            <Field label={t.recruitment.filters.competition} htmlFor="competition">
               <Select
                 id="competition"
                 name="competition"
                 defaultValue={first(params.competition) ?? ""}
               >
-                <option value="">Any</option>
+                <option value="">{t.recruitment.filters.any}</option>
                 {competitions.map((competition) => (
                   <option key={competition.competition_id} value={competition.competition_id}>
                     {competition.name}
@@ -224,7 +232,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Min age" htmlFor="min_age">
+              <Field label={t.recruitment.filters.minAge} htmlFor="min_age">
                 <TextInput
                   id="min_age"
                   name="min_age"
@@ -235,7 +243,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   defaultValue={first(params.min_age) ?? ""}
                 />
               </Field>
-              <Field label="Max age" htmlFor="max_age">
+              <Field label={t.recruitment.filters.maxAge} htmlFor="max_age">
                 <TextInput
                   id="max_age"
                   name="max_age"
@@ -248,7 +256,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               </Field>
             </div>
 
-            <Field label="Max market value (€)" htmlFor="max_value">
+            <Field label={t.recruitment.filters.maxValue} htmlFor="max_value">
               <TextInput
                 id="max_value"
                 name="max_value"
@@ -262,13 +270,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
 
             <Field
               label={
-                <>
-                  Minimum minutes
-                  <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default regardless of minutes
-                    played — this sets a floor only if you want one, and it is empty unless you fill
-                    it in.
-                  </Tooltip>
+                <>{t.recruitment.filters.minimumMinutes}<Tooltip label={t.recruitment.filters.minimumMinutesTooltipLabel}>{t.recruitment.filters.minimumMinutesTooltip}</Tooltip>
                 </>
               }
               htmlFor="min_minutes"
@@ -302,10 +304,25 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               unavailable is still the backend's answer - see
               `BlockedProfile`. */}
           <BlockedProfile
+            copy={t.recruitment.blocked}
             unavailable={[...unavailable.values()].map((score) => ({
               key: score.key,
-              label: score.label,
-              reason: score.reason,
+              label:
+                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                score.label,
+              // Composed here, where the dictionary is, rather than passed
+              // as the API's English sentence: BlockedProfile renders in the
+              // browser and cannot translate anything itself.
+              reason:
+                apiMessage(t, {
+                  code: score.missing?.length
+                    ? "score_unavailable_missing"
+                    : "score_unavailable_no_candidate",
+                  values: {
+                    score: score.key,
+                    metrics: (score.missing ?? []).join(","),
+                  },
+                }) ?? score.reason,
             }))}
             initiallyBlocked={blockedNow.map((score) => score.key)}
           />
@@ -324,44 +341,48 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                find out they are about to get nothing. */
             blockedNow.length > 0 ? (
               <EmptyState
-                title={`${blockedNow.length} weighted ${blockedNow.length === 1 ? "dimension is" : "dimensions are"} unavailable`}
-                description="This load cannot produce them for anybody, so the ranking would be empty however wide the filters are. Set those weights to zero to rank on the rest of the profile."
+                title={
+                  blockedNow.length === 1
+                    ? t.recruitment.states.blockedOneTitle
+                    : t.recruitment.states.blockedManyTitle.replace(
+                        "{count}",
+                        String(blockedNow.length),
+                      )
+                }
+                description={t.recruitment.states.blockedDescription}
               />
             ) : total <= 0 ? (
               <EmptyState
-                title="Choose a role preset or set your own weights"
-                description="Start from one of the named roles, or set the emphasis yourself. Nothing is weighted yet, so there is nothing to rank by."
+                title={t.recruitment.states.chooseTitle}
+                description={t.recruitment.states.chooseDescription}
               />
             ) : (
               <EmptyState
-                title="This profile is ready to rank candidates"
+                title={t.recruitment.states.readyTitle}
                 description={summary ?? "Adjust the filters, then build the shortlist."}
                 action={
-                  <p className="text-xs text-subtle">
-                    Press <strong>Build shortlist</strong> to run it.
-                  </p>
+                  <p className="text-xs text-subtle">{t.recruitment.states.readyActionBefore}<strong>{t.recruitment.filters.build}</strong>{t.recruitment.states.readyActionAfter}</p>
                 }
               />
             )
           ) : results === null ? (
             <ErrorState
-              title="Could not build the shortlist"
-              description="The API did not respond, or no weight was set above zero."
+              title={t.recruitment.states.errorTitle}
+              description={t.recruitment.states.errorDescription}
             />
           ) : results.items.length === 0 ? (
             <EmptyState
               title={
                 results.unavailable_scores.length > 0
-                  ? "This profile cannot be scored"
-                  : "No players match this profile"
+                  ? t.recruitment.states.cannotScoreTitle
+                  : t.recruitment.states.noMatchTitle
               }
               description={
-                results.explanation ?? "Try widening the filters or lowering the minimum minutes."
+                apiMessage(t, results.explanation_message) ??
+                t.recruitment.states.noMatchDescription
               }
               action={
-                <ButtonLink href="/recruitment" variant="secondary" size="sm">
-                  Reset
-                </ButtonLink>
+                <ButtonLink href="/recruitment" variant="secondary" size="sm">{t.recruitment.filters.reset}</ButtonLink>
               }
             />
           ) : (
@@ -371,22 +392,35 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   <span className="tabular font-medium text-text">
                     {formatCount(results.total)}
                   </span>{" "}
-                  players match · showing the top {results.items.length}
+                  {t.recruitment.results.matching.replace(
+                    "{shown}",
+                    String(results.items.length),
+                  )}
                 </p>
-                {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
+                {results.is_mock ? <Badge tone="warning">{t.recruitment.results.demoData}</Badge> : null}
               </div>
 
               {results.unavailable_scores.length > 0 ? (
-                <Callout tone="warning" title="Part of this profile cannot be scored">
+                <Callout tone="warning" title={t.recruitment.results.partialTitle}>
                   <ul className="space-y-1">
                     {results.unavailable_scores.map((score) => (
-                      <li key={score.key}>{score.reason}</li>
+                      <li key={score.key}>
+                        {apiMessage(t, {
+                          code: score.missing?.length
+                            ? "score_unavailable_missing"
+                            : "score_unavailable_no_candidate",
+                          values: {
+                            score: score.key,
+                            metrics: (score.missing ?? []).join(","),
+                          },
+                        }) ?? score.reason}
+                      </li>
                     ))}
                   </ul>
                 </Callout>
               ) : null}
               {results.context_caveat ? (
-                <Callout tone="warning" title="Cross-league comparison">
+                <Callout tone="warning" title={t.recruitment.results.crossLeagueTitle}>
                   {results.context_caveat}
                 </Callout>
               ) : null}
@@ -407,7 +441,19 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             </Link>
                           </span>
                         }
-                        description={`${candidate.player.age ?? "–"} years · ${candidate.player.raw_position ?? candidate.player.position_group} · ${candidate.player.club} · ${candidate.player.competition}${candidate.player.market_value_eur !== null ? ` · ${formatEuro(candidate.player.market_value_eur)}` : ""}`}
+                        description={`${t.recruitment.results.candidateMeta
+                          .replace("{age}", String(candidate.player.age ?? "–"))
+                          .replace(
+                            "{position}",
+                            positionName(t, candidate.player.raw_position) ??
+                              candidate.player.position_group,
+                          )
+                          .replace("{club}", candidate.player.club ?? "–")
+                          .replace("{competition}", candidate.player.competition)}${
+                          candidate.player.market_value_eur !== null
+                            ? ` · ${formatEuro(candidate.player.market_value_eur)}`
+                            : ""
+                        }`}
                         action={
                           /* The profile score, and - when the order used
                              something else - what the order used. A list
@@ -420,10 +466,19 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             {candidate.evidence_weight != null && candidate.evidence_weight < 1 ? (
                               <span
                                 className="mt-0.5 text-[10px] text-subtle"
-                                title={candidate.ranking_note ?? undefined}
+                                title={
+                                  apiMessage(t, candidate.ranking_note_message) ?? undefined
+                                }
                               >
-                                ranked {Math.round(candidate.ranking_score ?? candidate.score)} ·{" "}
-                                {Math.round(candidate.evidence_weight * 100)}% of a season
+                                {t.recruitment.results.rankedNote
+                                  .replace(
+                                    "{score}",
+                                    String(Math.round(candidate.ranking_score ?? candidate.score)),
+                                  )
+                                  .replace(
+                                    "{pct}",
+                                    String(Math.round(candidate.evidence_weight * 100)),
+                                  )}
                               </span>
                             ) : null}
                           </span>
@@ -431,14 +486,21 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                       />
                       <CardBody className="space-y-2.5">
                         <p className="text-xs font-medium text-muted">
-                          Why {candidate.player.name.split(" ")[0]}?
+                          {t.recruitment.results.why.replace(
+                            "{firstName}",
+                            candidate.player.name.split(" ")[0],
+                          )}
                         </p>
                         {candidate.components.map((component) => (
                           <div
                             key={component.metric}
                             className="grid grid-cols-[9.5rem_1fr_3rem] items-center gap-3"
                           >
-                            <span className="text-xs text-muted">{component.label}</span>
+                            <span className="text-xs text-muted">
+                              {t.glossary.metrics[
+                                component.metric as keyof typeof t.glossary.metrics
+                              ] ?? component.label}
+                            </span>
                             <PercentileBar percentile={component.percentile ?? 0} />
                             <span className="tabular text-right text-[11px] text-subtle">
                               {Math.round(component.weight)}%
@@ -451,11 +513,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                 ))}
               </ol>
 
-              <Callout tone="caution" title="What this ranking is">
-                A ranking of statistical fit against the weights you set. It is not a measure of
-                player quality, and it knows nothing about tactical system, injury record or
-                temperament.
-              </Callout>
+              <Callout tone="caution" title={t.recruitment.results.rankingTitle}>{t.recruitment.results.rankingBody}</Callout>
             </>
           )}
         </section>

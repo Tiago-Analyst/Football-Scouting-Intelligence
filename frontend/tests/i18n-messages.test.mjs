@@ -234,3 +234,130 @@ test("the extractor finds every code, including the ones it used to miss", () =>
     );
   }
 });
+
+test("every configured role caveat is translated", () => {
+  // The caveats are prose written in player_roles.yaml, keyed by role. The
+  // English in the dictionary is copied from that file, so a caveat edited
+  // there and not here would show the old wording in English and nothing at
+  // all in Portuguese.
+  const roles = readFileSync(
+    fileURLToPath(new URL("../../config/player_roles.yaml", import.meta.url)),
+    "utf8",
+  ).split("\n");
+
+  const configured = new Set();
+  let role = null;
+  for (const line of roles) {
+    if (/^ {2}[a-z_]+:\s*$/.test(line)) role = line.trim().replace(":", "");
+    if (line.trim().startsWith("caveat: >-") && role) configured.add(role);
+  }
+  assert.ok(configured.size >= 10, `expected the configured caveats, found ${configured.size}`);
+
+  for (const locale of ["en", "pt"]) {
+    const caveats =
+      JSON.parse(readFileSync(path.join(DICT, locale, "glossary.json"), "utf8")).roleCaveats ?? {};
+    const missing = [...configured].filter((key) => !caveats[key]);
+    assert.deepEqual(missing, [], `${locale} has no caveat for: ${missing.join(", ")}`);
+  }
+});
+
+test("the Portuguese caveats are not the English ones", () => {
+  const en = JSON.parse(readFileSync(path.join(DICT, "en", "glossary.json"), "utf8")).roleCaveats;
+  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "glossary.json"), "utf8")).roleCaveats;
+  for (const key of Object.keys(en)) {
+    assert.notEqual(pt[key], en[key], `${key} is still English`);
+  }
+});
+
+test("the similarity meaning is said here, not printed from the API", () => {
+  // The API still sends `meaning` as finished English prose, and still should:
+  // an existing caller reads it. What it cannot do is reach a Portuguese
+  // reader. The sentence is fixed - it states what the index is, with no
+  // figure in it - so it belongs in the dictionary rather than in a message
+  // code, which is how `profile.roles.meaning` already works.
+  for (const page of ["similar/page.tsx", "replacements/page.tsx", "players/[slug]/page.tsx"]) {
+    const source = readFileSync(
+      fileURLToPath(new URL(`../src/app/[lang]/${page}`, import.meta.url)),
+      "utf8",
+    );
+    const printed = source.match(/\{\s*(?:similar|results)\.meaning\s*\}/);
+    assert.equal(printed, null, `${page} prints the API's English meaning`);
+  }
+});
+
+test("the English meaning in the dictionary is the backend's own sentence", () => {
+  // Two copies of one sentence, so they are compared rather than trusted. A
+  // reworded constant with a stale dictionary would leave the English reader
+  // with yesterday's wording and nobody any the wiser.
+  const source = readFileSync(
+    fileURLToPath(new URL("../../backend/app/analytics/similarity.py", import.meta.url)),
+    "utf8",
+  );
+  const block = source.slice(source.indexOf("SIMILARITY_MEANING = ("));
+  const backend = [...block.slice(0, block.indexOf("\n)")).matchAll(/"([^"]*)"/g)]
+    .map((m) => m[1])
+    .join("");
+  assert.ok(backend.length > 200, "could not read SIMILARITY_MEANING");
+
+  const en = JSON.parse(readFileSync(path.join(DICT, "en", "similarity.json"), "utf8"));
+  assert.equal(en.notes.meaning, backend);
+
+  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "similarity.json"), "utf8"));
+  assert.notEqual(pt.notes.meaning, backend, "the Portuguese is still English");
+});
+
+test("the English all-leagues constants still say what the dictionary says", () => {
+  // Two copies of three strings. The constants are still exported, because
+  // the shortlist comparison table renders in the browser and cannot reach a
+  // dictionary; the heading on the profile reads the dictionary so a
+  // Portuguese reader gets the explanation in Portuguese. Reworded in one
+  // place and not the other, the product would describe the same column two
+  // ways - which is the exact failure that file's own comment warns about.
+  const source = readFileSync(
+    fileURLToPath(new URL("../src/components/player/AllLeaguesLabel.tsx", import.meta.url)),
+    "utf8",
+  );
+  const constant = (name) => {
+    const at = source.indexOf(`${name} =`);
+    assert.notEqual(at, -1, `${name} is gone`);
+    return [...source.slice(at, source.indexOf(";", at)).matchAll(/"([^"]*)"/g)]
+      .map((m) => m[1])
+      .join("");
+  };
+
+  const en = JSON.parse(readFileSync(path.join(DICT, "en", "glossary.json"), "utf8")).allLeagues;
+  assert.equal(en.label, constant("ALL_LEAGUES_LABEL"));
+  assert.equal(en.qualifier, constant("ALL_LEAGUES_QUALIFIER"));
+  assert.equal(en.explanation, constant("ALL_LEAGUES_EXPLANATION"));
+
+  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "glossary.json"), "utf8")).allLeagues;
+  for (const key of ["label", "qualifier", "explanation", "tooltipLabel"]) {
+    assert.notEqual(pt[key], en[key], `allLeagues.${key} is still English`);
+  }
+});
+
+test("the replacement meaning is the replacement one, not the similarity one", () => {
+  // The two sentences sit in the same shape of callout on two pages, and
+  // swapping them is a silent change: the page still reads fluently and says
+  // something the product does not mean. So each is checked against the
+  // constant it came from.
+  const source = readFileSync(
+    fileURLToPath(new URL("../../backend/app/api/v1/recruitment.py", import.meta.url)),
+    "utf8",
+  );
+  const block = source.slice(source.indexOf("REPLACEMENT_MEANING = ("));
+  const backend = [...block.slice(0, block.indexOf("\n)")).matchAll(/"([^"]*)"/g)]
+    .map((m) => m[1])
+    .join("");
+  assert.ok(backend.length > 100, "could not read REPLACEMENT_MEANING");
+
+  const en = JSON.parse(readFileSync(path.join(DICT, "en", "replacements.json"), "utf8"));
+  assert.equal(en.notes.ranksBody, backend);
+
+  const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "replacements.json"), "utf8"));
+  assert.notEqual(pt.notes.ranksBody, backend, "the Portuguese is still English");
+
+  // And it is not the other sentence wearing this one's name.
+  const similarity = JSON.parse(readFileSync(path.join(DICT, "en", "similarity.json"), "utf8"));
+  assert.notEqual(en.notes.ranksBody, similarity.notes.meaning);
+});

@@ -81,6 +81,11 @@ class Finding:
     percentile: float
     #: The claim, in the fixed vocabulary.
     reading: str
+    #: The metric's identifier, so an interface can name it in its own
+    #: language rather than printing the English column heading.
+    metric: str = ""
+    #: The claim as one of four codes.
+    reading_code: str = ""
 
 
 @dataclass(frozen=True)
@@ -98,6 +103,19 @@ class ScoutingInterpretation:
     #: How much weight the reading carries: minutes, and how much of them the
     #: provider described.
     confidence: list[str] = field(default_factory=list)
+    #: The same three lists as (code, values) pairs.
+    #:
+    #: Additive: the sentences above are unchanged and still correct English.
+    #: These are what an interface with a language of its own renders, and the
+    #: values carry identifiers - a role key, a metric key, a band code -
+    #: rather than words, so nothing has to be matched and re-translated.
+    profile_messages: list[tuple[str, dict[str, str | int | float]]] = field(default_factory=list)
+    unavailable_messages: list[tuple[str, dict[str, str | int | float]]] = field(
+        default_factory=list
+    )
+    confidence_messages: list[tuple[str, dict[str, str | int | float]]] = field(
+        default_factory=list
+    )
 
     @property
     def is_empty(self) -> bool:
@@ -130,6 +148,23 @@ def _reading(percentile: float) -> str:
     if percentile <= 10.0:
         return "little statistical output"
     return "below-average output"
+
+
+def _reading_code(percentile: float) -> str:
+    """The same claim, as a code.
+
+    Four values, decided by the same thresholds as the sentence above. Kept
+    beside it rather than derived from it: matching the English string to work
+    out which of four bands it is would be exactly the pattern-matching these
+    codes exist to remove.
+    """
+    if percentile >= VERY_STRONG:
+        return "reading_strong"
+    if percentile >= STRONG:
+        return "reading_above_average"
+    if percentile <= 10.0:
+        return "reading_little"
+    return "reading_below_average"
 
 
 def _oriented(percentile: float, lower_is_better: bool) -> float:
@@ -179,6 +214,11 @@ class ScoreReading:
     low_evidence: bool = False
     #: The count, so the prose can say what it is standing aside for.
     evidence_label: str | None = None
+    #: The identifier behind the label. The prose is assembled from labels for
+    #: the English sentence this has always produced, and from keys for the
+    #: codes a localised interface renders. Defaulted so every existing caller
+    #: keeps working.
+    key: str = ""
 
 
 @dataclass(frozen=True)
@@ -197,6 +237,12 @@ class RoleReading:
     #: passes and nobody asked him to make any, so reporting it as a watch-out
     #: is true, useless, and reads as a deficiency.
     components: tuple[str, ...] = ()
+    #: Alternatives and missing components as identifiers, beside the labels
+    #: above, so a code can name them in the reader's language.
+    alternative_keys: tuple[str, ...] = ()
+    missing_keys: tuple[str, ...] = ()
+    #: The role identifier, for the same reason `ScoreReading.key` exists.
+    key: str = ""
 
 
 def interpret(
@@ -206,6 +252,7 @@ def interpret(
     metrics: list[MetricReading],
     minutes: int | None,
     sample_band_label: str | None,
+    sample_band: str | None = None,
     detailed_coverage_pct: float | None,
     position_label: str | None = None,
 ) -> ScoutingInterpretation:
@@ -227,6 +274,9 @@ def interpret(
         watch_outs=_findings(metrics, strong=False, only=relevant, position_label=position_label),
         unavailable=_unavailable_lines(role, metrics),
         confidence=_confidence_lines(minutes, sample_band_label, detailed_coverage_pct),
+        profile_messages=_profile_messages(role, scores, metrics),
+        unavailable_messages=_unavailable_messages(role, metrics),
+        confidence_messages=_confidence_messages(minutes, sample_band, detailed_coverage_pct),
     )
 
 
@@ -275,6 +325,31 @@ def _drivers(role: RoleReading | None, metrics: list[MetricReading], limit: int 
         key=lambda item: -item[0],
     )
     return [_in_prose(label) for percentile, label in ranked[:limit] if percentile >= STRONG]
+
+
+def _driver_keys(
+    role: RoleReading | None, metrics: list[MetricReading], limit: int = 2
+) -> list[str]:
+    """The same drivers, as metric identifiers.
+
+    `_drivers` returns the prose form of a label - "pass completion rate" for
+    "Pass completion %" - which is right for the English sentence and useless
+    as a key. Matching the prose back to a metric is the pattern-matching
+    these codes exist to remove, so the selection is done again here against
+    the identifiers.
+    """
+    if role is None or not role.components:
+        return []
+    within = frozenset(role.components)
+    ranked = sorted(
+        (
+            (_oriented(m.percentile, m.lower_is_better), m.metric or m.label)
+            for m in metrics
+            if m.percentile is not None and m.label in within
+        ),
+        key=lambda item: -item[0],
+    )
+    return [key for percentile, key in ranked[:limit] if percentile >= STRONG]
 
 
 def _profile_lines(
@@ -391,7 +466,15 @@ def _findings(
         oriented = _oriented(metric.percentile, metric.lower_is_better)
         at_this_end = oriented >= STRONG if strong else oriented <= WEAK
         if at_this_end:
-            candidates.append(Finding(metric.label, oriented, _reading(oriented)))
+            candidates.append(
+                Finding(
+                    metric.label,
+                    oriented,
+                    _reading(oriented),
+                    metric.metric or "",
+                    _reading_code(oriented),
+                )
+            )
 
     candidates.sort(key=lambda f: f.percentile, reverse=strong)
     return candidates[:MAX_FINDINGS]
@@ -414,6 +497,127 @@ def _unavailable_lines(role: RoleReading | None, metrics: list[MetricReading]) -
             "the absence - but it describes less of the role than the name suggests."
         )
     return lines
+
+
+def _profile_messages(
+    role: RoleReading | None,
+    scores: list[ScoreReading],
+    metrics: list[MetricReading],
+) -> list[tuple[str, dict[str, str | int | float]]]:
+    """The profile paragraph as codes, decided by the same rules as the prose.
+
+    THE ONE PLACE THIS DIFFERS FROM THE ENGLISH
+
+    The English sentence embeds an optional clause - "driven mainly by x and
+    y" - inside a larger one. A template with an optional fragment inside it
+    cannot be translated reliably: Portuguese puts that clause somewhere else
+    in the sentence, and a language that put it first would have no way to
+    say so. So each sentence has two codes, one with drivers and one without,
+    and the translation writes each as a whole sentence.
+
+    Lists travel as comma-joined identifiers, because `values` is flat and the
+    frontend translates and rejoins each item.
+    """
+    out: list[tuple[str, dict[str, str | int | float]]] = []
+
+    if role is not None:
+        driver_keys = _driver_keys(role, metrics)
+        values: dict[str, str | int | float] = {"role": role.key or role.label}
+        if driver_keys:
+            values["drivers"] = ",".join(driver_keys)
+
+        if role.percentile is not None:
+            values["standing"] = _reading_code(role.percentile)
+            limited = role.is_limited or role.coverage < ROLE_COVERAGE_FOR_A_PLAIN_CLAIM
+            stem = "role_limited_claim" if limited else "role_aligns"
+            out.append((f"{stem}_with_drivers" if driver_keys else stem, values))
+        else:
+            out.append(
+                (
+                    "role_aligns_no_population_with_drivers"
+                    if driver_keys
+                    else "role_aligns_no_population",
+                    values,
+                )
+            )
+
+        if role.alternatives:
+            alts = role.alternative_keys or role.alternatives
+            out.append(("also_evaluated_for", {"roles": ",".join(alts)}))
+
+    ranked = sorted((s for s in scores if s.score is not None), key=lambda s: -(s.score or 0.0))
+    strong_enough = [s for s in ranked if not s.low_evidence]
+    top = [s for s in strong_enough if (s.score or 0.0) >= STRONG]
+    bottom = [s for s in ranked if (s.score or 0.0) <= WEAK]
+    set_aside = [s for s in ranked if s.low_evidence and (s.score or 0.0) >= STRONG]
+
+    def scored(items: list[ScoreReading]) -> str:
+        # "key:value" pairs, so the frontend can name the score and keep the
+        # number beside it without parsing a sentence.
+        return ",".join(f"{s.key or s.label}:{round(s.score or 0)}" for s in items)
+
+    if top:
+        out.append(("strongest_scores", {"scores": scored(top[:3])}))
+    if bottom:
+        out.append(("weakest_scores", {"scores": scored(bottom[-3:])}))
+    if set_aside:
+        out.append(("set_aside_scores", {"scores": scored(set_aside[:3])}))
+    return out
+
+
+def _confidence_messages(
+    minutes: int | None, sample_band: str | None, detailed_coverage_pct: float | None
+) -> list[tuple[str, dict[str, str | int | float]]]:
+    """The same lines as codes, decided by the same thresholds.
+
+    Returned as (code, values) pairs rather than as finished sentences, so the
+    reader's own language composes them. The band arrives as its code, not as
+    its English label, because the label is itself copy.
+    """
+    out: list[tuple[str, dict[str, str | int | float]]] = []
+
+    if sample_band and minutes is not None:
+        out.append(("confidence_band_and_minutes", {"band": sample_band, "minutes": minutes}))
+    elif sample_band:
+        out.append(("confidence_band_only", {"band": sample_band}))
+
+    if detailed_coverage_pct is not None:
+        pct = round(detailed_coverage_pct)
+        if pct >= 80:
+            out.append(("confidence_coverage_high", {"pct": pct}))
+        elif pct >= 50:
+            out.append(("confidence_coverage_mid", {"pct": pct}))
+        else:
+            out.append(("confidence_coverage_low", {"pct": pct}))
+    else:
+        out.append(("confidence_coverage_unknown", {}))
+    return out
+
+
+def _unavailable_messages(
+    role: RoleReading | None, metrics: list[MetricReading]
+) -> list[tuple[str, dict[str, str | int | float]]]:
+    """The unavailable lines as codes, carrying metric KEYS rather than labels."""
+    out: list[tuple[str, dict[str, str | int | float]]] = []
+
+    absent = [m.metric or m.label for m in metrics if m.percentile is None]
+    if absent:
+        out.append(
+            (
+                "not_ranked_here" if len(absent) <= 4 else "not_ranked_here_more",
+                {"metrics": ",".join(absent[:4]), "more": max(0, len(absent) - 4)},
+            )
+        )
+
+    if role is not None and role.missing:
+        keys = role.missing_keys or role.missing
+        out.append(
+            (
+                "role_computed_without",
+                {"role": role.key or role.label, "metrics": ",".join(keys[:4])},
+            )
+        )
+    return out
 
 
 def _confidence_lines(

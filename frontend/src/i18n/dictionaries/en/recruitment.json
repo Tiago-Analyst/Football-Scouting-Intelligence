@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "title": "Recruitment profile builder",
+    "description": "Define the profile you are recruiting for, weight what matters, and rank candidates against it. Every result shows the percentiles that placed it there."
+  },
+  "eyebrow": "Recruitment",
+  "title": "Recruitment profile builder",
+  "description": "Define the profile you are recruiting for, weight what matters, and rank candidates against it. Every result shows the percentiles that placed it there.",
+  "intro": "Start from a role, adjust the weights, apply filters, then rank candidates.",
+  "weights": {
+    "heading": "Profile weights",
+    "normalised": "Weights are normalised, so they need not add to exactly 100.",
+    "unavailable": "unavailable",
+    "unavailableTooltip": "This load cannot produce them for anybody, so the ranking would be empty however wide the filters are."
+  },
+  "filters": {
+    "heading": "Filters",
+    "any": "Any",
+    "positionGroup": "Position group",
+    "competition": "Competition",
+    "minAge": "Min age",
+    "maxAge": "Max age",
+    "maxValue": "Max market value (€)",
+    "minimumMinutes": "Minimum minutes",
+    "minimumMinutesTooltipLabel": "Does this exclude players by default?",
+    "minimumMinutesTooltip": "Optional filter. All players are eligible by default regardless of minutes played — this sets a floor only if you want one, and it is empty unless you fill it in.",
+    "build": "Build shortlist",
+    "reset": "Reset"
+  },
+  "states": {
+    "chooseTitle": "Choose a role preset or set your own weights",
+    "chooseDescription": "Start from one of the named roles, or set the emphasis yourself. Nothing is weighted yet, so there is nothing to rank by.",
+    "readyTitle": "This profile is ready to rank candidates",
+    "readyFallback": "Adjust the filters, then build the shortlist.",
+    "readyActionBefore": "Press ",
+    "readyActionButton": "Build shortlist",
+    "readyActionAfter": " to run it.",
+    "errorTitle": "Could not build the shortlist",
+    "errorDescription": "The API did not respond, or no weight was set above zero.",
+    "cannotScoreTitle": "This profile cannot be scored",
+    "noMatchTitle": "No players match this profile",
+    "noMatchDescription": "Try widening the filters or lowering the minimum minutes.",
+    "blockedOneTitle": "1 weighted dimension is unavailable",
+    "blockedManyTitle": "{count} weighted dimensions are unavailable",
+    "blockedDescription": "This load cannot produce them for anybody, so the ranking would be empty however wide the filters are. Set those weights to zero to rank on the rest of the profile."
+  },
+  "results": {
+    "matching": "players match · showing the top {shown}",
+    "demoData": "Demo data",
+    "partialTitle": "Part of this profile cannot be scored",
+    "crossLeagueTitle": "Cross-league comparison",
+    "candidateMeta": "{age} years · {position} · {club} · {competition}",
+    "rankedNote": "ranked {score} · {pct}% of a season",
+    "why": "Why {firstName}?",
+    "rankingTitle": "What this ranking is",
+    "rankingBody": "A ranking of statistical fit against the weights you set. It is not a measure of player quality, and it knows nothing about tactical system, injury record or temperament."
+  },
+  "blocked": {
+    "willRankNobody": "This profile will rank nobody.",
+    "setToZero": "Set that weight to zero to get a ranking from the rest of the profile.",
+    "build": "Build shortlist",
+    "cannotProduce": "{scores} cannot be produced for any player, so this profile matches nobody.",
+    "setOne": "Set that weight to zero to run the search.",
+    "setMany": "Set those weights to zero to run the search."
+  },
+  "summary": {
+    "subjectPlayer": "a player",
+    "subjectPosition": "a {position}",
+    "prioritising": "You are looking for {subject} prioritising {items}",
+    "even": "You are looking for {subject} with no single emphasis: {items} weighted evenly.",
+    "moderate": "moderate weight on {items}",
+    "limited": "limited weight on {items}",
+    "withClause": "with {clauses}",
+    "joinAnd": " and ",
+    "joinComma": ", ",
+    "clauseJoin": ", and ",
+    "sentenceJoin": ", ",
+    "fullStop": "."
+  }
+}

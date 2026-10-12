@@ -1,7 +1,9 @@
+import { apiMessage } from "@/components/player/ApiMessage";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Tooltip } from "@/components/ui/Tooltip";
-import type { Finding, ScoutingInterpretation as Interpretation } from "@/types/api";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import type { ApiMessage, Finding, ScoutingInterpretation as Interpretation } from "@/types/api";
 
 /**
  * The rest of this page, read aloud.
@@ -27,30 +29,58 @@ import type { Finding, ScoutingInterpretation as Interpretation } from "@/types/
  * something nobody asked them to do, so the server draws watch-outs from the
  * role's own components. A goalkeeper is not weak at key passes.
  */
-export function ScoutingInterpretation({ interpretation }: { interpretation: Interpretation }) {
-  const { profile, strengths, watch_outs, unavailable, confidence, not_captured } = interpretation;
+export async function ScoutingInterpretation({
+  interpretation,
+}: {
+  interpretation: Interpretation;
+}) {
+  const t = await getDictionary();
+  const c = t.components.interpretation;
+  const {
+    profile,
+    strengths,
+    watch_outs,
+    unavailable,
+    confidence,
+    not_captured,
+    profile_messages,
+    unavailable_messages,
+    confidence_messages,
+    not_captured_messages,
+  } = interpretation;
+
+  /**
+   * Prefer the coded lines, fall back to the API's English.
+   *
+   * The fallback is not decoration: an older backend still returns only the
+   * sentences, and a page that rendered nothing in that case would be worse
+   * than one that renders English.
+   */
+  const lines = (coded: ApiMessage[] | undefined, prose: string[]) =>
+    coded?.length ? coded.map((m) => apiMessage(t, m) ?? "").filter(Boolean) : prose;
+
+  const profileLines = lines(profile_messages, profile);
+  const unavailableLines = lines(unavailable_messages, unavailable);
+  const confidenceLines = lines(confidence_messages, confidence);
+  const notCapturedLines = lines(not_captured_messages, not_captured);
 
   return (
     <Card>
       <CardHeader
         title={
           <span className="flex items-center gap-1.5">
-            Scouting interpretation
-            <Tooltip label="Where does this come from?">
-              Generated from the figures on this page by fixed rules — a threshold applied to a
-              percentile you can see below. No language model is involved, and nothing here is a
-              judgement the data does not support.
-            </Tooltip>
+            {c.title}
+            <Tooltip label={c.tooltipLabel}>{c.tooltip}</Tooltip>
           </span>
         }
-        description="The numbers below, read. Check any line against the table it came from."
+        description={c.description}
       />
       <CardBody className="space-y-5">
-        {profile.length > 0 ? (
+        {profileLines.length > 0 ? (
           <section>
-            <Heading>Profile</Heading>
+            <Heading>{c.profile}</Heading>
             <ul className="space-y-1.5 text-sm">
-              {profile.map((line) => (
+              {profileLines.map((line) => (
                 <li key={line} className="text-muted">
                   {line}
                 </li>
@@ -61,33 +91,35 @@ export function ScoutingInterpretation({ interpretation }: { interpretation: Int
 
         <div className="grid gap-5 sm:grid-cols-2">
           <FindingList
-            heading="Strengths"
+            heading={c.strengths}
             findings={strengths}
-            empty="No metric ranks in the upper band of this comparison population."
+            empty={c.strengthsEmpty}
+            t={t}
           />
           <FindingList
-            heading="Watch-outs"
+            heading={c.watchOuts}
             findings={watch_outs}
-            empty="No metric central to this role ranks in the lower band."
+            empty={c.watchOutsEmpty}
+            t={t}
           />
         </div>
 
-        {unavailable.length > 0 ? (
+        {unavailableLines.length > 0 ? (
           <section>
-            <Heading>Not measured</Heading>
+            <Heading>{c.notMeasured}</Heading>
             <ul className="space-y-1.5 text-sm text-muted">
-              {unavailable.map((line) => (
+              {unavailableLines.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
           </section>
         ) : null}
 
-        {confidence.length > 0 ? (
+        {confidenceLines.length > 0 ? (
           <section>
-            <Heading>Data confidence</Heading>
+            <Heading>{c.dataConfidence}</Heading>
             <ul className="space-y-1.5 text-sm text-muted">
-              {confidence.map((line) => (
+              {confidenceLines.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
@@ -95,13 +127,11 @@ export function ScoutingInterpretation({ interpretation }: { interpretation: Int
         ) : null}
       </CardBody>
 
-      {not_captured.length > 0 ? (
+      {notCapturedLines.length > 0 ? (
         <CardFooter className="block space-y-2 text-subtle">
-          <p className="text-[11px] font-semibold tracking-widest uppercase">
-            Not captured by this model
-          </p>
+          <p className="text-[11px] font-semibold tracking-widest uppercase">{c.notCaptured}</p>
           <ul className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-            {not_captured.map((line) => (
+            {notCapturedLines.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
@@ -130,10 +160,12 @@ function FindingList({
   heading,
   findings,
   empty,
+  t,
 }: {
   heading: string;
   findings: Finding[];
   empty: string;
+  t: Dictionary;
 }) {
   return (
     <section>
@@ -145,8 +177,14 @@ function FindingList({
           {findings.map((finding) => (
             <li key={finding.label} className="space-y-1">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm">{finding.label}</span>
-                <span className="text-[11px] text-subtle">{finding.reading}</span>
+                <span className="text-sm">
+                  {t.glossary.metrics[finding.metric as keyof typeof t.glossary.metrics] ??
+                    finding.label}
+                </span>
+                <span className="text-[11px] text-subtle">
+                  {(t.messages as Record<string, string>)[finding.reading_code ?? ""] ??
+                    finding.reading}
+                </span>
               </div>
               <PercentileBar percentile={finding.percentile} />
             </li>

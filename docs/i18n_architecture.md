@@ -206,22 +206,24 @@ unaffected throughout.
 |---|---|
 | 1 ✅ | Architecture, `[lang]` routing, proxy, dictionaries, selector, persistence, glossary, shell and error states |
 | 2a ✅ | Terminology components, provider position vocabulary, sample-band copy, `best_role_key` on the API, **player search** |
-| 2b | Player profile, similarity, replacements, recruitment, opportunities |
+| 2b ✅ | Player profile, similarity, replacements, recruitment, opportunities — **and the backend message codes**, which phase 2b needed and therefore brought forward from phase 4 |
 | 3 | About, methodology, data quality, status, auth, shortlists |
-| 4 | Backend message codes, `Intl` formatting, completeness tests — and `pt` switched on |
+| 4 | `Intl` formatting, completeness tests — and `pt` switched on |
 
 ### Why phase 2 is split
 
 Two things found while translating the first page.
 
-**The profile page cannot be finished before phase 4.** Much of what it shows
-is prose the API sends and the frontend prints: `unscored_reason`,
-`role_fit_percentile_reason`, `coverage_label`, `explanation`, `band_label`,
-`evidence.label`, `description`, `caveat`, and the names of a role's core
-dimensions. Translating the page's own copy leaves those sentences in English —
-which is correct for phase 2 and incomplete until the codes land. Attempting
-the profile before phase 4 would mean either waiting for it or writing the
-page twice.
+**The profile page could not be finished without the message codes.** Much of
+what it shows is prose the API sends and the frontend prints:
+`unscored_reason`, `role_fit_percentile_reason`, `coverage_label`,
+`explanation`, `band_label`, `evidence.label`, `description`, `caveat`,
+`ranking_note`, and the names of a role's core dimensions. Translating the
+page's own copy would have left those sentences in English, and writing the
+page twice was the only alternative — so the codes moved into phase 2b and
+landed with it. The English strings all stayed, so a caller already reading
+them is unaffected; each now has a `*_message` beside it carrying the same
+claim as a code and its values.
 
 **Formatting is bigger than it looked.** `ordinal()` renders "100th" and
 `formatDate` renders "Jun 2027" on a Portuguese page. Making them locale-aware

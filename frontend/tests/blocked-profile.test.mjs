@@ -19,6 +19,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { copy } from "./helpers/dictionaries.mjs";
+
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const flat = (s) => s.replace(/\s+/g, " ");
 
@@ -33,7 +35,12 @@ test("it says why, on the control itself", () => {
   // A disabled button with no explanation is worse than an enabled one that
   // returns nothing: there is no way to find out what to change.
   assert.match(component, /aria-describedby/);
-  assert.match(flat(component), /cannot be produced for any player/);
+  // The sentence moved into the dictionary when the component stopped
+  // being able to read one: it renders in the browser and is handed its
+  // copy by the server page.
+  assert.match(flat(component), /copy\.cannotProduce/);
+  assert.match(copy("en", "recruitment"), /cannot be produced for any player/);
+  assert.match(copy("pt", "recruitment"), /não pode ser produzido para nenhum jogador/);
 });
 
 test("it follows the weights as they are typed, not as they were rendered", () => {

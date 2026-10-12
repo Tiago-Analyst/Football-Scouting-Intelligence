@@ -21,8 +21,10 @@ from app.analytics.presets import get_presets
 from app.analytics.reliability import rank_by_evidence
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
 from app.analytics.similarity import SimilarityFilters
+from app.api.v1.messages import ranking_message as _ranking_message
 from app.api.v1.players import metric_label, require_player, to_summary
 from app.schemas.api import (
+    Message,
     OpportunitiesResponse,
     OpportunityOut,
     RecruitmentCandidate,
@@ -323,6 +325,9 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
         candidate.ranking_note = adjustment.explain(
             minutes=candidate.player.minutes, noun="profile score"
         )
+        candidate.ranking_note_message = _ranking_message(
+            adjustment, minutes=candidate.player.minutes, noun_key="profile_score"
+        )
     ranked.sort(key=lambda c: c.ranking_score, reverse=True)
     page = ranked[request.offset : request.offset + request.limit]
 
@@ -355,6 +360,7 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
         considered=considered,
         unavailable_scores=unavailable,
         explanation=_explain(considered, len(ranked), unavailable, weights),
+        explanation_message=_explain_code(considered, len(ranked), unavailable, weights),
         is_mock=view.is_mock,
     )
 
@@ -368,6 +374,41 @@ def _why_unavailable(definition: ScoreDefinition, missing: list[str]) -> str:
         f"{definition.label} needs {names}, which the performance provider does not "
         f"supply. No amount of widening the filters will produce it."
     )
+
+
+def _explain_code(
+    considered: int,
+    ranked: int,
+    unavailable: list[UnavailableScoreOut],
+    weights: dict[str, float],
+) -> Message | None:
+    """The same four cases as `_explain`, as a code rather than a sentence.
+
+    Deliberately beside it rather than inside it: the two answer the same
+    question and have to keep agreeing about which case this is, which a reader
+    can check by reading them together.
+
+    `scores` carries score KEYS, never labels. A label is English, and
+    interpolating one would put an English noun phrase inside a Portuguese
+    sentence - the failure the whole mechanism exists to avoid.
+    """
+    if ranked:
+        if unavailable:
+            return Message(
+                code="recruitment_partial_ranking",
+                values={"missing": len(unavailable), "requested": len(weights)},
+            )
+        return None
+
+    if considered == 0:
+        return Message(code="recruitment_no_filter_match", values={})
+
+    if unavailable:
+        return Message(
+            code="recruitment_blocked_scores",
+            values={"scores": ",".join(sorted(item.key for item in unavailable))},
+        )
+    return Message(code="recruitment_none_scored", values={"considered": considered})
 
 
 def _explain(
@@ -484,11 +525,18 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
         # the comparable score is withheld instead. The candidate keeps every
         # number that was actually computed, stays in the response, and is
         # listed after the candidates whose score means the same thing.
-        missing_components = [
-            label
-            for label, value in (("Role fit", role_score), ("Affordability", market_fit))
+        # The label is the English sentence's word; the key beside it is what
+        # an interface in another language names the same component by.
+        missing = [
+            (key, label)
+            for key, label, value in (
+                ("role_fit", "Role fit", role_score),
+                ("affordability", "Affordability", market_fit),
+            )
             if value is None and label in _required_components(target_role, budget)
         ]
+        missing_components = [label for _, label in missing]
+        missing_component_keys = [key for key, _ in missing]
         candidates.append(
             ReplacementCandidate(
                 player=to_summary(record, view),
@@ -498,6 +546,7 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
                 market_fit=market_fit,
                 comparable_strength=result.comparable_strength,
                 missing_components=missing_components,
+                missing_component_keys=missing_component_keys,
                 candidate_minutes=record.minutes,
             )
         )
@@ -508,8 +557,15 @@ def replacement_search(request: ReplacementRequest) -> ReplacementResponse:
     # list of replacements for a player with a full season behind him.
     complete = [c for c in candidates if c.overall is not None]
     limited = [c for c in candidates if c.overall is None]
-    _order_by_evidence(complete, value=lambda c: c.overall or 0.0, noun="replacement score")
-    _order_by_evidence(limited, value=lambda c: c.similarity, noun="similarity")
+    _order_by_evidence(
+        complete,
+        value=lambda c: c.overall or 0.0,
+        noun="replacement score",
+        noun_key="replacement_score",
+    )
+    _order_by_evidence(
+        limited, value=lambda c: c.similarity, noun="similarity", noun_key="similarity"
+    )
 
     ordered = complete + limited
     return ReplacementResponse(
@@ -541,6 +597,7 @@ def _order_by_evidence(
     *,
     value: Callable[[ReplacementCandidate], float],
     noun: str,
+    noun_key: str,
 ) -> None:
     """Sort in place by the evidence-adjusted value, and say so on each row."""
     adjustments = rank_by_evidence(
@@ -550,6 +607,9 @@ def _order_by_evidence(
         candidate.ranking_value = adjustment.ranked
         candidate.evidence_weight = adjustment.weight
         candidate.ranking_note = adjustment.explain(minutes=candidate.candidate_minutes, noun=noun)
+        candidate.ranking_note_message = _ranking_message(
+            adjustment, minutes=candidate.candidate_minutes, noun_key=noun_key
+        )
     candidates.sort(key=lambda c: c.ranking_value, reverse=True)
 
 
@@ -576,22 +636,33 @@ def market_opportunities(
     # the tests in another let them drift apart, and a funnel that labels the
     # minutes filter "Raw role fit at least 80" is worse than no funnel: it
     # is a confident account of the wrong thing.
-    steps: list[tuple[str, Callable[[PlayerRecord], bool]]] = [
+    #: Each step carries its English label, its test, and the same criterion
+    #: as a code. The label stays because it is what this API has always
+    #: returned; the code is what a localised interface renders, so a
+    #: criterion reads in the reader's language rather than in this file's.
+    steps: list[tuple[str, Callable[[PlayerRecord], bool], Message]] = [
         (
             f"Age at most {max_age}",
             lambda r: r.age is not None and r.age <= max_age,
+            Message(code="screen_age_at_most", values={"age": max_age}),
         ),
         (
             f"Raw role fit at least {min_role_score:.0f}",
             lambda r: _best_role_score(view, r) >= min_role_score,
+            Message(code="screen_role_fit_at_least", values={"score": round(min_role_score)}),
         ),
         (
             f"At least {min_minutes} minutes",
             lambda r: (r.minutes or 0) >= min_minutes,
+            Message(code="screen_minutes_at_least", values={"minutes": min_minutes}),
         ),
         (
             f"Market value at most €{max_market_value_eur / 1_000_000:.1f}m",
             lambda r: r.market_value_eur is not None and r.market_value_eur <= max_market_value_eur,
+            Message(
+                code="screen_value_at_most",
+                values={"millions": round(max_market_value_eur / 1_000_000, 1)},
+            ),
         ),
     ]
     if contract_within_months is not None:
@@ -599,18 +670,25 @@ def market_opportunities(
             (
                 f"Contract expiring within {contract_within_months} months",
                 lambda r: expires_within(r.contract_expires, contract_within_months),
+                Message(
+                    code="screen_contract_within",
+                    values={"months": contract_within_months},
+                ),
             )
         )
-    criteria = [label for label, _ in steps]
+    criteria = [label for label, _, _ in steps]
 
     surviving = list(view.players.values())
     funnel: list[ScreenStepOut] = []
-    for label, passes in steps:
+    for label, passes, message in steps:
         before = len(surviving)
         surviving = [r for r in surviving if passes(r)]
         funnel.append(
             ScreenStepOut(
-                criterion=label, remaining=len(surviving), removed=before - len(surviving)
+                criterion=label,
+                criterion_message=message,
+                remaining=len(surviving),
+                removed=before - len(surviving),
             )
         )
 
@@ -679,6 +757,12 @@ def market_opportunities(
             # the one the shrinkage actually used.
             centre="across every player with a role fit",
         )
+        opportunity.ranking_note_message = _ranking_message(
+            adjustment,
+            minutes=opportunity.player.minutes,
+            noun_key="role_fit",
+            centre_key="every_player_with_role_fit",
+        )
 
     found.sort(key=lambda o: o.ranking_score, reverse=True)
     return OpportunitiesResponse(
@@ -686,6 +770,7 @@ def market_opportunities(
         total=len(found),
         criteria=criteria,
         disclaimer=OPPORTUNITY_DISCLAIMER,
+        disclaimer_message=Message(code="opportunity_disclaimer"),
         funnel=funnel,
         explanation=_explain_screen(funnel, len(found)),
         is_mock=view.is_mock,

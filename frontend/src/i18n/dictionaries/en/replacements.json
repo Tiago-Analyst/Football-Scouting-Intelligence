@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Replacement finder",
+    "description": "Select a player, then find candidates who could replace that profile."
+  },
+  "eyebrow": "Recruitment",
+  "title": "Replacement finder",
+  "description": "Select a player, then find candidates who could replace that profile. Combines statistical similarity, role fit and affordability.",
+  "picker": {
+    "title": "Find the player to replace",
+    "placeholder": "Search by name…",
+    "browse": "Or browse a competition",
+    "search": "Search",
+    "startOver": "Start over",
+    "viewProfile": "View profile",
+    "changePlayer": "Change player",
+    "noneFoundTitle": "No players found",
+    "noneFoundDescription": "Try a different name.",
+    "notFoundTitle": "Player not found",
+    "notFoundDescription": "That player is not in the database."
+  },
+  "constraints": {
+    "heading": "Constraints",
+    "any": "Any",
+    "budget": "Budget (€)",
+    "maxAge": "Maximum age",
+    "competition": "Competition",
+    "contractWithin": "Contract expires within",
+    "months": "{count} months",
+    "apply": "Apply"
+  },
+  "table": {
+    "player": "Player",
+    "age": "Age",
+    "club": "Club",
+    "similarity": "Similarity",
+    "rawRoleFit": "Raw role fit",
+    "affordability": "Affordability",
+    "overall": "Overall",
+    "ranked": "Ranked",
+    "value": "Value",
+    "contract": "Contract",
+    "differentStrength": "Different profile strength",
+    "seasonShare": "{pct}% of a season",
+    "limited": "Limited",
+    "noComparable": "No comparable overall: {components} could not be computed for this player."
+  },
+  "empty": {
+    "title": "No replacements match these constraints",
+    "description": "Try raising the budget or relaxing the age and competition filters."
+  },
+  "notes": {
+    "rankedTitle": "Why this column exists",
+    "rankedBody": "The list is ordered by this, not by Overall. A score built on part of a season is read closer to the average for this search, in proportion to how much football stands behind it; at a full season's minutes it is used as it stands. Nobody is excluded and no score is rewritten — Overall beside it is the score itself.",
+    "overallTitle": "How the overall score is built",
+    "overallBody": "Statistical similarity 55%, role fit 30%, affordability 15%. Affordability is the market value against the budget you set and nothing else — not value for money, and not a judgement about whether the club would sell. It is left out of the calculation entirely when no budget is given, rather than being guessed. Wages, agent fees, registration eligibility and adaptation risk are not inputs to this model and are not represented anywhere in the score.",
+    "ranksTitle": "What this ranks",
+    "ranksBody": "Replacement scores rank a statistical profile within the filters you set. They do not account for tactical system, role in the squad, personality or medical history, and are not a probability."
+  },
+  "targetTitle": "Replacements for {player}"
+}

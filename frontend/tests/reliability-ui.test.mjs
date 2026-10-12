@@ -11,7 +11,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { copy, dictionary } from "./helpers/dictionaries.mjs";
+
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+
+/**
+ * Localisation moved these words out of the components and into the
+ * dictionaries, so the guards read the dictionary. Each checks BOTH
+ * languages: a claim this product makes in English it has to make in
+ * Portuguese too.
+ */
+const components = { en: copy("en", "components"), pt: copy("pt", "components") };
+const profileCopy = { en: copy("en", "profile"), pt: copy("pt", "profile") };
+const replacementsCopy = { en: copy("en", "replacements"), pt: copy("pt", "replacements") };
+const recruitmentCopy = { en: copy("en", "recruitment"), pt: copy("pt", "recruitment") };
+const similarityCopy = { en: copy("en", "similarity"), pt: copy("pt", "similarity") };
+const opportunitiesCopy = { en: copy("en", "opportunities"), pt: copy("pt", "opportunities") };
 const flat = (s) => s.replace(/\s+/g, " ");
 
 const replacements = read("src/app/[lang]/replacements/page.tsx");
@@ -26,8 +41,11 @@ test("an incomplete replacement shows no comparable overall", () => {
   // similarity carries the largest weight. The page must not print a number
   // that looks comparable and is not.
   assert.match(replacements, /entry\.overall !== null/);
-  assert.match(flat(replacements), /Limited/);
-  assert.match(replacements, /missing_components/);
+  assert.match(flat(replacements), /t\.replacements\.table\.limited/);
+  assert.match(replacementsCopy.en, /Limited/);
+  assert.match(replacementsCopy.pt, /Limitado/);
+  // The components are named from keys, not from the API's English labels.
+  assert.match(replacements, /missing_component_keys/);
 });
 
 test("the overall is typed as possibly absent, so the page cannot forget", () => {
@@ -35,27 +53,33 @@ test("the overall is typed as possibly absent, so the page cannot forget", () =>
 });
 
 test("metric completeness is reported separately from minutes", () => {
-  assert.match(flat(confidence), /Analytical metric coverage/);
-  assert.match(flat(confidence), /profile metrics/);
+  assert.match(components.en, /Analytical metric coverage/);
+  assert.match(components.pt, /Cobertura analítica de métricas/);
+  assert.match(components.en, /profile metrics/);
+  assert.match(components.pt, /métricas do perfil/);
   assert.match(confidence, /metric_coverage_pct/);
 });
 
 test("the minutes-coverage label says it is about minutes", () => {
   // It used to be headed just "Coverage", beside a sample band, which read as
   // "this profile is complete".
-  assert.match(flat(confidence), /Detailed minutes coverage/);
+  assert.match(components.en, /Detailed minutes coverage/);
+  assert.match(components.pt, /Cobertura de minutos detalhados/);
   assert.equal(/term="Coverage"/.test(confidence), false);
 });
 
 test("a profile with no role says which role came closest", () => {
   assert.match(profile, /unscored_reason/);
   assert.match(profile, /unscored\?\.length/);
-  assert.match(flat(profile), /measurable of the/);
+  assert.match(profileCopy.en, /measurable of the/);
+  assert.match(profileCopy.pt, /mensurável dos/);
 });
 
 test("the old bare message is only a fallback, never the whole answer", () => {
   const code = profile.replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.match(code, /roles\?\.unscored_reason \?\?/);
+  // The code still falls back to the bare English sentence when no message
+  // code arrives, which is the point: the fallback is a fallback.
+  assert.match(code, /unscored_reason_message\) \?\? roles\?\.unscored_reason/);
 });
 
 test("a preset says how much of itself is measurable before it is run", () => {
@@ -96,7 +120,9 @@ test("no page recomputes a ranking the backend owns", () => {
  */
 
 test("the replacements table shows the column it is sorted by", () => {
-  assert.match(flat(replacements), /<TH numeric>\s*<span[^>]*>\s*Ranked/);
+  assert.match(flat(replacements), /t\.replacements\.table\.ranked/);
+  assert.match(replacementsCopy.en, /Ranked/);
+  assert.match(replacementsCopy.pt, /Ordenado/);
   assert.match(replacements, /entry\.ranking_value/);
 });
 
@@ -107,19 +133,29 @@ test("the ranked column says it is the sort key and Overall is not", () => {
 
 test("a short-sample candidate says how much of a season it rests on", () => {
   assert.match(replacements, /entry\.evidence_weight/);
-  assert.match(flat(replacements), /% of a season/);
+  assert.match(flat(replacements), /t\.replacements\.table\.seasonShare/);
+  assert.match(replacementsCopy.en, /\{pct\}% of a season/);
+  assert.match(replacementsCopy.pt, /\{pct\}% de uma época/);
 });
 
 test("the backend's own sentence is carried, not reworded on the page", () => {
-  // `ranking_note` is written once, server-side. A second wording here would
-  // eventually disagree with the first.
-  assert.match(replacements, /entry\.ranking_note/);
-  assert.match(recruitment, /candidate\.ranking_note/);
+  // The backend still decides WHICH sentence is true; it now says so with a
+  // code, and the wording lives in one dictionary entry per language. A
+  // second wording on the page would eventually disagree with the first.
+  assert.match(replacements, /entry\.ranking_note_message/);
+  assert.match(recruitment, /candidate\.ranking_note_message/);
+  for (const locale of ["en", "pt"]) {
+    const messages = dictionary(locale, "messages");
+    assert.ok(messages.ranking_shrunk, `${locale} has no ranking_shrunk`);
+    assert.ok(messages.ranking_shrunk_no_minutes, `${locale} has no no-minutes variant`);
+  }
 });
 
 test("recruitment cards explain a placement their score does not", () => {
   assert.match(recruitment, /candidate\.evidence_weight/);
-  assert.match(flat(recruitment), /ranked \{Math\.round\(candidate\.ranking_score/);
+  assert.match(flat(recruitment), /t\.recruitment\.results\.rankedNote/);
+  assert.match(recruitmentCopy.en, /ranked \{score\}/);
+  assert.match(recruitmentCopy.pt, /ordenado \{score\}/);
 });
 
 test("the explanation is only shown when the order actually moved", () => {
@@ -178,13 +214,16 @@ test("the percentile bar is still fed the untouched score", () => {
 
 test("a partial role shows its raw fit and withholds the percentile", () => {
   assert.match(profile, /partial_evidence/);
-  assert.match(flat(profile), /Partial role evidence/i);
-  assert.match(flat(profile), /not available for partial role definitions/i);
+  assert.match(profileCopy.en, /Partial role evidence/i);
+  assert.match(profileCopy.pt, /Evidência parcial do papel/i);
+  assert.match(profileCopy.en, /not available for partial role definitions/i);
+  assert.match(profileCopy.pt, /indisponível para definições parciais/i);
 });
 
 test("it names the dimension that could not be measured", () => {
   assert.match(profile, /core_dimensions/);
-  assert.match(flat(profile), /Unavailable defining dimension/);
+  assert.match(profileCopy.en, /Unavailable defining dimension/);
+  assert.match(profileCopy.pt, /Dimensão definidora indisponível/);
 });
 
 test("the page does not decide validity for itself", () => {
@@ -263,7 +302,9 @@ test("limited similarity evidence is marked at the index's own size", () => {
     ["profile", profile],
   ]) {
     assert.match(source, /very_limited/, `${name} does not check the band`);
-    assert.match(flat(source), /Limited evidence/, `${name} does not say so`);
+    const words = name === "similar" ? similarityCopy : profileCopy;
+    assert.match(words.en, /Limited evidence/, `${name} does not say so in English`);
+    assert.match(words.pt, /Evidência limitada/, `${name} does not say so in Portuguese`);
   }
 });
 
@@ -276,7 +317,8 @@ test("the similarity index itself is not altered to carry the warning", () => {
 
 test("a role says when one metric carried it", () => {
   assert.match(profile, /dominant_component/);
-  assert.match(flat(profile), /strongly driven by/);
+  assert.match(profileCopy.en, /strongly driven by/);
+  assert.match(profileCopy.pt, /fortemente determinado por/);
 });
 
 test("the page does not decide what counts as dominant", () => {
@@ -311,13 +353,16 @@ const opportunities = read("src/app/[lang]/opportunities/page.tsx");
 
 test("an opportunity shows the value its position came from", () => {
   assert.match(opportunities, /entry\.ranking_score/);
-  assert.match(flat(opportunities), /ranked \{Math\.round\(entry\.ranking_score\)\}/);
+  assert.match(flat(opportunities), /t\.opportunities\.results\.rankedNote/);
+  assert.match(opportunitiesCopy.en, /ranked \{score\}/);
+  assert.match(opportunitiesCopy.pt, /ordenado \{score\}/);
 });
 
 test("the raw role fit is still the headline number", () => {
   // The analytical figure. Replacing it with the ranking would hide the thing
   // a reader checks the ordering against.
-  assert.match(flat(opportunities), /Raw role fit/);
+  assert.match(opportunitiesCopy.en, /Raw role fit/);
+  assert.match(opportunitiesCopy.pt, /Aptidão bruta/);
   assert.match(opportunities, /Math\.round\(entry\.best_role_score\)/);
 });
 
@@ -327,7 +372,7 @@ test("the ranking is only shown where the order actually moved", () => {
 });
 
 test("the explanation is the backend's sentence, not a second one", () => {
-  assert.match(opportunities, /entry\.ranking_note/);
+  assert.match(opportunities, /entry\.ranking_note_message/);
 });
 
 test("the page does not compute the ordering for itself", () => {

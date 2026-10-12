@@ -152,6 +152,34 @@ class RankingAdjustment:
             f"The {noun} itself is unchanged."
         )
 
+    def explain_code(
+        self, *, minutes: int | None, noun_key: str = "score", centre_key: str = "search"
+    ) -> tuple[str, dict[str, str | int | float]] | None:
+        """The same sentence as a code and its values, or None.
+
+        Returned as a pair rather than as a `Message` so this module keeps
+        knowing nothing about the API schema; the route wraps it.
+
+        `noun_key` and `centre_key` are KEYS. The sentence names a score
+        ("role fit", "similarity") and the population it was pulled toward,
+        and both are noun phrases the reader's own language has to decline -
+        passing the English through would read as English inside Portuguese.
+        """
+        if not self.adjusted:
+            return None
+        values: dict[str, str | int | float] = {
+            "ranked": round(self.ranked),
+            "raw": round(self.raw),
+            "pct": round(self.weight * 100),
+            "mean": round(self.mean),
+            "ranked_noun": noun_key,
+            "centre": centre_key,
+        }
+        if not minutes:
+            return ("ranking_shrunk_no_minutes", values)
+        values["minutes"] = minutes
+        return ("ranking_shrunk", values)
+
 
 def rank_by_evidence(
     values: Sequence[float], minutes: Sequence[int | None], *, mean: float | None = None

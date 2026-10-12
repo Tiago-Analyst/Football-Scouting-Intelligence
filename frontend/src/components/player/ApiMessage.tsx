@@ -73,8 +73,46 @@ function translateValue(t: Dictionary, name: string, value: string | number): st
         .split(",")
         .map((m) => (t.glossary.metrics as Record<string, string>)[m.trim()] ?? m.trim())
         .join(", ");
+    case "ranked_noun":
+      // The noun the ranking sentence is about - "role fit", "similarity".
+      // Its own group, because `noun` above names a countable event and these
+      // name a score; one list holding both would invite the wrong one.
+      return (t.glossary.rankingNouns as Record<string, string>)[raw] ?? raw;
+    case "centre":
+      return (t.glossary.rankingCentres as Record<string, string>)[raw] ?? raw;
     case "score":
       return t.glossary.scores[raw as keyof typeof t.glossary.scores]?.label ?? raw;
+    case "roles":
+      return raw
+        .split(",")
+        .map((r) => t.glossary.roles[r.trim() as keyof typeof t.glossary.roles] ?? r.trim())
+        .join(", ");
+    case "drivers":
+      return raw
+        .split(",")
+        .map(
+          (m) => (t.glossary.metrics as Record<string, string>)[m.trim()] ?? m.trim(),
+        )
+        .join(", ");
+    case "standing":
+      // One of four claims, itself a code.
+      return (t.messages as Record<string, string>)[raw] ?? raw;
+    case "band":
+      return t.glossary.sampleBands[raw as keyof typeof t.glossary.sampleBands] ?? raw;
+    case "scores":
+      // "key:number" pairs, so the score is named and the figure kept beside
+      // it without anybody parsing a sentence.
+      return raw
+        .split(",")
+        .map((pair) => {
+          const [key, value] = pair.split(":");
+          const name =
+            t.glossary.scores[key?.trim() as keyof typeof t.glossary.scores]?.label ??
+            key?.trim() ??
+            "";
+          return value ? `${name} (${value})` : name;
+        })
+        .join(", ");
     default:
       return raw;
   }
