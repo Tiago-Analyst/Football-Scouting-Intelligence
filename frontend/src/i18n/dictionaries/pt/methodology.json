@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "title": "Metodologia",
+    "description": "Como os números são feitos: métricas por 90 minutos, percentis por posição, aptidões para papéis e semelhança — e o que cada um deles não afirma."
+  },
+  "eyebrow": "Transparência",
+  "title": "Metodologia",
+  "description": "Como os dados de jogo em bruto se tornam percentis, pontuações, papéis e ordenações — e os limites do que esses resultados sustentam.",
+  "supplied": {
+    "title": "Que métricas o fornecedor fornece de facto",
+    "checked": "Todas as métricas abaixo foram verificadas contra respostas reais registadas, e não contra a documentação do fornecedor, e a aritmética de cada uma foi reproduzida contra os valores por 90 minutos que o próprio fornecedor publica, onde publica algum.",
+    "namesBefore": "A página de ",
+    "namesLink": "qualidade dos dados",
+    "namesAfter": " nomeia-as."
+  },
+  "sources": {
+    "title": "Fontes de dados",
+    "providers": "Os dados de desempenho vêm de um fornecedor de dados de jogo. A identidade do jogador, os valores de mercado, os contratos e o histórico de transferências vêm do conjunto de dados público do Transfermarkt. O site em si nunca é raspado.",
+    "identity": "As duas fontes usam identificadores de jogador diferentes, pelo que são ligadas por um passo de resolução de identidade que combina nome normalizado, data de nascimento, nacionalidade, clube e posição, e que regista uma pontuação de confiança para cada correspondência. As correspondências de baixa confiança não são ligadas automaticamente; ficam retidas para revisão manual."
+  },
+  "per90": {
+    "title": "Métricas por 90 minutos",
+    "body": "As contagens em bruto são divididas pelos minutos efectivamente jogados e escaladas a 90 minutos, de modo a que um suplente e um titular habitual sejam comparáveis. As métricas percentuais, como o sucesso de passe e o sucesso em duelos, são rácios de tentativas e não taxas por 90 minutos."
+  },
+  "percentiles": {
+    "title": "Percentis e contexto de comparação",
+    "why": "Um valor por 90 minutos em bruto é difícil de ler sem saber o que é normal. Cada métrica é por isso também expressa como um percentil dentro de uma população de comparação: um jogador no percentil 92 fica acima de 92% desse grupo.",
+    "alwaysOneOf": "A população de comparação é sempre uma de:",
+    "scopeCompetition": "grupo posicional dentro de uma única competição e época, por omissão;",
+    "scopeSelected": "grupo posicional num conjunto escolhido de competições;",
+    "scopeAll": "grupo posicional em todas as competições actualmente cobertas.",
+    "shown": "A população em uso é mostrada ao lado do número. Nunca é escondida, porque um percentil sem o seu grupo de referência não é interpretável."
+  },
+  "allLeagues": {
+    "title": "Face a que ordena um percentil de todas as ligas",
+    "definitionBefore": "A segunda coluna de percentil ordena o ",
+    "definitionEmphasis": "valor por 90 minutos observado",
+    "definitionAfter": " de um jogador face a todas as épocas de jogador que o conjunto de dados actualmente serve na sua posição. É essa a definição inteira, e é deliberadamente uma ordenação do que foi observado e não uma estimativa do que um jogador faria ao longo de uma época completa.",
+    "snapshotBefore": "As competições carregadas em cada momento estão em pontos diferentes das suas épocas, porque não começam no mesmo mês. No instantâneo em que isto foi medido pela última vez, nove de 44 competições continham um jogador que tinha alcançado os minutos de uma época completa, e ",
+    "snapshotShare": "81,7%",
+    "snapshotAfter": " dos jogadores vinham das outras 35. O jogador mediano do principal escalão italiano tinha 36 minutos; no sul-coreano, 1 057. Ambos estão na mesma população.",
+    "extremeBefore": "Um valor por 90 minutos a partir de um só jogo é tão extremo quanto os dados permitem, e isso vê-se na distribuição. Um jogador com menos de 180 minutos chega ao décimo superior de uma métrica de todas as ligas ",
+    "extremeShort": "17,4%",
+    "extremeMiddle": " das vezes; um jogador com uma época completa chega lá ",
+    "extremeFull": "2,1%",
+    "extremeAfter": " das vezes. O acaso daria 10% a ambos.",
+    "notAdjustedEmphasis": "O percentil não é ajustado a nada disto.",
+    "notAdjustedRest": " Não é ajustado à maturidade da época, não é ajustado à força da liga, e não é ajustado à quantidade de evidência que sustenta o valor do próprio jogador. Essas coisas são reportadas à parte — como a composição da população de comparação, como minutos, e como faixa de amostra — porque um ajuste incorporado num número publicado é um ajuste que o leitor não pode verificar.",
+    "bothAtOnce": "Por isso um jogador pode honestamente mostrar um percentil baixo em todas as ligas e uma época completa de minutos ao mesmo tempo. O percentil descreve onde o seu valor observado se situa na distribuição observada; a amostra descreve quanto futebol produziu esse valor. Respondem a perguntas diferentes e nenhum corrige o outro.",
+    "discovery": "As superfícies de descoberta — recrutamento, substitutos, oportunidades, jogadores semelhantes — aplicam de facto uma ordenação sensível à evidência, e mostram os dois números: o valor analítico em bruto e o valor pelo qual a lista foi ordenada, com a razão. Essa ordenação nunca altera o percentil apresentado. A analítica em bruto e a ordenação de descoberta são mantidas separadas de propósito."
+  },
+  "scores": {
+    "title": "Pontuações de inteligência",
+    "what": "As pontuações de inteligência resumem uma faceta do jogo: progressão de bola, segurança de bola, criação de oportunidades, actividade defensiva, domínio nos duelos, ameaça no 1x1, ameaça de golo, finalização e presença aérea.",
+    "orderBefore": "As métricas componentes são convertidas em percentis ",
+    "orderEmphasis": "antes",
+    "orderAfter": " de serem ponderadas, pelo que grandezas em escalas diferentes nunca são somadas. O resultado é uma pontuação de 0 a 100. Os valores das componentes são guardados a par do total, pelo que qualquer pontuação pode ser decomposta nas métricas que a produziram.",
+    "inverted": "Onde um valor baixo é bom, como ser desapossado ou ultrapassado em drible, o percentil é invertido, de modo a que uma pontuação mais alta se leia sempre como melhor dentro dessa faceta."
+  },
+  "roles": {
+    "title": "Papéis de jogador",
+    "what": "Um papel é uma combinação ponderada de métricas em percentil que descreve um estilo de jogador: um organizador recuado pondera o passe progressivo e a retenção, um médio recuperador pondera desarmes, intercepções e duelos.",
+    "best": "Cada jogador é pontuado face a cada papel compatível com o seu grupo posicional. O papel com pontuação mais alta é apresentado como a sua melhor aptidão estatística, com as alternativas mostradas por baixo."
+  },
+  "similarity": {
+    "title": "Semelhança estatística",
+    "body": "A semelhança compara jogadores dentro de um grupo posicional compatível, usando um vector de atributos específico da posição. Os atributos são padronizados para que nenhuma métrica de variância elevada domine sozinha, e o resultado é reportado num Índice de Semelhança de 0 a 100."
+  },
+  "sample": {
+    "title": "Dimensão da amostra",
+    "intro": "Todos os jogadores com dados estatísticos válidos são incluídos. Os minutos não determinam a elegibilidade. As etiquetas de amostra indicam quanta evidência de tempo de jogo sustenta o perfil por 90 minutos do jogador — nada mais.",
+    "establishedBold": "900 minutos ou mais",
+    "establishedRest": " — amostra consolidada. Cerca de dez jogos completos; os valores por 90 minutos estão razoavelmente assentes.",
+    "developingBold": "450 a 899 minutos",
+    "developingRest": " — amostra em formação. Futebol suficiente para dela se ler uma direcção, ainda que as taxas continuem a mover-se.",
+    "lowBold": "180 a 449 minutos",
+    "lowRest": " — amostra baixa. Um golo ou um desarme move uma taxa de forma notória.",
+    "veryLowBold": "Menos de 180 minutos",
+    "veryLowRest": " — amostra muito baixa. Um valor por 90 minutos a partir de tão pouco futebol é próximo de um único lance multiplicado. Leia-o como o que aconteceu, e não como uma taxa que o jogador sustenta.",
+    "arithmetic": "A única exigência é aritmética e não editorial: um valor por 90 minutos precisa de minutos por que dividir. Um jogador sem minutos por trás de uma métrica não tem taxa para ela, e essa métrica lê-se N/D. Nada é inventado para preencher a lacuna."
+  },
+  "limits": {
+    "heading": "O que estes resultados não significam",
+    "notQualityTitle": "As pontuações não são qualidade do jogador",
+    "notQuality": "A pontuação de um papel mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 num papel e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
+    "notProbabilityTitle": "A semelhança não é uma probabilidade",
+    "notProbability": "O Índice de Semelhança exprime a proximidade entre dois perfis estatísticos. Não é a probabilidade de um jogador reproduzir o rendimento de outro.",
+    "finishingTitle": "As métricas de finalização são ruidosas",
+    "finishing": "Os golos acima dos golos esperados regridem fortemente nas amostras disponíveis dentro de uma só época. Uma pontuação alta de finalização descreve o que aconteceu, não é uma medição fiável da capacidade de finalização.",
+    "notWorldRankingTitle": "Um percentil de todas as ligas não é uma classificação mundial",
+    "notWorldRanking": "É a posição de um valor por 90 minutos observado entre as épocas de jogador actualmente servidas. Não é aplicado nenhum coeficiente de força, porque um coeficiente não validado introduziria erro parecendo autoritário; não é aplicado nenhum ajuste de maturidade de época, porque substituiria um valor observado por um valor modelado que o leitor não poderia confrontar com o valor por 90 minutos impresso ao lado. Nem uma posição alta nem uma baixa são aqui um veredicto sobre um jogador.",
+    "notFeeTitle": "O valor de mercado não é um valor de transferência",
+    "notFee": "Os valores de mercado do Transfermarkt são estimativas colaborativas e não preços pedidos, e são usados apenas como um filtro aproximado de comportabilidade.",
+    "goalkeepersTitle": "As métricas de guarda-redes dependem da equipa",
+    "goalkeepers": "As estatísticas básicas de guarda-redes reflectem tanto a defesa à frente do guardião como o próprio guardião. Sem uma métrica de golos esperados pós-remate, a excelência na defesa de remates não pode ser inferida da percentagem de defesas."
+  },
+  "freshness": {
+    "title": "Actualidade dos dados",
+    "description": "Com que frequência cada fonte é actualizada.",
+    "badge": "Lotes agendados",
+    "batches": "As APIs do fornecedor nunca são chamadas enquanto navega. Os dados são carregados em lotes agendados, validados, transformados e só então publicados, pelo que uma actualização falhada ou parcial não pode chegar a estas páginas.",
+    "publishedBefore": "A actualidade publicada de cada fonte é reportada na página de ",
+    "publishedLink": "qualidade dos dados",
+    "publishedAfter": ", e significa o último conjunto de dados promovido com sucesso para produção — não a última actualização tentada, nem a última vez que as verificações correram. Essas são listadas à parte, porque uma actualização pode carregar para o ambiente de preparação e nunca chegar aos leitores."
+  }
+}

@@ -201,6 +201,7 @@ class TransfermarktDatasetProvider(MarketDataProvider):
                 "Public dataset snapshot. Transfer type and secondary nationality are "
                 "not carried by this source and are left unset."
             ),
+            notes_code="provider_notes_transfermarkt",
         )
 
     def quality_issues(self) -> list[DataQualityIssue]:

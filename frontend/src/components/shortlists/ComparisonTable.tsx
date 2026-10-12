@@ -1,8 +1,3 @@
-import {
-  ALL_LEAGUES_EXPLANATION,
-  ALL_LEAGUES_LABEL,
-  ALL_LEAGUES_QUALIFIER,
-} from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { AppLink as Link } from "@/components/ui/AppLink";
 import { Fragment } from "react";
@@ -15,6 +10,7 @@ import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Tabl
 import { Tooltip } from "@/components/ui/Tooltip";
 import { leadingValues } from "@/lib/comparison";
 import { formatCount, formatEuro, ordinal } from "@/lib/format";
+import type { Dictionary } from "@/i18n/dictionaries";
 import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
 
 /**
@@ -79,7 +75,7 @@ function ScopeLink({ label, active, href }: { label: string; active: boolean; hr
   );
 }
 
-function ComparisonSummary({ players }: { players: ComparedPlayer[] }) {
+function ComparisonSummary({ t, players }: { t: Dictionary; players: ComparedPlayer[] }) {
   const readable = players.filter((column) => column.interpretation !== null);
   if (readable.length === 0) return null;
 
@@ -94,24 +90,35 @@ function ComparisonSummary({ players }: { players: ComparedPlayer[] }) {
           >
             <p className="text-sm font-medium">{column.player.name}</p>
             {column.role?.label ? (
-              <p className="text-[11px] text-subtle">{column.role.label}</p>
+              <p className="text-[11px] text-subtle">
+                {t.glossary.roles[column.role.key as keyof typeof t.glossary.roles] ??
+                  column.role.label}
+              </p>
             ) : null}
 
             <SummaryList
-              heading="Strengths"
-              items={reading.strengths.map((finding) => finding.label)}
-              empty="Nothing in the upper band."
+              heading={t.shortlists.comparison.strengths}
+              items={reading.strengths.map(
+                (finding) =>
+                  t.glossary.metrics[finding.metric as keyof typeof t.glossary.metrics] ??
+                  finding.label,
+              )}
+              empty={t.shortlists.comparison.strengthsEmpty}
             />
             <SummaryList
-              heading="Watch-outs"
+              heading={t.shortlists.comparison.watchOuts}
               items={[
-                ...reading.watch_outs.map((finding) => finding.label),
+                ...reading.watch_outs.map(
+                  (finding) =>
+                    t.glossary.metrics[finding.metric as keyof typeof t.glossary.metrics] ??
+                    finding.label,
+                ),
                 // Reliability belongs beside the weaknesses: a figure built on
                 // 90 minutes is a different kind of risk from a low percentile,
                 // and both change whether you would act on this column.
                 ...reading.confidence,
               ]}
-              empty="Nothing in the lower band of this role."
+              empty={t.shortlists.comparison.watchOutsEmpty}
             />
           </div>
         );
@@ -173,11 +180,13 @@ function ArgumentRow({
 }
 
 export function ComparisonTable({
+  t,
   comparison,
   scope,
   shortlistId,
   compared,
 }: {
+  t: Dictionary;
   comparison: ComparisonResponse;
   /** Which population the percentiles were measured against. */
   scope: "competition" | "global";
@@ -185,6 +194,7 @@ export function ComparisonTable({
   /** The selected players, so the toggle keeps them. */
   compared: string[];
 }) {
+  const c = t.shortlists.comparison;
   const { players, context, caveat } = comparison;
 
   const metricOrder: string[] = [];
@@ -206,7 +216,10 @@ export function ComparisonTable({
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold tracking-tight">
-          Comparing {players.length} player{players.length === 1 ? "" : "s"}
+          {(players.length === 1 ? c.heading : c.headingPlural).replace(
+            "{count}",
+            String(players.length),
+          )}
         </h2>
         {context ? <ComparisonPopulation context={context} /> : null}
       </div>
@@ -217,14 +230,14 @@ export function ComparisonTable({
           loaded competition they can. Same engine, same call, one argument -
           and neither adjusts for league strength, because nothing here does. */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted">Compare percentiles within:</span>
+        <span className="text-xs text-muted">{c.scopeLabel}</span>
         <ScopeLink
-          label="Each competition"
+          label={c.scopeCompetition}
           active={scope === "competition"}
           href={comparisonHref(shortlistId, compared, "competition")}
         />
         <ScopeLink
-          label={ALL_LEAGUES_LABEL}
+          label={t.glossary.allLeagues.label}
           active={scope === "global"}
           href={comparisonHref(shortlistId, compared, "global")}
         />
@@ -232,16 +245,18 @@ export function ComparisonTable({
             show this rank and they must not describe it differently. */}
         {scope === "global" ? (
           <span className="inline-flex items-center gap-1 text-[11px] text-subtle">
-            {ALL_LEAGUES_QUALIFIER}
-            <Tooltip label="What the all-leagues rank is">{ALL_LEAGUES_EXPLANATION}</Tooltip>
+            {t.glossary.allLeagues.qualifier}
+            <Tooltip label={t.glossary.allLeagues.tooltipLabel}>
+              {t.glossary.allLeagues.explanation}
+            </Tooltip>
           </span>
         ) : null}
       </div>
 
-      <ComparisonSummary players={players} />
+      <ComparisonSummary t={t} players={players} />
 
       {caveat ? (
-        <Callout tone="warning" title="These columns are not measured against the same population">
+        <Callout tone="warning" title={c.caveatTitle}>
           {caveat}
         </Callout>
       ) : null}
@@ -250,7 +265,7 @@ export function ComparisonTable({
         <Table>
           <THead>
             <TR>
-              <TH className="sticky left-0 z-10 bg-surface-2">Metric</TH>
+              <TH className="sticky left-0 z-10 bg-surface-2">{c.metric}</TH>
               {players.map((column) => (
                 <TH key={column.player.player_id} numeric>
                   <Link
@@ -302,7 +317,7 @@ export function ComparisonTable({
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Market value
+                {c.marketValue}
               </TH>
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
@@ -315,7 +330,7 @@ export function ComparisonTable({
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Best role
+                {c.bestRole}
               </TH>
               {/* A bare "50.5" under "Best role fit" is three different numbers
                   the product keeps apart everywhere else: the Raw Role Fit, the
@@ -329,21 +344,30 @@ export function ComparisonTable({
                 <TD key={column.player.player_id} numeric>
                   {column.role ? (
                     <div className="space-y-0.5">
-                      <span className="block text-xs text-muted">{column.role.label}</span>
+                      <span className="block text-xs text-muted">
+                        {t.glossary.roles[column.role.key as keyof typeof t.glossary.roles] ??
+                          column.role.label}
+                      </span>
                       {column.role.score !== null ? (
                         <span className="block text-[11px] text-subtle">
-                          {column.role.score.toFixed(1)} raw fit
+                          {c.rawFit.replace("{score}", column.role.score.toFixed(1))}
                         </span>
                       ) : null}
                       {/* `!= null`, because the field is optional as well as nullable:
                           a role that was never given a standing is absent, not null. */}
                       {column.role.role_fit_percentile != null ? (
                         <span className="block text-[11px] text-subtle">
-                          {ordinal(column.role.role_fit_percentile)} role fit percentile
+                          {c.roleFitPercentile.replace(
+                            "{ordinal}",
+                            ordinal(column.role.role_fit_percentile),
+                          )}
                         </span>
                       ) : null}
                       <span className="block text-[11px] text-subtle">
-                        {Math.round(column.role.coverage * 100)}% metric coverage
+                        {c.metricCoverage.replace(
+                          "{pct}",
+                          String(Math.round(column.role.coverage * 100)),
+                        )}
                       </span>
                     </div>
                   ) : (
@@ -378,7 +402,8 @@ export function ComparisonTable({
                   ) : null}
                   <TR>
                     <TH scope="row" className="sticky left-0 z-10 bg-surface font-normal">
-                      {labels.get(key)}
+                      {t.glossary.metrics[key as keyof typeof t.glossary.metrics] ??
+                        labels.get(key)}
                     </TH>
                     {players.map((column) => {
                       const metric = column.metrics.find((m) => m.metric === key);
@@ -415,18 +440,25 @@ export function ComparisonTable({
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Status
+                {c.status}
               </TH>
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
-                  <StatusBadge status={column.status} label={column.status_label} />
+                  <StatusBadge
+                    status={column.status}
+                    label={
+                      t.shortlists.statuses[
+                        column.status as keyof typeof t.shortlists.statuses
+                      ] ?? column.status_label
+                    }
+                  />
                 </TD>
               ))}
             </TR>
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Your note
+                {c.note}
               </TH>
               {players.map((column) => (
                 <TD key={column.player.player_id} className="text-xs text-muted">
@@ -435,16 +467,18 @@ export function ComparisonTable({
               ))}
             </TR>
 
-            <ArgumentRow heading="For" players={players} pick={(c) => c.pros} />
-            <ArgumentRow heading="Against" players={players} pick={(c) => c.concerns} />
+            <ArgumentRow heading={c.for} players={players} pick={(column) => column.pros} />
+            <ArgumentRow
+              heading={c.against}
+              players={players}
+              pick={(column) => column.concerns}
+            />
           </TBody>
         </Table>
       </TableWrap>
 
       <p className="text-[11px] leading-relaxed text-subtle">
-        The highlighted figure in each row is the largest per 90 minutes, not the best player: it
-        compares quantities, which are the same everywhere, rather than percentiles, which are ranks
-        inside each player&rsquo;s own competition.
+        {c.footnote}
       </p>
     </section>
   );

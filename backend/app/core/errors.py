@@ -68,6 +68,27 @@ class DataNotValidatedError(AppError):
     code = "data_not_validated"
 
 
+class AuthFailureError(AppError):
+    """Sign-in, registration or a password change was refused.
+
+    The code and the status both vary per failure, so both are per-instance
+    here rather than per-class. The interface reads the code, because the
+    message is English and the form showing it may not be.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str,
+        status_code: int,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, details=details)
+        self.code = code
+        self.status_code = status_code
+
+
 def _envelope(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     body: dict[str, Any] = {"error": {"code": code, "message": message}}
     if details:

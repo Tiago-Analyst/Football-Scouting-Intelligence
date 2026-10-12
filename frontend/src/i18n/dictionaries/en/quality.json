@@ -1,0 +1,167 @@
+{
+  "meta": {
+    "title": "Data quality",
+    "description": "Source freshness, coverage and the automated checks run on every load."
+  },
+  "eyebrow": "Transparency",
+  "title": "Data quality",
+  "description": "What was loaded, when it was last checked, and what the automated checks found.",
+  "unavailableTitle": "The quality report is unavailable",
+  "unavailableDescription": "The API could not be reached. That is itself a data quality problem — nothing on this page should be assumed current until it loads.",
+  "noticeTitle": "Nothing has been checked yet",
+  "notice": "No load has recorded a quality check yet. Until one has, nothing on this page describes the data being served.",
+  "meaningTitle": "What these checks do and do not tell you",
+  "meaning": "These checks describe the data that was loaded: whether it arrived, whether it is internally consistent, and how much of it is present. They do not assess whether a metric measures what its name suggests, and they cannot tell you that a ranking is correct — only that the figures behind it are present and self-consistent.",
+  "status": {
+    "pass": "Pass",
+    "warn": "Warning",
+    "fail": "Fail"
+  },
+  "volumes": {
+    "players": "Players",
+    "playersHint": "Identity records, from every source. Most carry market data only.",
+    "playerSeasons": "Player seasons",
+    "playerSeasonsHint": "Performance rows loaded. Fewer are rankable — see below.",
+    "clubs": "Clubs",
+    "clubsHint": "Clubs referenced by any loaded record.",
+    "competitions": "Competitions",
+    "competitionsHint": "Competitions referenced by any loaded record."
+  },
+  "failing": {
+    "title": "{count} check(s) failing",
+    "body": "A failing check means the loaded data violates something the system relies on. Figures derived from it may be wrong, not merely incomplete."
+  },
+  "identity": {
+    "title": "Identity reconciliation",
+    "description": "How much of the two sources has been resolved to one player. An unmatched player is not a failure — it is a player one source knows and the other does not, and counting them stops the total reading as a completeness nobody achieved.",
+    "matched": "Matched across sources",
+    "matchedHint": "{pct}% of {players} players",
+    "unmatched": "Known to one source only",
+    "unmatchedHint": "Not an error",
+    "ambiguous": "Matched on weaker evidence",
+    "ambiguousHint": "Plausible, not settled",
+    "manual": "Confirmed by hand",
+    "manualHint": "Curated overrides"
+  },
+  "coverage": {
+    "title": "Detailed statistics coverage",
+    "description": "The provider records detailed events for only some matches, and the rates built from those events — passing, tackling, shooting, npxG, xA — divide by the minutes it recorded rather than by all minutes played. Goals, assists and goals conceded are top-level counters and divide by minutes played. This is the mean share between the two counts across every loaded player-season carrying both.",
+    "notMeasurable": "Not measurable: no loaded player-season carries both minute counts."
+  },
+  "unavailable": {
+    "title": "Metrics the provider cannot supply",
+    "description": "Permanently unavailable rather than thin in this load, each with what profiling found. Nothing is substituted for them, and every score depending on one is either computed from the rest with its coverage stated, or switched off.",
+    "none": "None. Every canonical metric is supplied or derived.",
+    "noReason": "No reason was recorded for this absence.",
+    "derivedTitle": "Supplied by derivation",
+    "derivedBody": "The provider has no field for these. They are computed from fields it does supply, and the arithmetic is shown so the claim can be checked."
+  },
+  "limits": {
+    "title": "Limits of the analysis itself",
+    "description": "Not failures. Three things the figures cannot say about themselves, each one visible beside the number it qualifies.",
+    "maturityTitle": "How far into their seasons the competitions are",
+    "maturityBody": "A rank against every loaded competition sounds like a comparison with the wider game. Most of those competitions are only a few matches old, so it is largely a rank against players who have barely started. Every comparison population reports how many competitions it covers, how many have played enough of their season for a full-season figure to be possible at all, and the median minutes behind the figures being ranked. This is about time, not about strength — a league that started later is not a weaker one, and nothing here adjusts for league strength.",
+    "maturityMeasured": "Measured on the snapshot this was last audited against: nine of 44 competitions contained a player who had reached a full season, and 81.7% of the players came from the other 35. A player with under 180 minutes reached the top tenth of an all-leagues metric 17.4% of the time, against 2.1% for a player with a full season — chance would give both 10%. The percentile is left as it is and the composition is reported beside it, because an adjustment folded into the number is one nobody can check.",
+    "roleTitle": "Whether a role can be measured at all",
+    "roleBefore": "Metric coverage says how much of a role's definition was measurable. It cannot say ",
+    "roleEmphasis": "which",
+    "roleAfter": " part. A role whose defining football concept is unavailable is marked as partial evidence: the raw fit is still shown, because the evidence that exists is real, and the percentile is withheld, because a partial score cannot be ranked against players measured from the full definition.",
+    "eventsTitle": "How many events a rate rests on",
+    "eventsBody": "Minutes played say nothing about this: a full season of football can contain four shots. Scores built from success rates carry the count of the events they divide by, and below a stated floor they are reported with that count rather than offered as one of a player's strongest dimensions. The percentile itself is never altered."
+  },
+  "served": {
+    "title": "What the API is serving",
+    "description": "A load can succeed while the running service keeps serving the view it built at start-up, so this is a fact about the process rather than about the database.",
+    "players": "Players in the served view",
+    "competitions": "Competitions",
+    "builtAt": "View built",
+    "stale": "The database has moved since",
+    "current": "Current with the database",
+    "staleTitle": "The database has changed since this view was built",
+    "staleBody": "A refreshed load reaches readers when the pipeline asks the API to rebuild. Until then the previous figures are served — consistent, and behind."
+  },
+  "freshness": {
+    "title": "Source freshness",
+    "description": "When each source's data was last published to this site, and when its checks last ran. Three different facts, kept apart: checks run routinely against data nobody replaced, and a refresh can load into staging without ever reaching production.",
+    "unknownBefore": "A publication time reads ",
+    "unknownEmphasis": "unknown",
+    "unknownAfter": " where the publication ledger holds no row for that source — data loaded before the ledger existed. It is left unknown rather than filled in from the check time or a staging load, which answer different questions.",
+    "emptyTitle": "No source has been checked",
+    "emptyDescription": "Run the loader, then the quality report.",
+    "source": "Source",
+    "published": "Data published",
+    "checked": "Checked",
+    "checks": "Checks",
+    "warnings": "Warnings",
+    "failures": "Failures",
+    "unknown": "unknown",
+    "unknownTitle": "No row in the publication ledger names this source",
+    "today": "today",
+    "daysAgo": "{days}d"
+  },
+  "providers": {
+    "footystats": "Performance data (FootyStats)",
+    "transfermarkt": "Market data (Transfermarkt)",
+    "demo": "Demo data",
+    "description": "The published dataset and, separately, any refresh that has not reached readers.",
+    "publishedHeading": "Published dataset",
+    "servingBadge": "serving",
+    "lastPublished": "Last published",
+    "notRecorded": "not recorded",
+    "notRecordedTitle": "No row in the publication ledger: this dataset was promoted before publications were recorded. The next refresh records one.",
+    "refresh": "Refresh",
+    "generation": "Generation",
+    "quality": "Quality",
+    "summary": "{passing} passing, {warning} warning, {failing} failing",
+    "noAttributableChecks": "Published before checks carried a refresh identity; no checks are attributable to this dataset.",
+    "nothingPublished": "Nothing from this source has been published.",
+    "candidateHeading": "Latest candidate refresh",
+    "notPublishedBadge": "not published",
+    "candidateStatusLabel": "Status",
+    "candidateStatus": "Checked, awaiting publication",
+    "lastValidation": "Last validation",
+    "candidateNote": "Checked against a staging copy that has not reached readers. Nothing here describes the data on this site; it describes what the next dataset would be if it were promoted.",
+    "idle": "Idle — no candidate refresh is waiting.",
+    "noChecksTitle": "Automated checks",
+    "noChecksDescription": "Nothing has recorded a check yet.",
+    "noChecksEmpty": "No checks recorded"
+  },
+  "checksTable": {
+    "check": "Check",
+    "source": "Source",
+    "count": "Count",
+    "status": "Status"
+  },
+  "refresh": {
+    "title": "FootyStats refresh",
+    "description": "A full refresh takes about a day. The published data is served unchanged until a new one finishes.",
+    "states": {
+      "idle": "Idle",
+      "fetching": "Fetching",
+      "validating": "Validating",
+      "ready_to_publish": "Ready to publish",
+      "failed": "Failed"
+    },
+    "headings": {
+      "IN_PROGRESS": "In progress",
+      "COMPLETE": "Fetched, running checks",
+      "VALIDATED": "Checked, awaiting publication"
+    },
+    "fetched": "Players fetched",
+    "fetchedHint": "{pct}% complete",
+    "competitions": "Competitions",
+    "failed": "Failed players",
+    "failedRetried": "Retried on the next run",
+    "failedNone": "None outstanding",
+    "generation": "Generation",
+    "lastCheckpoint": " · last checkpoint {when}",
+    "finished": "Fetching is finished. This generation replaces the published one below only once it has been promoted, and the site serves the published one until then.",
+    "noneRunning": "No refresh is running. The next one begins on its scheduled cadence.",
+    "publishedHeading": "Currently published",
+    "publishedOn": " · published {date}",
+    "publishedCounts": " · {players} players across {competitions} competitions",
+    "noGeneration": "Nothing has been published through a refresh generation yet. The data currently served was loaded before generations were introduced.",
+    "footer": "A refresh is never published until every expected player is on disk. An unfinished generation cannot replace the data above.",
+    "progressLabel": "Refresh progress"
+  }
+}

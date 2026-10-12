@@ -926,6 +926,7 @@ class MockPerformanceProvider(PerformanceDataProvider):
             validated=False,
             available_metrics=frozenset(CanonicalMetric) - self._unavailable,
             notes=DEMO_DATA_WARNING,
+            notes_code="provider_notes_demo",
         )
 
     def _redact(self, stats: PlayerSeasonStats) -> PlayerSeasonStats:

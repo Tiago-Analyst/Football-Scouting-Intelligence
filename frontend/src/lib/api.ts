@@ -34,6 +34,8 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly code: string,
+    /** Whatever the envelope carried beside the code — a length, a count. */
+    readonly details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "ApiError";
@@ -156,6 +158,7 @@ export async function apiFetchWithHeaders<T>(
       body?.error?.message ?? `Request failed with status ${response.status}.`,
       response.status,
       body?.error?.code ?? "http_error",
+      body?.error?.details ?? {},
     );
   }
 

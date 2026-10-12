@@ -208,3 +208,7 @@ class MarketProviderInfo(BaseModel):
     licence: str | None = None
     source_url: str | None = None
     notes: str | None = None
+    #: The same note as a code, for an interface that says it itself.
+    notes_code: str | None = None
+    #: The numbers that sentence needs, flat and primitive.
+    notes_values: dict[str, str | int | float] = Field(default_factory=dict)

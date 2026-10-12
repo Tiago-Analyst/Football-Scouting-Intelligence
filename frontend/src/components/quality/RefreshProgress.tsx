@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
+import type { Dictionary } from "@/i18n/dictionaries";
 import { formatCount, formatDate, formatTimestamp } from "@/lib/format";
 import type { RefreshStatus } from "@/types/api";
 
@@ -17,23 +18,29 @@ import type { RefreshStatus } from "@/types/api";
  * a public page has no reason to name which players a provider failed to
  * return.
  */
-export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
+export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: RefreshStatus }) {
+  const copy = t.quality.refresh;
   const { current, published } = refresh;
   // The heading followed the section, not the state, so a generation whose
   // fetch had finished and was waiting on promotion was filed under "In
   // progress" beneath a full progress bar — which reads as a stall.
-  const heading = current ? SECTION_HEADING[current.status] ?? "In progress" : null;
+  const heading = current
+    ? (copy.headings[current.status as keyof typeof copy.headings] ?? copy.headings.IN_PROGRESS)
+    : null;
+  // The state arrives as a word and as a key. The word is the API's English;
+  // the key is what this side names the state by, in either language.
+  const state = copy.states[refresh.state_key as keyof typeof copy.states] ?? refresh.state;
 
   return (
     <Card>
       <CardHeader
         title={
           <span className="flex items-center gap-2">
-            FootyStats refresh
-            <Badge tone={toneFor(refresh.state)}>{refresh.state}</Badge>
+            {copy.title}
+            <Badge tone={toneFor(refresh.state_key)}>{state}</Badge>
           </span>
         }
-        description="A full refresh takes about a day. The published data is served unchanged until a new one finishes."
+        description={copy.description}
       />
       <CardBody className="space-y-5">
         {current ? (
@@ -43,88 +50,75 @@ export function RefreshProgress({ refresh }: { refresh: RefreshStatus }) {
             </h3>
             <div className="grid gap-4 sm:grid-cols-3">
               <StatTile
-                label="Players fetched"
+                label={copy.fetched}
                 value={`${formatCount(current.completed_players)} / ${formatCount(
                   current.total_expected_players,
                 )}`}
-                hint={`${current.completion_pct.toFixed(1)}% complete`}
+                hint={copy.fetchedHint.replace("{pct}", current.completion_pct.toFixed(1))}
               />
               <StatTile
-                label="Competitions"
+                label={copy.competitions}
                 value={`${current.competitions_complete} / ${current.competitions_expected}`}
               />
               <StatTile
-                label="Failed players"
+                label={copy.failed}
                 value={formatCount(current.failed_players)}
-                hint={
-                  current.failed_players > 0 ? "Retried on the next run" : "None outstanding"
-                }
+                hint={current.failed_players > 0 ? copy.failedRetried : copy.failedNone}
               />
             </div>
-            <Progress pct={current.completion_pct} />
+            <Progress pct={current.completion_pct} label={copy.progressLabel} />
             <p className="text-xs text-muted">
-              Generation <span className="font-mono">{current.generation_id}</span>
+              {copy.generation} <span className="font-mono">{current.generation_id}</span>
               {current.last_updated_at ? (
-                <> · last checkpoint {formatTimestamp(current.last_updated_at)}</>
+                <>
+                  {copy.lastCheckpoint.replace(
+                    "{when}",
+                    formatTimestamp(current.last_updated_at),
+                  )}
+                </>
               ) : null}
             </p>
             {current.status !== "IN_PROGRESS" ? (
-              <p className="text-xs text-muted">
-                Fetching is finished. This generation replaces the published one below only
-                once it has been promoted, and the site serves the published one until then.
-              </p>
+              <p className="text-xs text-muted">{copy.finished}</p>
             ) : null}
           </section>
         ) : (
-          <p className="text-sm text-muted">
-            No refresh is running. The next one begins on its scheduled cadence.
-          </p>
+          <p className="text-sm text-muted">{copy.noneRunning}</p>
         )}
 
         <section className="space-y-2">
           <h3 className="text-[11px] font-semibold tracking-widest text-subtle uppercase">
-            Currently published
+            {copy.publishedHeading}
           </h3>
           {published ? (
             <p className="text-sm">
-              Generation <span className="font-mono">{published.generation_id}</span>
+              {copy.generation} <span className="font-mono">{published.generation_id}</span>
               {published.published_at ? (
-                <span className="text-muted"> · published {formatDate(published.published_at)}</span>
+                <span className="text-muted">
+                  {copy.publishedOn.replace("{date}", formatDate(published.published_at))}
+                </span>
               ) : null}
               <span className="text-muted">
-                {" · "}
-                {formatCount(published.completed_players)} players across{" "}
-                {published.competitions_complete} competitions
+                {copy.publishedCounts
+                  .replace("{players}", formatCount(published.completed_players))
+                  .replace("{competitions}", String(published.competitions_complete))}
               </span>
             </p>
           ) : (
-            <p className="text-sm text-muted">
-              Nothing has been published through a refresh generation yet. The data currently
-              served was loaded before generations were introduced.
-            </p>
+            <p className="text-sm text-muted">{copy.noGeneration}</p>
           )}
         </section>
       </CardBody>
-      <CardFooter className="text-subtle">
-        A refresh is never published until every expected player is on disk. An unfinished
-        generation cannot replace the data above.
-      </CardFooter>
+      <CardFooter className="text-subtle">{copy.footer}</CardFooter>
     </Card>
   );
 }
 
-/** What the section above the progress bar is called, per generation status. */
-const SECTION_HEADING: Record<string, string> = {
-  IN_PROGRESS: "In progress",
-  COMPLETE: "Fetched, running checks",
-  VALIDATED: "Checked, awaiting publication",
-};
-
-function toneFor(state: string): "neutral" | "warning" {
-  return state === "Failed" ? "warning" : "neutral";
+function toneFor(stateKey: string): "neutral" | "warning" {
+  return stateKey === "failed" ? "warning" : "neutral";
 }
 
-function Progress({ pct }: { pct: number }) {
+function Progress({ pct, label }: { pct: number; label: string }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <div
@@ -133,7 +127,7 @@ function Progress({ pct }: { pct: number }) {
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label="Refresh progress"
+      aria-label={label}
     >
       <div className="h-full rounded-full bg-accent" style={{ width: `${clamped}%` }} />
     </div>

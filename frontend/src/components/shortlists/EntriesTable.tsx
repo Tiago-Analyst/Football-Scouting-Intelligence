@@ -10,6 +10,12 @@ import { Table, TBody, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { MAX_COMPARE } from "@/lib/limits";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
 
+/** The words this table and its rows need, resolved by the server page. */
+export interface EntriesCopy {
+  [key: string]: string | Record<string, string>;
+  row: Record<string, string>;
+}
+
 /**
  * The saved players, with a selection for comparison.
  *
@@ -28,6 +34,7 @@ export function EntriesTable({
   shortlistId,
   statuses,
   sampleCopy,
+  copy,
 }: {
   entries: ShortlistEntry[];
   shortlistId: number;
@@ -35,6 +42,8 @@ export function EntriesTable({
   /** Resolved by the server page and threaded through: neither this
    * component nor the rows it renders can read a dictionary. */
   sampleCopy: Record<string, SampleCopy>;
+  /** Same reason as `sampleCopy`: no dictionary reaches the browser. */
+  copy: EntriesCopy;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -83,16 +92,19 @@ export function EntriesTable({
       {present.length > 1 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           <FilterChip
-            label={`All (${entries.length})`}
+            label={text(copy.all).replace("{count}", String(entries.length))}
             active={statusFilter === ""}
             onClick={() => setStatusFilter("")}
           />
           {present.map((status) => (
             <FilterChip
               key={status.key}
-              label={`${status.label} (${
-                entries.filter((entry) => entry.status === status.key).length
-              })`}
+              label={text(copy.chip)
+                .replace("{label}", status.label)
+                .replace(
+                  "{count}",
+                  String(entries.filter((entry) => entry.status === status.key).length),
+                )}
               active={statusFilter === status.key}
               onClick={() => setStatusFilter(status.key)}
             />
@@ -103,18 +115,20 @@ export function EntriesTable({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted">
           {selected.length === 0
-            ? `Select up to ${MAX_COMPARE} players to compare.`
-            : `${selected.length} of ${MAX_COMPARE} selected.`}
-          {atLimit ? " That is the maximum — a wider table stops being readable." : ""}
+            ? text(copy.selectUpTo).replace("{max}", String(MAX_COMPARE))
+            : text(copy.selected)
+                .replace("{count}", String(selected.length))
+                .replace("{max}", String(MAX_COMPARE))}
+          {atLimit ? text(copy.atLimit) : ""}
         </p>
         <div className="flex items-center gap-2">
           {applied.length > 0 ? (
             <Button variant="ghost" size="sm" onClick={clear}>
-              Clear comparison
+              {text(copy.clearComparison)}
             </Button>
           ) : null}
           <Button size="sm" onClick={apply} disabled={selected.length === 0}>
-            Compare {selected.length > 0 ? selected.length : ""}
+            {text(copy.compare)} {selected.length > 0 ? selected.length : ""}
           </Button>
         </div>
       </div>
@@ -124,15 +138,15 @@ export function EntriesTable({
           <THead>
             <TR>
               <TH>
-                <span className="sr-only">Compare</span>
+                <span className="sr-only">{text(copy.compareSrOnly)}</span>
               </TH>
-              <TH>Player</TH>
-              <TH numeric>Age</TH>
-              <TH numeric>Value</TH>
-              <TH>Status</TH>
-              <TH>Your assessment</TH>
+              <TH>{text(copy.player)}</TH>
+              <TH numeric>{text(copy.age)}</TH>
+              <TH numeric>{text(copy.value)}</TH>
+              <TH>{text(copy.status)}</TH>
+              <TH>{text(copy.assessment)}</TH>
               <TH>
-                <span className="sr-only">Remove</span>
+                <span className="sr-only">{text(copy.removeSrOnly)}</span>
               </TH>
             </TR>
           </THead>
@@ -147,6 +161,7 @@ export function EntriesTable({
                 selectionDisabled={atLimit}
                 onToggle={toggle}
                 sampleCopy={sampleCopy}
+                copy={copy.row}
               />
             ))}
           </TBody>
@@ -155,9 +170,10 @@ export function EntriesTable({
 
       {statusFilter && shown.length < entries.length ? (
         <p className="text-[11px] text-subtle">
-          {entries.length - shown.length} other{" "}
-          {entries.length - shown.length === 1 ? "player is" : "players are"} hidden by this
-          filter. They are still on the shortlist and still in the export.
+          {text(entries.length - shown.length === 1 ? copy.hiddenOne : copy.hiddenMany).replace(
+            "{count}",
+            String(entries.length - shown.length),
+          )}
         </p>
       ) : null}
     </div>
@@ -187,4 +203,9 @@ function FilterChip({
       {label}
     </button>
   );
+}
+
+/** One copy entry as a string. The map holds the row's own group too. */
+function text(value: string | Record<string, string>): string {
+  return typeof value === "string" ? value : "";
 }

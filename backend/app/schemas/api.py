@@ -1163,6 +1163,8 @@ class RefreshStatusOut(BaseModel):
 
     #: Idle | In progress | Complete | Validating | Failed.
     state: str
+    #: The same five states as a key, for an interface that names them itself.
+    state_key: str = "idle"
     published: RefreshGenerationOut | None = None
     current: RefreshGenerationOut | None = None
 

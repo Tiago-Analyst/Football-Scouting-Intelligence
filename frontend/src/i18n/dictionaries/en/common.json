@@ -56,5 +56,13 @@
     "titleTemplate": "%s · Football Recruitment Intelligence",
     "description": "Recruitment intelligence for football: contextual percentiles, player roles, statistical similarity and market analysis.",
     "ogLocale": "en_GB"
+  },
+  "metricCensus": {
+    "unreachable": "Some canonical metrics are not supplied by the provider at all, and every score depending on one is either computed from the rest with its coverage stated, or switched off and labelled. Nothing unavailable is ever substituted with something else.",
+    "notVerified": "No provider mapping has been verified yet, so there is nothing truthful to say about how many metrics are available.",
+    "sentence": "Of the {total} canonical metrics this project defines, {usable} are usable: {native} supplied by the provider as fields of their own and {derived} assembled from fields that are. The remaining {unavailable} cannot be produced at all, and every score that depends on one is either computed from the rest with its coverage stated, or switched off and labelled. Nothing unavailable is ever substituted with something else.",
+    "lineUnreachable": "Metric counts unavailable: the API could not be reached",
+    "lineNotVerified": "Provider mapping not yet verified",
+    "line": "{usable} of {total} usable · {native} supplied · {derived} derived · {unavailable} unavailable"
   }
 }

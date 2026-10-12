@@ -15,11 +15,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, Response, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import SessionDep, SettingsDep
 from app.core.config import Settings
+from app.core.errors import AuthFailureError
 from app.models.accounts import UserAccount
 from app.services.auth_service import (
     MAX_PASSWORD_LENGTH,
@@ -123,11 +124,27 @@ def get_current_user(
 ) -> UserAccount:
     """The signed-in user, or 401. For routes that require an account."""
     if user is None:
-        raise HTTPException(
+        raise AuthFailureError(
+            "Sign in to continue.",
+            code="auth_required",
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sign in to continue.",
         )
     return user
+
+
+def _refused(exc: AuthError, status_code: int) -> AuthFailureError:
+    """One of the service's refusals, as the envelope the interface reads.
+
+    The code travels with the sentence so the form can say it in the reader's
+    own language; `values` carries the numbers that sentence needs, such as
+    the password length, rather than leaving them only inside the English.
+    """
+    return AuthFailureError(
+        exc.message,
+        code=exc.code,
+        status_code=status_code,
+        details=dict(exc.values) if exc.values else None,
+    )
 
 
 CurrentUser = Annotated[UserAccount, Depends(get_current_user)]
@@ -155,11 +172,11 @@ def register(
         # Registration cannot avoid revealing that an address is taken - the
         # account has to be refused - so the message is at least honest. The
         # sign-in path, where enumeration actually matters, gives nothing away.
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise _refused(exc, status.HTTP_409_CONFLICT) from exc
     except (WeakPassword, InvalidEmail) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise _refused(exc, 422) from exc
     except AuthError as exc:  # pragma: no cover - defensive
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise _refused(exc, 400) from exc
 
     issued = create_session(db, user)
     db.commit()
@@ -175,7 +192,7 @@ def login(
     try:
         user = authenticate(db, email=request.email, password=request.password)
     except InvalidCredentials as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
 
     issued = create_session(db, user)
     db.commit()
@@ -225,9 +242,9 @@ def change_own_password(
             new_password=request.new_password,
         )
     except InvalidCredentials as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
     except WeakPassword as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise _refused(exc, 422) from exc
 
     db.commit()
     clear_session_cookie(response, settings)

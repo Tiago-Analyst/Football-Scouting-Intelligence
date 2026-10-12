@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "title": "Estado do sistema"
+  },
+  "eyebrow": "Operações",
+  "title": "Estado do sistema",
+  "description": "Saúde em tempo real da API e de todas as dependências de que precisa, lida directamente do backend.",
+  "unreachableTitle": "Backend inacessível",
+  "unreachableBefore": "Sem resposta da API. Inicie-a com ",
+  "unreachableMiddle": " a partir de ",
+  "unreachableThen": ", e verifique que ",
+  "unreachableIn": " em ",
+  "unreachableAfter": " aponta para ela.",
+  "appTitle": "Aplicação",
+  "mode": "Modo",
+  "environment": "Ambiente",
+  "version": "Versão",
+  "schema": "Revisão do esquema",
+  "notMigrated": "sem migração",
+  "dependencies": "Dependências",
+  "provenanceTitle": "Proveniência dos dados",
+  "provenanceDescription": "Que fornecedor está por trás de cada valor, e se o seu esquema foi verificado.",
+  "mock": "Dados fictícios",
+  "validated": "Validado",
+  "pending": "Validação pendente",
+  "sources": {
+    "performance": "Dados de desempenho",
+    "market": "Dados de mercado",
+    "licence": "Licença: {licence}."
+  },
+  "pills": {
+    "ok": "Operacional",
+    "degraded": "Degradado",
+    "unavailable": "Indisponível",
+    "not_configured": "Não configurado"
+  }
+}

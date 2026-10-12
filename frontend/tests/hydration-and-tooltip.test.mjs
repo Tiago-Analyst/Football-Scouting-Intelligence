@@ -168,8 +168,13 @@ test("placement follows scrolling and resizing while open", () => {
 
 test("the all-leagues heading still carries the qualifier it was built for", () => {
   // The tooltip fix must not have been achieved by removing the nowrap that
-  // keeps this heading on one line.
+  // keeps this heading on one line. The words moved into the glossary; the
+  // layout rule did not.
   const label = read("src/components/player/AllLeaguesLabel.tsx");
-  assert.match(label, /mixed season maturity/);
+  assert.match(label, /copy\.qualifier/);
   assert.match(label, /whitespace-nowrap/);
+  for (const locale of ["en", "pt"]) {
+    const glossary = JSON.parse(read(`src/i18n/dictionaries/${locale}/glossary.json`));
+    assert.ok(glossary.allLeagues.qualifier, `${locale} has no all-leagues qualifier`);
+  }
 });

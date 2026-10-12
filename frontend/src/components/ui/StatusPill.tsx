@@ -9,13 +9,19 @@ const TONES: Record<DependencyState, BadgeTone> = {
   not_configured: "neutral",
 };
 
-const LABELS: Record<DependencyState, string> = {
-  ok: "Operational",
-  degraded: "Degraded",
-  unavailable: "Unavailable",
-  not_configured: "Not configured",
-};
-
-export function StatusPill({ state }: { state: DependencyState }) {
-  return <Badge tone={TONES[state]}>{LABELS[state]}</Badge>;
+/**
+ * One dependency's state, named.
+ *
+ * Four words from a closed vocabulary, so they are named from the dictionary
+ * rather than written here: the state is the API's answer and the word for it
+ * is this side's.
+ */
+export function StatusPill({
+  state,
+  copy,
+}: {
+  state: DependencyState;
+  copy: Record<DependencyState, string>;
+}) {
+  return <Badge tone={TONES[state]}>{copy[state]}</Badge>;
 }

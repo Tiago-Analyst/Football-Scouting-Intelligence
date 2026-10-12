@@ -54,5 +54,21 @@
   "recruitment_none_scored": "{considered} players matched the filters, but none could be given every requested score — usually too few comparable players in their competition and position to rank against.",
   "recruitment_blocked_scores": "No player could be ranked: {scores} cannot be produced from the loaded data. Every candidate needs all of the requested scores, so a profile weighting one that does not exist matches nobody. Removing it from the profile will help; narrowing the filters will not.",
   "ranking_shrunk": "Ranked at {ranked} rather than {raw}: with {minutes} minutes, this {ranked_noun} carries {pct}% of a full season's evidence, so it is read closer to the average {centre} ({mean}) than a full season would be. The {ranked_noun} itself is unchanged.",
-  "ranking_shrunk_no_minutes": "Ranked at {ranked} rather than {raw}: with no recorded minutes, this {ranked_noun} carries {pct}% of a full season's evidence, so it is read closer to the average {centre} ({mean}) than a full season would be. The {ranked_noun} itself is unchanged."
+  "ranking_shrunk_no_minutes": "Ranked at {ranked} rather than {raw}: with no recorded minutes, this {ranked_noun} carries {pct}% of a full season's evidence, so it is read closer to the average {centre} ({mean}) than a full season would be. The {ranked_noun} itself is unchanged.",
+  "provider_notes_footystats": "{usable} of {total} canonical metrics usable: {native} supplied as fields and {derived} derived from fields that are. Unavailable: {metrics}. Position group is supplied only for goalkeepers; the provider's four-value position vocabulary cannot determine the others.",
+  "provider_notes_transfermarkt": "Public dataset snapshot. Transfer type and secondary nationality are not carried by this source and are left unset.",
+  "provider_notes_demo": "Fabricated demonstration data. Players, clubs and competitions are invented and no figure describes a real performance.",
+  "market_notes_serving": "Serving {valued} current valuations, {valuations} historical valuations and {transfers} transfers; {contracts} players carry a contract expiry. Counted from the database behind the pages, not from an ingestion snapshot.",
+  "market_notes_none_served": "No market data is being served, and no snapshot is available to load one.",
+  "market_notes_snapshot_not_served": "A snapshot is readable but no market rows are being served: the pages that need them will be empty.",
+  "health_database_unreachable": "Could not establish a database connection.",
+  "health_database_unmigrated": "Database reachable but migrations have not been applied.",
+  "health_footystats_no_key_demo": "No API key supplied. Mock performance data in use.",
+  "health_footystats_no_key": "No API key supplied. Production performance data is unavailable.",
+  "health_footystats_unprofiled": "API key present, but no field has been verified against a real API response. Run the profiling pipeline.",
+  "health_footystats_ok": "{usable} of {total} canonical metrics usable: {native} supplied as fields, {derived} derived from fields that are, {unavailable} unavailable. Verified against real responses; not contacted by this check.",
+  "health_analytics_empty": "No player data is loaded. Run the ingestion pipeline; until then search, profiles and rankings have nothing to serve.",
+  "health_analytics_stale": "Serving {seasons} player-seasons built at {built}. The database has been loaded since; restart the API to serve the new data.",
+  "health_analytics_ok": "{seasons} player-seasons across {competitions} competitions, built at {built}.",
+  "health_analytics_ok_excluded": "{seasons} player-seasons across {competitions} competitions, built at {built}. {excluded} excluded for having no position group."
 }

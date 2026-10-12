@@ -192,6 +192,7 @@ def _refresh_out(status) -> RefreshStatusOut | None:  # type: ignore[no-untyped-
         return None
     return RefreshStatusOut(
         state=status.state,
+        state_key=status.state_key,
         published=_generation_out(status.published) if status.published else None,
         current=_generation_out(status.current) if status.current else None,
     )

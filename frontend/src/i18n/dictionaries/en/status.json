@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "title": "System status"
+  },
+  "eyebrow": "Operations",
+  "title": "System status",
+  "description": "Live health of the API and every dependency it needs, read directly from the backend.",
+  "unreachableTitle": "Backend unreachable",
+  "unreachableBefore": "No response from the API. Start it with ",
+  "unreachableMiddle": " from ",
+  "unreachableThen": ", and check that ",
+  "unreachableIn": " in ",
+  "unreachableAfter": " points at it.",
+  "appTitle": "Application",
+  "mode": "Mode",
+  "environment": "Environment",
+  "version": "Version",
+  "schema": "Schema revision",
+  "notMigrated": "not migrated",
+  "dependencies": "Dependencies",
+  "provenanceTitle": "Data provenance",
+  "provenanceDescription": "Which provider is behind each figure, and whether its schema has been verified.",
+  "mock": "Mock data",
+  "validated": "Validated",
+  "pending": "Pending validation",
+  "sources": {
+    "performance": "Performance data",
+    "market": "Market data",
+    "licence": "Licence: {licence}."
+  },
+  "pills": {
+    "ok": "Operational",
+    "degraded": "Degraded",
+    "unavailable": "Unavailable",
+    "not_configured": "Not configured"
+  }
+}

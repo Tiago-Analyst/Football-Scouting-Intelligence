@@ -192,6 +192,8 @@ language they are said in becomes the frontend's.
 | xG, npxG, xA, /90 | Standard notation in Portuguese football analysis. |
 | `/design-system` | An internal component gallery, not in the navigation and disallowed to crawlers. |
 | Numerical values of any metric | Formatting changes; values do not. |
+| A quality check's name, entity and `detail` | The pipeline's own identifiers and its own report of what it found, in the same words as the logs and the database rows. An operator comparing the page with a log is comparing like with like, and a translated finding would break that. The check's STATUS is named here, because that is the product speaking. |
+| A refusal the provider registry wrote (`unavailable` notes) | Reported exactly as it arrived rather than restated. Everything the product itself says about a source travels as a code. |
 
 ---
 
@@ -207,7 +209,7 @@ unaffected throughout.
 | 1 ✅ | Architecture, `[lang]` routing, proxy, dictionaries, selector, persistence, glossary, shell and error states |
 | 2a ✅ | Terminology components, provider position vocabulary, sample-band copy, `best_role_key` on the API, **player search** |
 | 2b ✅ | Player profile, similarity, replacements, recruitment, opportunities — **and the backend message codes**, which phase 2b needed and therefore brought forward from phase 4 |
-| 3 | About, methodology, data quality, status, auth, shortlists |
+| 3 ✅ | About, methodology, data quality, status, auth, shortlists |
 | 4 | `Intl` formatting, completeness tests — and `pt` switched on |
 
 ### Why phase 2 is split

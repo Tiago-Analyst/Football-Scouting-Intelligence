@@ -24,27 +24,13 @@ import { getDictionary } from "@/i18n/dictionaries";
  * So this is the one place the column is named and explained. Two surfaces
  * show it and they must not drift into describing it differently.
  *
- * The words themselves now live in `glossary.allLeagues`, because a reader of
- * the Portuguese page needs the same explanation in their own language. The
- * English constants below remain for the one surface that renders in the
- * browser and cannot reach a dictionary; `i18n-messages.test.mjs` asserts they
- * are still word for word what the English dictionary says.
+ * The words themselves live in `glossary.allLeagues`, one entry per language,
+ * because a reader of the Portuguese page needs the same explanation in their
+ * own language. Both surfaces read that entry, so there is still exactly one
+ * description of this column and it still cannot drift.
  *
  * See `docs/cross_league_percentiles.md`.
  */
-
-/** The column's name. Unchanged: it is still a rank against all leagues. */
-export const ALL_LEAGUES_LABEL = "All leagues";
-
-/** The qualification that travels with it, everywhere it appears. */
-export const ALL_LEAGUES_QUALIFIER = "mixed season maturity";
-
-/** The full explanation, for the tooltip and for anywhere with room for it. */
-export const ALL_LEAGUES_EXPLANATION =
-  "Ranks this player's observed per-90 value against every player-season currently served in " +
-  "their position. Those competitions are at different points in their seasons, and the rank " +
-  "is not adjusted for that, nor for how strong a league is. How much football stands behind " +
-  "the player's own figure is reported separately, as minutes and a sample band.";
 
 /**
  * The column heading: name, qualifier, and the explanation on demand.

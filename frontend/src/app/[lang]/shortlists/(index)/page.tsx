@@ -8,47 +8,47 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import { getCurrentUser } from "@/lib/auth";
 import { formatCount } from "@/lib/format";
 import { getShortlists } from "@/lib/shortlists";
 
-export const metadata: Metadata = { title: "Shortlists" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.shortlists.meta.title };
+}
 
 export default async function ShortlistsPage() {
+  const t = await getDictionary();
   const user = await getCurrentUser();
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Workspace"
-        title="Shortlists"
-        description="Save players, write your own notes, and compare up to five side by side. Nothing here is visible to anyone else."
+        eyebrow={t.shortlists.eyebrow}
+        title={t.shortlists.title}
+        description={t.shortlists.description}
       />
 
-      {user ? <SignedIn /> : <SignedOut />}
+      {user ? <SignedIn t={t} /> : <SignedOut t={t} />}
 
-      <Callout
-        tone="note"
-        title="Export is scoped to your own selections"
-        className="mx-auto max-w-2xl"
-      >
-        A shortlist exports as CSV with the columns you can already see, plus your notes. There is
-        no bulk export of the underlying provider database, and none will be added.
+      <Callout tone="note" title={t.shortlists.exportTitle} className="mx-auto max-w-2xl">
+        {t.shortlists.exportBody}
       </Callout>
     </div>
   );
 }
 
-function SignedOut() {
+function SignedOut({ t }: { t: Dictionary }) {
   return (
     <EmptyState
-      title="Sign in to keep shortlists"
-      description="Everything else on this site is open. An account exists only so that a shortlist has an owner — yours, and no-one else's."
+      title={t.shortlists.signedOut.title}
+      description={t.shortlists.signedOut.description}
       action={
         <div className="flex items-center gap-2">
-          <ButtonLink href="/sign-in?next=/shortlists">Sign in</ButtonLink>
+          <ButtonLink href="/sign-in?next=/shortlists">{t.shortlists.signedOut.signIn}</ButtonLink>
           <ButtonLink href="/register?next=/shortlists" variant="secondary">
-            Create an account
+            {t.shortlists.signedOut.register}
           </ButtonLink>
         </div>
       }
@@ -56,17 +56,15 @@ function SignedOut() {
   );
 }
 
-async function SignedIn() {
+async function SignedIn({ t }: { t: Dictionary }) {
+  const i = t.shortlists.index;
   const shortlists = await getShortlists();
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start">
       <div className="space-y-3">
         {shortlists.length === 0 ? (
-          <EmptyState
-            title="No shortlists yet"
-            description="Create one, then save players to it from any player profile."
-          />
+          <EmptyState title={i.emptyTitle} description={i.emptyDescription} />
         ) : (
           shortlists.map((shortlist) => (
             <Link
@@ -78,8 +76,8 @@ async function SignedIn() {
                 <p className="truncate text-sm font-semibold">{shortlist.name}</p>
                 <p className="tabular shrink-0 text-xs text-subtle">
                   {shortlist.entry_count === 1
-                    ? "1 player"
-                    : `${formatCount(shortlist.entry_count)} players`}
+                    ? i.onePlayer
+                    : i.manyPlayers.replace("{count}", formatCount(shortlist.entry_count))}
                 </p>
               </div>
               {shortlist.description ? (
@@ -91,19 +89,23 @@ async function SignedIn() {
       </div>
 
       <Card>
-        <CardHeader title="New shortlist" />
+        <CardHeader title={i.newTitle} />
         <CardBody>
-          <AuthForm action={createShortlistAction} submitLabel="Create">
-            <Field label="Name" htmlFor="name">
+          <AuthForm
+            action={createShortlistAction}
+            submitLabel={i.create}
+            copy={{ ...t.auth.form, errors: t.auth.errors }}
+          >
+            <Field label={i.name} htmlFor="name">
               <TextInput
                 id="name"
                 name="name"
                 required
                 maxLength={120}
-                placeholder="Left backs, under 23"
+                placeholder={i.namePlaceholder}
               />
             </Field>
-            <Field label="Description" htmlFor="description" hint="Optional.">
+            <Field label={i.descriptionLabel} htmlFor="description" hint={i.optional}>
               <TextInput id="description" name="description" maxLength={500} />
             </Field>
           </AuthForm>

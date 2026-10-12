@@ -21,6 +21,7 @@ import {
   clearSession,
   sessionHeader,
 } from "@/lib/auth";
+import { actionPath } from "@/i18n/redirect";
 import type { FormState } from "@/lib/forms";
 import type { AuthUser } from "@/types/api";
 
@@ -40,20 +41,36 @@ function field(data: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function messageFor(error: unknown): string {
+/**
+ * A failure as the form should report it: a sentence, and a code beside it.
+ *
+ * A server action cannot read a root parameter, so it has no dictionary. It
+ * names the failure and the form says it in whichever language it is
+ * rendering. The English sentence stays, as the fallback for a code nobody
+ * has written copy for yet.
+ */
+function refusal(error: unknown): FormState {
   if (error instanceof ApiError) {
     // 0 is a network failure, whose message names the internal API URL. That
     // is useful in a log and not something to render to a visitor.
-    return error.status === 0 ? "The service is unavailable right now." : error.message;
+    if (error.status === 0) {
+      return { error: "The service is unavailable right now.", errorCode: "auth_unavailable" };
+    }
+    const length = error.details?.length;
+    return {
+      error: error.message,
+      errorCode: error.code,
+      ...(typeof length === "number" ? { errorValues: { length } } : {}),
+    };
   }
-  return GENERIC_FAILURE;
+  return { error: GENERIC_FAILURE, errorCode: "auth_generic_failure" };
 }
 
 export async function signInAction(_previous: FormState, data: FormData): Promise<FormState> {
   const email = field(data, "email").trim();
   const password = field(data, "password");
   if (!email || !password) {
-    return { error: "Enter your email and password." };
+    return { error: "Enter your email and password.", errorCode: "auth_missing_credentials" };
   }
 
   try {
@@ -63,10 +80,10 @@ export async function signInAction(_previous: FormState, data: FormData): Promis
     });
     await adoptSession(setCookie, SESSION_MAX_AGE, data);
   } catch (error) {
-    return { error: messageFor(error) };
+    return refusal(error);
   }
 
-  redirect(safeRedirect(data.get("next")));
+  redirect(await actionPath(safeRedirect(data.get("next"))));
 }
 
 export async function registerAction(_previous: FormState, data: FormData): Promise<FormState> {
@@ -76,12 +93,12 @@ export async function registerAction(_previous: FormState, data: FormData): Prom
   const displayName = field(data, "display_name").trim();
 
   if (!email || !password) {
-    return { error: "Enter an email address and a password." };
+    return { error: "Enter an email address and a password.", errorCode: "auth_missing_registration" };
   }
   // Checked here as well as in the browser: the required/minlength attributes
   // on the inputs are a convenience, not a control.
   if (password !== confirm) {
-    return { error: "The two passwords do not match." };
+    return { error: "The two passwords do not match.", errorCode: "auth_passwords_differ" };
   }
 
   try {
@@ -91,10 +108,10 @@ export async function registerAction(_previous: FormState, data: FormData): Prom
     });
     await adoptSession(setCookie, SESSION_MAX_AGE, data);
   } catch (error) {
-    return { error: messageFor(error) };
+    return refusal(error);
   }
 
-  redirect(safeRedirect(data.get("next")));
+  redirect(await actionPath(safeRedirect(data.get("next"))));
 }
 
 export async function signOutAction(): Promise<void> {
@@ -109,7 +126,7 @@ export async function signOutAction(): Promise<void> {
     }
   }
   await clearSession();
-  redirect("/");
+  redirect(await actionPath("/"));
 }
 
 export async function signOutEverywhereAction(): Promise<void> {
@@ -122,7 +139,7 @@ export async function signOutEverywhereAction(): Promise<void> {
     }
   }
   await clearSession();
-  redirect("/");
+  redirect(await actionPath("/"));
 }
 
 export async function changePasswordAction(
@@ -134,15 +151,15 @@ export async function changePasswordAction(
   const confirm = field(data, "confirm_password");
 
   if (!current || !next) {
-    return { error: "Enter your current password and a new one." };
+    return { error: "Enter your current password and a new one.", errorCode: "auth_missing_change" };
   }
   if (next !== confirm) {
-    return { error: "The two new passwords do not match." };
+    return { error: "The two new passwords do not match.", errorCode: "auth_new_passwords_differ" };
   }
 
   const cookie = await sessionHeader();
   if (!cookie) {
-    return { error: "Your session has ended. Sign in again." };
+    return { error: "Your session has ended. Sign in again.", errorCode: "auth_session_ended" };
   }
 
   try {
@@ -152,12 +169,12 @@ export async function changePasswordAction(
       body: { current_password: current, new_password: next },
     });
   } catch (error) {
-    return { error: messageFor(error) };
+    return refusal(error);
   }
 
   // Changing a password ends every session, this one included — that is the
   // point of the action. Clearing the cookie here keeps the browser honest
   // about it instead of leaving a token the backend has already revoked.
   await clearSession();
-  redirect("/sign-in?changed=1");
+  redirect(await actionPath("/sign-in?changed=1"));
 }

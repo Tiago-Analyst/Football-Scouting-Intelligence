@@ -64,17 +64,27 @@ def health(response: Response, settings: SettingsDep) -> HealthResponse:
     revision = get_schema_revision() if db_ok else None
 
     if not db_ok:
-        db_status, db_detail = "unavailable", "Could not establish a database connection."
+        db_status, db_detail, db_code = (
+            "unavailable",
+            "Could not establish a database connection.",
+            "health_database_unreachable",
+        )
     elif revision is None:
-        db_status, db_detail = (
+        db_status, db_detail, db_code = (
             "degraded",
             "Database reachable but migrations have not been applied.",
+            "health_database_unmigrated",
         )
     else:
-        db_status, db_detail = "ok", None
+        db_status, db_detail, db_code = "ok", None, None
 
     dependencies = [
-        DependencyStatus(name="postgresql", status=db_status, detail=db_detail),
+        DependencyStatus(
+            name="postgresql",
+            status=db_status,
+            detail=db_detail,
+            detail_message=_coded(db_code),
+        ),
         _analytics_status(),
         _footystats_status(settings),
     ]
@@ -118,6 +128,11 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
                 if settings.app_mode.value == "demo"
                 else "No API key supplied. Production performance data is unavailable."
             ),
+            detail_message=_coded(
+                "health_footystats_no_key_demo"
+                if settings.app_mode.value == "demo"
+                else "health_footystats_no_key"
+            ),
         )
     # A key is necessary and not sufficient. How many fields have actually been
     # verified against a real response is read from the mapping file, so this
@@ -134,6 +149,7 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
                 "API key present, but no field has been verified against a real "
                 "API response. Run the profiling pipeline."
             ),
+            detail_message=_coded("health_footystats_unprofiled"),
         )
     # Reported without calling FootyStats. A health check that spent a request
     # on every probe would burn a rate limit measured in requests per hour, and
@@ -150,6 +166,16 @@ def _footystats_status(settings: Settings) -> DependencyStatus:
             f"that are, {census.unavailable} unavailable. Verified against real "
             "responses; not contacted by this check."
         ),
+        detail_message=Message(
+            code="health_footystats_ok",
+            values={
+                "usable": census.usable,
+                "total": census.total,
+                "native": census.native,
+                "derived": census.derived,
+                "unavailable": census.unavailable,
+            },
+        ),
     )
 
 
@@ -164,6 +190,7 @@ def _analytics_status() -> DependencyStatus:
     try:
         view = get_analytics_view()
     except AppError as exc:
+        # The view's own refusal, reported as it arrived rather than restated.
         return DependencyStatus(name="analytics", status="unavailable", detail=exc.message)
 
     if view.is_empty:
@@ -174,6 +201,7 @@ def _analytics_status() -> DependencyStatus:
                 "No player data is loaded. Run the ingestion pipeline; until then "
                 "search, profiles and rankings have nothing to serve."
             ),
+            detail_message=_coded("health_analytics_empty"),
         )
 
     excluded = (
@@ -196,6 +224,13 @@ def _analytics_status() -> DependencyStatus:
                 f"{view.built_at.isoformat(timespec='seconds')}. The database has been "
                 "loaded since; restart the API to serve the new data."
             ),
+            detail_message=Message(
+                code="health_analytics_stale",
+                values={
+                    "seasons": len(view.players),
+                    "built": view.built_at.isoformat(timespec="seconds"),
+                },
+            ),
         )
 
     return DependencyStatus(
@@ -204,6 +239,19 @@ def _analytics_status() -> DependencyStatus:
         detail=(
             f"{len(view.players)} player-seasons across {len(view.competitions)} "
             f"competitions, built at {view.built_at.isoformat(timespec='seconds')}.{excluded}"
+        ),
+        detail_message=Message(
+            code=(
+                "health_analytics_ok_excluded"
+                if view.players_without_position
+                else "health_analytics_ok"
+            ),
+            values={
+                "seasons": len(view.players),
+                "competitions": len(view.competitions),
+                "built": view.built_at.isoformat(timespec="seconds"),
+                "excluded": view.players_without_position,
+            },
         ),
     )
 
@@ -227,6 +275,8 @@ def _performance_source(settings: Settings) -> DataSourceStatus:
             is_mock=False,
             validated=False,
             notes=exc.message,
+            # No code: this is the registry's own refusal, reported as it
+            # arrived rather than restated. The page falls back to it.
         )
 
     return DataSourceStatus(
@@ -236,6 +286,7 @@ def _performance_source(settings: Settings) -> DataSourceStatus:
         is_mock=info.is_mock,
         validated=info.validated,
         notes=info.notes,
+        notes_message=_provider_note(info.notes_code, info.notes_values),
     )
 
 
@@ -287,6 +338,15 @@ def _market_source(settings: Settings) -> DataSourceStatus:
                 "expiry. Counted from the database behind the pages, not from an "
                 "ingestion snapshot."
             ),
+            notes_message=Message(
+                code="market_notes_serving",
+                values={
+                    "valued": serving.players_with_value,
+                    "valuations": serving.valuations,
+                    "transfers": serving.transfers,
+                    "contracts": serving.players_with_contract,
+                },
+            ),
         )
 
     try:
@@ -305,6 +365,11 @@ def _market_source(settings: Settings) -> DataSourceStatus:
             is_mock=False,
             validated=False,
             notes=f"{detail}{exc.message}",
+            # The registry's own refusal again, with a prefix saying whether
+            # a snapshot exists. Coded only where this side wrote the words.
+            notes_message=(
+                Message(code="market_notes_none_served", values={}) if serving is not None else None
+            ),
         )
 
     notes = info.notes
@@ -324,7 +389,25 @@ def _market_source(settings: Settings) -> DataSourceStatus:
         is_mock=info.is_mock,
         validated=info.validated,
         notes=notes,
+        # The snapshot prefix is this side's sentence, so it wins the code;
+        # otherwise the provider's own note names itself.
+        notes_message=(
+            Message(code="market_notes_snapshot_not_served", values={})
+            if serving is not None
+            else _provider_note(info.notes_code, info.notes_values)
+        ),
+        licence=info.licence,
     )
+
+
+def _coded(code: str | None) -> Message | None:
+    """A diagnostic with no numbers in it, as a code."""
+    return Message(code=code, values={}) if code else None
+
+
+def _provider_note(code: str | None, values: dict[str, str | int | float]) -> Message | None:
+    """A provider's own note, as the code it named it by."""
+    return Message(code=code, values=dict(values)) if code else None
 
 
 def _data_freshness() -> list[SourcePublicationOut]:
