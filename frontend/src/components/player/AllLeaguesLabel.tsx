@@ -1,4 +1,5 @@
 import { Tooltip } from "@/components/ui/Tooltip";
+import { getDictionary } from "@/i18n/dictionaries";
 
 /**
  * What the all-leagues column is, written once.
@@ -23,6 +24,12 @@ import { Tooltip } from "@/components/ui/Tooltip";
  * So this is the one place the column is named and explained. Two surfaces
  * show it and they must not drift into describing it differently.
  *
+ * The words themselves now live in `glossary.allLeagues`, because a reader of
+ * the Portuguese page needs the same explanation in their own language. The
+ * English constants below remain for the one surface that renders in the
+ * browser and cannot reach a dictionary; `i18n-messages.test.mjs` asserts they
+ * are still word for word what the English dictionary says.
+ *
  * See `docs/cross_league_percentiles.md`.
  */
 
@@ -46,15 +53,17 @@ export const ALL_LEAGUES_EXPLANATION =
  * who takes the number at face value never reaches the footnote. It is three
  * words, so it costs a line of a column that already has one.
  */
-export function AllLeaguesHeading() {
+export async function AllLeaguesHeading() {
+  const t = await getDictionary();
+  const copy = t.glossary.allLeagues;
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
       <span className="inline-flex items-center gap-1 whitespace-nowrap">
-        {ALL_LEAGUES_LABEL}
-        <Tooltip label="What the all-leagues rank is">{ALL_LEAGUES_EXPLANATION}</Tooltip>
+        {copy.label}
+        <Tooltip label={copy.tooltipLabel}>{copy.explanation}</Tooltip>
       </span>
       <span className="text-[10px] font-normal tracking-normal whitespace-nowrap text-subtle normal-case">
-        {ALL_LEAGUES_QUALIFIER}
+        {copy.qualifier}
       </span>
     </span>
   );
@@ -63,12 +72,14 @@ export function AllLeaguesHeading() {
 /**
  * The same thing inline, for places where a stacked heading does not fit.
  */
-export function AllLeaguesInline() {
+export async function AllLeaguesInline() {
+  const t = await getDictionary();
+  const copy = t.glossary.allLeagues;
   return (
     <span className="inline-flex items-center gap-1">
-      {ALL_LEAGUES_LABEL}
-      <span className="text-[10px] text-subtle">· {ALL_LEAGUES_QUALIFIER}</span>
-      <Tooltip label="What the all-leagues rank is">{ALL_LEAGUES_EXPLANATION}</Tooltip>
+      {copy.label}
+      <span className="text-[10px] text-subtle">· {copy.qualifier}</span>
+      <Tooltip label={copy.tooltipLabel}>{copy.explanation}</Tooltip>
     </span>
   );
 }

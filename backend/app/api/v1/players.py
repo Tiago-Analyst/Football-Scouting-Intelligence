@@ -24,6 +24,7 @@ from app.analytics.coverage import (
 from app.analytics.intelligence import IntelligenceScore, ScoreDefinition
 from app.analytics.interpretation import (
     NOT_CAPTURED,
+    Finding,
     MetricReading,
     RoleReading,
     ScoreReading,
@@ -34,6 +35,7 @@ from app.analytics.percentiles import ComparisonContext, PercentileResult, Perce
 from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
+from app.api.v1.messages import ranking_message as _ranking_message
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
 from app.schemas.api import (
@@ -42,6 +44,7 @@ from app.schemas.api import (
     FeatureComparisonOut,
     FindingOut,
     MarketValuePointOut,
+    Message,
     MetricOut,
     PlayerDetail,
     PlayerListResponse,
@@ -219,6 +222,7 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
         market_value_eur=record.market_value_eur,
         contract_expires=record.contract_expires,
         best_role=best.label if best else None,
+        best_role_key=best.key if best else None,
         best_role_score=best.score if best else None,
         best_role_percentile=best.role_fit_percentile if best else None,
     )
@@ -278,6 +282,7 @@ def to_score(
             for component in score.components
         ],
         missing=[metric_label(m) for m in score.missing],
+        missing_keys=[str(m) for m in score.missing],
         validity=getattr(score, "validity", None),
         core_dimensions=[
             CoreDimensionOut(
@@ -289,6 +294,7 @@ def to_score(
             for d in getattr(score, "core_dimensions", ())
         ],
         role_fit_percentile_reason=getattr(score, "role_fit_percentile_reason", None),
+        role_fit_percentile_reason_message=_withheld_percentile_message(score),
         dominant_component=dominant[0],
         dominant_share=dominant[1],
         evidence=_score_evidence(score.key, stats, definitions),
@@ -357,7 +363,28 @@ def _score_evidence(
         threshold=definition.evidence.headline_threshold,
         low=low,
         label=(f"Low evidence - {count:,} {noun}" if low else f"{count:,} {noun}"),
+        # The count and WHAT is being counted, separately. The English
+        # sentence above picks singular or plural for English; another
+        # language picks for itself, from the same two facts.
+        message=Message(
+            code="low_evidence_count" if low else "evidence_count",
+            values={
+                "count": count,
+                "noun_key": _noun_key(definition.evidence.noun),
+                "threshold": definition.evidence.headline_threshold,
+            },
+        ),
     )
+
+
+def _noun_key(noun: str) -> str:
+    """The configured English plural as an identifier.
+
+    "dribbles attempted" -> "dribbles_attempted". The nouns are written in the
+    score configuration, where they are English words doing the work of a key;
+    this is the key they were always being used as.
+    """
+    return noun.strip().lower().replace(" ", "_")
 
 
 def _count_noun(noun: str, count: int) -> str:
@@ -383,6 +410,7 @@ def _interpret(
     return read_profile(
         best_role=roles.best if roles is not None else None,
         alternatives=[a.label for a in roles.alternatives[:3]] if roles is not None else [],
+        alternative_keys=[a.key for a in roles.alternatives[:3]] if roles is not None else [],
         scores=stats.scores,
         metrics=stats.metrics,
         sample=stats.sample,
@@ -394,6 +422,9 @@ def read_profile(
     *,
     best_role: ScoreOut | None,
     alternatives: list[str],
+    #: The same alternatives as identifiers. A localised reading names them
+    #: from these; the labels above stay for the English sentence.
+    alternative_keys: list[str] | None = None,
     scores: list[ScoreOut],
     metrics: list[MetricOut],
     sample: SampleOut,
@@ -415,6 +446,7 @@ def read_profile(
         best = best_role
         role_reading = RoleReading(
             label=best.label,
+            key=best.key,
             score=best.score,
             percentile=best.role_fit_percentile,
             coverage=best.coverage,
@@ -422,6 +454,8 @@ def read_profile(
             missing=tuple(best.missing),
             alternatives=tuple(alternatives),
             components=tuple(c.label for c in best.components),
+            missing_keys=tuple(best.missing_keys),
+            alternative_keys=tuple(alternative_keys or ()),
         )
 
     reading = interpret(
@@ -433,6 +467,7 @@ def read_profile(
                 s.coverage,
                 low_evidence=bool(s.evidence and s.evidence.low),
                 evidence_label=s.evidence.label if s.evidence else None,
+                key=s.key,
             )
             for s in scores
         ],
@@ -442,25 +477,40 @@ def read_profile(
         ],
         minutes=sample.minutes,
         sample_band_label=sample.band_label,
+        sample_band=sample.band,
         detailed_coverage_pct=sample.detailed_coverage_pct,
         position_label=position_label,
     )
     if reading.is_empty:
         return None
 
+    def finding(f: Finding) -> FindingOut:
+        return FindingOut(
+            label=f.label,
+            percentile=f.percentile,
+            reading=f.reading,
+            metric=f.metric,
+            reading_code=f.reading_code,
+        )
+
+    def messages(pairs: list[tuple[str, dict[str, str | int | float]]]) -> list[Message]:
+        return [Message(code=code, values=values) for code, values in pairs]
+
     return ScoutingInterpretationOut(
         profile=reading.profile,
-        strengths=[
-            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
-            for f in reading.strengths
-        ],
-        watch_outs=[
-            FindingOut(label=f.label, percentile=f.percentile, reading=f.reading)
-            for f in reading.watch_outs
-        ],
+        strengths=[finding(f) for f in reading.strengths],
+        watch_outs=[finding(f) for f in reading.watch_outs],
         unavailable=reading.unavailable,
         confidence=reading.confidence,
         not_captured=list(NOT_CAPTURED),
+        profile_messages=messages(reading.profile_messages),
+        unavailable_messages=messages(reading.unavailable_messages),
+        confidence_messages=messages(reading.confidence_messages),
+        # Six fixed statements. Numbered rather than matched, so the list can
+        # grow without anything having to recognise a sentence.
+        not_captured_messages=[
+            Message(code=f"not_captured_{index + 1}") for index in range(len(NOT_CAPTURED))
+        ],
     )
 
 
@@ -480,6 +530,13 @@ def to_similar(result: SimilarityResult, view: AnalyticsView) -> SimilarPlayerOu
         evidence_weight=result.ranking.weight if result.ranking else 1.0,
         ranking_note=(
             result.ranking.explain(minutes=result.candidate_minutes, noun="similarity")
+            if result.ranking
+            else None
+        ),
+        ranking_note_message=(
+            _ranking_message(
+                result.ranking, minutes=result.candidate_minutes, noun_key="similarity"
+            )
             if result.ranking
             else None
         ),
@@ -763,6 +820,7 @@ def get_player_roles(player_id: str) -> RoleFitOut:
         partial_evidence=[to_score(s) for s in fit.partial_evidence],
         unscored=unscored,
         unscored_reason=_why_no_role(unscored) if not fit.best else None,
+        unscored_reason_message=(_why_no_role_message(unscored) if not fit.best else None),
         meaning=fit.meaning,
     )
 
@@ -816,6 +874,28 @@ def _why_no_role(unscored: list[UnscoredRoleOut]) -> str:
         f"of its definition against the {closest.required_pct:.0f}% it needs. "
         f"The player is unchanged and every metric they do carry is below; what "
         f"is missing is provider data, not performance."
+    )
+
+
+def _why_no_role_message(unscored: list[UnscoredRoleOut]) -> Message:
+    """The same answer, for a reader whose language is not this one.
+
+    The role is carried as its KEY rather than its English label, so the
+    sentence can name it in whatever language it is read in. That is the whole
+    reason these exist: an English label interpolated here would have to be
+    matched and re-translated on the other side, and the match breaks the first
+    time somebody improves the wording.
+    """
+    if not unscored:
+        return Message(code="no_role_defined_for_position")
+    closest = unscored[0]
+    return Message(
+        code="no_role_reached_coverage",
+        values={
+            "role": closest.key,
+            "coverage_pct": round(closest.coverage_pct),
+            "required_pct": round(closest.required_pct),
+        },
     )
 
 
@@ -949,3 +1029,22 @@ def get_transfers(player_id: str) -> list[TransferOut]:
             )
             for t in transfers(session, player_id)
         ]
+
+
+def _withheld_percentile_message(score: object) -> Message | None:
+    """Why a role has no percentile, as a code rather than a sentence.
+
+    The unmet dimensions travel as the identifiers they are configured as -
+    "progression", "aerial efficiency" - so the reader's language can name the
+    football concept rather than receiving somebody else's noun phrase. They
+    are joined into one value because `values` is flat on purpose; the
+    frontend splits and translates each.
+    """
+    code = getattr(score, "role_fit_percentile_reason_code", None)
+    if not code:
+        return None
+    unmet = getattr(score, "role_fit_percentile_unmet", ())
+    values: dict[str, str | int | float] = {}
+    if unmet:
+        values["dimensions"] = ",".join(unmet)
+    return Message(code=code, values=values)

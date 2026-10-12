@@ -1,7 +1,8 @@
-import { SAMPLE_LABEL, SAMPLE_SHORT_EXPLANATION, SAMPLE_TONE, type SampleBand } from "@/lib/sample";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import { formatCount } from "@/lib/format";
+import type { SampleBand } from "@/lib/sample";
 
-import { Badge } from "./Badge";
-import { Tooltip } from "./Tooltip";
+import { SampleSizeBadgeView, type SampleCopy } from "./SampleSizeBadgeView";
 
 /**
  * How much football is behind a figure.
@@ -12,14 +13,17 @@ import { Tooltip } from "./Tooltip";
  *
  * It is not a warning that anything was withheld. Every player is ranked,
  * scored and comparable whatever their minutes; this says how much weight the
- * number deserves and leaves that judgement to the reader. The badge is
- * omitted for an established sample, because a badge on every row is a badge
- * nobody reads.
+ * number deserves and leaves that judgement to the reader.
  *
- * The band is decided by the server and passed in. Deriving it here from
- * minutes is what let the two definitions drift apart before.
+ * The band is decided by the server and passed in - deriving it here from
+ * minutes is what let the two definitions drift apart before. The WORDS come
+ * from the glossary rather than from the API, for the same reason role names
+ * do: the band is a fact and the sentence describing it is presentation, and
+ * presentation has a language.
+ *
+ * Drawing is `SampleSizeBadgeView`, which Client Components can use.
  */
-export function SampleSizeBadge({
+export async function SampleSizeBadge({
   band,
   minutes,
   showTooltip = true,
@@ -28,21 +32,31 @@ export function SampleSizeBadge({
   minutes?: number | null;
   showTooltip?: boolean;
 }) {
-  if (band === "established") return null;
-
-  const label = SAMPLE_LABEL[band];
-
+  const t = await getDictionary();
   return (
-    <span className="inline-flex items-center gap-1">
-      <Badge tone={SAMPLE_TONE[band] === "warning" ? "warning" : "neutral"}>{label}</Badge>
-      {showTooltip ? (
-        <Tooltip label={`What does "${label}" mean?`}>
-          {SAMPLE_SHORT_EXPLANATION[band]}
-          {minutes !== null && minutes !== undefined
-            ? ` This player has ${minutes.toLocaleString("en-GB")} minutes.`
-            : ""}
-        </Tooltip>
-      ) : null}
-    </span>
+    <SampleSizeBadgeView band={band} copy={sampleCopy(t, band, minutes)} showTooltip={showTooltip} />
   );
+}
+
+/**
+ * The words for one band, for a server parent to hand to a Client Component.
+ *
+ * Exported because the shortlist entry row is a Client Component and cannot
+ * look them up itself.
+ */
+export function sampleCopy(
+  t: Dictionary,
+  band: SampleBand,
+  minutes?: number | null,
+): SampleCopy {
+  const label = t.glossary.sampleBands[band];
+  return {
+    label,
+    explanation: t.glossary.sampleExplanations[band],
+    minutesSentence:
+      minutes !== null && minutes !== undefined
+        ? t.glossary.sampleMinutes.replace("{minutes}", formatCount(minutes))
+        : "",
+    tooltipLabel: t.glossary.sampleTooltipLabel.replace("{label}", label),
+  };
 }

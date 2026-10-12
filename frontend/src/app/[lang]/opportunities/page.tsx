@@ -1,5 +1,9 @@
 import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
+
+import { apiMessage } from "@/components/player/ApiMessage";
+import { positionName } from "@/components/player/PositionName";
+import { getDictionary } from "@/i18n/dictionaries";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -12,11 +16,10 @@ import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import { getOpportunities } from "@/lib/players";
 
-export const metadata: Metadata = {
-  title: "Market opportunities",
-  description:
-    "Players matching a screen over age, role fit, playing time and market value. A filter, not a valuation model: nobody here is labelled undervalued.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.opportunities.meta.title, description: t.opportunities.meta.description };
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -24,6 +27,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function OpportunitiesPage(props: PageProps<"/[lang]/opportunities">) {
+  const t = await getDictionary();
   const params = await props.searchParams;
   const criteria = {
     max_age: first(params.max_age) ?? "23",
@@ -40,15 +44,15 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Market"
-        title="Market opportunities"
-        description="Players whose role fit, age, playing time and market position may merit attention. Set the criteria; the screen shows why each player appeared."
+        eyebrow={t.opportunities.eyebrow}
+        title={t.opportunities.meta.title}
+        description={t.opportunities.description}
       />
 
       {results === null ? (
         <ErrorState
-          title="Could not load opportunities"
-          description="The API did not respond. Check that the backend is running."
+          title={t.opportunities.error.title}
+          description={t.opportunities.error.description}
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -57,13 +61,13 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
             className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Criteria</h2>
+              <h2 className="text-sm font-semibold">{t.opportunities.criteria.heading}</h2>
               <Link href="/opportunities" className="text-xs text-muted hover:text-text">
-                Reset
+                {t.opportunities.criteria.reset}
               </Link>
             </div>
 
-            <Field label="Maximum age" htmlFor="max_age">
+            <Field label={t.opportunities.criteria.maxAge} htmlFor="max_age">
               <TextInput
                 id="max_age"
                 name="max_age"
@@ -76,9 +80,9 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
             </Field>
 
             <Field
-              label="Minimum raw role fit"
+              label={t.opportunities.criteria.minRoleFit}
               htmlFor="min_role_score"
-              hint="The weighted composite behind a player's best role, 0–100. Not the role fit percentile — a raw 80 is a high score on its own terms, whatever the population."
+              hint={t.opportunities.criteria.minRoleFitHint}
             >
               <TextInput
                 id="min_role_score"
@@ -93,13 +97,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
 
             <Field
               label={
-                <>
-                  Minimum minutes
-                  <Tooltip label="Does this exclude players by default?">
-                    Optional filter. All players are eligible by default regardless of minutes
-                    played — this sets a floor only if you want one, and it is empty unless you fill
-                    it in.
-                  </Tooltip>
+                <>{t.opportunities.criteria.minimumMinutes}<Tooltip label={t.opportunities.criteria.minimumMinutesTooltipLabel}>{t.opportunities.criteria.minimumMinutesTooltip}</Tooltip>
                 </>
               }
               htmlFor="min_minutes"
@@ -115,7 +113,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
               />
             </Field>
 
-            <Field label="Maximum market value (€)" htmlFor="max_market_value_eur">
+            <Field label={t.opportunities.criteria.maxValue} htmlFor="max_market_value_eur">
               <TextInput
                 id="max_market_value_eur"
                 name="max_market_value_eur"
@@ -127,26 +125,24 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
               />
             </Field>
 
-            <Field label="Contract expires within" htmlFor="contract_within_months">
+            <Field label={t.opportunities.criteria.contractWithin} htmlFor="contract_within_months">
               <Select
                 id="contract_within_months"
                 name="contract_within_months"
                 defaultValue={criteria.contract_within_months}
               >
-                <option value="6">6 months</option>
-                <option value="12">12 months</option>
-                <option value="18">18 months</option>
-                <option value="24">24 months</option>
-                <option value="120">Any</option>
+                <option value="6">{t.opportunities.criteria.months.replace("{count}", "6")}</option>
+                <option value="12">{t.opportunities.criteria.months.replace("{count}", "12")}</option>
+                <option value="18">{t.opportunities.criteria.months.replace("{count}", "18")}</option>
+                <option value="24">{t.opportunities.criteria.months.replace("{count}", "24")}</option>
+                <option value="120">{t.opportunities.criteria.any}</option>
               </Select>
             </Field>
 
             <button
               type="submit"
               className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
-            >
-              Apply criteria
-            </button>
+            >{t.opportunities.criteria.apply}</button>
           </form>
 
           {/* `min-w-0` for the same reason the player search and the
@@ -156,28 +152,38 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
           <section className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
-                <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
-                players meet these criteria
+                {t.opportunities.results.meeting.replace(
+                  "{count}",
+                  formatCount(results.total),
+                )}
               </p>
-              {results.is_mock ? <Badge tone="warning">Demo data</Badge> : null}
+              {results.is_mock ? <Badge tone="warning">{t.opportunities.results.demoData}</Badge> : null}
             </div>
 
-            <Callout tone="warning" title="Not a valuation model">
-              {results.disclaimer}
+            <Callout tone="warning" title={t.opportunities.results.disclaimerTitle}>
+              {apiMessage(t, results.disclaimer_message) ?? results.disclaimer}
             </Callout>
 
             {results.funnel.length > 0 ? (
               <details className="rounded-md border border-subtle px-4 py-3">
-                <summary className="cursor-pointer text-xs font-semibold text-muted">
-                  Where the screen narrowed
-                </summary>
+                <summary className="cursor-pointer text-xs font-semibold text-muted">{t.opportunities.results.funnel}</summary>
                 <ul className="mt-3 space-y-1 text-xs text-muted">
                   {results.funnel.map((step) => (
                     <li key={step.criterion} className="flex justify-between gap-4">
-                      <span>{step.criterion}</span>
+                      <span>
+                        {apiMessage(t, step.criterion_message) ?? step.criterion}
+                      </span>
                       <span className="tabular whitespace-nowrap">
-                        {formatCount(step.remaining)} left
-                        {step.removed > 0 ? ` (−${formatCount(step.removed)})` : ""}
+                        {t.opportunities.results.stepRemaining.replace(
+                        "{remaining}",
+                        formatCount(step.remaining),
+                      )}
+                      {step.removed > 0
+                        ? t.opportunities.results.stepRemoved.replace(
+                            "{removed}",
+                            formatCount(step.removed),
+                          )
+                        : ""}
                       </span>
                     </li>
                   ))}
@@ -190,15 +196,12 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
 
             {results.items.length === 0 ? (
               <EmptyState
-                title="No players meet these criteria"
+                title={t.opportunities.results.emptyTitle}
                 description={
-                  results.explanation ??
-                  "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling."
+                  results.explanation ?? t.opportunities.results.emptyDescription
                 }
                 action={
-                  <ButtonLink href="/opportunities" variant="secondary" size="sm">
-                    Reset criteria
-                  </ButtonLink>
+                  <ButtonLink href="/opportunities" variant="secondary" size="sm">{t.opportunities.results.resetCriteria}</ButtonLink>
                 }
               />
             ) : (
@@ -218,7 +221,12 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                         description={
                           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span>
-                              {entry.player.raw_position ?? entry.player.position_group} ·{" "}
+                              {positionName(t, entry.player.raw_position) ??
+                        t.glossary.positions[
+                          entry.player.position_group as keyof typeof t.glossary.positions
+                        ] ??
+                        entry.player.position_group}{" "}
+                              ·{" "}
                               {entry.player.club} · {entry.player.competition}
                             </span>
                             {/* A player can reach this list on 41 minutes,
@@ -228,7 +236,13 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                                 looked like one built on a season. */}
                             {entry.player.minutes !== null ? (
                               <span className="flex items-center gap-1.5">
-                                <span>· {formatCount(entry.player.minutes)} min</span>
+                                <span>
+                          ·{" "}
+                          {t.opportunities.results.minutes.replace(
+                            "{minutes}",
+                            formatCount(entry.player.minutes),
+                          )}
+                        </span>
                                 <SampleSizeBadge
                                   band={entry.player.sample_band}
                                   minutes={entry.player.minutes}
@@ -244,15 +258,13 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                              scale the rest of the product reserves for it. */
                           <span className="flex flex-col items-end">
                           <span className="flex items-baseline gap-2">
-                            <span className="text-[10px] tracking-wide text-subtle uppercase">
-                              Raw role fit
-                            </span>
+                            <span className="text-[10px] tracking-wide text-subtle uppercase">{t.opportunities.results.rawRoleFit}</span>
                             <span className="tabular text-lg font-semibold text-accent">
                               {entry.best_role_score !== null
                                 ? Math.round(entry.best_role_score)
                                 : "–"}
                             </span>
-                            <span className="text-xs text-subtle">/ 100</span>
+                            <span className="text-xs text-subtle">{t.opportunities.results.outOfHundred}</span>
                             {/* Where that raw score stands among the players
                                 measured for the same role. Already in the
                                 payload - every opportunity carries a full
@@ -262,7 +274,11 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                                 95th. */}
                             {entry.player.best_role_percentile != null ? (
                               <span className="text-xs text-subtle">
-                                · {ordinal(entry.player.best_role_percentile)} role fit percentile
+                                ·{" "}
+                            {t.opportunities.results.rolePercentile.replace(
+                              "{percentile}",
+                              ordinal(entry.player.best_role_percentile),
+                            )}
                               </span>
                             ) : null}
                           </span>
@@ -278,19 +294,26 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                             {entry.evidence_weight < 1 ? (
                               <span
                                 className="mt-0.5 text-[10px] text-subtle"
-                                title={entry.ranking_note ?? undefined}
+                                title={
+                                  apiMessage(t, entry.ranking_note_message) ?? undefined
+                                }
                               >
-                                ranked {Math.round(entry.ranking_score)} ·{" "}
-                                {Math.round(entry.evidence_weight * 100)}% of a season
+                                {t.opportunities.results.rankedNote
+                                  .replace(
+                                    "{score}",
+                                    String(Math.round(entry.ranking_score)),
+                                  )
+                                  .replace(
+                                    "{pct}",
+                                    String(Math.round(entry.evidence_weight * 100)),
+                                  )}
                               </span>
                             ) : null}
                           </span>
                         }
                       />
                       <CardBody>
-                        <p className="mb-2 text-xs font-medium text-muted">
-                          Why this player appeared
-                        </p>
+                        <p className="mb-2 text-xs font-medium text-muted">{t.opportunities.results.why}</p>
                         <ul className="flex flex-wrap gap-2">
                           {entry.reasons.map((reason) => (
                             <li key={reason}>
@@ -300,8 +323,10 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                         </ul>
                         {entry.player.market_value_eur !== null ? (
                           <p className="mt-3 text-xs text-subtle">
-                            Market value {formatEuro(entry.player.market_value_eur)} — a
-                            crowd-sourced estimate, not an asking price.
+                            {t.opportunities.results.marketValueNote.replace(
+                              "{value}",
+                              formatEuro(entry.player.market_value_eur),
+                            )}
                           </p>
                         ) : null}
                       </CardBody>

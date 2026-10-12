@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Procura de substitutos",
+    "description": "Escolha um jogador e encontre candidatos que possam substituir esse perfil."
+  },
+  "eyebrow": "Recrutamento",
+  "title": "Procura de substitutos",
+  "description": "Escolha um jogador e encontre candidatos que possam substituir esse perfil. Combina semelhança estatística, aptidão para o papel e comportabilidade.",
+  "picker": {
+    "title": "Escolher o jogador a substituir",
+    "placeholder": "Pesquisar por nome…",
+    "browse": "Ou percorrer uma competição",
+    "search": "Pesquisar",
+    "startOver": "Recomeçar",
+    "viewProfile": "Ver perfil",
+    "changePlayer": "Mudar de jogador",
+    "noneFoundTitle": "Nenhum jogador encontrado",
+    "noneFoundDescription": "Experimente outro nome.",
+    "notFoundTitle": "Jogador não encontrado",
+    "notFoundDescription": "Esse jogador não está na base de dados."
+  },
+  "constraints": {
+    "heading": "Restrições",
+    "any": "Qualquer",
+    "budget": "Orçamento (€)",
+    "maxAge": "Idade máxima",
+    "competition": "Competição",
+    "contractWithin": "Contrato termina dentro de",
+    "months": "{count} meses",
+    "apply": "Aplicar"
+  },
+  "table": {
+    "player": "Jogador",
+    "age": "Idade",
+    "club": "Clube",
+    "similarity": "Semelhança",
+    "rawRoleFit": "Aptidão bruta",
+    "affordability": "Comportabilidade",
+    "overall": "Global",
+    "ranked": "Ordenado",
+    "value": "Valor",
+    "contract": "Contrato",
+    "differentStrength": "Força de perfil diferente",
+    "seasonShare": "{pct}% de uma época",
+    "limited": "Limitado",
+    "noComparable": "Sem valor global comparável: {components} não pôde ser calculado para este jogador."
+  },
+  "empty": {
+    "title": "Nenhum substituto corresponde a estas restrições",
+    "description": "Experimente aumentar o orçamento ou aliviar os filtros de idade e competição."
+  },
+  "notes": {
+    "rankedTitle": "Porque existe esta coluna",
+    "rankedBody": "A lista é ordenada por este valor, e não pelo Global. Uma pontuação construída sobre parte de uma época é lida mais perto da média desta pesquisa, na proporção de quanto futebol a sustenta; com os minutos de uma época inteira é usada tal como está. Ninguém é excluído e nenhuma pontuação é reescrita — o Global ao lado é a pontuação em si.",
+    "overallTitle": "Como a pontuação global é construída",
+    "overallBody": "Semelhança estatística 55%, aptidão para o papel 30%, comportabilidade 15%. A comportabilidade é o valor de mercado face ao orçamento definido e nada mais — não é relação qualidade-preço, nem um juízo sobre se o clube venderia. É deixada inteiramente de fora do cálculo quando não há orçamento, em vez de ser adivinhada. Salários, comissões de agentes, elegíbilidade para inscrição e risco de adaptação não são entradas deste modelo e não estão representados em parte alguma da pontuação.",
+    "ranksTitle": "O que isto ordena",
+    "ranksBody": "As pontuações de substituição ordenam um perfil estatístico dentro dos filtros definidos. Não têm em conta o sistema táctico, o papel no plantel, a personalidade nem o historial clínico, e não são uma probabilidade."
+  },
+  "targetTitle": "Substitutos para {player}"
+}

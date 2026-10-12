@@ -33,12 +33,15 @@ export function SaveToShortlist({
   playerId,
   playerName,
   locale,
+  copy,
 }: {
   playerId: string;
   playerName: string;
   /** The page's language. A Client Component cannot read a root parameter,
    * so its one internal link has to be given the locale rather than find it. */
   locale: Locale;
+  /** The words, for the same reason: no dictionary reaches the browser. */
+  copy: Record<string, string>;
 }) {
   const router = useRouter();
   const [shortlists, setShortlists] = useState<Shortlist[] | null>(null);
@@ -60,7 +63,7 @@ export function SaveToShortlist({
   if (!open) {
     return (
       <button type="button" onClick={begin} className={buttonStyles("primary", "sm")}>
-        Save to shortlist
+        {copy.save}
       </button>
     );
   }
@@ -68,7 +71,7 @@ export function SaveToShortlist({
   if (loading || shortlists === null) {
     return (
       <button type="button" disabled className={buttonStyles("primary", "sm")}>
-        Loading…
+        {copy.loading}
       </button>
     );
   }
@@ -76,7 +79,7 @@ export function SaveToShortlist({
   if (shortlists.length === 0) {
     return (
       <Link href={localePath(locale, "/shortlists")} className={buttonStyles("secondary", "sm")}>
-        Create a shortlist
+        {copy.create}
       </Link>
     );
   }
@@ -89,7 +92,7 @@ export function SaveToShortlist({
       <input type="hidden" name="player_id" value={playerId} />
 
       <label htmlFor="shortlist_id" className="block text-xs font-medium text-muted">
-        Save {playerName} to
+        {copy.saveTo.replace("{player}", playerName)}
       </label>
       <select
         id="shortlist_id"
@@ -108,8 +111,8 @@ export function SaveToShortlist({
         name="note"
         rows={2}
         maxLength={2000}
-        aria-label="Note"
-        placeholder="A note, if you want one."
+        aria-label={copy.noteLabel}
+        placeholder={copy.notePlaceholder}
         className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text placeholder:text-subtle"
       />
 
@@ -129,27 +132,27 @@ export function SaveToShortlist({
           that has been made. The button says the action and the line under it
           says when it happens. */}
       <div className="flex items-center gap-2">
-        <SaveButton />
+        <SaveButton copy={copy} />
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="text-xs text-subtle hover:text-text"
         >
-          Cancel
+          {copy.cancel}
         </button>
       </div>
       <p className="text-[11px] leading-relaxed text-subtle">
-        Nothing is saved until you press Add to shortlist.
+        {copy.nothingSaved}
       </p>
     </form>
   );
 }
 
-function SaveButton() {
+function SaveButton({ copy }: { copy: Record<string, string> }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={buttonStyles("primary", "sm")}>
-      {pending ? "Adding…" : "Add to shortlist"}
+      {pending ? copy.adding : copy.add}
     </button>
   );
 }

@@ -11,28 +11,37 @@ refuses a list of them outright — see `frontend/tests/i18n-glossary.test.mjs`.
 
 ## The product rule for role names
 
-**In Portuguese, a role is named in Portuguese with the English name beside it,
-every time it is named.**
+**Portuguese is the interface language. The English name appears only where it
+earns its place as terminology mapping, and never on a dense surface.**
 
-These fifteen role names are this product's own coinages, not standard football
-vocabulary. "Organizador recuado" is a good Portuguese rendering of Deep-Lying
-Playmaker, but a scout reading it has to be able to connect it to the role as
-documented, as discussed with an analyst working in English, and as it appears
-in `config/player_roles.yaml` — which does not change language.
+These fifteen role names are this product's own coinages rather than standard
+football vocabulary, so a scout does need to be able to connect "Organizador
+recuado" to the role as documented and as discussed with an analyst working in
+English. But showing the English everywhere pays that cost on every row of
+every table, and the result reads as an English product with Portuguese labels
+stuck on it. It should read as a Portuguese product.
 
-One rule, no per-role judgement, no exceptions:
+So the surface decides, and there are exactly two kinds:
 
-```
-Organizador recuado
-Deep-Lying Playmaker
-```
+| Surface | Shows |
+|---|---|
+| **Prominent** — profile role header, role breakdown, recruitment preset detail, methodology, glossary, help text | Portuguese, with the English beneath it |
+| **Dense** — tables, filters, compact cards, mobile result lists | Portuguese alone |
 
-The English sits in the same subdued style already used for the all-leagues
-qualifier, so it reads as provenance rather than as competing copy.
+In code this is one component with one prop, `RoleName`, and `context` is
+either `"prominent"` or `"dense"`. No component chooses a role's words for
+itself and nothing interpolates a role name by hand: a test asserts that the
+only place a role is named is the glossary dictionary.
 
-Rejected alternatives: Portuguese alone (loses the mapping, and the product's
-own documentation stays English), English alone (defeats the purpose), and
-case-by-case (produces exactly the inconsistency a glossary exists to stop).
+Where the English is useful on a dense surface, it belongs in a tooltip or in
+the methodology, not in the row.
+
+In English, `context` changes nothing: the name is the name.
+
+Rejected alternatives: English beside every occurrence (noise, and the reading
+above), Portuguese alone everywhere (loses the mapping exactly where a reader
+is studying one role closely), and per-role judgement (produces the
+inconsistency a glossary exists to stop).
 
 ---
 
@@ -41,7 +50,7 @@ case-by-case (produces exactly the inconsistency a glossary exists to stop).
 | English | Português (PT) | Notes |
 |---|---|---|
 | Ball-Playing Centre-Back | **Defesa-central construtor** | "Construtor" carries the first-phase build-up meaning that "que sai a jogar" says longer. |
-| Defensive Stopper | **Defesa-central de marcação** | The role weights duels, blocks and clearances. "Stopper" has no Portuguese equivalent; "de marcação" names what it measures. |
+| Defensive Stopper | **Central de marcação** | The role weights duels, blocks and clearances. "Stopper" has no Portuguese equivalent; "de marcação" names what it measures. "Central" rather than "defesa-central" because that is how the position is spoken about in Portugal, and the longer form reads like a dictionary entry in a column heading. |
 | Defensive Full-Back | **Lateral defensivo** | |
 | Attacking Full-Back | **Lateral ofensivo** | Not "atacante", which in Portugal names a forward. |
 | Ball-Winning Midfielder | **Médio recuperador** | "Trinco" is the common spoken term but implies a fixed holding position; the role is about recovery, not position. |
@@ -49,9 +58,9 @@ case-by-case (produces exactly the inconsistency a glossary exists to stop).
 | Box-to-Box Midfielder | **Médio box-to-box** | Kept in English inside the Portuguese term: it is what the position is called in Portuguese football. Translating it ("médio de ligação") names a different role. |
 | Advanced Playmaker | **Organizador avançado** | |
 | Creative Winger | **Extremo criativo** | |
-| Direct Winger | **Extremo driblador** | The role is "a wide player who attacks the defender" — dribbles and fouls drawn. "Directo" would be a false friend. |
+| Direct Winger | **Extremo driblador** | The role is "a wide player who attacks the defender" — dribbles and fouls drawn. "Directo" would be a false friend. The English name in `config/player_roles.yaml` is **Direct Winger** and is unchanged; the Portuguese reads as "dribbling winger" because that is what the role measures. |
 | Inside Forward | **Avançado interior** | A wide player who scores rather than supplies. |
-| Poacher | **Finalizador de área** | "Oportunista" suggests luck; the role measures finishing inside the box. |
+| Poacher | **Avançado de área** | "Oportunista" suggests luck. "Finalizador de área" was rejected on review: it names an attribute a player has, where every other entry in this table names a role a player occupies. |
 | Target Forward | **Avançado de referência** | The standard Portuguese term for the role. |
 | Complete Forward | **Avançado completo** | |
 | Shot Stopper | **Guarda-redes de linha** | "Guarda-redes" never "goleiro". "De linha" marks shot-stopping as against sweeping or distribution. |

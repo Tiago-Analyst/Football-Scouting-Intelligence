@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.api import Message
+
 
 class DependencyStatus(BaseModel):
     name: str
@@ -103,6 +105,10 @@ class MetaResponse(BaseModel):
         default=None,
         description="Populated in demo mode so the UI can display a persistent banner.",
     )
+    #: The same notice as a code, for an interface with a language of its own.
+    #:
+    #: Additive: the English sentence above is unchanged and still correct.
+    demo_data_notice_message: Message | None = None
     data_sources: list[DataSourceStatus]
     #: The one place public copy may read metric counts from. Null when no
     #: provider mapping has been verified, which is a real state and not a

@@ -21,20 +21,21 @@ import type { SourcePublication } from "@/types/api";
  * has been recorded yet or the database was unreachable, and a missing line is
  * a smaller lie than an invented date.
  */
-const SOURCE_LABELS: Record<string, string> = {
-  footystats: "Performance data",
-  transfermarkt: "Market data",
-  demo: "Demo data",
-};
-
-export function DataFreshness({ sources }: { sources: SourcePublication[] }) {
+export function DataFreshness({
+  sources,
+  copy,
+}: {
+  sources: SourcePublication[];
+  /** The source names and the sentence around them, resolved by the footer. */
+  copy: Record<string, string>;
+}) {
   if (sources.length === 0) return null;
 
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-subtle">
       {sources.map((entry) => (
         <div key={entry.source} className="flex gap-1.5">
-          <dt>{SOURCE_LABELS[entry.source] ?? entry.source} updated</dt>
+          <dt>{copy.updated.replace("{source}", copy[entry.source] ?? entry.source)}</dt>
           <dd className="font-medium text-muted">
             <time dateTime={entry.last_published_at}>
               {formatDate(entry.last_published_at)}

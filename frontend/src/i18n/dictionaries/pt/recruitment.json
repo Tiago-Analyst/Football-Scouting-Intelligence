@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "title": "Construtor de perfil de recrutamento",
+    "description": "Defina o perfil que procura, pondere o que importa e ordene candidatos em relação a ele. Cada resultado mostra os percentis que o colocaram ali."
+  },
+  "eyebrow": "Recrutamento",
+  "title": "Construtor de perfil de recrutamento",
+  "description": "Defina o perfil que procura, pondere o que importa e ordene candidatos em relação a ele. Cada resultado mostra os percentis que o colocaram ali.",
+  "intro": "Comece por um papel, ajuste os pesos, aplique filtros e ordene os candidatos.",
+  "weights": {
+    "heading": "Pesos do perfil",
+    "normalised": "Os pesos são normalizados, pelo que não têm de somar exactamente 100.",
+    "unavailable": "indisponível",
+    "unavailableTooltip": "Este carregamento não as consegue produzir para ninguém, pelo que a ordenação ficaria vazia por mais amplos que fossem os filtros."
+  },
+  "filters": {
+    "heading": "Filtros",
+    "any": "Qualquer",
+    "positionGroup": "Grupo posicional",
+    "competition": "Competição",
+    "minAge": "Idade mín.",
+    "maxAge": "Idade máx.",
+    "maxValue": "Valor de mercado máx. (€)",
+    "minimumMinutes": "Minutos mínimos",
+    "minimumMinutesTooltipLabel": "Isto exclui jogadores por omissão?",
+    "minimumMinutesTooltip": "Filtro opcional. Todos os jogadores são elegíveis por omissão, independentemente dos minutos jogados — isto define um mínimo apenas se o quiser, e fica vazio se não o preencher.",
+    "build": "Construir lista",
+    "reset": "Repor"
+  },
+  "states": {
+    "chooseTitle": "Escolha um papel predefinido ou defina os seus próprios pesos",
+    "chooseDescription": "Comece por um dos papéis nomeados, ou defina a ênfase manualmente. Ainda nada está ponderado, pelo que não há por que ordenar.",
+    "readyTitle": "Este perfil está pronto para ordenar candidatos",
+    "readyFallback": "Ajuste os filtros e construa a lista.",
+    "readyActionBefore": "Prima ",
+    "readyActionButton": "Construir lista",
+    "readyActionAfter": " para a executar.",
+    "errorTitle": "Não foi possível construir a lista",
+    "errorDescription": "A API não respondeu, ou nenhum peso foi definido acima de zero.",
+    "cannotScoreTitle": "Este perfil não pode ser pontuado",
+    "noMatchTitle": "Nenhum jogador corresponde a este perfil",
+    "noMatchDescription": "Experimente alargar os filtros ou baixar os minutos mínimos.",
+    "blockedOneTitle": "1 dimensão ponderada está indisponível",
+    "blockedManyTitle": "{count} dimensões ponderadas estão indisponíveis",
+    "blockedDescription": "Este carregamento não as consegue produzir para ninguém, pelo que a ordenação ficaria vazia por mais amplos que fossem os filtros. Ponha esses pesos a zero para ordenar pelo resto do perfil."
+  },
+  "results": {
+    "matching": "jogadores correspondem · a mostrar os {shown} melhores",
+    "demoData": "Dados de demonstração",
+    "partialTitle": "Parte deste perfil não pode ser pontuada",
+    "crossLeagueTitle": "Comparação entre ligas",
+    "candidateMeta": "{age} anos · {position} · {club} · {competition}",
+    "rankedNote": "ordenado {score} · {pct}% de uma época",
+    "why": "Porquê {firstName}?",
+    "rankingTitle": "O que esta ordenação é",
+    "rankingBody": "Uma ordenação de aptidão estatística face aos pesos que definiu. Não é uma medida de qualidade do jogador, e nada sabe sobre sistema táctico, histórico de lesões ou temperamento."
+  },
+  "blocked": {
+    "willRankNobody": "Este perfil não vai ordenar ninguém.",
+    "setToZero": "Ponha esse peso a zero para obter uma ordenação a partir do resto do perfil.",
+    "build": "Construir lista",
+    "cannotProduce": "{scores} não pode ser produzido para nenhum jogador, pelo que este perfil não corresponde a ninguém.",
+    "setOne": "Ponha esse peso a zero para executar a pesquisa.",
+    "setMany": "Ponha esses pesos a zero para executar a pesquisa."
+  },
+  "summary": {
+    "subjectPlayer": "um jogador",
+    "subjectPosition": "um {position}",
+    "prioritising": "Procura {subject} que privilegie {items}",
+    "even": "Procura {subject} sem ênfase única: {items} com peso equivalente.",
+    "moderate": "peso moderado em {items}",
+    "limited": "peso reduzido em {items}",
+    "withClause": "com {clauses}",
+    "joinAnd": " e ",
+    "joinComma": ", ",
+    "clauseJoin": ", e ",
+    "sentenceJoin": ", ",
+    "fullStop": "."
+  }
+}

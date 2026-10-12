@@ -82,6 +82,7 @@ export interface MetaResponse {
   version: string;
   /** Present in demo mode so the UI can show a persistent banner. */
   demo_data_notice: string | null;
+  demo_data_notice_message?: ApiMessage | null;
   data_sources: DataSourceStatus[];
   /** Null when no provider mapping has been verified — a real state, not zero. */
   metric_census: MetricCensus | null;
@@ -195,6 +196,17 @@ export interface ScoreComponent {
   contribution: number | null;
 }
 
+/**
+ * A sentence the API decided, as a code the reader's language composes.
+ *
+ * Sent beside the English prose it replaces, never instead of it: existing
+ * readers of this API keep working, and the frontend renders from the code.
+ */
+export interface ApiMessage {
+  code: string;
+  values?: Record<string, string | number>;
+}
+
 export interface ScoreEvidence {
   events: number;
   /** "shots", "dribbles attempted". */
@@ -204,6 +216,8 @@ export interface ScoreEvidence {
   low: boolean;
   /** One phrase for a page, e.g. "Low evidence - 8 shots". */
   label: string;
+  /** The same, as a code and its values. */
+  message?: ApiMessage | null;
 }
 
 export interface Score {
@@ -237,6 +251,7 @@ export interface Score {
   core_dimensions?: CoreDimension[];
   /** Why no standard percentile is published, when none is. */
   role_fit_percentile_reason?: string | null;
+  role_fit_percentile_reason_message?: ApiMessage | null;
   /**
    * The component carrying an unusually large share of what the score
    * actually came out as. Weights say what a role intends to measure;
@@ -303,6 +318,7 @@ export interface RoleFit {
   /** One sentence naming the reason, replacing a bare "could not be
    * computed" that told nobody anything they could act on. */
   unscored_reason?: string | null;
+  unscored_reason_message?: ApiMessage | null;
   /** What a role score does and does not claim. */
   meaning: string;
 }
@@ -362,6 +378,14 @@ export interface PlayerSummary {
   market_value_eur: number | null;
   contract_expires: string | null;
   best_role: string | null;
+  /**
+   * The role's identifier, beside its English label.
+   *
+   * Nullable because it is additive on the API: `best_role` is prose and
+   * belongs to whoever is reading, while this is the same in every language.
+   * The UI names a role from this and never from the English sentence.
+   */
+  best_role_key?: string | null;
   /** Raw Role Fit for the best role. */
   best_role_score: number | null;
   /** Its standing among players evaluated for that same role. */
@@ -424,6 +448,8 @@ export interface SimilarPlayer {
   evidence_weight?: number;
   /** Why this candidate ranks below its index, or null when it does not. */
   ranking_note?: string | null;
+  /** The same sentence as a code, which this side can say in either language. */
+  ranking_note_message?: ApiMessage | null;
   shared_features: number;
   /**
    * How many the position's vector defines. Six of eleven is much weaker
@@ -468,6 +494,10 @@ export interface Transfer {
 /** One reading, with the number it came from. */
 export interface Finding {
   label: string;
+  /** The metric's identifier, so a page names it in its own language. */
+  metric?: string;
+  /** The claim as one of four codes. */
+  reading_code?: string;
   /** Oriented so higher is always better, whichever way the metric reads. */
   percentile: number;
   reading: string;
@@ -489,6 +519,16 @@ export interface ScoutingInterpretation {
   confidence: string[];
   /** What the model does not look at. Never shown without the reading. */
   not_captured: string[];
+  /**
+   * The same paragraphs as codes.
+   *
+   * Additive on the API: the sentences above are unchanged English and still
+   * correct, and a page falls back to them when no code arrives.
+   */
+  profile_messages?: ApiMessage[];
+  unavailable_messages?: ApiMessage[];
+  confidence_messages?: ApiMessage[];
+  not_captured_messages?: ApiMessage[];
 }
 
 export interface PlayerProfile {
@@ -576,6 +616,8 @@ export interface RecruitmentCandidate {
   evidence_weight?: number;
   /** Why this candidate placed lower than its score, or null when it did not. */
   ranking_note?: string | null;
+  /** The same sentence as a code, which this side can say in either language. */
+  ranking_note_message?: ApiMessage | null;
 }
 
 export interface UnavailableScore {
@@ -599,6 +641,8 @@ export interface RecruitmentResults {
    * identical, and only one of them is fixed by widening the filters.
    */
   explanation: string | null;
+  /** The same account as a code, which this side can say in either language. */
+  explanation_message?: ApiMessage | null;
   /** Whether these results are fabricated. A deployment serves one or the other. */
   is_mock: boolean;
 }
@@ -610,9 +654,13 @@ export interface ReplacementCandidate {
   similarity: number;
   role_fit: number | null;
   missing_components?: string[];
+  /** The same components as keys, which this side names itself. */
+  missing_component_keys?: string[];
   ranking_value?: number;
   evidence_weight?: number;
   ranking_note?: string | null;
+  /** The same sentence as a code, which this side can say in either language. */
+  ranking_note_message?: ApiMessage | null;
   market_fit: number | null;
   comparable_strength: boolean;
 }
@@ -645,10 +693,13 @@ export interface Opportunity {
   evidence_weight: number;
   /** The backend's own sentence, or null when the order used the fit as it stands. */
   ranking_note: string | null;
+  /** The same sentence as a code, which this side can say in either language. */
+  ranking_note_message?: ApiMessage | null;
 }
 
 export interface ScreenStep {
   criterion: string;
+  criterion_message?: ApiMessage | null;
   remaining: number;
   removed: number;
 }
@@ -659,6 +710,7 @@ export interface Opportunities {
   criteria: string[];
   /** States what the list claims — and, crucially, what it does not. */
   disclaimer: string;
+  disclaimer_message?: ApiMessage | null;
   /**
    * Where the screen narrowed, criterion by criterion. Five criteria and one
    * survivor is either a strict screen or a broken one, and the list alone

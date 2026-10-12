@@ -1,0 +1,114 @@
+{
+  "dataConfidence": {
+    "title": "Data confidence",
+    "tooltipLabel": "What is data confidence?",
+    "tooltip": "Three separate questions, and a profile can answer two of them well and the third badly. How much football these figures rest on; how much of that football the provider recorded in enough detail to count; and how many of the profile's own metrics could actually be computed. A full season of minutes, fully recorded, still leaves the last one open. None of them affects whether this player is ranked or compared — all three affect how much weight the numbers deserve.",
+    "playingSample": "Playing sample",
+    "minutesPlayed": "Minutes played",
+    "sample": "Sample",
+    "detailedData": "Detailed data",
+    "recordedMinutes": "Recorded minutes",
+    "recordedTooltipLabel": "Why does this differ from minutes played?",
+    "detailedCoverage": "Detailed minutes coverage",
+    "analyticalCoverage": "Analytical metric coverage",
+    "profileMetrics": "{available} of {expected} profile metrics",
+    "status": "Status",
+    "incomplete": "Incomplete profile",
+    "whatMeansLabel": "What does that mean?",
+    "notAvailable": "N/A",
+    "providerDiscrepancy": "Provider minute discrepancy"
+  },
+  "comparison": {
+    "comparedWith": "Compared with",
+    "population": "Population: {size}",
+    "minimumMinutes": "{minutes} minutes or more",
+    "maturityNote": "{total} competitions, of which {established} have played enough of their season for a full-season figure to be possible. {share}% of this population comes from those, and the median player here has {median} minutes.",
+    "maturityEarly": " A rank against the rest is a rank against a season that has barely started."
+  },
+  "similarityBreakdown": {
+    "why": "Why similar?",
+    "hide": "Hide breakdown",
+    "closest": "Closest on",
+    "furthest": "Furthest apart on",
+    "comparedOn": "Compared on {shared} of the {expected} features defined for this position ({pct}% coverage). Percentiles are within the same comparison population as the profile above; two players can share a shape at any level, so read the values and not only the distance between them."
+  },
+  "radar": {
+    "title": "Intelligence profile",
+    "description": "Composite scores, measured against comparable players.",
+    "tooltipLabel": "What is this shape?",
+    "tooltip": "Each axis is a composite score built from the player's percentiles among comparable players, on a 0–100 scale. The shape shows where they are strong relative to that group — not how good they are. Scores that could not be computed are left off rather than drawn at zero.",
+    "notQuality": "A score describes statistical fit with a profile among comparable players. It is not player quality.",
+    "omitted": "Not plotted, because they could not be computed: {scores}.",
+    "ariaSummary": "{score} {value} of 100"
+  },
+  "marketChart": {
+    "title": "Market value over time",
+    "description": "How the estimate has moved, oldest first.",
+    "empty": "No valuation history for this player. The market source does not cover everybody, which is an ordinary gap rather than a fault.",
+    "singlePoint": "One valuation only, {value} on {date}. A single point shows no movement.",
+    "disclaimer": "A crowd-sourced estimate from the Transfermarkt dataset. It is not a transfer fee, an asking price, or a valuation anybody has agreed to.",
+    "latest": "Latest",
+    "peak": "Peak",
+    "valuations": "{count} valuations",
+    "ariaLabel": "Market value from {first} on {firstDate} to {last} on {lastDate}, across {count} valuations"
+  },
+  "transfers": {
+    "title": "Transfer history",
+    "description": "Newest first.",
+    "empty": "No transfers recorded for this player. The market source does not cover everybody, and a player who has not moved has nothing to show either.",
+    "date": "Date",
+    "from": "From",
+    "to": "To",
+    "type": "Type",
+    "fee": "Fee",
+    "undisclosed": "undisclosed",
+    "free": "free",
+    "noFeeTitle": "No fee was reported",
+    "source": "From the public Transfermarkt dataset. Fees are as reported there, which is not always what was paid."
+  },
+  "presets": {
+    "start": "Start from a role",
+    "hide": "Hide roles",
+    "recommended": "Recommended start",
+    "fills": "Fills the weights below from the role's own definition. Adjust them afterwards — nothing is locked.",
+    "startingFrom": "Starting from",
+    "cannotScore": "This profile cannot be scored against the loaded data.",
+    "setToZero": "Setting that weight to zero will produce a ranking, against a narrower reading of the role than the one named above.",
+    "positions": {
+      "GK": "Goalkeeper",
+      "CB": "Centre-back",
+      "FB_WB": "Full-back / wing-back",
+      "DM": "Defensive midfield",
+      "CM": "Central midfield",
+      "AM": "Attacking midfield",
+      "WINGER": "Winger",
+      "FORWARD": "Forward"
+    }
+  },
+  "interpretation": {
+    "title": "Scouting interpretation",
+    "tooltipLabel": "Where does this come from?",
+    "tooltip": "Generated from the figures on this page by fixed rules — a threshold applied to a percentile you can see below. No language model is involved, and nothing here is a judgement the data does not support.",
+    "description": "The numbers below, read. Check any line against the table it came from.",
+    "profile": "Profile",
+    "strengths": "Strengths",
+    "strengthsEmpty": "No metric ranks in the upper band of this comparison population.",
+    "watchOuts": "Watch-outs",
+    "watchOutsEmpty": "No metric central to this role ranks in the lower band.",
+    "notMeasured": "Not measured",
+    "dataConfidence": "Data confidence",
+    "notCaptured": "Not captured by this model"
+  },
+  "saveToShortlist": {
+    "save": "Save to shortlist",
+    "loading": "Loading…",
+    "create": "Create a shortlist",
+    "saveTo": "Save {player} to",
+    "noteLabel": "Note",
+    "notePlaceholder": "A note, if you want one.",
+    "cancel": "Cancel",
+    "nothingSaved": "Nothing is saved until you press Add to shortlist.",
+    "adding": "Adding…",
+    "add": "Add to shortlist"
+  }
+}

@@ -1,4 +1,5 @@
 import type { ComparisonContext } from "@/types/api";
+import { getDictionary } from "@/i18n/dictionaries";
 
 /**
  * Who a percentile was measured against.
@@ -20,12 +21,13 @@ import type { ComparisonContext } from "@/types/api";
  * floor, and this project does not have one: minutes band a figure, they do
  * not decide who is compared.
  */
-export function ComparisonPopulation({ context }: { context: ComparisonContext }) {
+export async function ComparisonPopulation({ context }: { context: ComparisonContext }) {
+  const t = await getDictionary();
   const where = describeCompetitions(context);
 
   return (
     <div className="space-y-1 text-xs">
-      <p className="text-subtle">Compared with</p>
+      <p className="text-subtle">{t.components.comparison.comparedWith}</p>
       <p className="text-text">
         <span className="font-medium">{context.position_label || context.position_group}</span>
         {" · "}
@@ -34,10 +36,16 @@ export function ComparisonPopulation({ context }: { context: ComparisonContext }
         {context.season_id}
       </p>
       <p className="text-subtle">
-        Population: {context.population_size.toLocaleString()}
+        {t.components.comparison.population.replace(
+          "{size}",
+          context.population_size.toLocaleString(),
+        )}
         {/* Only when a caller asked for one. See the note above. */}
         {context.minimum_minutes > 0
-          ? ` · ${context.minimum_minutes.toLocaleString()} minutes or more`
+          ? ` · ${t.components.comparison.minimumMinutes.replace(
+              "{minutes}",
+              context.minimum_minutes.toLocaleString(),
+            )}`
           : null}
       </p>
       {/* WHAT THAT POPULATION IS MADE OF.
@@ -53,7 +61,15 @@ export function ComparisonPopulation({ context }: { context: ComparisonContext }
             context.is_early_season ? "leading-relaxed text-warning" : "leading-relaxed text-subtle"
           }
         >
-          {context.maturity_note}
+          {/* Composed here from the figures the context already carries,
+              rather than printed as the sentence the API happens to send:
+              every number in it is a field on this object. */}
+          {t.components.comparison.maturityNote
+            .replace("{total}", String(context.competitions_in_population ?? 0))
+            .replace("{established}", String(context.competitions_established ?? 0))
+            .replace("{share}", String(Math.round((context.established_share ?? 1) * 100)))
+            .replace("{median}", String(context.median_minutes ?? 0))}
+          {context.is_early_season ? t.components.comparison.maturityEarly : null}
         </p>
       ) : null}
     </div>

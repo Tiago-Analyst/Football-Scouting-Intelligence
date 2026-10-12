@@ -1,4 +1,5 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import { Tooltip } from "@/components/ui/Tooltip";
 import type { Score } from "@/types/api";
 
@@ -34,7 +35,8 @@ const RINGS = [0.25, 0.5, 0.75, 1];
 /** Below this there is no polygon worth drawing. */
 const MINIMUM_AXES = 3;
 
-export function IntelligenceRadar({ scores }: { scores: Score[] }) {
+export async function IntelligenceRadar({ scores }: { scores: Score[] }) {
+  const t = await getDictionary();
   const available = scores.filter((s) => s.score !== null);
   const unavailable = scores.filter((s) => s.score === null);
 
@@ -42,9 +44,7 @@ export function IntelligenceRadar({ scores }: { scores: Score[] }) {
     <Card>
       <CardHeader
         title={
-          <span className="flex items-center gap-1.5">
-            Intelligence profile
-            <Tooltip label="What is this shape?">
+          <span className="flex items-center gap-1.5">{t.components.radar.title}<Tooltip label={t.components.radar.tooltipLabel}>
               Each axis is a composite score built from the player&rsquo;s percentiles among
               comparable players, on a 0&ndash;100 scale. The shape shows where they are
               strong relative to that group — not how good they are. Scores that could not
@@ -52,7 +52,7 @@ export function IntelligenceRadar({ scores }: { scores: Score[] }) {
             </Tooltip>
           </span>
         }
-        description="Composite scores, measured against comparable players."
+        description={t.components.radar.description}
       />
       <CardBody>
         {available.length < MINIMUM_AXES ? (
@@ -62,27 +62,32 @@ export function IntelligenceRadar({ scores }: { scores: Score[] }) {
               : `Only ${available.length} score${available.length === 1 ? "" : "s"} could be computed, which is too few to draw a profile from.`}
           </p>
         ) : (
-          <Shape scores={available} />
+          <Shape t={t} scores={available} />
         )}
 
         {unavailable.length > 0 ? (
           <div className="mt-4 border-t border-border pt-3">
             <p className="text-[11px] text-subtle">
-              Not plotted, because they could not be computed:{" "}
-              {unavailable.map((s) => s.label).join(", ")}.
+              {t.components.radar.omitted.replace(
+                "{scores}",
+                unavailable
+                  .map(
+                    (s) =>
+                      t.glossary.scores[s.key as keyof typeof t.glossary.scores]?.label ??
+                      s.label,
+                  )
+                  .join(", "),
+              )}
             </p>
           </div>
         ) : null}
       </CardBody>
-      <CardFooter className="text-subtle">
-        A score describes statistical fit with a profile among comparable players. It is not
-        player quality.
-      </CardFooter>
+      <CardFooter className="text-subtle">{t.components.radar.notQuality}</CardFooter>
     </Card>
   );
 }
 
-function Shape({ scores }: { scores: Score[] }) {
+function Shape({ scores, t }: { scores: Score[]; t: Dictionary }) {
   const step = (Math.PI * 2) / scores.length;
   // Start at twelve o'clock and go clockwise, which is how people read a dial.
   const pointAt = (index: number, distance: number) => {
@@ -107,7 +112,13 @@ function Shape({ scores }: { scores: Score[] }) {
         className="h-auto w-full max-w-[260px]"
         role="img"
         aria-label={scores
-          .map((s) => `${s.label} ${Math.round(s.score ?? 0)} of 100`)
+          .map(
+            (s) =>
+              `${
+                t.glossary.scores[s.key as keyof typeof t.glossary.scores]?.label ??
+                s.label
+              } ${Math.round(s.score ?? 0)} of 100`,
+          )
           .join("; ")}
       >
         {RINGS.map((ring) => (
@@ -158,7 +169,10 @@ function Shape({ scores }: { scores: Score[] }) {
       <figcaption className="mt-4 grid w-full grid-cols-2 gap-x-4 gap-y-1.5">
         {scores.map((score) => (
           <span key={score.key} className="flex items-baseline justify-between gap-2 text-xs">
-            <span className="truncate text-muted">{score.label}</span>
+            <span className="truncate text-muted">
+              {t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                score.label}
+            </span>
             <span className="font-medium tabular">{Math.round(score.score ?? 0)}</span>
           </span>
         ))}

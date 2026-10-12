@@ -62,5 +62,158 @@
     "marketValue": "Market value",
     "contractExpires": "Contract until",
     "perNinety": "/90"
+  },
+  "providerPositions": {
+    "Goalkeeper": "Goalkeeper",
+    "Centre-Back": "Centre-Back",
+    "Left-Back": "Left-Back",
+    "Right-Back": "Right-Back",
+    "Defensive Midfield": "Defensive Midfield",
+    "Central Midfield": "Central Midfield",
+    "Attacking Midfield": "Attacking Midfield",
+    "Left Winger": "Left Winger",
+    "Right Winger": "Right Winger",
+    "Left Midfield": "Left Midfield",
+    "Right Midfield": "Right Midfield",
+    "Centre-Forward": "Centre-Forward",
+    "Second Striker": "Second Striker"
+  },
+  "sampleExplanations": {
+    "established": "A full season's worth of football behind these figures.",
+    "developing": "Enough football to read a direction from, though per-90 figures still move.",
+    "low": "Per-90 figures are volatile at this sample size: one goal or tackle moves a rate noticeably.",
+    "very_low": "A per-90 from this little football is close to a single passage of play multiplied up. Read it as what happened, not as a rate the player sustains."
+  },
+  "sampleMinutes": " This player has {minutes} minutes.",
+  "sampleTooltipLabel": "What does \"{label}\" mean?",
+  "metrics": {
+    "completed_passes_per90": "Completed passes /90",
+    "pass_completion": "Pass completion %",
+    "key_passes_per90": "Key passes /90",
+    "accurate_crosses_per90": "Accurate crosses /90",
+    "successful_dribbles_per90": "Successful dribbles /90",
+    "dribble_success_percentage": "Dribble success %",
+    "tackles_per90": "Tackles attempted /90",
+    "interceptions_per90": "Interceptions /90",
+    "blocks_per90": "Blocks /90",
+    "clearances_per90": "Clearances /90",
+    "duel_win_percentage": "Duel win %",
+    "aerial_duels_won_per90": "Aerial duels won /90",
+    "shots_per90": "Shots /90",
+    "shots_on_target_per90": "Shots on target /90",
+    "shot_conversion": "Shot conversion %",
+    "shot_quality": "Shot quality",
+    "xa_per90": "xA /90",
+    "npxg_per90": "npxG /90",
+    "non_penalty_goals_per90": "Non penalty goals /90",
+    "fouls_drawn_per90": "Fouls drawn /90",
+    "dispossessed_per90": "Dispossessed /90",
+    "dribbled_past_per90": "Dribbled past /90",
+    "goals_conceded_per90": "Goals conceded /90",
+    "save_percentage": "Save percentage %",
+    "inside_box_saves_per90": "Inside-box saves /90",
+    "progressive_passes_per90": "Progressive passes /90",
+    "aerial_duel_win_percentage": "Aerial duel win %",
+    "penalties_taken": "Penalties taken"
+  },
+  "scores": {
+    "ball_progression": {
+      "label": "Ball Progression",
+      "description": "Moving the ball upfield, by pass or by carry. High volume of progressive passing is the dominant signal; dribbling contributes because carrying is the other way to advance play."
+    },
+    "ball_security": {
+      "label": "Ball Security",
+      "description": "Keeping possession. Pass completion dominates; being dispossessed counts against, and is inverted automatically."
+    },
+    "chance_creation": {
+      "label": "Chance Creation",
+      "description": "Generating shots for team-mates. Weighted towards expected assists and key passes rather than assists themselves, which depend on whether a team-mate finished the chance."
+    },
+    "defensive_activity": {
+      "label": "Defensive Activity",
+      "description": "Volume of defensive actions. Measures how much a player does out of possession, not how well their team defends."
+    },
+    "duel_dominance": {
+      "label": "Duel Dominance",
+      "description": "Winning direct contests. Success rates are weighted above volume, because contesting many duels badly is not dominance."
+    },
+    "one_v_one_threat": {
+      "label": "1v1 Threat",
+      "description": "Beating an opponent directly. Fouls drawn are included because a defender who has to foul has also been beaten."
+    },
+    "goal_threat": {
+      "label": "Goal Threat",
+      "description": "Getting into positions to score. Built on expected goals and shot volume rather than goals, so it reflects the chances a player generates rather than whether they went in."
+    },
+    "finishing": {
+      "label": "Finishing",
+      "description": "Converting the chances taken. Read this with care."
+    }
+  },
+  "dimensions": {
+    "aerial efficiency": "aerial efficiency",
+    "attacking advance": "attacking advance",
+    "attacking contribution": "attacking contribution",
+    "ball-winning engagement": "ball-winning engagement",
+    "box defending": "box defending",
+    "contest outcome": "contest outcome",
+    "creating": "creating",
+    "creation": "creation",
+    "defensive contribution": "defensive contribution",
+    "defensive engagement": "defensive engagement",
+    "defensive resistance": "defensive resistance",
+    "final-third delivery": "final-third delivery",
+    "getting into positions": "getting into positions",
+    "goal threat": "goal threat",
+    "passing base": "passing base",
+    "physical contest": "physical contest",
+    "progression": "progression",
+    "scoring": "scoring",
+    "shot stopping": "shot stopping",
+    "taking players on": "taking players on",
+    "wide threat": "wide threat"
+  },
+  "evidenceNouns": {
+    "shots": "shots",
+    "dribbles_attempted": "dribbles attempted"
+  },
+  "roleCaveats": {
+    "advanced_playmaker": "Expected assists and key passes - the creation this role is named for - are intact. Progression is the part not measured.",
+    "attacking_full_back": "The crossing and chance creation that define an attacking full-back are intact; carrying the ball forward is the part not measured.",
+    "ball_playing_centre_back": "Progression is the defining component of this role, so read this as passing volume and accuracy from a centre-back rather than as measured ball progression. It is not comparable in confidence with a role scored from its full definition.",
+    "ball_winning_midfielder": "Tackling, interceptions and duels won - the ball-winning itself - are measured. What is not is aerial efficiency, which has no denominator. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "box_to_box_midfielder": "The defensive and attacking contributions that define a box-to-box midfielder are intact; carrying the ball forward is the part not measured. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "complete_forward": "Aerial duel efficiency cannot be measured: the provider reports aerial duels won but not attempted, so there is no denominator.",
+    "deep_lying_playmaker": "Progression is what distinguishes a deep-lying playmaker from a tidy passer, so read this as passing volume, accuracy and creation from deep rather than as measured progression. It is not comparable in confidence with a role scored from its full definition.",
+    "defensive_full_back": "The defensive core of the role is intact; what is thin is aerial efficiency, which has no denominator to measure at all. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds. It is weighted below the duels and interceptions for that reason, and named in its own right rather than standing in for the successful-tackle rate the role was first written around.",
+    "defensive_stopper": "Aerial duel efficiency cannot be measured at all: the provider reports aerial duels won but not attempted, so there is no denominator. Tackle volume here is attempts, not tackles won: the provider declares a successful-tackles field and never populates it, so a player who tackles often and fails often reads the same as one who succeeds.",
+    "shot_stopper": "Basic goalkeeping statistics are heavily dependent on team context: a keeper behind a poor defence faces more and better chances, which inflates save volume and deflates save percentage. Without a post-shot expected goals metric, elite shot-stopping cannot be inferred from these figures.",
+    "target_forward": "Aerial volume is counted; aerial efficiency cannot be, because the provider reports duels won but not attempted. Read this as aerial presence rather than aerial success."
+  },
+  "rankingNouns": {
+    "score": "score",
+    "profile_score": "profile score",
+    "role_fit": "role fit",
+    "similarity": "similarity",
+    "replacement_score": "replacement score"
+  },
+  "rankingCentres": {
+    "search": "for this search",
+    "every_player_with_role_fit": "across every player with a role fit"
+  },
+  "feet": {
+    "left": "Left",
+    "right": "Right",
+    "both": "Both"
+  },
+  "allLeagues": {
+    "label": "All leagues",
+    "qualifier": "mixed season maturity",
+    "tooltipLabel": "What the all-leagues rank is",
+    "explanation": "Ranks this player's observed per-90 value against every player-season currently served in their position. Those competitions are at different points in their seasons, and the rank is not adjusted for that, nor for how strong a league is. How much football stands behind the player's own figure is reported separately, as minutes and a sample band."
+  },
+  "replacementComponents": {
+    "role_fit": "Role fit",
+    "affordability": "Affordability"
   }
 }

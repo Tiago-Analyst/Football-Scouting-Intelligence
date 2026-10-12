@@ -1,0 +1,114 @@
+{
+  "dataConfidence": {
+    "title": "Confiança nos dados",
+    "tooltipLabel": "O que é a confiança nos dados?",
+    "tooltip": "São três perguntas distintas, e um perfil pode responder bem a duas e mal à terceira. Quanto futebol sustenta estes números; que parte desse futebol o fornecedor registou com detalhe suficiente para contar; e quantas das métricas do próprio perfil foi possível calcular. Uma época inteira de minutos, integralmente registada, deixa ainda assim a última por responder. Nenhuma delas decide se este jogador é ordenado ou comparado — as três dizem que peso os números merecem.",
+    "playingSample": "Amostra de jogo",
+    "minutesPlayed": "Minutos jogados",
+    "sample": "Amostra",
+    "detailedData": "Dados detalhados",
+    "recordedMinutes": "Minutos registados",
+    "recordedTooltipLabel": "Porque difere dos minutos jogados?",
+    "detailedCoverage": "Cobertura de minutos detalhados",
+    "analyticalCoverage": "Cobertura analítica de métricas",
+    "profileMetrics": "{available} de {expected} métricas do perfil",
+    "status": "Estado",
+    "incomplete": "Perfil incompleto",
+    "whatMeansLabel": "O que significa isso?",
+    "notAvailable": "N/D",
+    "providerDiscrepancy": "Discrepância de minutos do fornecedor"
+  },
+  "comparison": {
+    "comparedWith": "Comparado com",
+    "population": "População: {size}",
+    "minimumMinutes": "{minutes} minutos ou mais",
+    "maturityNote": "{total} competições, das quais {established} já jogaram época suficiente para um valor de época completa ser possível. {share}% desta população vem dessas, e o jogador mediano aqui tem {median} minutos.",
+    "maturityEarly": " Uma posição face às restantes é uma posição face a uma época que mal começou."
+  },
+  "similarityBreakdown": {
+    "why": "Porquê semelhantes?",
+    "hide": "Ocultar detalhe",
+    "closest": "Mais próximos em",
+    "furthest": "Mais afastados em",
+    "comparedOn": "Comparados em {shared} dos {expected} atributos definidos para esta posição ({pct}% de cobertura). Os percentis são dentro da mesma população de comparação do perfil acima; dois jogadores podem partilhar uma forma a qualquer nível, por isso leia os valores e não apenas a distância entre eles."
+  },
+  "radar": {
+    "title": "Perfil de inteligência",
+    "description": "Pontuações compostas, medidas face a jogadores comparáveis.",
+    "tooltipLabel": "O que é esta forma?",
+    "tooltip": "Cada eixo é uma pontuação composta construída a partir dos percentis do jogador entre jogadores comparáveis, numa escala de 0 a 100. A forma mostra onde é forte em relação a esse grupo — não o quão bom é. As pontuações que não puderam ser calculadas são omitidas em vez de desenhadas a zero.",
+    "notQuality": "Uma pontuação descreve a aptidão estatística para um perfil entre jogadores comparáveis. Não é qualidade do jogador.",
+    "omitted": "Não representadas, por não terem podido ser calculadas: {scores}.",
+    "ariaSummary": "{score} {value} de 100"
+  },
+  "marketChart": {
+    "title": "Valor de mercado ao longo do tempo",
+    "description": "Como a estimativa evoluiu, da mais antiga para a mais recente.",
+    "empty": "Sem histórico de avaliações para este jogador. A fonte de mercado não cobre toda a gente, o que é uma lacuna normal e não uma falha.",
+    "singlePoint": "Apenas uma avaliação, {value} em {date}. Um único ponto não mostra evolução.",
+    "disclaimer": "Uma estimativa colaborativa do conjunto de dados do Transfermarkt. Não é um valor de transferência, um preço pedido, nem uma avaliação com que alguém tenha concordado.",
+    "latest": "Mais recente",
+    "peak": "Máximo",
+    "valuations": "{count} avaliações",
+    "ariaLabel": "Valor de mercado de {first} em {firstDate} a {last} em {lastDate}, ao longo de {count} avaliações"
+  },
+  "transfers": {
+    "title": "Histórico de transferências",
+    "description": "Da mais recente para a mais antiga.",
+    "empty": "Sem transferências registadas para este jogador. A fonte de mercado não cobre toda a gente, e um jogador que nunca mudou de clube também não tem nada a mostrar.",
+    "date": "Data",
+    "from": "De",
+    "to": "Para",
+    "type": "Tipo",
+    "fee": "Valor",
+    "undisclosed": "não divulgado",
+    "free": "livre",
+    "noFeeTitle": "Não foi reportado qualquer valor",
+    "source": "Do conjunto de dados público do Transfermarkt. Os valores são os aí reportados, que nem sempre correspondem ao que foi pago."
+  },
+  "presets": {
+    "start": "Começar por um papel",
+    "hide": "Ocultar papéis",
+    "recommended": "Ponto de partida recomendado",
+    "fills": "Preenche os pesos abaixo a partir da definição do próprio papel. Ajuste-os depois — nada fica bloqueado.",
+    "startingFrom": "A partir de",
+    "cannotScore": "Este perfil não pode ser pontuado com os dados carregados.",
+    "setToZero": "Pôr esse peso a zero produz uma ordenação, face a uma leitura mais estreita do papel do que a aqui nomeada.",
+    "positions": {
+      "GK": "Guarda-redes",
+      "CB": "Defesa-central",
+      "FB_WB": "Lateral",
+      "DM": "Médio defensivo",
+      "CM": "Médio centro",
+      "AM": "Médio ofensivo",
+      "WINGER": "Extremo",
+      "FORWARD": "Avançado"
+    }
+  },
+  "interpretation": {
+    "title": "Leitura de observação",
+    "tooltipLabel": "De onde vem isto?",
+    "tooltip": "Gerado a partir dos números desta página por regras fixas — um limiar aplicado a um percentil que pode ver abaixo. Não há nenhum modelo de linguagem envolvido, e nada aqui é um juízo que os dados não sustentem.",
+    "description": "Os números abaixo, lidos. Confronte qualquer linha com a tabela de onde veio.",
+    "profile": "Perfil",
+    "strengths": "Pontos fortes",
+    "strengthsEmpty": "Nenhuma métrica se situa na faixa superior desta população de comparação.",
+    "watchOuts": "Pontos de atenção",
+    "watchOutsEmpty": "Nenhuma métrica central a este papel se situa na faixa inferior.",
+    "notMeasured": "Não medido",
+    "dataConfidence": "Confiança nos dados",
+    "notCaptured": "Não captado por este modelo"
+  },
+  "saveToShortlist": {
+    "save": "Guardar numa lista",
+    "loading": "A carregar…",
+    "create": "Criar uma lista",
+    "saveTo": "Guardar {player} em",
+    "noteLabel": "Nota",
+    "notePlaceholder": "Uma nota, se quiser.",
+    "cancel": "Cancelar",
+    "nothingSaved": "Nada é guardado até premir Adicionar à lista.",
+    "adding": "A adicionar…",
+    "add": "Adicionar à lista"
+  }
+}

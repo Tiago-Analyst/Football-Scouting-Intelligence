@@ -14,6 +14,41 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class Message(BaseModel):
+    """A sentence the reader's own language composes, as a code and its values.
+
+    WHY THESE EXIST BESIDE THE PROSE AND NOT INSTEAD OF IT
+
+    This API has always returned finished English sentences - "Too few players
+    were evaluated for this role to place a score among them." - and the
+    interface printed them. That works until the interface has a second
+    language, at which point the only way to translate them is to match the
+    English, which breaks the moment anybody improves the wording.
+
+    So the backend keeps saying what is true and stops being the only one who
+    can say it. `code` names the situation; `values` carries the numbers and
+    identifiers the sentence needs. The English prose stays exactly where it
+    was and is still correct, so every existing reader is unaffected and the
+    API remains usable without a dictionary.
+
+    The frontend renders from the code and never from the sentence. A test
+    asserts that every code emitted here has copy on the other side, in both
+    languages, so a code added without words fails the build rather than
+    reaching a reader as a bare identifier.
+
+    `values` is deliberately flat and primitive. A nested structure would be a
+    template language growing inside a schema, and the frontend already has
+    one: its own dictionary.
+    """
+
+    #: snake_case, stable, and the same in every language.
+    code: str
+    #: Numbers and identifiers the sentence interpolates. Identifiers stay
+    #: identifiers - a role key, a metric key - so the frontend can translate
+    #: those too rather than receiving them pre-rendered in English.
+    values: dict[str, str | int | float] = Field(default_factory=dict)
+
+
 class ComparisonContextOut(BaseModel):
     """The population a percentile was measured against.
 
@@ -136,6 +171,12 @@ class ScoreEvidenceOut(BaseModel):
     low: bool
     #: One phrase for a page, e.g. "Low evidence - 8 shots".
     label: str
+    #: The same phrase as a code the reader's language can compose.
+    #:
+    #: `noun` above is the configured English plural ("shots", "dribbles
+    #: attempted"); `noun_key` is its identifier, so a translation names the
+    #: thing rather than matching the word.
+    message: Message | None = None
 
 
 class ScoreComponentOut(BaseModel):
@@ -162,6 +203,12 @@ class ScoreOut(BaseModel):
     coverage: float
     components: list[ScoreComponentOut]
     missing: list[str] = Field(default_factory=list)
+    #: The same components as canonical metric keys.
+    #:
+    #: `missing` above holds display labels, which is what this API has
+    #: always returned and what an English page prints. A localised page
+    #: names them from these instead.
+    missing_keys: list[str] = Field(default_factory=list)
     #: full | partial | unavailable, for a role. Absent for intelligence scores.
     #:
     #: Separate from `coverage` on purpose. Coverage answers how much of the
@@ -175,6 +222,9 @@ class ScoreOut(BaseModel):
     core_dimensions: list[CoreDimensionOut] = Field(default_factory=list)
     #: Why no standard percentile is published, when none is. Null when one is.
     role_fit_percentile_reason: str | None = None
+    #: The same, as a code. `role_partial_definition` carries the unmet
+    #: dimensions as configured identifiers, not as an English list.
+    role_fit_percentile_reason_message: Message | None = None
     #: The component carrying an unusually large share of what the score
     #: actually came out as, when one does.
     #:
@@ -262,6 +312,8 @@ class RoleFitOut(BaseModel):
     unscored: list[UnscoredRoleOut] = Field(default_factory=list)
     #: One sentence naming the reason, or null when a role was produced.
     unscored_reason: str | None = None
+    #: The same, as a code the reader's language composes.
+    unscored_reason_message: Message | None = None
     #: What the number does and does not claim. Returned so it cannot be
     #: separated from the score in the UI.
     meaning: str
@@ -334,6 +386,14 @@ class PlayerSummary(BaseModel):
     market_value_eur: int | None
     contract_expires: date | None
     best_role: str | None
+    #: The role's identifier, beside its English label.
+    #:
+    #: Additive and nullable on purpose. The label is prose and belongs to
+    #: whoever is reading; the key is an identifier and is the same in every
+    #: language, so a localised frontend renders from this and never by
+    #: matching the English sentence it used to print. Existing readers of
+    #: `best_role` are unaffected.
+    best_role_key: str | None = None
     #: Raw Role Fit for the best role: the weighted profile score.
     best_role_score: float | None
     #: Where that raw score stands among players evaluated for the same role.
@@ -432,6 +492,10 @@ class SimilarPlayerOut(BaseModel):
     #: One sentence saying why this candidate ranks below its index, or null
     #: when the ordering used the index as it is. Never a bare adjusted number.
     ranking_note: str | None = None
+    #: The same sentence as a code, for an interface that says it itself.
+    #:
+    #: `ranking_note` stays, in English, for a caller already reading it.
+    ranking_note_message: Message | None = None
     #: How comparable the two profiles are in strength, 0-1. A high similarity
     #: with a low ratio means the shapes match but the levels do not.
     profile_strength_ratio: float
@@ -461,6 +525,10 @@ class FindingOut(BaseModel):
     #: Oriented so higher is always better, whichever way the metric reads.
     percentile: float
     reading: str
+    #: The metric's identifier, so an interface names it in its own language.
+    metric: str = ""
+    #: The claim as one of four codes.
+    reading_code: str = ""
 
 
 class ScoutingInterpretationOut(BaseModel):
@@ -483,6 +551,14 @@ class ScoutingInterpretationOut(BaseModel):
     #: What the model does not look at. Returned with the reading rather than
     #: written into a template, so it cannot be shown without it.
     not_captured: list[str] = Field(default_factory=list)
+    #: The same three paragraphs as codes, and the not-captured list as codes.
+    #:
+    #: Additive. The English above is unchanged and still correct; these are
+    #: what an interface with a language of its own renders.
+    profile_messages: list[Message] = Field(default_factory=list)
+    unavailable_messages: list[Message] = Field(default_factory=list)
+    confidence_messages: list[Message] = Field(default_factory=list)
+    not_captured_messages: list[Message] = Field(default_factory=list)
 
 
 class PlayerProfileResponse(BaseModel):
@@ -677,6 +753,10 @@ class RecruitmentCandidate(BaseModel):
     #: One sentence explaining a lower placement, or null when the ordering
     #: used the score as it stands.
     ranking_note: str | None = None
+    #: The same sentence as a code, for an interface that says it itself.
+    #:
+    #: `ranking_note` stays, in English, for a caller already reading it.
+    ranking_note_message: Message | None = None
 
 
 class RecruitmentResponse(BaseModel):
@@ -696,6 +776,10 @@ class RecruitmentResponse(BaseModel):
     #: recruiter would reasonably narrow their filters in response to the
     #: second - which can never help.
     explanation: str | None = None
+    #: The same account as a code this side decided and the interface says.
+    #:
+    #: `explanation` stays, in English, for a caller already reading it.
+    explanation_message: Message | None = None
     #: Whether these results are fabricated.
     #:
     #: A deployment serves one or the other - fabricated data may not share a
@@ -729,6 +813,8 @@ class ReplacementCandidate(BaseModel):
     comparable_strength: bool
     #: Which required parts were unavailable. Empty for a complete score.
     missing_components: list[str] = Field(default_factory=list)
+    #: The same components as keys, for an interface that names them itself.
+    missing_component_keys: list[str] = Field(default_factory=list)
     #: Minutes behind the candidate's figures, carried for the ordering.
     candidate_minutes: int | None = None
     #: What this group was ordered by: the overall for complete candidates,
@@ -737,6 +823,10 @@ class ReplacementCandidate(BaseModel):
     ranking_value: float = 0.0
     evidence_weight: float = 1.0
     ranking_note: str | None = None
+    #: The same sentence as a code, for an interface that says it itself.
+    #:
+    #: `ranking_note` stays, in English, for a caller already reading it.
+    ranking_note_message: Message | None = None
 
 
 class ReplacementResponse(BaseModel):
@@ -775,12 +865,18 @@ class OpportunityOut(BaseModel):
     #: One sentence explaining a lower placement, or null when the ordering
     #: used the fit as it stands.
     ranking_note: str | None = None
+    #: The same sentence as a code, for an interface that says it itself.
+    #:
+    #: `ranking_note` stays, in English, for a caller already reading it.
+    ranking_note_message: Message | None = None
 
 
 class ScreenStepOut(BaseModel):
     """One criterion, and how many players were still standing after it."""
 
     criterion: str
+    #: The same criterion as a code and its value.
+    criterion_message: Message | None = None
     remaining: int
     removed: int
 
@@ -792,6 +888,8 @@ class OpportunitiesResponse(BaseModel):
     #: Section 16 forbids calling a player undervalued without a validated
     #: valuation model. This states what the list does claim.
     disclaimer: str
+    #: The same disclaimer as a code.
+    disclaimer_message: Message | None = None
     #: Where the screen narrowed, criterion by criterion.
     #:
     #: A screen over five criteria that returns one player is either strict or

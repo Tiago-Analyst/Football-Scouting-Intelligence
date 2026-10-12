@@ -4,14 +4,30 @@ import { notFound } from "next/navigation";
 import { DEFAULT_LOCALE, isEnabled, type Locale } from "./config";
 
 import enCommon from "./dictionaries/en/common.json";
+import enComponents from "./dictionaries/en/components.json";
 import enNavigation from "./dictionaries/en/navigation.json";
 import enErrors from "./dictionaries/en/errors.json";
 import enGlossary from "./dictionaries/en/glossary.json";
+import enMessages from "./dictionaries/en/messages.json";
+import enPlayers from "./dictionaries/en/players.json";
+import enProfile from "./dictionaries/en/profile.json";
+import enSimilarity from "./dictionaries/en/similarity.json";
+import enReplacements from "./dictionaries/en/replacements.json";
+import enRecruitment from "./dictionaries/en/recruitment.json";
+import enOpportunities from "./dictionaries/en/opportunities.json";
 
 import ptCommon from "./dictionaries/pt/common.json";
+import ptComponents from "./dictionaries/pt/components.json";
 import ptNavigation from "./dictionaries/pt/navigation.json";
 import ptErrors from "./dictionaries/pt/errors.json";
 import ptGlossary from "./dictionaries/pt/glossary.json";
+import ptMessages from "./dictionaries/pt/messages.json";
+import ptPlayers from "./dictionaries/pt/players.json";
+import ptProfile from "./dictionaries/pt/profile.json";
+import ptSimilarity from "./dictionaries/pt/similarity.json";
+import ptReplacements from "./dictionaries/pt/replacements.json";
+import ptRecruitment from "./dictionaries/pt/recruitment.json";
+import ptOpportunities from "./dictionaries/pt/opportunities.json";
 
 /**
  * The dictionaries, and the one way to read them.
@@ -41,15 +57,31 @@ import ptGlossary from "./dictionaries/pt/glossary.json";
 const DICTIONARIES = {
   en: {
     common: enCommon,
+    components: enComponents,
     navigation: enNavigation,
     errors: enErrors,
     glossary: enGlossary,
+    messages: enMessages,
+    players: enPlayers,
+    profile: enProfile,
+    opportunities: enOpportunities,
+    recruitment: enRecruitment,
+    replacements: enReplacements,
+    similarity: enSimilarity,
   },
   pt: {
     common: ptCommon,
+    components: ptComponents,
     navigation: ptNavigation,
     errors: ptErrors,
     glossary: ptGlossary,
+    messages: ptMessages,
+    players: ptPlayers,
+    profile: ptProfile,
+    opportunities: ptOpportunities,
+    recruitment: ptRecruitment,
+    replacements: ptReplacements,
+    similarity: ptSimilarity,
   },
 } as const;
 

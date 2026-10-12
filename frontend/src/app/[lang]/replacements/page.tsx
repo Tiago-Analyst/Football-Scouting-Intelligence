@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+
+import { apiMessage } from "@/components/player/ApiMessage";
+import { positionName } from "@/components/player/PositionName";
+import { RoleName, roleLabel } from "@/components/player/RoleName";
+import { getDictionary } from "@/i18n/dictionaries";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -11,11 +16,10 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { formatDate, formatEuro } from "@/lib/format";
 import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = {
-  title: "Replacement finder",
-  description:
-    "Select a player and find candidates who could replace that profile, combining statistical similarity, role fit and what a budget can reach.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.replacements.meta.title, description: t.replacements.meta.description };
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -23,6 +27,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function ReplacementsPage(props: PageProps<"/[lang]/replacements">) {
+  const t = await getDictionary();
   const params = await props.searchParams;
   const playerId = first(params.player);
   const search = first(params.search);
@@ -35,24 +40,24 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
     return (
       <div className="max-w-2xl space-y-8">
         <PageHeader
-          eyebrow="Recruitment"
-          title="Replacement finder"
-          description="Select a player, then find candidates who could replace that profile. Combines statistical similarity, role fit and affordability."
+          eyebrow={t.replacements.eyebrow}
+          title={t.replacements.meta.title}
+          description={t.replacements.description}
         />
 
         <form method="get" className="space-y-4 rounded-lg border border-border bg-surface p-4">
-          <Field label="Find the player to replace" htmlFor="search">
+          <Field label={t.replacements.picker.title} htmlFor="search">
             <TextInput
               id="search"
               name="search"
               type="search"
-              placeholder="Search by name…"
+              placeholder={t.replacements.picker.placeholder}
               defaultValue={search ?? ""}
             />
           </Field>
-          <Field label="Or browse a competition" htmlFor="competition">
+          <Field label={t.replacements.picker.browse} htmlFor="competition">
             <Select id="competition" name="competition" defaultValue="">
-              <option value="">Any</option>
+              <option value="">{t.replacements.constraints.any}</option>
               {competitions.map((competition) => (
                 <option key={competition.competition_id} value={competition.competition_id}>
                   {competition.name}
@@ -63,9 +68,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
           <button
             type="submit"
             className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
-          >
-            Search
-          </button>
+          >{t.replacements.picker.search}</button>
         </form>
 
         {results && results.items.length > 0 ? (
@@ -79,17 +82,24 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                   <span>
                     <span className="text-sm font-medium">{player.name}</span>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {player.raw_position ?? player.position_group} · {player.club} ·{" "}
+                      {positionName(t, player.raw_position) ??
+                        t.glossary.positions[
+                          player.position_group as keyof typeof t.glossary.positions
+                        ] ??
+                        player.position_group}{" "}
+                      · {player.club} ·{" "}
                       {player.competition}
                     </span>
                   </span>
-                  <span className="text-xs text-subtle">{player.best_role}</span>
+                  <span className="text-xs text-subtle">
+                    {player.best_role_key ? <RoleName role={player.best_role_key} /> : null}
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : search ? (
-          <EmptyState title="No players found" description="Try a different name." />
+          <EmptyState title={t.replacements.picker.noneFoundTitle} description={t.replacements.picker.noneFoundDescription} />
         ) : null}
       </div>
     );
@@ -117,14 +127,12 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
   if (!results) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Recruitment" title="Replacement finder" />
+        <PageHeader eyebrow={t.replacements.eyebrow} title={t.replacements.meta.title} />
         <EmptyState
-          title="Player not found"
-          description="That player is not in the database."
+          title={t.replacements.picker.notFoundTitle}
+          description={t.replacements.picker.notFoundDescription}
           action={
-            <ButtonLink href="/replacements" variant="secondary" size="sm">
-              Start over
-            </ButtonLink>
+            <ButtonLink href="/replacements" variant="secondary" size="sm">{t.replacements.picker.startOver}</ButtonLink>
           }
         />
       </div>
@@ -136,17 +144,24 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Recruitment"
-        title={`Replacements for ${target.name}`}
-        description={`${target.raw_position ?? target.position_group} · ${target.club} · ${target.competition}${target.best_role ? ` · ${target.best_role}` : ""}`}
+        eyebrow={t.replacements.eyebrow}
+        title={t.replacements.targetTitle.replace("{player}", target.name)}
+        description={[
+          positionName(t, target.raw_position) ??
+            t.glossary.positions[
+              target.position_group as keyof typeof t.glossary.positions
+            ] ??
+            target.position_group,
+          target.club,
+          target.competition,
+          target.best_role_key ? roleLabel(t, target.best_role_key) : target.best_role,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <>
-            <ButtonLink href={`/players/${target.player_id}`} variant="secondary" size="sm">
-              View profile
-            </ButtonLink>
-            <ButtonLink href="/replacements" variant="ghost" size="sm">
-              Change player
-            </ButtonLink>
+            <ButtonLink href={`/players/${target.player_id}`} variant="secondary" size="sm">{t.replacements.picker.viewProfile}</ButtonLink>
+            <ButtonLink href="/replacements" variant="ghost" size="sm">{t.replacements.picker.changePlayer}</ButtonLink>
           </>
         }
       />
@@ -157,10 +172,10 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
           className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
         >
           <input type="hidden" name="player" value={playerId} />
-          <h2 className="text-sm font-semibold">Constraints</h2>
+          <h2 className="text-sm font-semibold">{t.replacements.constraints.heading}</h2>
 
           <Field
-            label="Budget (€)"
+            label={t.replacements.constraints.budget}
             htmlFor="max_value"
             hint="Sets the market fit component. Without a budget it is left out."
           >
@@ -175,7 +190,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             />
           </Field>
 
-          <Field label="Maximum age" htmlFor="max_age">
+          <Field label={t.replacements.constraints.maxAge} htmlFor="max_age">
             <TextInput
               id="max_age"
               name="max_age"
@@ -187,13 +202,13 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             />
           </Field>
 
-          <Field label="Competition" htmlFor="competition">
+          <Field label={t.replacements.constraints.competition} htmlFor="competition">
             <Select
               id="competition"
               name="competition"
               defaultValue={first(params.competition) ?? ""}
             >
-              <option value="">Any</option>
+              <option value="">{t.replacements.constraints.any}</option>
               {competitions.map((competition) => (
                 <option key={competition.competition_id} value={competition.competition_id}>
                   {competition.name}
@@ -202,16 +217,16 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             </Select>
           </Field>
 
-          <Field label="Contract expires within" htmlFor="contract_within">
+          <Field label={t.replacements.constraints.contractWithin} htmlFor="contract_within">
             <Select
               id="contract_within"
               name="contract_within"
               defaultValue={first(params.contract_within) ?? ""}
             >
-              <option value="">Any</option>
-              <option value="6">6 months</option>
-              <option value="12">12 months</option>
-              <option value="18">18 months</option>
+              <option value="">{t.replacements.constraints.any}</option>
+              <option value="6">{t.replacements.constraints.months.replace("{count}", "6")}</option>
+              <option value="12">{t.replacements.constraints.months.replace("{count}", "12")}</option>
+              <option value="18">{t.replacements.constraints.months.replace("{count}", "18")}</option>
             </Select>
           </Field>
 
@@ -230,8 +245,8 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
         <section className="min-w-0 space-y-4">
           {results.items.length === 0 ? (
             <EmptyState
-              title="No replacements match these constraints"
-              description="Try raising the budget or relaxing the age and competition filters."
+              title={t.replacements.empty.title}
+              description={t.replacements.empty.description}
             />
           ) : (
             <>
@@ -239,17 +254,17 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 <Table>
                   <THead>
                     <TR>
-                      <TH>Player</TH>
-                      <TH numeric>Age</TH>
-                      <TH>Club</TH>
-                      <TH numeric>Similarity</TH>
+                      <TH>{t.replacements.table.player}</TH>
+                      <TH numeric>{t.replacements.table.age}</TH>
+                      <TH>{t.replacements.table.club}</TH>
+                      <TH numeric>{t.replacements.table.similarity}</TH>
                       {/* The raw score, as the backend sends it - not the
                           standing among players evaluated for the same role.
                           The product keeps the two apart everywhere else, and
                           "Role fit" alone is which of them nobody can tell. */}
-                      <TH numeric>Raw role fit</TH>
-                      <TH numeric>Affordability</TH>
-                      <TH numeric>Overall</TH>
+                      <TH numeric>{t.replacements.table.rawRoleFit}</TH>
+                      <TH numeric>{t.replacements.table.affordability}</TH>
+                      <TH numeric>{t.replacements.table.overall}</TH>
                       {/* The column the list is actually sorted by.
                           Without it the Overall column reads as broken: it is
                           not in descending order, because a score from 270
@@ -257,9 +272,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           and the ordering accounts for that. Showing the
                           score and hiding the sort key was the worst of both. */}
                       <TH numeric>
-                        <span className="inline-flex items-center gap-1">
-                          Ranked
-                          <Tooltip label="Why this column exists">
+                        <span className="inline-flex items-center gap-1">{t.replacements.table.ranked}<Tooltip label={t.replacements.notes.rankedTitle}>
                             The list is ordered by this, not by Overall. A score built on part of a
                             season is read closer to the average for this search, in proportion to
                             how much football stands behind it; at a full season&apos;s minutes it
@@ -268,8 +281,8 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           </Tooltip>
                         </span>
                       </TH>
-                      <TH numeric>Value</TH>
-                      <TH numeric>Contract</TH>
+                      <TH numeric>{t.replacements.table.value}</TH>
+                      <TH numeric>{t.replacements.table.contract}</TH>
                     </TR>
                   </THead>
                   <TBody>
@@ -284,7 +297,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           </Link>
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">Different profile strength</Badge>
+                              <Badge tone="warning">{t.replacements.table.differentStrength}</Badge>
                             </span>
                           ) : null}
                         </TD>
@@ -309,19 +322,32 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           ) : (
                             <span
                               className="text-xs font-normal text-warning"
-                              title={`No comparable overall: ${(entry.missing_components ?? []).join(", ")} could not be computed for this player.`}
+                              title={t.replacements.table.noComparable.replace(
+                                "{components}",
+                                (entry.missing_component_keys ?? [])
+                                  .map(
+                                    (key) =>
+                                      t.glossary.replacementComponents[
+                                        key as keyof typeof t.glossary.replacementComponents
+                                      ] ?? key,
+                                  )
+                                  .join(", "),
+                              )}
                             >
-                              Limited
+                              {t.replacements.table.limited}
                             </span>
                           )}
                         </TD>
                         <TD numeric className="font-medium">
-                          <span title={entry.ranking_note ?? undefined}>
+                          <span title={apiMessage(t, entry.ranking_note_message) ?? undefined}>
                             {entry.ranking_value != null ? Math.round(entry.ranking_value) : "–"}
                           </span>
                           {entry.evidence_weight != null && entry.evidence_weight < 1 ? (
                             <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                              {Math.round(entry.evidence_weight * 100)}% of a season
+                              {t.replacements.table.seasonShare.replace(
+                                "{pct}",
+                                String(Math.round(entry.evidence_weight * 100)),
+                              )}
                             </span>
                           ) : null}
                         </TD>
@@ -341,19 +367,14 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 </Table>
               </TableWrap>
 
-              <Callout tone="note" title="How the overall score is built">
-                Statistical similarity 55%, role fit 30%, affordability 15%. Affordability is the
-                market value against the budget you set and nothing else — not value for money, and
-                not a judgement about whether the club would sell. It is left out of the calculation
-                entirely when no budget is given, rather than being guessed. Wages, agent fees,
-                registration eligibility and adaptation risk are not inputs to this model and are
-                not represented anywhere in the score.
+              <Callout tone="note" title={t.replacements.notes.overallTitle}>
+                {t.replacements.notes.overallBody}
               </Callout>
             </>
           )}
 
-          <Callout tone="caution" title="What this ranks">
-            {results.meaning}
+          <Callout tone="caution" title={t.replacements.notes.ranksTitle}>
+            {t.replacements.notes.ranksBody}
           </Callout>
         </section>
       </div>

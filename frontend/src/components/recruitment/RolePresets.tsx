@@ -1,4 +1,5 @@
 import { AppLink as Link } from "@/components/ui/AppLink";
+import { getDictionary } from "@/i18n/dictionaries";
 
 import type { RolePreset } from "@/types/api";
 
@@ -48,7 +49,7 @@ function presetHref(preset: RolePreset, scoreKeys: string[]): string {
   return `/recruitment?${params.toString()}`;
 }
 
-export function RolePresets({
+export async function RolePresets({
   presets,
   scoreKeys,
   activeKey,
@@ -58,6 +59,7 @@ export function RolePresets({
   scoreKeys: string[];
   activeKey?: string;
 }) {
+  const t = await getDictionary();
   if (presets.length === 0) return null;
 
   const groups = GROUP_ORDER.map((group) => ({
@@ -77,16 +79,13 @@ export function RolePresets({
        weights themselves off the screen, which is the opposite of helping. */
     <details className="group rounded-md border border-accent/40 bg-accent/5 px-3 py-2.5">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold transition-colors hover:text-accent">
-        <span className="group-open:hidden">Start from a role</span>
-        <span className="hidden group-open:inline">Hide roles</span>
-        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-wide text-accent uppercase group-open:hidden">
-          Recommended start
-        </span>
+        <span className="group-open:hidden">{t.components.presets.start}</span>
+        <span className="hidden group-open:inline">{t.components.presets.hide}</span>
+        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-wide text-accent uppercase group-open:hidden">{t.components.presets.recommended}</span>
       </summary>
 
       <p className="mt-2 text-[11px] leading-relaxed text-subtle">
-        Fills the weights below from the role&rsquo;s own definition. Adjust them afterwards &mdash;
-        nothing is locked.
+        {t.components.presets.fills}
       </p>
 
       <div className="mt-3 space-y-3">
@@ -130,12 +129,12 @@ export function RolePresets({
  * would invent an emphasis the role never had. Saying which, here, is the
  * difference between a translation and a silent substitution.
  */
-export function ActivePreset({ preset }: { preset: RolePreset }) {
+export async function ActivePreset({ preset }: { preset: RolePreset }) {
+  const t = await getDictionary();
   return (
     <div className="rounded-md border border-border bg-surface-2 px-3 py-2.5">
       <p className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
-        <span>
-          Starting from <span className="text-accent">{preset.label}</span>
+        <span>{t.components.presets.startingFrom}<span className="text-accent">{preset.label}</span>
         </span>
         {preset.measurable_pct != null && preset.measurable_pct < 100 ? (
           <span
@@ -154,9 +153,7 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
       ) : null}
       {preset.unavailable_scores.length > 0 ? (
         <div className="mt-2 space-y-1">
-          <p className="text-[11px] font-medium text-warning">
-            This profile cannot be scored against the loaded data.
-          </p>
+          <p className="text-[11px] font-medium text-warning">{t.components.presets.cannotScore}</p>
           {preset.unavailable_scores.map((score) => (
             <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
               {score.reason}
@@ -170,10 +167,7 @@ export function ActivePreset({ preset }: { preset: RolePreset }) {
           {preset.coverage_note ? (
             <p className="text-[11px] leading-relaxed text-subtle">{preset.coverage_note}</p>
           ) : (
-            <p className="text-[11px] leading-relaxed text-subtle">
-              Setting that weight to zero will produce a ranking, against a narrower reading of the
-              role than the one named above.
-            </p>
+            <p className="text-[11px] leading-relaxed text-subtle">{t.components.presets.setToZero}</p>
           )}
         </div>
       ) : null}

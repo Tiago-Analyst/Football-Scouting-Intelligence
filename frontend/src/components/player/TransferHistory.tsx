@@ -1,4 +1,5 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
+import { getDictionary } from "@/i18n/dictionaries";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { formatDate, formatEuro } from "@/lib/format";
 import type { Transfer } from "@/types/api";
@@ -12,30 +13,28 @@ import type { Transfer } from "@/types/api";
  * department reading a loan as a free transfer is exactly the kind of error
  * this project exists to avoid.
  */
-export function TransferHistory({ transfers }: { transfers: Transfer[] }) {
+export async function TransferHistory({ transfers }: { transfers: Transfer[] }) {
+  const t = await getDictionary();
   const ordered = [...transfers].sort((a, b) =>
     (b.transfer_date ?? "").localeCompare(a.transfer_date ?? ""),
   );
 
   return (
     <Card>
-      <CardHeader title="Transfer history" description="Newest first." />
+      <CardHeader title={t.components.transfers.title} description={t.components.transfers.description} />
       <CardBody className="p-0">
         {ordered.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-muted">
-            No transfers recorded for this player. The market source does not cover everybody,
-            and a player who has not moved has nothing to show either.
-          </p>
+          <p className="px-5 py-4 text-sm text-muted">{t.components.transfers.empty}</p>
         ) : (
           <TableWrap className="rounded-none border-0">
             <Table>
               <THead>
                 <TR>
-                  <TH>Date</TH>
-                  <TH>From</TH>
+                  <TH>{t.components.transfers.date}</TH>
+                  <TH>{t.components.transfers.from}</TH>
                   <TH>To</TH>
-                  <TH>Type</TH>
-                  <TH numeric>Fee</TH>
+                  <TH>{t.components.transfers.type}</TH>
+                  <TH numeric>{t.components.transfers.fee}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -53,9 +52,7 @@ export function TransferHistory({ transfers }: { transfers: Transfer[] }) {
                       {transfer.fee_eur === null ? (
                         // Not "€0". A fee nobody published and a free transfer
                         // are different facts.
-                        <span className="text-subtle" title="No fee was reported">
-                          undisclosed
-                        </span>
+                        <span className="text-subtle" title={t.components.transfers.noFeeTitle}>{t.components.transfers.undisclosed}</span>
                       ) : transfer.fee_eur === 0 ? (
                         "free"
                       ) : (
@@ -69,10 +66,7 @@ export function TransferHistory({ transfers }: { transfers: Transfer[] }) {
           </TableWrap>
         )}
       </CardBody>
-      <CardFooter className="text-subtle">
-        From the public Transfermarkt dataset. Fees are as reported there, which is not always
-        what was paid.
-      </CardFooter>
+      <CardFooter className="text-subtle">{t.components.transfers.source}</CardFooter>
     </Card>
   );
 }

@@ -150,7 +150,13 @@ test("the glossary documents the analytical concepts too", () => {
 
 test("the product rule for role names is recorded, not just applied", () => {
   const glossary = readFileSync(GLOSSARY, "utf8");
-  assert.match(glossary, /In Portuguese, a role is named in Portuguese with the English name/);
+  // The rule changed on review: the English name beside every occurrence made
+  // the interface read as an English product with Portuguese labels on it.
+  // It now appears only where a reader is studying one role closely.
+  assert.match(glossary, /Portuguese is the interface language/);
+  assert.match(glossary, /\*\*Prominent\*\*/);
+  assert.match(glossary, /\*\*Dense\*\*/);
+  assert.match(glossary, /tables, filters, compact cards, mobile result lists/);
 });
 
 test("sample bands describe the season, never the player", () => {

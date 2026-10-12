@@ -1,7 +1,7 @@
 {
   "roles": {
     "ball_playing_centre_back": "Defesa-central construtor",
-    "defensive_stopper": "Defesa-central de marcação",
+    "defensive_stopper": "Central de marcação",
     "defensive_full_back": "Lateral defensivo",
     "attacking_full_back": "Lateral ofensivo",
     "ball_winning_midfielder": "Médio recuperador",
@@ -11,7 +11,7 @@
     "creative_winger": "Extremo criativo",
     "direct_winger": "Extremo driblador",
     "inside_forward": "Avançado interior",
-    "poacher": "Finalizador de área",
+    "poacher": "Avançado de área",
     "target_forward": "Avançado de referência",
     "complete_forward": "Avançado completo",
     "shot_stopper": "Guarda-redes de linha"
@@ -62,5 +62,158 @@
     "marketValue": "Valor de mercado",
     "contractExpires": "Contrato até",
     "perNinety": "/90"
+  },
+  "providerPositions": {
+    "Goalkeeper": "Guarda-redes",
+    "Centre-Back": "Defesa-central",
+    "Left-Back": "Lateral esquerdo",
+    "Right-Back": "Lateral direito",
+    "Defensive Midfield": "Médio defensivo",
+    "Central Midfield": "Médio centro",
+    "Attacking Midfield": "Médio ofensivo",
+    "Left Winger": "Extremo esquerdo",
+    "Right Winger": "Extremo direito",
+    "Left Midfield": "Médio esquerdo",
+    "Right Midfield": "Médio direito",
+    "Centre-Forward": "Avançado",
+    "Second Striker": "Segundo avançado"
+  },
+  "sampleExplanations": {
+    "established": "Uma época inteira de futebol por trás destes números.",
+    "developing": "Futebol suficiente para ler uma tendência, ainda que os valores por 90 minutos continuem a oscilar.",
+    "low": "Os valores por 90 minutos são voláteis com esta amostra: um golo ou um desarme movem o rácio de forma visível.",
+    "very_low": "Um valor por 90 minutos com tão pouco futebol aproxima-se de um único lance multiplicado. Leia-o como o que aconteceu, não como um ritmo que o jogador sustenta."
+  },
+  "sampleMinutes": " Este jogador tem {minutes} minutos.",
+  "sampleTooltipLabel": "O que significa \"{label}\"?",
+  "metrics": {
+    "completed_passes_per90": "Passes completos /90",
+    "pass_completion": "Sucesso de passe %",
+    "key_passes_per90": "Passes-chave /90",
+    "accurate_crosses_per90": "Cruzamentos certos /90",
+    "successful_dribbles_per90": "Dribles bem sucedidos /90",
+    "dribble_success_percentage": "Sucesso no drible %",
+    "tackles_per90": "Desarmes tentados /90",
+    "interceptions_per90": "Intercepções /90",
+    "blocks_per90": "Bloqueios /90",
+    "clearances_per90": "Alívios /90",
+    "duel_win_percentage": "Duelos ganhos %",
+    "aerial_duels_won_per90": "Duelos aéreos ganhos /90",
+    "shots_per90": "Remates /90",
+    "shots_on_target_per90": "Remates enquadrados /90",
+    "shot_conversion": "Conversão de remate %",
+    "shot_quality": "Qualidade do remate",
+    "xa_per90": "xA /90",
+    "npxg_per90": "npxG /90",
+    "non_penalty_goals_per90": "Golos sem penáltis /90",
+    "fouls_drawn_per90": "Faltas sofridas /90",
+    "dispossessed_per90": "Perdas de bola /90",
+    "dribbled_past_per90": "Dribles sofridos /90",
+    "goals_conceded_per90": "Golos sofridos /90",
+    "save_percentage": "Defesas %",
+    "inside_box_saves_per90": "Defesas dentro da área /90",
+    "progressive_passes_per90": "Passes progressivos /90",
+    "aerial_duel_win_percentage": "Duelos aéreos ganhos %",
+    "penalties_taken": "Penáltis marcados"
+  },
+  "scores": {
+    "ball_progression": {
+      "label": "Progressão de bola",
+      "description": "Fazer a bola avançar no terreno, por passe ou em condução. O volume de passe progressivo é o sinal dominante; o drible contribui porque conduzir é a outra forma de fazer o jogo progredir."
+    },
+    "ball_security": {
+      "label": "Segurança de bola",
+      "description": "Manter a posse. O sucesso de passe domina; perder a bola conta contra, e é invertido automaticamente."
+    },
+    "chance_creation": {
+      "label": "Criação de oportunidades",
+      "description": "Gerar remates para os companheiros. Ponderado para as assistências esperadas e os passes-chave, e não para as assistências em si, que dependem de o companheiro ter concretizado."
+    },
+    "defensive_activity": {
+      "label": "Actividade defensiva",
+      "description": "Volume de acções defensivas. Mede quanto um jogador faz sem bola, não o quão bem defende a sua equipa."
+    },
+    "duel_dominance": {
+      "label": "Domínio nos duelos",
+      "description": "Ganhar disputas directas. As taxas de sucesso pesam mais do que o volume, porque disputar muitos duelos e perdê-los não é domínio."
+    },
+    "one_v_one_threat": {
+      "label": "Ameaça no 1x1",
+      "description": "Ultrapassar directamente um adversário. As faltas sofridas contam porque um defesa que tem de fazer falta também foi ultrapassado."
+    },
+    "goal_threat": {
+      "label": "Ameaça de golo",
+      "description": "Chegar a posições de finalização. Assente nos golos esperados e no volume de remate, e não nos golos, pelo que reflecte as oportunidades que o jogador gera e não se elas entraram."
+    },
+    "finishing": {
+      "label": "Finalização",
+      "description": "Concretizar as oportunidades criadas. Ler com cuidado."
+    }
+  },
+  "dimensions": {
+    "aerial efficiency": "eficácia aérea",
+    "attacking advance": "progressão ofensiva",
+    "attacking contribution": "contribuição ofensiva",
+    "ball-winning engagement": "pressão para recuperar",
+    "box defending": "defesa da área",
+    "contest outcome": "resultado dos duelos",
+    "creating": "criação",
+    "creation": "criação",
+    "defensive contribution": "contribuição defensiva",
+    "defensive engagement": "intervenção defensiva",
+    "defensive resistance": "resistência defensiva",
+    "final-third delivery": "entrega no último terço",
+    "getting into positions": "posicionamento para finalizar",
+    "goal threat": "ameaça de golo",
+    "passing base": "base de passe",
+    "physical contest": "disputa física",
+    "progression": "progressão",
+    "scoring": "finalização",
+    "shot stopping": "defesa de remates",
+    "taking players on": "1x1 ofensivo",
+    "wide threat": "ameaça pelas alas"
+  },
+  "evidenceNouns": {
+    "shots": "remates",
+    "dribbles_attempted": "dribles tentados"
+  },
+  "roleCaveats": {
+    "advanced_playmaker": "As assistências esperadas e os passes-chave — a criação que dá nome a este papel — estão intactos. A progressão é a parte não medida.",
+    "attacking_full_back": "O cruzamento e a criação de oportunidades que definem um lateral ofensivo estão intactos; conduzir a bola para a frente é a parte não medida.",
+    "ball_playing_centre_back": "A progressão é o componente que define este papel, pelo que isto deve ser lido como volume e precisão de passe de um defesa-central e não como progressão de bola medida. Não é comparável em confiança com um papel avaliado a partir da sua definição completa.",
+    "ball_winning_midfielder": "Desarmes, intercepções e duelos ganhos — a recuperação em si — estão medidos. O que não está é a eficácia aérea, que não tem denominador. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "box_to_box_midfielder": "As contribuições defensiva e ofensiva que definem um médio box-to-box estão intactas; conduzir a bola para a frente é a parte não medida. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "complete_forward": "A eficácia nos duelos aéreos não pode ser medida: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador.",
+    "deep_lying_playmaker": "A progressão é o que distingue um organizador recuado de um passador arrumado, pelo que isto deve ser lido como volume, precisão e criação de passe a partir de trás, e não como progressão medida. Não é comparável em confiança com um papel avaliado a partir da sua definição completa.",
+    "defensive_full_back": "O núcleo defensivo do papel está intacto; o que é frágil é a eficácia aérea, que não tem denominador nenhum para ser medida. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta. É por isso ponderado abaixo dos duelos e das intercepções, e nomeado pelo que é em vez de substituir a taxa de desarmes bem sucedidos em torno da qual o papel foi inicialmente escrito.",
+    "defensive_stopper": "A eficácia nos duelos aéreos não pode ser medida de todo: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador. O volume de desarmes aqui são tentativas, não desarmes ganhos: o fornecedor declara um campo de desarmes bem sucedidos e nunca o preenche, pelo que um jogador que desarma muito e falha muito lê-se igual a um que acerta.",
+    "shot_stopper": "As estatísticas básicas de guarda-redes dependem muito do contexto da equipa: um guardião atrás de uma defesa fraca enfrenta mais e melhores oportunidades, o que inflaciona o volume de defesas e deprime a percentagem. Sem uma métrica de golos esperados pós-remate, a excelência na defesa de remates não pode ser inferida destes números.",
+    "target_forward": "A eficácia nos duelos aéreos não pode ser medida: o fornecedor reporta duelos aéreos ganhos mas não disputados, pelo que não há denominador. Para um papel em que os duelos aéreos são quase metade do peso, isso não é um pormenor: o volume não distingue um avançado dominante de um que disputa constantemente e perde."
+  },
+  "rankingNouns": {
+    "score": "pontuação",
+    "profile_score": "pontuação do perfil",
+    "role_fit": "aptidão para o papel",
+    "similarity": "semelhança",
+    "replacement_score": "pontuação de substituição"
+  },
+  "rankingCentres": {
+    "search": "desta pesquisa",
+    "every_player_with_role_fit": "de todos os jogadores com uma aptidão para o papel"
+  },
+  "feet": {
+    "left": "esquerdo",
+    "right": "direito",
+    "both": "ambos"
+  },
+  "allLeagues": {
+    "label": "Todas as ligas",
+    "qualifier": "maturidade de época mista",
+    "tooltipLabel": "O que é a posição entre todas as ligas",
+    "explanation": "Ordena o valor por 90 minutos observado deste jogador face a todas as épocas de jogador actualmente servidas na sua posição. Essas competições estão em pontos diferentes das suas épocas, e a posição não é ajustada a isso, nem à força de cada liga. Quanto futebol sustenta o valor do próprio jogador é reportado à parte, em minutos e numa faixa de amostra."
+  },
+  "replacementComponents": {
+    "role_fit": "Aptidão para o papel",
+    "affordability": "Comportabilidade"
   }
 }

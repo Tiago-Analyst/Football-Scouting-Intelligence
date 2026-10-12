@@ -1,4 +1,5 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
+import { getDictionary } from "@/i18n/dictionaries";
 import { formatDate, formatEuro } from "@/lib/format";
 import type { MarketValuePoint } from "@/types/api";
 
@@ -25,21 +26,19 @@ const WIDTH = 640;
 const HEIGHT = 180;
 const PADDING = { top: 12, right: 12, bottom: 24, left: 56 };
 
-export function MarketValueChart({ points }: { points: MarketValuePoint[] }) {
+export async function MarketValueChart({ points }: { points: MarketValuePoint[] }) {
+  const t = await getDictionary();
   const sorted = [...points].sort((a, b) => a.valued_on.localeCompare(b.valued_on));
 
   return (
     <Card>
       <CardHeader
-        title="Market value over time"
-        description="How the estimate has moved, oldest first."
+        title={t.components.marketChart.title}
+        description={t.components.marketChart.description}
       />
       <CardBody>
         {sorted.length === 0 ? (
-          <p className="text-sm text-muted">
-            No valuation history for this player. The market source does not cover everybody,
-            which is an ordinary gap rather than a fault.
-          </p>
+          <p className="text-sm text-muted">{t.components.marketChart.empty}</p>
         ) : sorted.length === 1 ? (
           // One point is not a trend. Saying so beats drawing a flat line that
           // implies stability nobody measured.
@@ -51,15 +50,13 @@ export function MarketValueChart({ points }: { points: MarketValuePoint[] }) {
           <Plot points={sorted} />
         )}
       </CardBody>
-      <CardFooter className="text-subtle">
-        A crowd-sourced estimate from the Transfermarkt dataset. It is not a transfer fee, an
-        asking price, or a valuation anybody has agreed to.
-      </CardFooter>
+      <CardFooter className="text-subtle">{t.components.marketChart.disclaimer}</CardFooter>
     </Card>
   );
 }
 
-function Plot({ points }: { points: MarketValuePoint[] }) {
+async function Plot({ points }: { points: MarketValuePoint[] }) {
+  const t = await getDictionary();
   const values = points.map((p) => p.market_value_eur);
   // From nought, deliberately. A value axis starting at the minimum turns a 3%
   // move into a cliff.
@@ -90,11 +87,12 @@ function Plot({ points }: { points: MarketValuePoint[] }) {
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="h-auto w-full min-w-[420px]"
           role="img"
-          aria-label={`Market value from ${formatEuro(first.market_value_eur)} on ${formatDate(
-            first.valued_on,
-          )} to ${formatEuro(last.market_value_eur)} on ${formatDate(last.valued_on)}, across ${
-            points.length
-          } valuations.`}
+          aria-label={t.components.marketChart.ariaLabel
+            .replace("{first}", formatEuro(first.market_value_eur))
+            .replace("{firstDate}", formatDate(first.valued_on))
+            .replace("{last}", formatEuro(last.market_value_eur))
+            .replace("{lastDate}", formatDate(last.valued_on))
+            .replace("{count}", String(points.length))}
         >
           {[0, 0.5, 1].map((fraction) => {
             const value = ceiling * fraction;
@@ -174,13 +172,16 @@ function Plot({ points }: { points: MarketValuePoint[] }) {
       </div>
 
       <figcaption className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
-        <span>
-          Latest <span className="font-medium text-text">{formatEuro(last.market_value_eur)}</span>
+        <span>{t.components.marketChart.latest}<span className="font-medium text-text">{formatEuro(last.market_value_eur)}</span>
+        </span>
+        <span>{t.components.marketChart.peak}<span className="font-medium text-text">{formatEuro(max)}</span>
         </span>
         <span>
-          Peak <span className="font-medium text-text">{formatEuro(max)}</span>
+          {t.components.marketChart.valuations.replace(
+            "{count}",
+            String(points.length),
+          )}
         </span>
-        <span>{points.length} valuations</span>
       </figcaption>
     </figure>
   );

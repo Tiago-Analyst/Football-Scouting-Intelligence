@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { apiMessage } from "@/components/player/ApiMessage";
 import { DemoDataBanner } from "@/components/shell/DemoDataBanner";
 import { SiteFooter } from "@/components/shell/SiteFooter";
 import { SessionScript } from "@/components/shell/SessionScript";
@@ -107,7 +108,14 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         </a>
 
         <SessionSync />
-        {meta?.demo_data_notice ? <DemoDataBanner notice={meta.demo_data_notice} /> : null}
+        {meta?.demo_data_notice ? (
+          <DemoDataBanner
+            label={t.common.states.demoDataLabel}
+            notice={
+              apiMessage(t, meta.demo_data_notice_message) ?? meta.demo_data_notice
+            }
+          />
+        ) : null}
         <SiteHeader />
 
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">

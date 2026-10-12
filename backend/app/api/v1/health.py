@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 from app.core.middleware import has_build_access
 from app.providers.footystats_mapping import get_mapping
 from app.providers.registry import build_market_provider, build_performance_provider
+from app.schemas.api import Message
 from app.schemas.system import (
     DataSourceStatus,
     DependencyStatus,
@@ -399,6 +400,7 @@ def meta(settings: SettingsDep, request: Request) -> MetaResponse:
         app_mode=settings.app_mode.value,  # type: ignore[arg-type]
         version=APP_VERSION,
         demo_data_notice=DEMO_NOTICE if is_demo else None,
+        demo_data_notice_message=(Message(code="demo_mode") if is_demo else None),
         data_sources=data_sources,
         metric_census=_metric_census(),
         data_freshness=_data_freshness(),

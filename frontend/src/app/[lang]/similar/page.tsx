@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+
+import { positionName } from "@/components/player/PositionName";
+import { RoleName } from "@/components/player/RoleName";
+import { getDictionary } from "@/i18n/dictionaries";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -11,11 +15,10 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import { getSimilarPlayers, searchPlayers } from "@/lib/players";
 
-export const metadata: Metadata = {
-  title: "Similar players",
-  description:
-    "Find players whose statistical profile resembles a selected player, within a compatible position group. A similarity index, not a probability.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { title: t.similarity.meta.title, description: t.similarity.meta.description };
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -23,6 +26,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function SimilarPlayersPage(props: PageProps<"/[lang]/similar">) {
+  const t = await getDictionary();
   const params = await props.searchParams;
   const playerId = first(params.player);
   const search = first(params.search);
@@ -35,27 +39,25 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
     return (
       <div className="max-w-2xl space-y-8">
         <PageHeader
-          eyebrow="Analysis"
-          title="Similar players"
-          description="Find players whose statistical profile resembles a selected player, within a compatible position group."
+          eyebrow={t.similarity.eyebrow}
+          title={t.similarity.meta.title}
+          description={t.similarity.meta.description}
         />
 
         <form method="get" className="flex items-end gap-3">
-          <Field label="Find a player to compare" htmlFor="search" className="flex-1">
+          <Field label={t.similarity.picker.title} htmlFor="search" className="flex-1">
             <TextInput
               id="search"
               name="search"
               type="search"
-              placeholder="Search by name…"
+              placeholder={t.similarity.picker.placeholder}
               defaultValue={search ?? ""}
             />
           </Field>
           <button
             type="submit"
             className="h-9 shrink-0 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
-          >
-            Search
-          </button>
+          >{t.similarity.picker.search}</button>
         </form>
 
         {results && results.items.length > 0 ? (
@@ -69,17 +71,24 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                   <span>
                     <span className="text-sm font-medium">{player.name}</span>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {player.raw_position ?? player.position_group} · {player.club} ·{" "}
+                      {positionName(t, player.raw_position) ??
+                        t.glossary.positions[
+                          player.position_group as keyof typeof t.glossary.positions
+                        ] ??
+                        player.position_group}{" "}
+                      · {player.club} ·{" "}
                       {player.competition}
                     </span>
                   </span>
-                  <span className="text-xs text-subtle">{player.best_role}</span>
+                  <span className="text-xs text-subtle">
+                    {player.best_role_key ? <RoleName role={player.best_role_key} /> : null}
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : search ? (
-          <EmptyState title="No players found" description="Try a different name." />
+          <EmptyState title={t.similarity.picker.noneFoundTitle} description={t.similarity.picker.noneFoundDescription} />
         ) : null}
       </div>
     );
@@ -99,14 +108,12 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
   if (!similar) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Analysis" title="Similar players" />
+        <PageHeader eyebrow={t.similarity.eyebrow} title={t.similarity.meta.title} />
         <EmptyState
-          title="Player not found"
-          description="That player is not in the database."
+          title={t.similarity.picker.notFoundTitle}
+          description={t.similarity.picker.notFoundDescription}
           action={
-            <ButtonLink href="/similar" variant="secondary" size="sm">
-              Start over
-            </ButtonLink>
+            <ButtonLink href="/similar" variant="secondary" size="sm">{t.similarity.picker.startOver}</ButtonLink>
           }
         />
       </div>
@@ -118,17 +125,26 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Analysis"
-        title={`Players similar to ${target.name}`}
-        description={`${target.raw_position ?? target.position_group} · ${target.club} · ${target.competition}${target.age !== null ? ` · ${target.age} years` : ""}`}
+        eyebrow={t.similarity.eyebrow}
+        title={t.similarity.targetTitle.replace("{player}", target.name)}
+        description={[
+          positionName(t, target.raw_position) ??
+            t.glossary.positions[
+              target.position_group as keyof typeof t.glossary.positions
+            ] ??
+            target.position_group,
+          target.club,
+          target.competition,
+          target.age !== null
+            ? t.profile.years.replace("{age}", String(target.age))
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <>
-            <ButtonLink href={`/players/${target.player_id}`} variant="secondary" size="sm">
-              View profile
-            </ButtonLink>
-            <ButtonLink href="/similar" variant="ghost" size="sm">
-              Change player
-            </ButtonLink>
+            <ButtonLink href={`/players/${target.player_id}`} variant="secondary" size="sm">{t.similarity.picker.viewProfile}</ButtonLink>
+            <ButtonLink href="/similar" variant="ghost" size="sm">{t.similarity.picker.changePlayer}</ButtonLink>
           </>
         }
       />
@@ -139,9 +155,9 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
           className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
         >
           <input type="hidden" name="player" value={playerId} />
-          <h2 className="text-sm font-semibold">Filters</h2>
+          <h2 className="text-sm font-semibold">{t.similarity.filters.heading}</h2>
 
-          <Field label="Maximum age" htmlFor="age_max">
+          <Field label={t.similarity.filters.maxAge} htmlFor="age_max">
             <TextInput
               id="age_max"
               name="age_max"
@@ -153,7 +169,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
             />
           </Field>
 
-          <Field label="Max market value (€)" htmlFor="market_value_max">
+          <Field label={t.similarity.filters.maxValue} htmlFor="market_value_max">
             <TextInput
               id="market_value_max"
               name="market_value_max"
@@ -165,36 +181,34 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
             />
           </Field>
 
-          <Field label="Contract expires within" htmlFor="contract_within_months">
+          <Field label={t.similarity.filters.contractWithin} htmlFor="contract_within_months">
             <Select
               id="contract_within_months"
               name="contract_within_months"
               defaultValue={filters.contract_within_months ?? ""}
             >
-              <option value="">Any</option>
-              <option value="6">6 months</option>
-              <option value="12">12 months</option>
-              <option value="18">18 months</option>
+              <option value="">{t.similarity.filters.any}</option>
+              <option value="6">{t.similarity.filters.months.replace("{count}", "6")}</option>
+              <option value="12">{t.similarity.filters.months.replace("{count}", "12")}</option>
+              <option value="18">{t.similarity.filters.months.replace("{count}", "18")}</option>
             </Select>
           </Field>
 
           <fieldset className="space-y-2">
-            <legend className="text-[11px] font-semibold tracking-wide text-subtle uppercase">
-              Narrow the pool
-            </legend>
+            <legend className="text-[11px] font-semibold tracking-wide text-subtle uppercase">{t.similarity.filters.narrow}</legend>
             <Checkbox
               name="different_competition"
-              label="Different competition only"
+              label={t.similarity.filters.differentCompetition}
               checked={!!filters.different_competition}
             />
             <Checkbox
               name="exclude_same_club"
-              label="Exclude same club"
+              label={t.similarity.filters.excludeSameClub}
               checked={!!filters.exclude_same_club}
             />
             <Checkbox
               name="younger_only"
-              label="Younger than this player"
+              label={t.similarity.filters.youngerThan}
               checked={!!filters.younger_only}
             />
           </fieldset>
@@ -202,9 +216,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
           <button
             type="submit"
             className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
-          >
-            Apply filters
-          </button>
+          >{t.similarity.filters.apply}</button>
         </form>
 
         {/* `min-w-0`: a grid track sizes to its content's minimum, and the
@@ -216,8 +228,8 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
         <section className="min-w-0 space-y-3">
           {similar.results.length === 0 ? (
             <EmptyState
-              title="No similar players match these filters"
-              description="Try relaxing the age, value or competition constraints."
+              title={t.similarity.empty.title}
+              description={t.similarity.empty.description}
             />
           ) : (
             <>
@@ -225,15 +237,13 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                 <Table>
                   <THead>
                     <TR>
-                      <TH>Player</TH>
-                      <TH numeric>Age</TH>
-                      <TH>Club</TH>
-                      <TH>Competition</TH>
-                      <TH>Best role</TH>
+                      <TH>{t.similarity.table.player}</TH>
+                      <TH numeric>{t.similarity.table.age}</TH>
+                      <TH>{t.similarity.table.club}</TH>
+                      <TH>{t.similarity.table.competition}</TH>
+                      <TH>{t.similarity.table.bestRole}</TH>
                       <TH numeric>
-                        <span className="inline-flex items-center gap-1">
-                          Similarity
-                          <Tooltip label="What is the Statistical Similarity Index?">
+                        <span className="inline-flex items-center gap-1">{t.similarity.table.similarity}<Tooltip label={t.similarity.notes.indexTitle}>
                             Similarity in the shape of the statistical profile, on a 0&ndash;100
                             scale. It is not a probability that two players are equivalent, and it
                             says nothing about quality, tactical fit or temperament.
@@ -241,18 +251,11 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                         </span>
                       </TH>
                       <TH numeric>
-                        <span className="inline-flex items-center gap-1">
-                          Feature coverage
-                          <Tooltip label="Why does coverage matter?">
-                            How much of the intended comparison actually happened. An index of 92
-                            over six of eleven features is a confident answer to a narrower question
-                            than the same index over eleven, and the index alone cannot tell them
-                            apart. Reported beside it, never folded into it.
-                          </Tooltip>
+                        <span className="inline-flex items-center gap-1">{t.similarity.table.featureCoverage}<Tooltip label={t.similarity.notes.coverageTitle}>{t.similarity.notes.coverageBody}</Tooltip>
                         </span>
                       </TH>
-                      <TH numeric>Value</TH>
-                      <TH numeric>Contract</TH>
+                      <TH numeric>{t.similarity.table.value}</TH>
+                      <TH numeric>{t.similarity.table.contract}</TH>
                     </TR>
                   </THead>
                   <TBody>
@@ -267,14 +270,20 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                           </Link>
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">Different profile strength</Badge>
+                              <Badge tone="warning">{t.similarity.table.differentStrength}</Badge>
                             </span>
                           ) : null}
                         </TD>
                         <TD numeric>{entry.player.age ?? "–"}</TD>
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
-                        <TD className="whitespace-nowrap">{entry.player.best_role ?? "–"}</TD>
+                        <TD className="whitespace-nowrap">
+                          {entry.player.best_role_key ? (
+                            <RoleName role={entry.player.best_role_key} />
+                          ) : (
+                            "–"
+                          )}
+                        </TD>
                         {/* The index, and - at the same size - what it rests
                             on when that is thin. A 94 printed in bold beside
                             a 55% in small grey text reads as "94, with a
@@ -289,7 +298,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                           {entry.coverage_band === "limited" ||
                           entry.coverage_band === "very_limited" ? (
                             <span className="mt-1 block">
-                              <Badge tone="warning">Limited evidence</Badge>
+                              <Badge tone="warning">{t.similarity.table.limitedEvidence}</Badge>
                             </span>
                           ) : null}
                         </TD>
@@ -327,14 +336,10 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
             </>
           )}
 
-          <Callout tone="caution" title="Similarity is not probability">
-            {similar.meaning}
+          <Callout tone="caution" title={t.similarity.notes.notProbabilityTitle}>
+            {t.similarity.notes.meaning}
           </Callout>
-          <Callout tone="note" title="“Different profile strength”">
-            Similarity compares the <em>shape</em> of two profiles. A player can match closely in
-            shape while being consistently stronger or weaker across the board — that badge marks
-            those cases, so a much stronger player is not mistaken for a like-for-like replacement.
-          </Callout>
+          <Callout tone="note" title={t.similarity.notes.strengthTitle}>{t.similarity.notes.strengthBefore}<em>{t.similarity.notes.strengthEmphasis}</em>{t.similarity.notes.strengthAfter}</Callout>
         </section>
       </div>
     </div>

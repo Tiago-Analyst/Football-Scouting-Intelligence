@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "title": "Market opportunities",
+    "description": "Players whose role fit, age, playing time and market position may merit attention."
+  },
+  "eyebrow": "Market",
+  "title": "Market opportunities",
+  "description": "Players whose role fit, age, playing time and market position may merit attention. Set the criteria; the screen shows why each player appeared.",
+  "error": {
+    "title": "Could not load opportunities",
+    "description": "The API did not respond. Check that the backend is running."
+  },
+  "criteria": {
+    "heading": "Criteria",
+    "reset": "Reset",
+    "apply": "Apply criteria",
+    "any": "Any",
+    "maxAge": "Maximum age",
+    "minRoleFit": "Minimum raw role fit",
+    "minRoleFitHint": "The weighted composite behind a player's best role, 0–100. Not the role fit percentile — a raw 80 is a high score on its own terms, whatever the population.",
+    "minimumMinutes": "Minimum minutes",
+    "minimumMinutesTooltipLabel": "Does this exclude players by default?",
+    "minimumMinutesTooltip": "Optional filter. All players are eligible by default regardless of minutes played — this sets a floor only if you want one, and it is empty unless you fill it in.",
+    "maxValue": "Maximum market value (€)",
+    "contractWithin": "Contract expires within",
+    "months": "{count} months"
+  },
+  "results": {
+    "meeting": "{count} players meet these criteria",
+    "demoData": "Demo data",
+    "disclaimerTitle": "Not a valuation model",
+    "funnel": "Where the screen narrowed",
+    "emptyTitle": "No players meet these criteria",
+    "resetCriteria": "Reset criteria",
+    "rawRoleFit": "Raw role fit",
+    "outOfHundred": "/ 100",
+    "rolePercentile": "{percentile} role fit percentile",
+    "rankedNote": "ranked {score} · {pct}% of a season",
+    "why": "Why this player appeared",
+    "minutes": "{minutes} min",
+    "marketValueNote": "Market value {value} — a crowd-sourced estimate, not an asking price.",
+    "emptyDescription": "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling.",
+    "stepRemaining": "{remaining} left",
+    "stepRemoved": " (−{removed})"
+  }
+}

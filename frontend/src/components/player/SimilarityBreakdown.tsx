@@ -1,4 +1,5 @@
 import { PercentileBar } from "@/components/ui/PercentileBar";
+import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import type { FeatureComparison, SimilarPlayer } from "@/types/api";
 
 /**
@@ -28,7 +29,7 @@ import type { FeatureComparison, SimilarPlayer } from "@/types/api";
  *
  * Features with no percentile to show are left out rather than filled in.
  */
-export function SimilarityBreakdown({
+export async function SimilarityBreakdown({
   entry,
   targetName,
 }: {
@@ -36,6 +37,7 @@ export function SimilarityBreakdown({
   /** The player whose profile this is - the `target` side of every feature. */
   targetName: string;
 }) {
+  const t = await getDictionary();
   const drivers = entry.drivers ?? [];
   const differences = entry.differences ?? [];
 
@@ -44,19 +46,21 @@ export function SimilarityBreakdown({
   return (
     <details className="group">
       <summary className="cursor-pointer list-none text-xs text-subtle transition-colors hover:text-accent">
-        <span className="group-open:hidden">Why similar?</span>
-        <span className="hidden group-open:inline">Hide breakdown</span>
+        <span className="group-open:hidden">{t.components.similarityBreakdown.why}</span>
+        <span className="hidden group-open:inline">{t.components.similarityBreakdown.hide}</span>
       </summary>
 
       <div className="mt-3 grid gap-5 sm:grid-cols-2">
         <FeatureList
-          heading="Closest on"
+          t={t}
+          heading={t.components.similarityBreakdown.closest}
           features={drivers}
           targetName={targetName}
           candidateName={entry.player.name}
         />
         <FeatureList
-          heading="Furthest apart on"
+          t={t}
+          heading={t.components.similarityBreakdown.furthest}
           features={differences}
           targetName={targetName}
           candidateName={entry.player.name}
@@ -64,10 +68,10 @@ export function SimilarityBreakdown({
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-subtle">
-        Compared on {entry.shared_features} of the {entry.expected_features} features defined for
-        this position ({Math.round(entry.feature_coverage_pct)}% coverage). Percentiles are within
-        the same comparison population as the profile above; two players can share a shape at any
-        level, so read the values and not only the distance between them.
+        {t.components.similarityBreakdown.comparedOn
+          .replace("{shared}", String(entry.shared_features))
+          .replace("{expected}", String(entry.expected_features))
+          .replace("{pct}", String(Math.round(entry.feature_coverage_pct)))}
       </p>
     </details>
   );
@@ -78,11 +82,13 @@ function FeatureList({
   features,
   targetName,
   candidateName,
+  t,
 }: {
   heading: string;
   features: FeatureComparison[];
   targetName: string;
   candidateName: string;
+  t: Dictionary;
 }) {
   if (features.length === 0) return null;
 
@@ -94,7 +100,10 @@ function FeatureList({
       <ul className="space-y-3">
         {features.map((feature) => (
           <li key={feature.metric} className="space-y-1">
-            <span className="text-xs">{feature.label}</span>
+            <span className="text-xs">
+              {t.glossary.metrics[feature.metric as keyof typeof t.glossary.metrics] ??
+                feature.label}
+            </span>
             <Side label={targetName} percentile={feature.target} />
             <Side label={candidateName} percentile={feature.candidate} />
           </li>

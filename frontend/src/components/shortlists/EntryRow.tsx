@@ -10,7 +10,10 @@ import {
 } from "@/app/actions/shortlists";
 import { StatusBadge } from "@/components/shortlists/StatusBadge";
 import { Badge } from "@/components/ui/Badge";
-import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
+import {
+  SampleSizeBadgeView,
+  type SampleCopy,
+} from "@/components/ui/SampleSizeBadgeView";
 import { TD, TR } from "@/components/ui/Table";
 import { formatCount, formatDateTime, formatEuro } from "@/lib/format";
 import { EMPTY_FORM_STATE } from "@/lib/forms";
@@ -39,6 +42,7 @@ export function EntryRow({
   selected,
   selectionDisabled,
   onToggle,
+  sampleCopy,
 }: {
   entry: ShortlistEntry;
   shortlistId: number;
@@ -46,6 +50,9 @@ export function EntryRow({
   selected: boolean;
   selectionDisabled: boolean;
   onToggle: (playerKey: string) => void;
+  /** The sample wording for every band, resolved by the server page.
+   * A Client Component cannot read the dictionary itself. */
+  sampleCopy: Record<string, SampleCopy>;
 }) {
   const { player } = entry;
 
@@ -84,7 +91,10 @@ export function EntryRow({
               {player.minutes !== null ? (
                 <>
                   <span>· {formatCount(player.minutes)} min</span>
-                  <SampleSizeBadge band={player.sample_band} minutes={player.minutes} />
+                  <SampleSizeBadgeView
+                    band={player.sample_band}
+                    copy={sampleCopy[player.sample_band]}
+                  />
                 </>
               ) : null}
             </>

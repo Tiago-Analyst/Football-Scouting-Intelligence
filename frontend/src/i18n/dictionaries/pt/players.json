@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "title": "Pesquisa de jogadores",
+    "description": "Pesquisar jogadores por posição, competição, idade, tempo de jogo e valor de mercado. Cada jogador é ordenado face ao seu próprio grupo posicional, e cada resultado mostra a amostra em que assenta."
+  },
+  "eyebrow": "Base de dados",
+  "title": "Pesquisa de jogadores",
+  "description": "Filtrar por perfil, tempo de jogo e critérios de mercado. Cada jogador é ordenado face ao seu próprio grupo posicional.",
+  "error": {
+    "title": "Não foi possível carregar os jogadores",
+    "description": "A API não respondeu. Verifique se o backend está a correr."
+  },
+  "filters": {
+    "heading": "Filtros",
+    "reset": "Repor",
+    "apply": "Aplicar filtros",
+    "any": "Qualquer",
+    "name": "Nome",
+    "namePlaceholder": "Pesquisar jogadores…",
+    "positionGroup": "Grupo posicional",
+    "competition": "Competição",
+    "bestRole": "Melhor papel",
+    "minAge": "Idade mín.",
+    "maxAge": "Idade máx.",
+    "minimumMinutes": "Minutos mínimos",
+    "minimumMinutesTooltipLabel": "Isto exclui jogadores por omissão?",
+    "minimumMinutesTooltip": "Filtro opcional. Todos os jogadores são elegíveis por omissão, independentemente dos minutos jogados — qualquer jogador com um rácio válido é listado, ordenado e comparado, e integra a população face à qual todos os outros são medidos. Os valores por 90 minutos são voláteis em períodos curtos, pelo que cada linha mostra um escalão de amostra que diz quanto tempo de jogo sustenta aqueles números. Defina aqui um mínimo apenas se quiser um.",
+    "sampleBand": "Escalão de amostra",
+    "sampleBandTooltipLabel": "O que este filtro faz",
+    "sampleBandTooltip": "Quanto futebol sustenta os números, não se um jogador conta. Nada é excluído sem o pedir: por omissão estão incluídos todos os escalões, e isto não substitui o filtro de minutos mínimos.",
+    "sampleBands": {
+      "very_low": "Amostra muito reduzida (menos de 180)",
+      "low": "Amostra reduzida (180–449)",
+      "developing": "Amostra em formação (450–899)",
+      "established": "Amostra consolidada (900+)"
+    },
+    "maxMarketValue": "Valor de mercado máx. (€)",
+    "contractWithin": "Contrato termina dentro de",
+    "months": "{count} meses",
+    "sortBy": "Ordenar por",
+    "sorts": {
+      "minutes": "Minutos jogados",
+      "role_score": "Aptidão para o papel",
+      "market_value": "Valor de mercado",
+      "age": "Idade",
+      "name": "Nome"
+    }
+  },
+  "results": {
+    "matching": "jogadores correspondem",
+    "showing": "a mostrar {from}–{to}",
+    "demoData": "Dados de demonstração",
+    "emptyTitle": "Nenhum jogador corresponde a estes filtros",
+    "emptyDescription": "Experimente alargar o intervalo de idades, baixar os minutos mínimos ou limpar o filtro de papel.",
+    "resetFilters": "Repor filtros"
+  },
+  "table": {
+    "player": "Jogador",
+    "age": "Idade",
+    "club": "Clube",
+    "competition": "Competição",
+    "bestRole": "Melhor papel",
+    "rawFit": "Aptidão bruta",
+    "minutes": "Minutos",
+    "value": "Valor",
+    "contract": "Contrato",
+    "percentileSuffix": "pct"
+  },
+  "pagination": {
+    "label": "Paginação",
+    "previous": "Anterior",
+    "next": "Seguinte",
+    "page": "Página {page} de {pages}"
+  },
+  "rawFitNote": {
+    "title": "Os dois números da coluna Aptidão bruta",
+    "first": "A <strong>aptidão bruta para o papel</strong> é o compósito ponderado que está por trás do melhor papel de um jogador, numa escala de 0 a 100. É uma pontuação nos seus próprios termos: um 80 bruto é um 80 bruto seja qual for a população, o que a torna comparável entre jogadores dentro de um mesmo papel, mas não entre papéis diferentes, porque papéis com ponderações distintas não partilham uma escala.",
+    "second": "O número mais pequeno é o <strong>percentil de aptidão para o papel</strong>: onde esse compósito se situa entre os jogadores medidos para o mesmo papel. É o comparável, e é por ele que o melhor papel foi escolhido.",
+    "third": "Nenhum deles é uma nota de observação, uma probabilidade ou uma medida de qualidade."
+  }
+}

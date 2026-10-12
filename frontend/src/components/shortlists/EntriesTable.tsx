@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { EntryRow } from "@/components/shortlists/EntryRow";
 import { Button } from "@/components/ui/Button";
+import type { SampleCopy } from "@/components/ui/SampleSizeBadgeView";
 import { Table, TBody, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { MAX_COMPARE } from "@/lib/limits";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
@@ -26,10 +27,14 @@ export function EntriesTable({
   entries,
   shortlistId,
   statuses,
+  sampleCopy,
 }: {
   entries: ShortlistEntry[];
   shortlistId: number;
   statuses: ShortlistStatus[];
+  /** Resolved by the server page and threaded through: neither this
+   * component nor the rows it renders can read a dictionary. */
+  sampleCopy: Record<string, SampleCopy>;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -141,6 +146,7 @@ export function EntriesTable({
                 selected={selected.includes(entry.player_key)}
                 selectionDisabled={atLimit}
                 onToggle={toggle}
+                sampleCopy={sampleCopy}
               />
             ))}
           </TBody>

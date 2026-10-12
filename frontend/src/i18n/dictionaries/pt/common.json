@@ -40,11 +40,16 @@
   "states": {
     "loading": "A carregar",
     "empty": "Nada a mostrar",
-    "noResults": "Sem resultados"
+    "noResults": "Sem resultados",
+    "demoDataLabel": "Dados de demonstração."
   },
   "freshness": {
     "label": "Actualidade dos dados",
-    "published": "publicado em {date}"
+    "published": "publicado em {date}",
+    "footystats": "Dados de desempenho",
+    "transfermarkt": "Dados de mercado",
+    "demo": "Dados de demonstração",
+    "updated": "{source} actualizados em"
   },
   "meta": {
     "title": "Football Recruitment Intelligence",
