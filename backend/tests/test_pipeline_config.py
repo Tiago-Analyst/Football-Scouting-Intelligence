@@ -145,3 +145,65 @@ class TestWorkflowSafety:
         steps = workflow["jobs"]["refresh"]["steps"]
         summary = next(s for s in steps if s.get("name") == "Summarise the run")
         assert summary["if"].startswith("always()")
+
+
+class TestNothingIsAskedBeforeThereIsSomewhereToAsk:
+    """The run must not fail for the absence of a thing it never checked for.
+
+    The gate reads `fact_refresh_generation` to decide what the run should do,
+    and it fails closed when it cannot reach the database. That is right: a
+    fresh runner that decided from its empty disk would start a second
+    fourteen-hour fetch beside the one already in progress.
+
+    What was wrong was the order. The gate ran before the preflight that asks
+    whether a database is configured at all, so with no `POSTGRES_*` secrets
+    every FootyStats-scheduled run raised and went red - thirty-nine of forty
+    - while the Transfermarkt ones skipped cleanly and passed. A scheduled job
+    that is red every day is a job nobody reads on the day it matters, which
+    is the outcome the preflight's own comment says it exists to prevent.
+    """
+
+    @staticmethod
+    def steps(workflow: dict) -> list[dict]:
+        job = next(iter(workflow["jobs"].values()))
+        return job["steps"]
+
+    def position_of(self, workflow: dict, name: str) -> int:
+        for index, step in enumerate(self.steps(workflow)):
+            if step.get("name") == name:
+                return index
+        raise AssertionError(f"no step named {name!r}")
+
+    def test_the_preflight_runs_before_the_gate(self, workflow: dict) -> None:
+        preflight = self.position_of(workflow, "Check the pipeline is configured")
+        gate = self.position_of(workflow, "Decide what this run should do")
+        assert preflight < gate, (
+            "the gate reads the database before anything establishes there is one"
+        )
+
+    def test_the_gate_waits_for_the_preflight(self, workflow: dict) -> None:
+        gate = self.steps(workflow)[self.position_of(workflow, "Decide what this run should do")]
+        condition = " ".join(str(gate.get("if", "")).split())
+        assert "steps.preflight.outputs.database == 'true'" in condition, (
+            "the gate runs whether or not a database is configured"
+        )
+
+    def test_every_step_that_needs_the_database_waits_for_it(self, workflow: dict) -> None:
+        # The gate was the only one that did not, which is why it was the only
+        # one that failed. This keeps the next one from being added below it.
+        needs_database = {
+            "Check the production configuration",
+            "Apply migrations",
+            "Seed staging from current production",
+        }
+        for step in self.steps(workflow):
+            if step.get("name") in needs_database:
+                condition = " ".join(str(step.get("if", "")).split())
+                assert "steps.preflight.outputs.database == 'true'" in condition, (
+                    f"{step['name']} would run with no database configured"
+                )
+
+    def test_an_unconfigured_run_says_so_rather_than_failing(self, workflow: dict) -> None:
+        report = self.position_of(workflow, "Report that there is nothing to refresh")
+        gate = self.position_of(workflow, "Decide what this run should do")
+        assert report < gate, "the explanation arrives after the step that made it necessary"
