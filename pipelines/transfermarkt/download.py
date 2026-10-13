@@ -13,6 +13,17 @@ of the spec requires raw snapshots be kept so a transformation can be
 reproduced later; without the checksum, "which snapshot produced this table?"
 is unanswerable.
 
+The five tables the product reads are then extracted into `tables/`, because
+every step after this one looks for them there and nothing else in the
+repository unzips anything. They existed only on a machine where somebody had
+done it by hand, which a fresh runner is never: the scheduled refresh got as
+far as downloading 230 MB and then reported the tables missing, suggesting the
+download that had just succeeded.
+
+Only those five. The archive carries twelve, and the other seven are match
+events this product does not model - 230 MB on disk against the 60 MB that is
+actually read.
+
 Downloads resume: a 218 MB transfer that dies at 90% should not start over.
 """
 
@@ -24,6 +35,7 @@ import json
 import ssl
 import sys
 import urllib.request
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +47,12 @@ LICENCE = "CC0-1.0"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = REPO_ROOT / "data" / "raw" / "transfermarkt"
+
+#: The tables the canonical model reads. The archive holds twelve; the rest are
+#: match events this product does not model. Kept here rather than imported
+#: from the profiler, which imports duckdb - a heavy dependency for a
+#: downloader, and one this module should not need to fetch a file.
+TABLES = ("players", "clubs", "competitions", "player_valuations", "transfers")
 
 CHUNK = 1 << 20  # 1 MiB
 
@@ -177,6 +195,42 @@ def write_manifest(path: Path, url: str) -> dict[str, object]:
     return manifest
 
 
+def extract(archive: Path, tables_dir: Path, *, force: bool = False) -> list[Path]:
+    """Put the five tables where every later step looks for them.
+
+    Names are taken from `TABLES` and matched against the archive's own
+    entries, never joined onto a path from inside it: a zip may name a member
+    `../../etc/anything`, and extracting by that name writes there. Each is
+    read and written explicitly, so nothing outside `tables_dir` can be
+    touched however the archive is built.
+    """
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+
+    with zipfile.ZipFile(archive) as bundle:
+        members = {Path(name).name: name for name in bundle.namelist()}
+        missing = [table for table in TABLES if f"{table}.csv.gz" not in members]
+        if missing:
+            raise SystemExit(
+                f"the archive does not contain: {', '.join(missing)}. "
+                "The dataset's layout has changed; the mapping needs revisiting "
+                "rather than the file renaming."
+            )
+
+        for table in TABLES:
+            target = tables_dir / f"{table}.csv.gz"
+            if target.exists() and not force:
+                print(f"  {table:<18} present")
+                written.append(target)
+                continue
+            with bundle.open(members[f"{table}.csv.gz"]) as source:
+                target.write_bytes(source.read())
+            print(f"  {table:<18} {_human(target.stat().st_size)}")
+            written.append(target)
+
+    return written
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Download the Transfermarkt dataset snapshot.")
     parser.add_argument("--force", action="store_true", help="re-download even if present")
@@ -196,6 +250,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nsize   : {_human(manifest['size_bytes'])}")  # type: ignore[arg-type]
     print(f"sha256 : {manifest['sha256']}")
     print(f"manifest: {path.with_name(f'{path.stem}.manifest.json').name}")
+
+    print("\nEXTRACTING")
+    extract(path, args.out / "tables", force=args.force)
     return 0
 
 
