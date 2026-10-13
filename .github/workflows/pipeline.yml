@@ -130,7 +130,6 @@ jobs:
           # which five separate parts have nowhere to put. The five below
           # still work for a Postgres that has no URL to give.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
         run: |
