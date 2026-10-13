@@ -27,7 +27,8 @@
     "competition": "Competição",
     "contractWithin": "Contrato termina dentro de",
     "months": "{count} meses",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "budgetHint": "Define a componente de comportabilidade. Sem orçamento, fica de fora."
   },
   "table": {
     "player": "Jogador",

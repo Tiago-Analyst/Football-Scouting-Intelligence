@@ -366,3 +366,34 @@ test("no redirect leaves the locale behind", () => {
     );
   }
 });
+
+test("no page carries a sentence of its own instead of reading the dictionary", () => {
+  // The landing page went through four phases of translating untouched, and
+  // was live in Portuguese with English body copy for the time it took to
+  // notice. Nobody had named it in a phase, and nothing failed.
+  //
+  // A sentence here is a string literal of several words in a row. Class
+  // names, routes and keys are one token; prose is not.
+  const prose = /["'`][A-Z][a-z]+(?: [a-z']+){3,}/;
+  for (const file of sources()) {
+    const relative = file.slice(file.indexOf("src")).split(path.sep).join("/");
+    if (!/^src\/app\/\[lang\]\/.*page\.tsx$/.test(relative)) continue;
+    // The gallery is an internal component index, kept out of the navigation
+    // and out of the crawlers, and is deliberately not translated.
+    if (relative.includes("design-system")) continue;
+
+    const source = readFileSync(file, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "")
+      // Not copy: an aria-label on a control is checked by its own guards,
+      // and a className is never a sentence however long it gets.
+      .replace(/className=\{?["'`][^"'`]*["'`]\}?/g, "");
+
+    const found = source.match(prose);
+    assert.equal(
+      found,
+      null,
+      `${relative} writes its own copy (${found?.[0]}); put it in a dictionary`,
+    );
+  }
+});

@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "description": "Recruitment intelligence for football. Contextual percentiles measured against a stated peer group, role fits, statistical similarity and ranked shortlists - with the reasoning behind every result kept visible."
+  },
+  "hero": {
+    "title": "Recruitment decisions need context, not just statistics.",
+    "body": "A scouting and market-analysis platform that turns raw match data into contextual percentiles, player roles, statistical similarity and ranked recruitment shortlists — with the reasoning behind every result kept visible.",
+    "explore": "Explore players",
+    "how": "How it works"
+  },
+  "capabilities": "Capabilities",
+  "principlesHeading": "How results are framed",
+  "principles": {
+    "peerGroupTitle": "Compared against the right peer group",
+    "peerGroup": "A centre-back's tackling means nothing measured against forwards. Every percentile is position-scoped and measured against an explicitly defined comparison population — one competition, a selected group of them, or a cross-competition recruitment pool — and which one is always shown alongside the number.",
+    "explainableTitle": "Every recommendation is explainable",
+    "explainable": "A shortlist that cannot be interrogated is not useful to a recruitment department. Each ranked candidate exposes the component percentiles, weights and filters that produced its position.",
+    "sampleTitle": "Sample size is never hidden",
+    "sample": "A per-90 figure from 200 minutes looks identical to one from 3,000. Every figure carries the minutes behind it and a sample label saying how much weight that deserves. No player is excluded for playing too little.",
+    "fitTitle": "Scores describe fit, not quality",
+    "fit": "A role score measures statistical resemblance to a profile. It is not a scouting grade, not a probability, and not a substitute for watching the player."
+  },
+  "limitationsHeading": "Known limitations",
+  "limitations": {
+    "strengthTitle": "Cross-league percentiles are not strength-adjusted",
+    "strength": "A 90th percentile in one competition is not equivalent to a 90th percentile in another. No competition-strength coefficient is applied, because inventing one would be worse than stating the limitation.",
+    "marketTitle": "Market value is not a transfer fee",
+    "market": "Market values come from Transfermarkt and represent a crowd-sourced estimate. They are not asking prices, and no valuation model is applied on top of them."
+  }
+}
