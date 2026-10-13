@@ -125,6 +125,12 @@ jobs:
       - name: Check the pipeline is configured
         id: preflight
         env:
+          # Preferred, and what a managed provider hands out: it carries
+          # `sslmode=require`, which Neon refuses the connection without and
+          # which five separate parts have nowhere to put. The five below
+          # still work for a Postgres that has no URL to give.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
         run: |
@@ -133,7 +139,9 @@ jobs:
           config = yaml.safe_load(pathlib.Path("config/competitions.yaml").read_text(encoding="utf-8"))
           refresh = config.get("refresh") or {}
 
-          database = bool(os.environ.get("POSTGRES_HOST"))
+          # Either form answers it. A single URL is what every managed
+          # provider gives, and it is the one the settings object prefers.
+          database = bool(os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_HOST"))
           key = bool(os.environ.get("FOOTYSTATS_API_KEY"))
           footystats_enabled = bool((refresh.get("footystats") or {}).get("enabled")) and key
           transfermarkt_enabled = bool((refresh.get("transfermarkt") or {}).get("enabled"))
@@ -188,6 +196,7 @@ jobs:
           steps.preflight.outputs.database == 'true'
         env:
           REFRESH_MODE: ${{ steps.resolve_source.outputs.mode }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -305,6 +314,7 @@ jobs:
           steps.gate.outputs.needs_local_state == 'true' &&
           steps.gate.outputs.generation_id != ''
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -343,6 +353,7 @@ jobs:
         if: steps.preflight.outputs.database == 'true'
         working-directory: backend
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -361,6 +372,7 @@ jobs:
         if: steps.preflight.outputs.database == 'true'
         working-directory: backend
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -440,6 +452,7 @@ jobs:
           # site cannot see this job's filesystem, and the snapshots live in its
           # cache. Best-effort: a fetch that cannot reach the database has still
           # fetched, and losing the display is not worth losing the progress.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -555,6 +568,7 @@ jobs:
           )
         id: seed
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -581,6 +595,7 @@ jobs:
         if: steps.seed.outcome == 'success'
         id: load
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -611,6 +626,7 @@ jobs:
       - name: Resolve identities across providers
         if: steps.load.outcome == 'success'
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -666,6 +682,7 @@ jobs:
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -691,6 +708,7 @@ jobs:
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -721,6 +739,7 @@ jobs:
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -746,6 +765,7 @@ jobs:
           steps.load.outcome == 'success' &&
           (steps.identity.outcome == 'success' || steps.identity.outcome == 'skipped')
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -791,6 +811,7 @@ jobs:
           steps.quality.outcome == 'success' &&
           steps.validation.outcome == 'success'
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
@@ -828,6 +849,7 @@ jobs:
           (steps.resolve_source.outputs.source != 'footystats' || steps.validated.outcome == 'success')
         id: promote
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
           POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
