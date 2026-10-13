@@ -116,6 +116,47 @@ jobs:
         run: |
           python -m pipelines.load.resolve_source
 
+      # -- Is there anywhere to publish to? ---------------------------------
+      #
+      # Until Phase 23 deploys a production database there is nothing to
+      # refresh. Reporting that plainly beats failing every Sunday for a reason
+      # nobody can fix, which is how a scheduled job gets muted and then
+      # ignored when it matters.
+      - name: Check the pipeline is configured
+        id: preflight
+        env:
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, yaml
+          config = yaml.safe_load(pathlib.Path("config/competitions.yaml").read_text(encoding="utf-8"))
+          refresh = config.get("refresh") or {}
+
+          database = bool(os.environ.get("POSTGRES_HOST"))
+          key = bool(os.environ.get("FOOTYSTATS_API_KEY"))
+          footystats_enabled = bool((refresh.get("footystats") or {}).get("enabled")) and key
+          transfermarkt_enabled = bool((refresh.get("transfermarkt") or {}).get("enabled"))
+
+          print(f"production database configured : {database}")
+          print(f"footystats key present         : {key}")
+          print(f"footystats enabled in config   : {(refresh.get('footystats') or {}).get('enabled')}")
+          print(f"transfermarkt enabled in config: {transfermarkt_enabled}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"database={str(database).lower()}\n")
+              out.write(f"footystats={str(footystats_enabled).lower()}\n")
+              out.write(f"transfermarkt={str(transfermarkt_enabled).lower()}\n")
+          PY
+
+      - name: Report that there is nothing to refresh
+        if: steps.preflight.outputs.database != 'true'
+        run: |
+          echo "### Data pipeline skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "No production database is configured, so there is nothing to refresh." >> "$GITHUB_STEP_SUMMARY"
+          echo "Set the \`POSTGRES_*\` secrets once Phase 23 has deployed one." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Decide what this run should do
         id: gate
         # WHY THIS READS THE DATABASE RATHER THAN THE DISK
@@ -133,7 +174,18 @@ jobs:
         #
         # So the database decides, and the cache below is restored only when
         # the answer needs local files.
-        if: steps.resolve_source.outputs.source == 'footystats'
+        #
+        # WHY THIS WAITS FOR THE PREFLIGHT
+        #
+        # Reading the database is the right thing to do and an impossible one
+        # when there is no database: with no `POSTGRES_*` secrets this raised,
+        # and the scheduled run went red. Thirty-nine of forty did, which is
+        # how a scheduled job gets muted and then ignored when it matters -
+        # the exact outcome the preflight below was written to prevent. It was
+        # simply standing after the step that needed it.
+        if: >-
+          steps.resolve_source.outputs.source == 'footystats' &&
+          steps.preflight.outputs.database == 'true'
         env:
           REFRESH_MODE: ${{ steps.resolve_source.outputs.mode }}
           POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
@@ -284,47 +336,6 @@ jobs:
         if: steps.resolve_source.outputs.source == 'footystats'
         run: |
           echo "action=${{ steps.verify.outputs.action || steps.gate.outputs.action }}" >> "$GITHUB_OUTPUT"
-
-      # -- Is there anywhere to publish to? ---------------------------------
-      #
-      # Until Phase 23 deploys a production database there is nothing to
-      # refresh. Reporting that plainly beats failing every Sunday for a reason
-      # nobody can fix, which is how a scheduled job gets muted and then
-      # ignored when it matters.
-      - name: Check the pipeline is configured
-        id: preflight
-        env:
-          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
-          FOOTYSTATS_API_KEY: ${{ secrets.FOOTYSTATS_API_KEY }}
-        run: |
-          python - <<'PY'
-          import os, pathlib, yaml
-          config = yaml.safe_load(pathlib.Path("config/competitions.yaml").read_text(encoding="utf-8"))
-          refresh = config.get("refresh") or {}
-
-          database = bool(os.environ.get("POSTGRES_HOST"))
-          key = bool(os.environ.get("FOOTYSTATS_API_KEY"))
-          footystats_enabled = bool((refresh.get("footystats") or {}).get("enabled")) and key
-          transfermarkt_enabled = bool((refresh.get("transfermarkt") or {}).get("enabled"))
-
-          print(f"production database configured : {database}")
-          print(f"footystats key present         : {key}")
-          print(f"footystats enabled in config   : {(refresh.get('footystats') or {}).get('enabled')}")
-          print(f"transfermarkt enabled in config: {transfermarkt_enabled}")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
-              out.write(f"database={str(database).lower()}\n")
-              out.write(f"footystats={str(footystats_enabled).lower()}\n")
-              out.write(f"transfermarkt={str(transfermarkt_enabled).lower()}\n")
-          PY
-
-      - name: Report that there is nothing to refresh
-        if: steps.preflight.outputs.database != 'true'
-        run: |
-          echo "### Data pipeline skipped" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "No production database is configured, so there is nothing to refresh." >> "$GITHUB_STEP_SUMMARY"
-          echo "Set the \`POSTGRES_*\` secrets once Phase 23 has deployed one." >> "$GITHUB_STEP_SUMMARY"
 
       # -- Everything below only runs against a real deployment -------------
 
