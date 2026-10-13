@@ -8,6 +8,7 @@ import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 
 import { AllLeaguesHeading } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
@@ -28,7 +29,6 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
 import { canPrerenderEverything, getPlayerProfile, searchPlayers } from "@/lib/players";
 import type { Score } from "@/types/api";
 
@@ -99,6 +99,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
   const { player, stats, roles, similar } = profile;
   const locale = await getLocale();
   const t = await getDictionary();
+  const f = await formatters();
 
   return (
     <div className="space-y-8">
@@ -200,17 +201,17 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
         />
         <StatTile
           label={t.profile.tiles.minutesPlayed}
-          value={player.minutes !== null ? formatCount(player.minutes) : "–"}
+          value={player.minutes !== null ? f.count(player.minutes) : "–"}
           hint={t.profile.tiles.season.replace("{season}", "2026/27")}
         />
         <StatTile
           label={t.profile.tiles.marketValue}
-          value={player.market_value_eur !== null ? formatEuro(player.market_value_eur) : "–"}
+          value={player.market_value_eur !== null ? f.euro(player.market_value_eur) : "–"}
           hint={t.profile.tiles.marketValueHint}
         />
         <StatTile
           label={t.profile.tiles.contractUntil}
-          value={player.contract_expires ? formatDate(player.contract_expires) : "–"}
+          value={player.contract_expires ? f.date(player.contract_expires) : "–"}
         />
       </div>
 
@@ -295,7 +296,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         }
                         title={
                           score.evidence.low
-                            ? (apiMessage(t, {
+                            ? (apiMessage(t, f, {
                                 code: "low_evidence_title",
                                 values: {
                                   threshold: score.evidence.threshold,
@@ -305,7 +306,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             : undefined
                         }
                       >
-                        {apiMessage(t, score.evidence.message) ?? score.evidence.label}
+                        {apiMessage(t, f, score.evidence.message) ?? score.evidence.label}
                       </span>
                     ) : null}
                   </span>
@@ -379,7 +380,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                       <>
                         {" · "}
                         {t.profile.roles.percentileOf
-                          .replace("{percentile}", ordinal(role.role_fit_percentile))
+                          .replace("{percentile}", f.ordinal(role.role_fit_percentile))
                           .replace("{population}", String(role.role_population ?? 0))}
                       </>
                     ) : (
@@ -390,7 +391,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                          wrong. */
                       <>
                         {" · "}
-                        {apiMessage(t, role.role_fit_percentile_reason_message) ??
+                        {apiMessage(t, f, role.role_fit_percentile_reason_message) ??
                           t.profile.roles.noStanding}
                       </>
                     )}
@@ -463,7 +464,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                  against the minimum it is configured to need. */
               <div className="space-y-3">
                 <p className="text-sm text-muted">
-                  {apiMessage(t, roles?.unscored_reason_message) ?? roles?.unscored_reason}
+                  {apiMessage(t, f, roles?.unscored_reason_message) ?? roles?.unscored_reason}
                 </p>
                 {roles?.unscored?.length ? (
                   <ul className="space-y-1.5 text-xs">
@@ -652,7 +653,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                           <span className="mt-1 block text-[10px] text-subtle">
                             {t.profile.performance.byRawValue.replace(
                               "{percentile}",
-                              ordinal(metric.percentile),
+                              f.ordinal(metric.percentile),
                             )}
                           </span>
                         ) : null}
@@ -667,7 +668,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                       question of two different populations. */}
                   <TD numeric className="text-xs text-muted">
                     {metric.global_performance_percentile !== null
-                      ? ordinal(metric.global_performance_percentile)
+                      ? f.ordinal(metric.global_performance_percentile)
                       : "–"}
                   </TD>
                 </TR>
@@ -682,7 +683,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
               <p className="text-xs leading-relaxed text-subtle">
                 {t.profile.performance.globalNote.replace(
                   "{population}",
-                  formatCount(stats.global_context.population_size),
+                  f.count(stats.global_context.population_size),
                 )}
               </p>
             ) : null}
@@ -834,7 +835,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null
-                            ? formatEuro(entry.player.market_value_eur)
+                            ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
                       </TR>

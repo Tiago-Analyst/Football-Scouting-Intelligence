@@ -8,9 +8,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
-import { formatCount, formatDate } from "@/lib/format";
 import { MetricCensusLine } from "@/components/quality/MetricCensus";
 import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import { formatters, type Formatters } from "@/i18n/format";
 import { getDataQuality, getMeta } from "@/lib/system";
 import type { CheckStatus, ProviderQuality, QualityCheck, SourceFreshness } from "@/types/api";
 
@@ -27,6 +27,7 @@ const TONE: Record<CheckStatus, BadgeTone> = {
 
 export default async function DataQualityPage() {
   const t = await getDictionary();
+  const f = await formatters();
   const [report, meta] = await Promise.all([getDataQuality(), getMeta()]);
 
   return (
@@ -43,7 +44,7 @@ export default async function DataQualityPage() {
           description={t.quality.unavailableDescription}
         />
       ) : (
-        <Report t={t} report={report} meta={meta} />
+        <Report t={t} f={f} report={report} meta={meta} />
       )}
     </div>
   );
@@ -51,10 +52,12 @@ export default async function DataQualityPage() {
 
 async function Report({
   t,
+  f,
   report,
   meta,
 }: {
   t: Dictionary;
+  f: Formatters;
   report: NonNullable<Awaited<ReturnType<typeof getDataQuality>>>;
   meta: Awaited<ReturnType<typeof getMeta>>;
 }) {
@@ -79,22 +82,22 @@ async function Report({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label={q.volumes.players}
-          value={formatCount(report.volumes.players)}
+          value={f.count(report.volumes.players)}
           hint={q.volumes.playersHint}
         />
         <StatTile
           label={q.volumes.playerSeasons}
-          value={formatCount(report.volumes.player_seasons)}
+          value={f.count(report.volumes.player_seasons)}
           hint={q.volumes.playerSeasonsHint}
         />
         <StatTile
           label={q.volumes.clubs}
-          value={formatCount(report.volumes.clubs)}
+          value={f.count(report.volumes.clubs)}
           hint={q.volumes.clubsHint}
         />
         <StatTile
           label={q.volumes.competitions}
-          value={formatCount(report.volumes.competitions)}
+          value={f.count(report.volumes.competitions)}
           hint={q.volumes.competitionsHint}
         />
       </div>
@@ -115,24 +118,24 @@ async function Report({
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatTile
                 label={q.identity.matched}
-                value={formatCount(report.identity.matched)}
+                value={f.count(report.identity.matched)}
                 hint={q.identity.matchedHint
                   .replace("{pct}", String(Math.round(report.identity.matched_share * 100)))
-                  .replace("{players}", formatCount(report.identity.players))}
+                  .replace("{players}", f.count(report.identity.players))}
               />
               <StatTile
                 label={q.identity.unmatched}
-                value={formatCount(report.identity.unmatched)}
+                value={f.count(report.identity.unmatched)}
                 hint={q.identity.unmatchedHint}
               />
               <StatTile
                 label={q.identity.ambiguous}
-                value={formatCount(report.identity.ambiguous)}
+                value={f.count(report.identity.ambiguous)}
                 hint={q.identity.ambiguousHint}
               />
               <StatTile
                 label={q.identity.manual}
-                value={formatCount(report.identity.manual_overrides)}
+                value={f.count(report.identity.manual_overrides)}
                 hint={q.identity.manualHint}
               />
             </div>
@@ -241,7 +244,7 @@ async function Report({
         </CardBody>
       </Card>
 
-      {report.refresh ? <RefreshProgress t={t} refresh={report.refresh} /> : null}
+      {report.refresh ? <RefreshProgress t={t} f={f} refresh={report.refresh} /> : null}
 
       {report.analytics ? (
         <Card>
@@ -250,15 +253,15 @@ async function Report({
             <div className="grid gap-4 sm:grid-cols-3">
               <StatTile
                 label={q.served.players}
-                value={formatCount(report.analytics.players)}
+                value={f.count(report.analytics.players)}
               />
               <StatTile
                 label={q.served.competitions}
-                value={formatCount(report.analytics.competitions)}
+                value={f.count(report.analytics.competitions)}
               />
               <StatTile
                 label={q.served.builtAt}
-                value={report.analytics.built_at ? formatDate(report.analytics.built_at) : "–"}
+                value={report.analytics.built_at ? f.date(report.analytics.built_at) : "–"}
                 hint={report.analytics.is_stale ? q.served.stale : q.served.current}
               />
             </div>
@@ -307,7 +310,7 @@ async function Report({
                 </THead>
                 <TBody>
                   {report.sources.map((source) => (
-                    <SourceRow key={source.source} t={t} source={source} />
+                    <SourceRow key={source.source} t={t} f={f} source={source} />
                   ))}
                 </TBody>
               </Table>
@@ -317,7 +320,7 @@ async function Report({
       </Card>
 
       {(report.providers ?? []).map((provider) => (
-        <ProviderCard key={provider.source} t={t} provider={provider} />
+        <ProviderCard key={provider.source} t={t} f={f} provider={provider} />
       ))}
 
       {(report.providers ?? []).length === 0 ? (
@@ -339,7 +342,7 @@ async function Report({
   );
 }
 
-function SourceRow({ t, source }: { t: Dictionary; source: SourceFreshness }) {
+function SourceRow({ t, f, source }: { t: Dictionary; f: Formatters; source: SourceFreshness }) {
   const q = t.quality;
   // Seven days is where the report itself starts warning about staleness.
   const stale = source.age_days > 7;
@@ -356,7 +359,7 @@ function SourceRow({ t, source }: { t: Dictionary; source: SourceFreshness }) {
             staging load that may not have reached production. */}
         {source.last_published_at !== null ? (
           <span className={dataStale ? "text-warning" : undefined} title={source.last_published_at}>
-            {formatDate(source.last_published_at)}
+            {f.date(source.last_published_at)}
           </span>
         ) : (
           <span className="text-subtle" title={q.freshness.unknownTitle}>
@@ -396,7 +399,7 @@ function summarise(t: Dictionary, checks: QualityCheck[]): string {
  * The page used to show one list, and the list was whichever run was newest,
  * which is how a candidate's ticks ended up above production's data.
  */
-function ProviderCard({ t, provider }: { t: Dictionary; provider: ProviderQuality }) {
+function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provider: ProviderQuality }) {
   const q = t.quality;
   const { published, candidate } = provider;
   return (
@@ -416,7 +419,7 @@ function ProviderCard({ t, provider }: { t: Dictionary; provider: ProviderQualit
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label={q.providers.lastPublished}>
                   {published.published_at ? (
-                    formatDate(published.published_at)
+                    f.date(published.published_at)
                   ) : (
                     /* Not a gap in the page: the publication ledger holds no
                        row for this dataset, because it was promoted before
@@ -442,7 +445,7 @@ function ProviderCard({ t, provider }: { t: Dictionary; provider: ProviderQualit
               </dl>
               {published.checks.length > 0 ? (
                 <TableWrap>
-                  <ChecksTable t={t} checks={published.checks} />
+                  <ChecksTable t={t} f={f} checks={published.checks} />
                 </TableWrap>
               ) : (
                 <p className="text-sm text-muted">{q.providers.noAttributableChecks}</p>
@@ -473,13 +476,13 @@ function ProviderCard({ t, provider }: { t: Dictionary; provider: ProviderQualit
                   </Field>
                 ) : null}
                 <Field label={q.providers.lastValidation}>
-                  {formatDate(candidate.executed_at)}
+                  {f.date(candidate.executed_at)}
                 </Field>
                 <Field label={q.providers.quality}>{summarise(t, candidate.checks)}</Field>
               </dl>
               <p className="text-xs text-muted">{q.providers.candidateNote}</p>
               <TableWrap>
-                <ChecksTable t={t} checks={candidate.checks} />
+                <ChecksTable t={t} f={f} checks={candidate.checks} />
               </TableWrap>
             </>
           ) : (
@@ -500,7 +503,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ChecksTable({ t, checks }: { t: Dictionary; checks: QualityCheck[] }) {
+function ChecksTable({ t, f, checks }: { t: Dictionary; f: Formatters; checks: QualityCheck[] }) {
   return (
     <>
       <Table>
@@ -517,6 +520,7 @@ function ChecksTable({ t, checks }: { t: Dictionary; checks: QualityCheck[] }) {
             <CheckRow
               key={`${check.source}-${check.entity}-${check.check_name}`}
               t={t}
+              f={f}
               check={check}
             />
           ))}
@@ -526,7 +530,7 @@ function ChecksTable({ t, checks }: { t: Dictionary; checks: QualityCheck[] }) {
   );
 }
 
-function CheckRow({ t, check }: { t: Dictionary; check: QualityCheck }) {
+function CheckRow({ t, f, check }: { t: Dictionary; f: Formatters; check: QualityCheck }) {
   return (
     <TR>
       {/* The check's name, its entity and its detail are the pipeline's own
@@ -539,7 +543,7 @@ function CheckRow({ t, check }: { t: Dictionary; check: QualityCheck }) {
         {check.detail ? <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p> : null}
       </TD>
       <TD className="text-xs text-muted">{check.source}</TD>
-      <TD numeric>{formatCount(check.record_count)}</TD>
+      <TD numeric>{f.count(check.record_count)}</TD>
       <TD>
         <Badge tone={TONE[check.status]}>{t.quality.status[check.status]}</Badge>
       </TD>

@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
-import { ordinal } from "@/lib/format";
+import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 
 /**
  * A percentile shown as both a bar and a number.
@@ -36,7 +37,7 @@ function rampColor(percentile: number): string {
   return "var(--pct-low)";
 }
 
-export function PercentileBar({
+export async function PercentileBar({
   percentile,
   lowerIsBetter = false,
   neutral = false,
@@ -66,6 +67,8 @@ export function PercentileBar({
   className?: string;
   showValue?: boolean;
 }) {
+  const t = await getDictionary();
+  const f = await formatters();
   const clamped = Math.max(0, Math.min(100, percentile));
 
   return (
@@ -76,13 +79,12 @@ export function PercentileBar({
         aria-valuenow={Math.round(clamped)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={
-          neutral
-            ? `${ordinal(clamped)} percentile within the comparison population`
-            : lowerIsBetter
-              ? `${ordinal(clamped)} performance percentile, on a metric where a lower value is better`
-              : `${ordinal(clamped)} percentile`
-        }
+        aria-label={(neutral
+          ? t.components.percentileBar.neutral
+          : lowerIsBetter
+            ? t.components.percentileBar.lowerIsBetter
+            : t.components.percentileBar.plain
+        ).replace("{ordinal}", f.ordinal(clamped))}
       >
         <div
           className="h-full rounded-full"

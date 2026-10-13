@@ -685,6 +685,8 @@ export interface Opportunity {
   /** The Raw Role Fit, untouched — not what the list is ordered by. */
   best_role_score: number | null;
   reasons: string[];
+  /** The same reasons as codes, which this side says in either language. */
+  reason_messages?: ApiMessage[];
   /**
    * What the list IS ordered by: the raw fit pulled toward the average for
    * this screen in proportion to how little football stands behind it.
@@ -724,6 +726,8 @@ export interface Opportunities {
    */
   funnel: ScreenStep[];
   explanation: string | null;
+  /** The same account as a code, said by this side in either language. */
+  explanation_message?: ApiMessage | null;
   /** Whether these results are fabricated. A deployment serves one or the other. */
   is_mock: boolean;
 }

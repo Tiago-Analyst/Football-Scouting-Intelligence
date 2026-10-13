@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import type { Dictionary } from "@/i18n/dictionaries";
-import { formatCount, formatDate, formatTimestamp } from "@/lib/format";
+import type { Formatters } from "@/i18n/format";
 import type { RefreshStatus } from "@/types/api";
 
 /**
@@ -18,7 +18,16 @@ import type { RefreshStatus } from "@/types/api";
  * a public page has no reason to name which players a provider failed to
  * return.
  */
-export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: RefreshStatus }) {
+export function RefreshProgress({
+  t,
+  f,
+  refresh,
+}: {
+  t: Dictionary;
+  /** Resolved by the page, like the dictionary beside it. */
+  f: Formatters;
+  refresh: RefreshStatus;
+}) {
   const copy = t.quality.refresh;
   const { current, published } = refresh;
   // The heading followed the section, not the state, so a generation whose
@@ -51,7 +60,7 @@ export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: Refres
             <div className="grid gap-4 sm:grid-cols-3">
               <StatTile
                 label={copy.fetched}
-                value={`${formatCount(current.completed_players)} / ${formatCount(
+                value={`${f.count(current.completed_players)} / ${f.count(
                   current.total_expected_players,
                 )}`}
                 hint={copy.fetchedHint.replace("{pct}", current.completion_pct.toFixed(1))}
@@ -62,7 +71,7 @@ export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: Refres
               />
               <StatTile
                 label={copy.failed}
-                value={formatCount(current.failed_players)}
+                value={f.count(current.failed_players)}
                 hint={current.failed_players > 0 ? copy.failedRetried : copy.failedNone}
               />
             </div>
@@ -73,7 +82,7 @@ export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: Refres
                 <>
                   {copy.lastCheckpoint.replace(
                     "{when}",
-                    formatTimestamp(current.last_updated_at),
+                    f.timestamp(current.last_updated_at),
                   )}
                 </>
               ) : null}
@@ -95,12 +104,12 @@ export function RefreshProgress({ t, refresh }: { t: Dictionary; refresh: Refres
               {copy.generation} <span className="font-mono">{published.generation_id}</span>
               {published.published_at ? (
                 <span className="text-muted">
-                  {copy.publishedOn.replace("{date}", formatDate(published.published_at))}
+                  {copy.publishedOn.replace("{date}", f.date(published.published_at))}
                 </span>
               ) : null}
               <span className="text-muted">
                 {copy.publishedCounts
-                  .replace("{players}", formatCount(published.completed_players))
+                  .replace("{players}", f.count(published.completed_players))
                   .replace("{competitions}", String(published.competitions_complete))}
               </span>
             </p>

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName } from "@/components/player/RoleName";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -12,7 +13,6 @@ import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatCount, formatDate, formatEuro } from "@/lib/format";
 import { getSimilarPlayers, searchPlayers } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,6 +27,7 @@ function first(value: string | string[] | undefined): string | undefined {
 
 export default async function SimilarPlayersPage(props: PageProps<"/[lang]/similar">) {
   const t = await getDictionary();
+  const f = await formatters();
   const params = await props.searchParams;
   const playerId = first(params.player);
   const search = first(params.search);
@@ -319,12 +320,12 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null
-                            ? formatEuro(entry.player.market_value_eur)
+                            ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
                         <TD numeric className="whitespace-nowrap text-muted">
                           {entry.player.contract_expires
-                            ? formatDate(entry.player.contract_expires)
+                            ? f.date(entry.player.contract_expires)
                             : "–"}
                         </TD>
                       </TR>
@@ -332,7 +333,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                   </TBody>
                 </Table>
               </TableWrap>
-              <p className="text-xs text-muted">{formatCount(similar.results.length)} results</p>
+              <p className="text-xs text-muted">{f.count(similar.results.length)} results</p>
             </>
           )}
 

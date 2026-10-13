@@ -12,7 +12,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { getDictionary } from "@/i18n/dictionaries";
-import { formatCount, formatDate, formatEuro, ordinal } from "@/lib/format";
+import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -61,6 +61,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
   const offset = Number(first(params.offset) ?? 0);
 
   const t = await getDictionary();
+  const f = await formatters();
   const [results, competitions, roles] = await Promise.all([
     searchPlayers({ ...filters, offset, limit: PAGE_SIZE }),
     getCompetitions(),
@@ -277,7 +278,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
           <section className="min-w-0 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
-                <span className="tabular font-medium text-text">{formatCount(results.total)}</span>{" "}
+                <span className="tabular font-medium text-text">{f.count(results.total)}</span>{" "}
                 {t.players.results.matching}
                 {results.total > PAGE_SIZE ? (
                   <>
@@ -369,20 +370,20 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                               : "–"}
                             {player.best_role_percentile != null ? (
                               <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                                {ordinal(player.best_role_percentile)} {t.players.table.percentileSuffix}
+                                {f.ordinal(player.best_role_percentile)} {t.players.table.percentileSuffix}
                               </span>
                             ) : null}
                           </TD>
                           <TD numeric>
-                            {player.minutes !== null ? formatCount(player.minutes) : "–"}
+                            {player.minutes !== null ? f.count(player.minutes) : "–"}
                           </TD>
                           <TD numeric>
                             {player.market_value_eur !== null
-                              ? formatEuro(player.market_value_eur)
+                              ? f.euro(player.market_value_eur)
                               : "–"}
                           </TD>
                           <TD numeric className="whitespace-nowrap text-muted">
-                            {player.contract_expires ? formatDate(player.contract_expires) : "–"}
+                            {player.contract_expires ? f.date(player.contract_expires) : "–"}
                           </TD>
                         </TR>
                       ))}

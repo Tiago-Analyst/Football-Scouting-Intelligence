@@ -9,8 +9,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { getCurrentUser } from "@/lib/auth";
-import { formatCount } from "@/lib/format";
 import { getShortlists } from "@/lib/shortlists";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -58,6 +58,7 @@ function SignedOut({ t }: { t: Dictionary }) {
 
 async function SignedIn({ t }: { t: Dictionary }) {
   const i = t.shortlists.index;
+  const f = await formatters();
   const shortlists = await getShortlists();
 
   return (
@@ -77,7 +78,7 @@ async function SignedIn({ t }: { t: Dictionary }) {
                 <p className="tabular shrink-0 text-xs text-subtle">
                   {shortlist.entry_count === 1
                     ? i.onePlayer
-                    : i.manyPlayers.replace("{count}", formatCount(shortlist.entry_count))}
+                    : i.manyPlayers.replace("{count}", f.count(shortlist.entry_count))}
                 </p>
               </div>
               {shortlist.description ? (

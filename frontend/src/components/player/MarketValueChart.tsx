@@ -1,6 +1,6 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { getDictionary } from "@/i18n/dictionaries";
-import { formatDate, formatEuro } from "@/lib/format";
+import { formatters } from "@/i18n/format";
 import type { MarketValuePoint } from "@/types/api";
 
 /**
@@ -28,6 +28,7 @@ const PADDING = { top: 12, right: 12, bottom: 24, left: 56 };
 
 export async function MarketValueChart({ points }: { points: MarketValuePoint[] }) {
   const t = await getDictionary();
+  const f = await formatters();
   const sorted = [...points].sort((a, b) => a.valued_on.localeCompare(b.valued_on));
 
   return (
@@ -43,8 +44,8 @@ export async function MarketValueChart({ points }: { points: MarketValuePoint[] 
           // One point is not a trend. Saying so beats drawing a flat line that
           // implies stability nobody measured.
           <p className="text-sm text-muted">
-            One valuation only, {formatEuro(sorted[0].market_value_eur)} on{" "}
-            {formatDate(sorted[0].valued_on)}. A single point shows no movement.
+            One valuation only, {f.euro(sorted[0].market_value_eur)} on{" "}
+            {f.date(sorted[0].valued_on)}. A single point shows no movement.
           </p>
         ) : (
           <Plot points={sorted} />
@@ -57,6 +58,7 @@ export async function MarketValueChart({ points }: { points: MarketValuePoint[] 
 
 async function Plot({ points }: { points: MarketValuePoint[] }) {
   const t = await getDictionary();
+  const f = await formatters();
   const values = points.map((p) => p.market_value_eur);
   // From nought, deliberately. A value axis starting at the minimum turns a 3%
   // move into a cliff.
@@ -88,10 +90,10 @@ async function Plot({ points }: { points: MarketValuePoint[] }) {
           className="h-auto w-full min-w-[420px]"
           role="img"
           aria-label={t.components.marketChart.ariaLabel
-            .replace("{first}", formatEuro(first.market_value_eur))
-            .replace("{firstDate}", formatDate(first.valued_on))
-            .replace("{last}", formatEuro(last.market_value_eur))
-            .replace("{lastDate}", formatDate(last.valued_on))
+            .replace("{first}", f.euro(first.market_value_eur))
+            .replace("{firstDate}", f.date(first.valued_on))
+            .replace("{last}", f.euro(last.market_value_eur))
+            .replace("{lastDate}", f.date(last.valued_on))
             .replace("{count}", String(points.length))}
         >
           {[0, 0.5, 1].map((fraction) => {
@@ -113,7 +115,7 @@ async function Plot({ points }: { points: MarketValuePoint[] }) {
                   textAnchor="end"
                   className="fill-subtle text-[10px]"
                 >
-                  {formatEuro(value)}
+                  {f.euro(value)}
                 </text>
               </g>
             );
@@ -148,7 +150,7 @@ async function Plot({ points }: { points: MarketValuePoint[] }) {
                * player profile ignoring dark mode while every other route
                * honoured it - a theme bug whose cause was an SVG tooltip.
                */}
-              <title>{`${formatDate(point.valued_on)}: ${formatEuro(point.market_value_eur)}`}</title>
+              <title>{`${f.date(point.valued_on)}: ${f.euro(point.market_value_eur)}`}</title>
             </circle>
           ))}
 
@@ -158,7 +160,7 @@ async function Plot({ points }: { points: MarketValuePoint[] }) {
             className="fill-subtle text-[10px]"
             textAnchor="start"
           >
-            {formatDate(first.valued_on)}
+            {f.date(first.valued_on)}
           </text>
           <text
             x={WIDTH - PADDING.right}
@@ -166,15 +168,15 @@ async function Plot({ points }: { points: MarketValuePoint[] }) {
             className="fill-subtle text-[10px]"
             textAnchor="end"
           >
-            {formatDate(last.valued_on)}
+            {f.date(last.valued_on)}
           </text>
         </svg>
       </div>
 
       <figcaption className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
-        <span>{t.components.marketChart.latest}<span className="font-medium text-text">{formatEuro(last.market_value_eur)}</span>
+        <span>{t.components.marketChart.latest}<span className="font-medium text-text">{f.euro(last.market_value_eur)}</span>
         </span>
-        <span>{t.components.marketChart.peak}<span className="font-medium text-text">{formatEuro(max)}</span>
+        <span>{t.components.marketChart.peak}<span className="font-medium text-text">{f.euro(max)}</span>
         </span>
         <span>
           {t.components.marketChart.valuations.replace(

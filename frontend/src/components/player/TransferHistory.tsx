@@ -1,7 +1,7 @@
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
-import { formatDate, formatEuro } from "@/lib/format";
 import type { Transfer } from "@/types/api";
 
 /**
@@ -15,6 +15,7 @@ import type { Transfer } from "@/types/api";
  */
 export async function TransferHistory({ transfers }: { transfers: Transfer[] }) {
   const t = await getDictionary();
+  const f = await formatters();
   const ordered = [...transfers].sort((a, b) =>
     (b.transfer_date ?? "").localeCompare(a.transfer_date ?? ""),
   );
@@ -42,7 +43,7 @@ export async function TransferHistory({ transfers }: { transfers: Transfer[] }) 
                   <TR key={`${transfer.transfer_date}-${transfer.to_club}-${index}`}>
                     <TD className="whitespace-nowrap">
                       {transfer.transfer_date
-                        ? formatDate(transfer.transfer_date)
+                        ? f.date(transfer.transfer_date)
                         : (transfer.season ?? "–")}
                     </TD>
                     <TD>{transfer.from_club ?? "–"}</TD>
@@ -56,7 +57,7 @@ export async function TransferHistory({ transfers }: { transfers: Transfer[] }) 
                       ) : transfer.fee_eur === 0 ? (
                         "free"
                       ) : (
-                        formatEuro(transfer.fee_eur)
+                        f.euro(transfer.fee_eur)
                       )}
                     </TD>
                   </TR>

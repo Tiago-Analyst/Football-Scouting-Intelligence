@@ -8,6 +8,7 @@ import { ComparisonTable } from "@/components/shortlists/ComparisonTable";
 import { EntriesTable } from "@/components/shortlists/EntriesTable";
 import { sampleCopy } from "@/components/ui/SampleSizeBadge";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/dictionaries";
+import { formatters, type Formatters } from "@/i18n/format";
 import { localePath } from "@/i18n/routing";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +38,7 @@ export default async function ShortlistPage({
   const query = await searchParams;
   const t = await getDictionary();
   const d = t.shortlists.detail;
+  const f = await formatters();
 
   if (!(await getCurrentUser())) {
     redirect(localePath(await getLocale(), `/sign-in?next=/shortlists/${id}`));
@@ -98,14 +100,16 @@ export default async function ShortlistPage({
           entries={shortlist.entries}
           shortlistId={shortlistId}
           statuses={localisedStatuses(t, statuses)}
-          sampleCopy={sampleCopyByBand(t)}
+          sampleCopy={sampleCopyByBand(t, f)}
           copy={{ ...t.shortlists.entries, row: t.shortlists.row }}
+          tag={f.tag}
         />
       )}
 
       {comparison ? (
         <ComparisonTable
           t={t}
+          f={f}
           comparison={comparison}
           scope={scope}
           shortlistId={shortlistId}
@@ -186,11 +190,11 @@ export default async function ShortlistPage({
  * Four strings rather than a lookup per row, because the rows cannot look
  * anything up: they render in the browser, where the dictionary does not go.
  */
-function sampleCopyByBand(t: Dictionary) {
+function sampleCopyByBand(t: Dictionary, f: Formatters) {
   return Object.fromEntries(
     (["very_low", "low", "developing", "established"] as const).map((band) => [
       band,
-      sampleCopy(t, band),
+      sampleCopy(t, f, band),
     ]),
   );
 }

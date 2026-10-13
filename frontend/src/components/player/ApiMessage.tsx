@@ -1,4 +1,5 @@
 import type { Dictionary } from "@/i18n/dictionaries";
+import type { Formatters } from "@/lib/format";
 
 /** The shape the API sends: a code, and the values its sentence needs. */
 export interface ApiMessageData {
@@ -32,14 +33,32 @@ export interface ApiMessageData {
  * `i18n-messages.test.mjs` asserts that every code the backend can emit has
  * copy on both sides, so it fails a build rather than reaching a reader.
  */
-export function apiMessage(t: Dictionary, message: ApiMessageData | null | undefined): string | null {
+export function apiMessage(
+  t: Dictionary,
+  f: Formatters,
+  message: ApiMessageData | null | undefined,
+): string | null {
   if (!message?.code) return null;
   const template = (t.messages as Record<string, string>)[message.code];
   if (!template) return message.code;
 
+  // One sentence can quote another: the thin-screen explanation names the
+  // criterion that did the narrowing, and that criterion is itself a coded
+  // sentence with a number in it. `values` is flat on purpose, so the nested
+  // one travels as its code plus its single value and is rendered here,
+  // before the outer sentence is filled in.
+  const values: Record<string, string | number> = { ...(message.values ?? {}) };
+  if (typeof values.criterion === "string") {
+    const nested = (t.messages as Record<string, string>)[values.criterion];
+    values.criterion = nested
+      ? nested.replace(/\{[a-z_]+\}/, String(values.criterion_value ?? ""))
+      : values.criterion;
+    delete values.criterion_value;
+  }
+
   let out = template;
-  for (const [name, value] of Object.entries(message.values ?? {})) {
-    out = out.replaceAll(`{${name}}`, translateValue(t, name, value));
+  for (const [name, value] of Object.entries(values)) {
+    out = out.replaceAll(`{${name}}`, translateValue(t, f, name, value));
   }
   return out;
 }
@@ -53,8 +72,18 @@ export function apiMessage(t: Dictionary, message: ApiMessageData | null | undef
  * numbers, and identifiers nobody has mapped yet, which should be visible
  * rather than blank.
  */
-function translateValue(t: Dictionary, name: string, value: string | number): string {
+function translateValue(
+  t: Dictionary,
+  f: Formatters,
+  name: string,
+  value: string | number,
+): string {
+  // A number in a sentence is still a number: 2,195 in English and 2195 in
+  // Portuguese. `String(value)` printed neither, which is how "Established
+  // Sample - 2195 minutes played" reached the English profile.
   const raw = String(value);
+  if (typeof value === "number" && name !== "value_eur") return f.count(value);
+  if (name === "criterion") return raw;
   switch (name) {
     case "role":
       return t.glossary.roles[raw as keyof typeof t.glossary.roles] ?? raw;
@@ -73,6 +102,13 @@ function translateValue(t: Dictionary, name: string, value: string | number): st
         .split(",")
         .map((m) => (t.glossary.metrics as Record<string, string>)[m.trim()] ?? m.trim())
         .join(", ");
+    case "value_eur":
+      // A euro amount, raw, because a formatted one cannot be reformatted:
+      // the API sends the number and the reader's locale decides the comma.
+      return f.euro(Number(raw));
+    case "expires":
+      // An ISO date, for the same reason.
+      return f.date(raw);
     case "ranked_noun":
       // The noun the ranking sentence is about - "role fit", "similarity".
       // Its own group, because `noun` above names a countable event and these
@@ -126,14 +162,16 @@ function translateValue(t: Dictionary, name: string, value: string | number): st
  */
 export function ApiMessage({
   t,
+  f,
   message,
   className,
 }: {
   t: Dictionary;
+  f: Formatters;
   message: ApiMessageData | null | undefined;
   className?: string;
 }) {
-  const text = apiMessage(t, message);
+  const text = apiMessage(t, f, message);
   if (!text) return null;
   return <span className={className}>{text}</span>;
 }

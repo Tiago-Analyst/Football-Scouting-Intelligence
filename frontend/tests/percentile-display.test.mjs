@@ -28,31 +28,44 @@ import { copy } from "./helpers/dictionaries.mjs";
 
 import { ordinal } from "../src/lib/format.ts";
 
+const en = (value) => ordinal("en-GB", value);
+const pt = (value) => ordinal("pt-PT", value);
+
 test("ordinals: the ones that are obvious", () => {
-  assert.equal(ordinal(1), "1st");
-  assert.equal(ordinal(2), "2nd");
-  assert.equal(ordinal(3), "3rd");
-  assert.equal(ordinal(4), "4th");
+  assert.equal(en(1), "1st");
+  assert.equal(en(2), "2nd");
+  assert.equal(en(3), "3rd");
+  assert.equal(en(4), "4th");
 });
 
 test("ordinals: the teens, which are the trap", () => {
-  assert.equal(ordinal(11), "11th");
-  assert.equal(ordinal(12), "12th");
-  assert.equal(ordinal(13), "13th");
+  assert.equal(en(11), "11th");
+  assert.equal(en(12), "12th");
+  assert.equal(en(13), "13th");
 });
 
 test("ordinals: past the teens the rule resumes", () => {
-  assert.equal(ordinal(21), "21st");
-  assert.equal(ordinal(22), "22nd");
-  assert.equal(ordinal(23), "23rd");
-  assert.equal(ordinal(93), "93rd");
-  assert.equal(ordinal(100), "100th");
-  assert.equal(ordinal(111), "111th");
+  assert.equal(en(21), "21st");
+  assert.equal(en(22), "22nd");
+  assert.equal(en(23), "23rd");
+  assert.equal(en(93), "93rd");
+  assert.equal(en(100), "100th");
+  assert.equal(en(111), "111th");
 });
 
 test("ordinals: a percentile arrives unrounded and leaves rounded once", () => {
-  assert.equal(ordinal(92.6), "93rd");
-  assert.equal(ordinal(0.4), "0th");
+  assert.equal(en(92.6), "93rd");
+  assert.equal(en(0.4), "0th");
+  assert.equal(pt(92.6), "93.\u00ba");
+});
+
+test("ordinals: Portuguese has no suffix to choose, and no teens trap", () => {
+  // Every Portuguese ordinal is the number, a full stop and a masculine
+  // indicator. Writing "11.\u00ba" as "11th" is not a near miss in Portuguese;
+  // it is not a word.
+  for (const value of [1, 2, 3, 11, 12, 13, 21, 93, 100, 111]) {
+    assert.equal(pt(value), `${value}.\u00ba`);
+  }
 });
 
 test("no component appends an ordinal suffix by hand", () => {
@@ -128,7 +141,30 @@ test("the bar is told the direction only so it can say it out loud", () => {
     "utf8",
   );
   const flat = source.replace(/\s+/g, " ");
-  assert.match(flat, /performance percentile, on a metric where a lower value is better/);
+  assert.match(flat, /percentileBar\.lowerIsBetter/);
+  // The sentence itself moved into the dictionaries, and a screen reader
+  // using the Portuguese page needs it as much as an English one.
+  for (const locale of ["en", "pt"]) {
+    const bar = JSON.parse(
+      readFileSync(
+        new URL(`../src/i18n/dictionaries/${locale}/components.json`, import.meta.url),
+        "utf8",
+      ),
+    ).percentileBar;
+    for (const key of ["neutral", "lowerIsBetter", "plain"]) {
+      assert.ok(bar[key], `${locale} has no percentileBar.${key}`);
+      assert.ok(bar[key].includes("{ordinal}"), `${locale} drops the ordinal from ${key}`);
+    }
+  }
+  assert.match(
+    JSON.parse(
+      readFileSync(
+        new URL("../src/i18n/dictionaries/en/components.json", import.meta.url),
+        "utf8",
+      ),
+    ).percentileBar.lowerIsBetter,
+    /on a metric where a lower value is better/,
+  );
 });
 
 test("similarity keeps raw ranks, and is not painted as merit", () => {

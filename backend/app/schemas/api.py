@@ -845,6 +845,13 @@ class OpportunityOut(BaseModel):
     #: not what the list is ordered by.
     best_role_score: float | None
     reasons: list[str]
+    #: The same reasons as codes, so a page can say them in either language.
+    #:
+    #: `reasons` stays, in English, for a caller already reading it. The
+    #: values carry raw figures - euros, an ISO date - because formatting a
+    #: number is the reader's language too, and a formatted one cannot be
+    #: reformatted.
+    reason_messages: list[Message] = Field(default_factory=list)
     #: What the list IS ordered by: `best_role_score` pulled toward the average
     #: for this screen in proportion to how little football stands behind it.
     #:
@@ -898,6 +905,8 @@ class OpportunitiesResponse(BaseModel):
     funnel: list[ScreenStepOut] = Field(default_factory=list)
     #: Present when the result is small enough to need accounting for.
     explanation: str | None = None
+    #: The same account as a code, so a page can say it in either language.
+    explanation_message: Message | None = None
     #: Whether these results are fabricated.
     #:
     #: A deployment serves one or the other - fabricated data may not share a

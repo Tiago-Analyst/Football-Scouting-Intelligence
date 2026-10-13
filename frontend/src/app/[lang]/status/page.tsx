@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/ui/States";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { getHealth, getMeta } from "@/lib/system";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StatusPage() {
   const t = await getDictionary();
+  const f = await formatters();
   const s = t.status;
   const [health, meta] = await Promise.all([getHealth(), getMeta()]);
 
@@ -74,7 +76,7 @@ export default async function StatusPage() {
                     <p className="font-mono text-sm">{dependency.name}</p>
                     {dependency.detail ? (
                       <p className="text-xs text-muted">
-                        {apiMessage(t, dependency.detail_message) ?? dependency.detail}
+                        {apiMessage(t, f, dependency.detail_message) ?? dependency.detail}
                       </p>
                     ) : null}
                   </div>
@@ -115,7 +117,7 @@ export default async function StatusPage() {
                     no code and is reported exactly as it came. */}
                 {source.notes ? (
                   <p className="text-xs text-muted">
-                    {apiMessage(t, source.notes_message) ?? source.notes}
+                    {apiMessage(t, f, source.notes_message) ?? source.notes}
                     {source.licence
                       ? ` ${s.sources.licence.replace("{licence}", source.licence)}`
                       : null}

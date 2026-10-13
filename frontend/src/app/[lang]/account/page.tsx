@@ -7,8 +7,8 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { localePath } from "@/i18n/routing";
-import { formatDateTime } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AccountPage() {
   const t = await getDictionary();
+  const f = await formatters();
   const a = t.auth.account;
   const copy = { ...t.auth.form, errors: t.auth.errors };
   const user = await getCurrentUser();
@@ -43,11 +44,11 @@ export default async function AccountPage() {
                 {user.display_name ?? <span className="text-subtle">{a.displayNameUnset}</span>}
               </dd>
               <dt className="text-muted">{a.created}</dt>
-              <dd className="tabular">{formatDateTime(user.created_at)}</dd>
+              <dd className="tabular">{f.dateTime(user.created_at)}</dd>
               <dt className="text-muted">{a.lastSignIn}</dt>
               <dd className="tabular">
                 {user.last_login_at ? (
-                  formatDateTime(user.last_login_at)
+                  f.dateTime(user.last_login_at)
                 ) : (
                   <span className="text-subtle">{a.firstSignIn}</span>
                 )}

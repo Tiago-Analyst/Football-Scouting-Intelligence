@@ -1,4 +1,3 @@
-import { ordinal } from "@/lib/format";
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -15,6 +14,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Callout, ComingSoonState, EmptyState, ErrorState } from "@/components/ui/States";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 
@@ -33,6 +33,7 @@ export default async function DesignSystemPage() {
   // dictionary only because the components it shows now take their words
   // as a prop.
   const t = await getDictionary();
+  const f = await formatters();
   return (
     <div className="space-y-14">
       <PageHeader
@@ -168,7 +169,7 @@ export default async function DesignSystemPage() {
         <div className="max-w-md space-y-3">
           {[96, 82, 64, 41, 18].map((value) => (
             <div key={value} className="grid grid-cols-[6rem_1fr] items-center gap-3">
-              <span className="text-xs text-muted">{ordinal(value)}</span>
+              <span className="text-xs text-muted">{f.ordinal(value)}</span>
               <PercentileBar percentile={value} />
             </div>
           ))}
@@ -182,7 +183,7 @@ export default async function DesignSystemPage() {
         <div className="max-w-md space-y-3">
           {[96, 82, 64, 41, 18].map((value) => (
             <div key={value} className="grid grid-cols-[6rem_1fr] items-center gap-3">
-              <span className="text-xs text-muted">{ordinal(value)}</span>
+              <span className="text-xs text-muted">{f.ordinal(value)}</span>
               <PercentileBar percentile={value} lowerIsBetter />
             </div>
           ))}

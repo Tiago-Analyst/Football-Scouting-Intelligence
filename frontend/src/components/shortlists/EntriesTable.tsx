@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import type { SampleCopy } from "@/components/ui/SampleSizeBadgeView";
 import { Table, TBody, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { MAX_COMPARE } from "@/lib/limits";
+import type { LocaleTag } from "@/lib/format";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
 
 /** The words this table and its rows need, resolved by the server page. */
@@ -35,6 +36,7 @@ export function EntriesTable({
   statuses,
   sampleCopy,
   copy,
+  tag,
 }: {
   entries: ShortlistEntry[];
   shortlistId: number;
@@ -44,6 +46,8 @@ export function EntriesTable({
   sampleCopy: Record<string, SampleCopy>;
   /** Same reason as `sampleCopy`: no dictionary reaches the browser. */
   copy: EntriesCopy;
+  /** And the locale tag, so the rows format as the rest of the page does. */
+  tag: LocaleTag;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -162,6 +166,7 @@ export function EntriesTable({
                 onToggle={toggle}
                 sampleCopy={sampleCopy}
                 copy={copy.row}
+                tag={tag}
               />
             ))}
           </TBody>

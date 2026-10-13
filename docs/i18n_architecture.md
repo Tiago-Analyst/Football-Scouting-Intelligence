@@ -210,7 +210,7 @@ unaffected throughout.
 | 2a ✅ | Terminology components, provider position vocabulary, sample-band copy, `best_role_key` on the API, **player search** |
 | 2b ✅ | Player profile, similarity, replacements, recruitment, opportunities — **and the backend message codes**, which phase 2b needed and therefore brought forward from phase 4 |
 | 3 ✅ | About, methodology, data quality, status, auth, shortlists |
-| 4 | `Intl` formatting, completeness tests — and `pt` switched on |
+| 4 ✅ | `Intl` formatting, completeness tests — and `pt` switched on |
 
 ### Why phase 2 is split
 
@@ -227,14 +227,29 @@ landed with it. The English strings all stayed, so a caller already reading
 them is unaffected; each now has a `*_message` beside it carrying the same
 claim as a code and its values.
 
-**Formatting is bigger than it looked.** `ordinal()` renders "100th" and
-`formatDate` renders "Jun 2027" on a Portuguese page. Making them locale-aware
-is **96 call sites in 19 files**, which is its own change rather than a detail
-of a page. It stays in phase 4, and no reader ever sees the half-formatted
-state because `pt` is not reachable until that phase lands.
+**Formatting was bigger than it looked.** `ordinal()` rendered "100th" and
+`formatDate` rendered "Jun 2027" on a Portuguese page. Making them locale-aware
+was **115 call sites in 19 files**, which was its own change rather than a
+detail of a page, and no reader ever saw the half-formatted state because `pt`
+was not reachable until phase 4 landed.
 
-### What the phasing is buying
+The shape it took: `lib/format` is pure and takes a BCP 47 tag, `i18n/format`
+binds the tag once per page from the locale in the URL, and the one Client
+Component that formats is handed the tag rather than a function, because a
+function does not cross that boundary. Bound per call rather than held in the
+module, because one server process renders both languages at once and a
+module-level locale would be a race between two readers. A test asserts the
+English output is byte for byte what it was.
 
-`ENABLED_LOCALES` is still `["en"]`. Every intermediate state is therefore
-coherent in production: English is complete and unchanged, and Portuguese does
-not exist yet rather than existing badly.
+### What the phasing bought
+
+`ENABLED_LOCALES` was `["en"]` for four phases and is now `["en", "pt"]`. Every
+intermediate state was coherent in production: English complete and unchanged,
+and Portuguese not existing yet rather than existing badly. The one time that
+gate was wrong - it asked whether a locale was KNOWN rather than whether it was
+reachable - `/pt` answered 200 with a Portuguese shell around English body
+copy, which is exactly the state the phasing existed to prevent. A test now
+pins the gate.
+
+Portuguese is reachable from this phase on. The same line holds back the next
+language, if there is one.

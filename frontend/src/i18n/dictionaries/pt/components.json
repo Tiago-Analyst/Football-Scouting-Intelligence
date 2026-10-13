@@ -110,5 +110,10 @@
     "nothingSaved": "Nada é guardado até premir Adicionar à lista.",
     "adding": "A adicionar…",
     "add": "Adicionar à lista"
+  },
+  "percentileBar": {
+    "neutral": "percentil {ordinal} dentro da população de comparação",
+    "lowerIsBetter": "percentil {ordinal} de desempenho, numa métrica em que um valor mais baixo é melhor",
+    "plain": "percentil {ordinal}"
   }
 }
