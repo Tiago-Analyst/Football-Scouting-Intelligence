@@ -10,6 +10,7 @@ import enComponents from "./dictionaries/en/components.json";
 import enNavigation from "./dictionaries/en/navigation.json";
 import enErrors from "./dictionaries/en/errors.json";
 import enGlossary from "./dictionaries/en/glossary.json";
+import enHome from "./dictionaries/en/home.json";
 import enMessages from "./dictionaries/en/messages.json";
 import enMethodology from "./dictionaries/en/methodology.json";
 import enPlayers from "./dictionaries/en/players.json";
@@ -29,6 +30,7 @@ import ptComponents from "./dictionaries/pt/components.json";
 import ptNavigation from "./dictionaries/pt/navigation.json";
 import ptErrors from "./dictionaries/pt/errors.json";
 import ptGlossary from "./dictionaries/pt/glossary.json";
+import ptHome from "./dictionaries/pt/home.json";
 import ptMessages from "./dictionaries/pt/messages.json";
 import ptMethodology from "./dictionaries/pt/methodology.json";
 import ptPlayers from "./dictionaries/pt/players.json";
@@ -75,6 +77,7 @@ const DICTIONARIES = {
     navigation: enNavigation,
     errors: enErrors,
     glossary: enGlossary,
+    home: enHome,
     messages: enMessages,
     methodology: enMethodology,
     players: enPlayers,
@@ -95,6 +98,7 @@ const DICTIONARIES = {
     navigation: ptNavigation,
     errors: ptErrors,
     glossary: ptGlossary,
+    home: ptHome,
     messages: ptMessages,
     methodology: ptMethodology,
     players: ptPlayers,

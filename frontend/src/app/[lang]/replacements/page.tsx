@@ -178,7 +178,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
           <Field
             label={t.replacements.constraints.budget}
             htmlFor="max_value"
-            hint="Sets the market fit component. Without a budget it is left out."
+            hint={t.replacements.constraints.budgetHint}
           >
             <TextInput
               id="max_value"

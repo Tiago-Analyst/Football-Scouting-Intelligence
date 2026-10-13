@@ -11,12 +11,10 @@ import { navCopy, PRIMARY_NAV } from "@/lib/nav";
  * No `title`: the layout's default is already this page's name, and setting one
  * would run it through the template and produce the name twice.
  */
-export const metadata: Metadata = {
-  description:
-    "Recruitment intelligence for football. Contextual percentiles measured against a " +
-    "stated peer group, role fits, statistical similarity and ranked shortlists - with the " +
-    "reasoning behind every result kept visible.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDictionary();
+  return { description: t.home.meta.description };
+}
 
 /**
  * Landing page.
@@ -31,15 +29,15 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-20">
-      <Hero />
+      <Hero t={t} />
       <Capabilities t={t} locale={locale} />
-      <Principles />
-      <Limitations />
+      <Principles t={t} />
+      <Limitations t={t} />
     </div>
   );
 }
 
-function Hero() {
+function Hero({ t }: { t: Dictionary }) {
   return (
     <section className="pt-6 sm:pt-12">
       {/* No "mock data" badge. It was hardcoded here and went on asserting that
@@ -52,22 +50,17 @@ function Hero() {
           `/api/v1/meta` and the layout shows a banner sitewide. One source of
           truth, and it is the one that knows. */}
       <h1 className="mt-5 max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-5xl">
-        Recruitment decisions need context, not just statistics.
+        {t.home.hero.title}
       </h1>
 
-      <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted">
-        A scouting and market-analysis platform that turns raw match data into
-        contextual percentiles, player roles, statistical similarity and ranked
-        recruitment shortlists — with the reasoning behind every result kept
-        visible.
-      </p>
+      <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted">{t.home.hero.body}</p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <ButtonLink href="/players" size="lg">
-          Explore players
+          {t.home.hero.explore}
         </ButtonLink>
         <ButtonLink href="/methodology" variant="secondary" size="lg">
-          How it works
+          {t.home.hero.how}
         </ButtonLink>
       </div>
     </section>
@@ -81,7 +74,7 @@ function Capabilities({ t, locale }: { t: Dictionary; locale: Locale }) {
         id="capabilities"
         className="text-xs font-semibold tracking-widest text-subtle uppercase"
       >
-        Capabilities
+        {t.home.capabilities}
       </h2>
 
       <ul className="mt-6 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
@@ -108,44 +101,32 @@ function Capabilities({ t, locale }: { t: Dictionary; locale: Locale }) {
   );
 }
 
-const PRINCIPLES = [
-  {
-    title: "Compared against the right peer group",
-    body: "A centre-back's tackling means nothing measured against forwards. Every percentile is position-scoped and measured against an explicitly defined comparison population — one competition, a selected group of them, or a cross-competition recruitment pool — and which one is always shown alongside the number.",
-  },
-  {
-    title: "Every recommendation is explainable",
-    body: "A shortlist that cannot be interrogated is not useful to a recruitment department. Each ranked candidate exposes the component percentiles, weights and filters that produced its position.",
-  },
-  {
-    title: "Sample size is never hidden",
-    body: "A per-90 figure from 200 minutes looks identical to one from 3,000. Every figure carries the minutes behind it and a sample label saying how much weight that deserves. No player is excluded for playing too little.",
-  },
-  {
-    title: "Scores describe fit, not quality",
-    body: "A role score measures statistical resemblance to a profile. It is not a scouting grade, not a probability, and not a substitute for watching the player.",
-  },
-];
+/**
+ * The four claims this product makes about its own numbers.
+ *
+ * Named by key rather than written here: they are the same four promises the
+ * methodology page spells out, and a reader arriving in Portuguese is being
+ * made the same promises as one arriving in English.
+ */
+const PRINCIPLES = ["peerGroup", "explainable", "sample", "fit"] as const;
 
-function Principles() {
+function Principles({ t }: { t: Dictionary }) {
   return (
     <section aria-labelledby="principles">
       <h2
         id="principles"
         className="text-xs font-semibold tracking-widest text-subtle uppercase"
       >
-        How results are framed
+        {t.home.principlesHeading}
       </h2>
 
       <dl className="mt-6 grid gap-x-12 gap-y-8 sm:grid-cols-2">
-        {PRINCIPLES.map((principle) => (
-          <div key={principle.title} className="space-y-2">
+        {PRINCIPLES.map((key) => (
+          <div key={key} className="space-y-2">
             <dt className="text-sm font-semibold tracking-tight">
-              {principle.title}
+              {t.home.principles[`${key}Title`]}
             </dt>
-            <dd className="text-sm leading-relaxed text-muted">
-              {principle.body}
-            </dd>
+            <dd className="text-sm leading-relaxed text-muted">{t.home.principles[key]}</dd>
           </div>
         ))}
       </dl>
@@ -153,29 +134,22 @@ function Principles() {
   );
 }
 
-function Limitations() {
+function Limitations({ t }: { t: Dictionary }) {
   return (
     <section aria-labelledby="limitations" className="max-w-3xl">
       <h2
         id="limitations"
         className="text-xs font-semibold tracking-widest text-subtle uppercase"
       >
-        Known limitations
+        {t.home.limitationsHeading}
       </h2>
 
       <div className="mt-6 space-y-3">
-        <Callout
-          tone="warning"
-          title="Cross-league percentiles are not strength-adjusted"
-        >
-          A 90th percentile in one competition is not equivalent to a 90th
-          percentile in another. No competition-strength coefficient is applied,
-          because inventing one would be worse than stating the limitation.
+        <Callout tone="warning" title={t.home.limitations.strengthTitle}>
+          {t.home.limitations.strength}
         </Callout>
-        <Callout tone="note" title="Market value is not a transfer fee">
-          Market values come from Transfermarkt and represent a crowd-sourced
-          estimate. They are not asking prices, and no valuation model is
-          applied on top of them.
+        <Callout tone="note" title={t.home.limitations.marketTitle}>
+          {t.home.limitations.market}
         </Callout>
       </div>
     </section>

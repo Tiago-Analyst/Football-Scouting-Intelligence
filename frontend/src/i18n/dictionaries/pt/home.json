@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "description": "Inteligência de recrutamento para o futebol. Percentis contextuais medidos face a um grupo de pares declarado, aptidões para papéis, semelhança estatística e listas ordenadas — com o raciocínio por trás de cada resultado à vista."
+  },
+  "hero": {
+    "title": "As decisões de recrutamento precisam de contexto, não só de estatísticas.",
+    "body": "Uma plataforma de observação e análise de mercado que transforma dados de jogo em bruto em percentis contextuais, papéis de jogador, semelhança estatística e listas de recrutamento ordenadas — com o raciocínio por trás de cada resultado à vista.",
+    "explore": "Explorar jogadores",
+    "how": "Como funciona"
+  },
+  "capabilities": "O que faz",
+  "principlesHeading": "Como os resultados são enquadrados",
+  "principles": {
+    "peerGroupTitle": "Comparado com o grupo de pares certo",
+    "peerGroup": "O desarme de um defesa-central nada significa medido contra avançados. Cada percentil é delimitado por posição e medido face a uma população de comparação explicitamente definida — uma competição, um conjunto escolhido delas, ou um universo de recrutamento entre competições — e qual delas é sempre mostrado ao lado do número.",
+    "explainableTitle": "Cada recomendação é explicável",
+    "explainable": "Uma lista que não pode ser interrogada não serve a um departamento de recrutamento. Cada candidato ordenado expõe os percentis componentes, os pesos e os filtros que produziram a sua posição.",
+    "sampleTitle": "A dimensão da amostra nunca é escondida",
+    "sample": "Um valor por 90 minutos a partir de 200 minutos parece igual a um a partir de 3000. Cada valor traz consigo os minutos que o sustentam e uma etiqueta de amostra a dizer que peso isso merece. Nenhum jogador é excluído por ter jogado pouco.",
+    "fitTitle": "As pontuações descrevem aptidão, não qualidade",
+    "fit": "A pontuação de um papel mede a semelhança estatística com um perfil. Não é uma nota de observação, não é uma probabilidade, e não substitui ver jogar."
+  },
+  "limitationsHeading": "Limitações conhecidas",
+  "limitations": {
+    "strengthTitle": "Os percentis entre ligas não são ajustados à força",
+    "strength": "Um percentil 90 numa competição não equivale a um percentil 90 noutra. Não é aplicado nenhum coeficiente de força de competição, porque inventar um seria pior do que declarar a limitação.",
+    "marketTitle": "O valor de mercado não é um valor de transferência",
+    "market": "Os valores de mercado vêm do Transfermarkt e representam uma estimativa colaborativa. Não são preços pedidos, e não lhes é aplicado nenhum modelo de avaliação por cima."
+  }
+}
