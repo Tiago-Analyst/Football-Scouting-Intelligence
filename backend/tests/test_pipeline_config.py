@@ -257,3 +257,43 @@ class TestTheConnectionTravelsWhole:
         assert "example.neon.tech" in settings.sqlalchemy_url
         assert "sslmode=require" in settings.sqlalchemy_url
         assert "ignored" not in settings.sqlalchemy_url
+
+
+class TestTheWorkflowParsesWhereItHasTo:
+    """`yaml.safe_load` is not the parser that matters.
+
+    A duplicate key is legal YAML - the last one wins - so `safe_load` reads a
+    workflow with two `DATABASE_URL` entries without complaint, and so does
+    every test above. GitHub refuses it outright:
+
+        failed to parse workflow: 'DATABASE_URL' is already defined
+
+    which arrives as an HTTP 422 on dispatch, long after CI has gone green. So
+    this reads the file strictly rather than trusting the loader that let it
+    through.
+    """
+
+    def test_no_mapping_defines_the_same_key_twice(self) -> None:
+        import yaml
+
+        class Strict(yaml.SafeLoader):
+            pass
+
+        def no_duplicates(loader: yaml.Loader, node: yaml.Node, deep: bool = False) -> dict:
+            seen: set = set()
+            for key_node, _ in node.value:
+                key = loader.construct_object(key_node, deep=deep)
+                if key in seen:
+                    raise AssertionError(
+                        f"{key!r} is defined twice at line {key_node.start_mark.line + 1}; "
+                        "GitHub refuses the workflow, though yaml.safe_load does not"
+                    )
+                seen.add(key)
+            return loader.construct_mapping(node, deep)
+
+        Strict.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates)
+
+        for workflow in sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml")):
+            # `Strict` subclasses SafeLoader and only narrows it, so this
+            # constructs nothing a safe load would not.
+            yaml.load(workflow.read_text(encoding="utf-8"), Loader=Strict)  # noqa: S506
