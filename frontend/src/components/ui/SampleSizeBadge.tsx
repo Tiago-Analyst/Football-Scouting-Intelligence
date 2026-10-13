@@ -1,5 +1,5 @@
 import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
-import { formatCount } from "@/lib/format";
+import { formatters, type Formatters } from "@/i18n/format";
 import type { SampleBand } from "@/lib/sample";
 
 import { SampleSizeBadgeView, type SampleCopy } from "./SampleSizeBadgeView";
@@ -33,8 +33,13 @@ export async function SampleSizeBadge({
   showTooltip?: boolean;
 }) {
   const t = await getDictionary();
+  const f = await formatters();
   return (
-    <SampleSizeBadgeView band={band} copy={sampleCopy(t, band, minutes)} showTooltip={showTooltip} />
+    <SampleSizeBadgeView
+      band={band}
+      copy={sampleCopy(t, f, band, minutes)}
+      showTooltip={showTooltip}
+    />
   );
 }
 
@@ -46,6 +51,7 @@ export async function SampleSizeBadge({
  */
 export function sampleCopy(
   t: Dictionary,
+  f: Formatters,
   band: SampleBand,
   minutes?: number | null,
 ): SampleCopy {
@@ -55,7 +61,7 @@ export function sampleCopy(
     explanation: t.glossary.sampleExplanations[band],
     minutesSentence:
       minutes !== null && minutes !== undefined
-        ? t.glossary.sampleMinutes.replace("{minutes}", formatCount(minutes))
+        ? t.glossary.sampleMinutes.replace("{minutes}", f.count(minutes))
         : "",
     tooltipLabel: t.glossary.sampleTooltipLabel.replace("{label}", label),
   };

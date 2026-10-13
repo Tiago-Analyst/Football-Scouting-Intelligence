@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/Badge";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatCount } from "@/lib/format";
 import { COVERAGE_TONE, SAMPLE_LABEL, SAMPLE_TONE } from "@/lib/sample";
 import type { Sample } from "@/types/api";
 
@@ -44,6 +44,7 @@ import type { Sample } from "@/types/api";
  */
 export async function DataConfidence({ sample }: { sample: Sample }) {
   const t = await getDictionary();
+  const f = await formatters();
   const coverage = sample.detailed_coverage_pct;
   const inconsistent = sample.provider_minutes_inconsistent === true;
 
@@ -67,7 +68,7 @@ export async function DataConfidence({ sample }: { sample: Sample }) {
           <dl className="divide-y divide-border">
             <Row
               term={t.components.dataConfidence.minutesPlayed}
-              value={sample.minutes !== null ? formatCount(sample.minutes) : "N/A"}
+              value={sample.minutes !== null ? f.count(sample.minutes) : "N/A"}
             />
             <Row
               term={t.components.dataConfidence.sample}
@@ -94,7 +95,7 @@ export async function DataConfidence({ sample }: { sample: Sample }) {
                 </span>
               }
               value={
-                sample.recorded_minutes !== null ? formatCount(sample.recorded_minutes) : "N/A"
+                sample.recorded_minutes !== null ? f.count(sample.recorded_minutes) : "N/A"
               }
             />
             <Row

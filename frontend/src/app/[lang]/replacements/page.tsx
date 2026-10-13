@@ -4,6 +4,7 @@ import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -13,7 +14,6 @@ import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { formatDate, formatEuro } from "@/lib/format";
 import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,6 +28,7 @@ function first(value: string | string[] | undefined): string | undefined {
 
 export default async function ReplacementsPage(props: PageProps<"/[lang]/replacements">) {
   const t = await getDictionary();
+  const f = await formatters();
   const params = await props.searchParams;
   const playerId = first(params.player);
   const search = first(params.search);
@@ -339,7 +340,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           )}
                         </TD>
                         <TD numeric className="font-medium">
-                          <span title={apiMessage(t, entry.ranking_note_message) ?? undefined}>
+                          <span title={apiMessage(t, f, entry.ranking_note_message) ?? undefined}>
                             {entry.ranking_value != null ? Math.round(entry.ranking_value) : "–"}
                           </span>
                           {entry.evidence_weight != null && entry.evidence_weight < 1 ? (
@@ -353,12 +354,12 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                         </TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null
-                            ? formatEuro(entry.player.market_value_eur)
+                            ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
                         <TD numeric className="whitespace-nowrap text-muted">
                           {entry.player.contract_expires
-                            ? formatDate(entry.player.contract_expires)
+                            ? f.date(entry.player.contract_expires)
                             : "–"}
                         </TD>
                       </TR>

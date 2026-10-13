@@ -708,14 +708,36 @@ def market_opportunities(
             f"{record.minutes:,} minutes played",
             f"Valued at €{record.market_value_eur / 1_000_000:.1f}m",
         ]
+        # The same four as codes. `role` is a KEY and the figures are raw: a
+        # euro amount formatted here is formatted in one language, and the page
+        # cannot undo that to say it in the other.
+        reason_messages = [
+            Message(
+                code="opportunity_role_fit",
+                values={"role": best.key, "fit": round(best.score)},
+            ),
+            Message(code="opportunity_age", values={"age": record.age or 0}),
+            Message(code="opportunity_minutes", values={"minutes": record.minutes}),
+            Message(
+                code="opportunity_value",
+                values={"value_eur": record.market_value_eur},
+            ),
+        ]
         if contract_within_months is not None and record.contract_expires is not None:
             reasons.append(f"Contract expires {record.contract_expires:%b %Y}")
+            reason_messages.append(
+                Message(
+                    code="opportunity_contract",
+                    values={"expires": record.contract_expires.isoformat()},
+                )
+            )
 
         found.append(
             OpportunityOut(
                 player=to_summary(record, view),
                 best_role_score=best.score,
                 reasons=reasons,
+                reason_messages=reason_messages,
             )
         )
 
@@ -773,6 +795,7 @@ def market_opportunities(
         disclaimer_message=Message(code="opportunity_disclaimer"),
         funnel=funnel,
         explanation=_explain_screen(funnel, len(found)),
+        explanation_message=_explain_screen_code(funnel, len(found)),
         is_mock=view.is_mock,
     )
 
@@ -811,6 +834,37 @@ def _best_role_score(view: AnalyticsView, record: PlayerRecord) -> float:
     if fit is None or fit.best is None or fit.best.score is None:
         return -1.0
     return fit.best.score
+
+
+def _explain_screen_code(funnel: list[ScreenStepOut], found: int) -> Message | None:
+    """The same sentence as a code, beside the one `_explain_screen` writes.
+
+    The strictest step is named by its own `criterion_message`, which already
+    carries the criterion as a code: a screen step is "Age at most 22" in
+    English and something else in Portuguese, and quoting the English inside a
+    Portuguese sentence is the failure this mechanism exists to avoid.
+
+    `standing` is how `ApiMessage` already nests one coded sentence inside
+    another, so the same mechanism is reused rather than a second one added.
+    """
+    if found > 10 or not funnel:
+        return None
+
+    strictest = max(funnel, key=lambda step: step.removed)
+    if strictest.removed == 0:
+        return None
+    criterion = strictest.criterion_message
+    return Message(
+        code="screen_thin_result",
+        values={
+            "found": found,
+            "started": funnel[0].remaining + funnel[0].removed,
+            "criterion": criterion.code if criterion else strictest.criterion,
+            "criterion_value": next(iter(criterion.values.values()), "") if criterion else "",
+            "removed": strictest.removed,
+            "survived": funnel[-1].remaining,
+        },
+    )
 
 
 def _explain_screen(funnel: list[ScreenStepOut], found: int) -> str | None:

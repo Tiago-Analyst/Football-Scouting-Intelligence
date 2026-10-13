@@ -110,5 +110,10 @@
     "nothingSaved": "Nothing is saved until you press Add to shortlist.",
     "adding": "Adding…",
     "add": "Add to shortlist"
+  },
+  "percentileBar": {
+    "neutral": "{ordinal} percentile within the comparison population",
+    "lowerIsBetter": "{ordinal} performance percentile, on a metric where a lower value is better",
+    "plain": "{ordinal} percentile"
   }
 }

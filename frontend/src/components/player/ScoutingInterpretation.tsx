@@ -3,6 +3,7 @@ import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import type { ApiMessage, Finding, ScoutingInterpretation as Interpretation } from "@/types/api";
 
 /**
@@ -35,6 +36,7 @@ export async function ScoutingInterpretation({
   interpretation: Interpretation;
 }) {
   const t = await getDictionary();
+  const f = await formatters();
   const c = t.components.interpretation;
   const {
     profile,
@@ -57,7 +59,7 @@ export async function ScoutingInterpretation({
    * than one that renders English.
    */
   const lines = (coded: ApiMessage[] | undefined, prose: string[]) =>
-    coded?.length ? coded.map((m) => apiMessage(t, m) ?? "").filter(Boolean) : prose;
+    coded?.length ? coded.map((m) => apiMessage(t, f, m) ?? "").filter(Boolean) : prose;
 
   const profileLines = lines(profile_messages, profile);
   const unavailableLines = lines(unavailable_messages, unavailable);

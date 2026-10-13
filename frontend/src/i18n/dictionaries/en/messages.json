@@ -70,5 +70,11 @@
   "health_analytics_empty": "No player data is loaded. Run the ingestion pipeline; until then search, profiles and rankings have nothing to serve.",
   "health_analytics_stale": "Serving {seasons} player-seasons built at {built}. The database has been loaded since; restart the API to serve the new data.",
   "health_analytics_ok": "{seasons} player-seasons across {competitions} competitions, built at {built}.",
-  "health_analytics_ok_excluded": "{seasons} player-seasons across {competitions} competitions, built at {built}. {excluded} excluded for having no position group."
+  "health_analytics_ok_excluded": "{seasons} player-seasons across {competitions} competitions, built at {built}. {excluded} excluded for having no position group.",
+  "opportunity_role_fit": "{role} fit {fit}/100",
+  "opportunity_age": "{age} years old",
+  "opportunity_minutes": "{minutes} minutes played",
+  "opportunity_value": "Valued at {value_eur}",
+  "opportunity_contract": "Contract expires {expires}",
+  "screen_thin_result": "{found} of {started} players cleared every criterion. Most were removed by “{criterion}” ({removed} players); {survived} survived the full screen."
 }

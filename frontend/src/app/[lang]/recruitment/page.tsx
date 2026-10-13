@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { BlockedProfile } from "@/components/recruitment/BlockedProfile";
@@ -15,7 +16,6 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
-import { formatCount, formatEuro } from "@/lib/format";
 import { describeProfile } from "@/lib/profile-summary";
 import {
   getCompetitions,
@@ -52,6 +52,7 @@ function first(value: string | string[] | undefined): string | undefined {
 
 export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitment">) {
   const t = await getDictionary();
+  const f = await formatters();
   const params = await props.searchParams;
   const submitted = first(params.submitted) === "1";
 
@@ -171,7 +172,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                     <span
                       className="ml-1.5 text-[10px] text-warning"
                       title={
-                        apiMessage(t, {
+                        apiMessage(t, f, {
                           code: "score_unavailable_missing",
                           values: {
                             score: score.key,
@@ -314,7 +315,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               // as the API's English sentence: BlockedProfile renders in the
               // browser and cannot translate anything itself.
               reason:
-                apiMessage(t, {
+                apiMessage(t, f, {
                   code: score.missing?.length
                     ? "score_unavailable_missing"
                     : "score_unavailable_no_candidate",
@@ -378,7 +379,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   : t.recruitment.states.noMatchTitle
               }
               description={
-                apiMessage(t, results.explanation_message) ??
+                apiMessage(t, f, results.explanation_message) ??
                 t.recruitment.states.noMatchDescription
               }
               action={
@@ -390,7 +391,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted">
                   <span className="tabular font-medium text-text">
-                    {formatCount(results.total)}
+                    {f.count(results.total)}
                   </span>{" "}
                   {t.recruitment.results.matching.replace(
                     "{shown}",
@@ -405,7 +406,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   <ul className="space-y-1">
                     {results.unavailable_scores.map((score) => (
                       <li key={score.key}>
-                        {apiMessage(t, {
+                        {apiMessage(t, f, {
                           code: score.missing?.length
                             ? "score_unavailable_missing"
                             : "score_unavailable_no_candidate",
@@ -451,7 +452,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                           .replace("{club}", candidate.player.club ?? "–")
                           .replace("{competition}", candidate.player.competition)}${
                           candidate.player.market_value_eur !== null
-                            ? ` · ${formatEuro(candidate.player.market_value_eur)}`
+                            ? ` · ${f.euro(candidate.player.market_value_eur)}`
                             : ""
                         }`}
                         action={
@@ -467,7 +468,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                               <span
                                 className="mt-0.5 text-[10px] text-subtle"
                                 title={
-                                  apiMessage(t, candidate.ranking_note_message) ?? undefined
+                                  apiMessage(t, f, candidate.ranking_note_message) ?? undefined
                                 }
                               >
                                 {t.recruitment.results.rankedNote

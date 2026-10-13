@@ -1,4 +1,4 @@
-import { formatDate } from "@/lib/format";
+import { formatters } from "@/i18n/format";
 import type { SourcePublication } from "@/types/api";
 
 /**
@@ -21,7 +21,7 @@ import type { SourcePublication } from "@/types/api";
  * has been recorded yet or the database was unreachable, and a missing line is
  * a smaller lie than an invented date.
  */
-export function DataFreshness({
+export async function DataFreshness({
   sources,
   copy,
 }: {
@@ -29,6 +29,7 @@ export function DataFreshness({
   /** The source names and the sentence around them, resolved by the footer. */
   copy: Record<string, string>;
 }) {
+  const f = await formatters();
   if (sources.length === 0) return null;
 
   return (
@@ -38,7 +39,7 @@ export function DataFreshness({
           <dt>{copy.updated.replace("{source}", copy[entry.source] ?? entry.source)}</dt>
           <dd className="font-medium text-muted">
             <time dateTime={entry.last_published_at}>
-              {formatDate(entry.last_published_at)}
+              {f.date(entry.last_published_at)}
             </time>
           </dd>
         </div>

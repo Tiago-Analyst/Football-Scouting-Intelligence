@@ -9,8 +9,8 @@ import { Callout } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { leadingValues } from "@/lib/comparison";
-import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import type { Dictionary } from "@/i18n/dictionaries";
+import type { Formatters } from "@/i18n/format";
 import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
 
 /**
@@ -181,12 +181,15 @@ function ArgumentRow({
 
 export function ComparisonTable({
   t,
+  f,
   comparison,
   scope,
   shortlistId,
   compared,
 }: {
   t: Dictionary;
+  /** Resolved by the page, like the dictionary beside it. */
+  f: Formatters;
   comparison: ComparisonResponse;
   /** Which population the percentiles were measured against. */
   scope: "competition" | "global";
@@ -291,7 +294,7 @@ export function ComparisonTable({
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
                   <span className="inline-flex items-center gap-1.5">
-                    {column.sample.minutes !== null ? formatCount(column.sample.minutes) : "—"}
+                    {column.sample.minutes !== null ? f.count(column.sample.minutes) : "—"}
                     {column.sample.minutes !== null ? (
                       <SampleSizeBadge
                         band={column.sample.band}
@@ -322,7 +325,7 @@ export function ComparisonTable({
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
                   {column.player.market_value_eur != null
-                    ? formatEuro(column.player.market_value_eur)
+                    ? f.euro(column.player.market_value_eur)
                     : "—"}
                 </TD>
               ))}
@@ -359,7 +362,7 @@ export function ComparisonTable({
                         <span className="block text-[11px] text-subtle">
                           {c.roleFitPercentile.replace(
                             "{ordinal}",
-                            ordinal(column.role.role_fit_percentile),
+                            f.ordinal(column.role.role_fit_percentile),
                           )}
                         </span>
                       ) : null}

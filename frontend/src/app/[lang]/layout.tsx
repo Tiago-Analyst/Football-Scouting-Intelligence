@@ -10,6 +10,7 @@ import { SiteHeader } from "@/components/shell/SiteHeader";
 import { ThemeScript } from "@/components/shell/ThemeScript";
 import { ENABLED_LOCALES, LOCALE_TAG } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { IS_PUBLIC_ORIGIN, SITE_URL } from "@/lib/site";
 import { getMeta } from "@/lib/system";
 import "../globals.css";
@@ -88,6 +89,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
   const meta = await getMeta();
   const locale = await getLocale();
   const t = await getDictionary();
+  const f = await formatters();
 
   return (
     <html
@@ -112,7 +114,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           <DemoDataBanner
             label={t.common.states.demoDataLabel}
             notice={
-              apiMessage(t, meta.demo_data_notice_message) ?? meta.demo_data_notice
+              apiMessage(t, f, meta.demo_data_notice_message) ?? meta.demo_data_notice
             }
           />
         ) : null}

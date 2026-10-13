@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -13,7 +14,6 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
-import { formatCount, formatEuro, ordinal } from "@/lib/format";
 import { getOpportunities } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,6 +28,7 @@ function first(value: string | string[] | undefined): string | undefined {
 
 export default async function OpportunitiesPage(props: PageProps<"/[lang]/opportunities">) {
   const t = await getDictionary();
+  const f = await formatters();
   const params = await props.searchParams;
   const criteria = {
     max_age: first(params.max_age) ?? "23",
@@ -154,14 +155,14 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
               <p className="text-xs text-muted">
                 {t.opportunities.results.meeting.replace(
                   "{count}",
-                  formatCount(results.total),
+                  f.count(results.total),
                 )}
               </p>
               {results.is_mock ? <Badge tone="warning">{t.opportunities.results.demoData}</Badge> : null}
             </div>
 
             <Callout tone="warning" title={t.opportunities.results.disclaimerTitle}>
-              {apiMessage(t, results.disclaimer_message) ?? results.disclaimer}
+              {apiMessage(t, f, results.disclaimer_message) ?? results.disclaimer}
             </Callout>
 
             {results.funnel.length > 0 ? (
@@ -171,17 +172,17 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                   {results.funnel.map((step) => (
                     <li key={step.criterion} className="flex justify-between gap-4">
                       <span>
-                        {apiMessage(t, step.criterion_message) ?? step.criterion}
+                        {apiMessage(t, f, step.criterion_message) ?? step.criterion}
                       </span>
                       <span className="tabular whitespace-nowrap">
                         {t.opportunities.results.stepRemaining.replace(
                         "{remaining}",
-                        formatCount(step.remaining),
+                        f.count(step.remaining),
                       )}
                       {step.removed > 0
                         ? t.opportunities.results.stepRemoved.replace(
                             "{removed}",
-                            formatCount(step.removed),
+                            f.count(step.removed),
                           )
                         : ""}
                       </span>
@@ -189,7 +190,9 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                   ))}
                 </ul>
                 {results.explanation ? (
-                  <p className="mt-3 text-xs text-muted">{results.explanation}</p>
+                  <p className="mt-3 text-xs text-muted">
+                    {apiMessage(t, f, results.explanation_message) ?? results.explanation}
+                  </p>
                 ) : null}
               </details>
             ) : null}
@@ -198,7 +201,9 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
               <EmptyState
                 title={t.opportunities.results.emptyTitle}
                 description={
-                  results.explanation ?? t.opportunities.results.emptyDescription
+                  apiMessage(t, f, results.explanation_message) ??
+                  results.explanation ??
+                  t.opportunities.results.emptyDescription
                 }
                 action={
                   <ButtonLink href="/opportunities" variant="secondary" size="sm">{t.opportunities.results.resetCriteria}</ButtonLink>
@@ -240,7 +245,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                           ·{" "}
                           {t.opportunities.results.minutes.replace(
                             "{minutes}",
-                            formatCount(entry.player.minutes),
+                            f.count(entry.player.minutes),
                           )}
                         </span>
                                 <SampleSizeBadge
@@ -277,7 +282,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                                 ·{" "}
                             {t.opportunities.results.rolePercentile.replace(
                               "{percentile}",
-                              ordinal(entry.player.best_role_percentile),
+                              f.ordinal(entry.player.best_role_percentile),
                             )}
                               </span>
                             ) : null}
@@ -295,7 +300,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                               <span
                                 className="mt-0.5 text-[10px] text-subtle"
                                 title={
-                                  apiMessage(t, entry.ranking_note_message) ?? undefined
+                                  apiMessage(t, f, entry.ranking_note_message) ?? undefined
                                 }
                               >
                                 {t.opportunities.results.rankedNote
@@ -315,9 +320,12 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                       <CardBody>
                         <p className="mb-2 text-xs font-medium text-muted">{t.opportunities.results.why}</p>
                         <ul className="flex flex-wrap gap-2">
-                          {entry.reasons.map((reason) => (
-                            <li key={reason}>
-                              <Badge tone="neutral">{reason}</Badge>
+                          {/* The API decided which reasons apply; the words are
+                              this side's, because a euro amount and a month
+                              are written differently in each language. */}
+                          {(entry.reason_messages ?? []).map((reason) => (
+                            <li key={reason.code}>
+                              <Badge tone="neutral">{apiMessage(t, f, reason)}</Badge>
                             </li>
                           ))}
                         </ul>
@@ -325,7 +333,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                           <p className="mt-3 text-xs text-subtle">
                             {t.opportunities.results.marketValueNote.replace(
                               "{value}",
-                              formatEuro(entry.player.market_value_eur),
+                              f.euro(entry.player.market_value_eur),
                             )}
                           </p>
                         ) : null}

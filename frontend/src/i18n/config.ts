@@ -15,6 +15,8 @@
  * See `docs/i18n_architecture.md`.
  */
 
+import type { LocaleTag } from "@/lib/format";
+
 /** The URL segment for each language. */
 export const LOCALES = ["en", "pt"] as const;
 
@@ -23,11 +25,17 @@ export type Locale = (typeof LOCALES)[number];
 /**
  * Locales a reader can reach right now.
  *
- * Phase 1 ships the architecture; `pt` joins this list when its copy is
- * complete. A test asserts the selector and the proxy both read THIS list
- * rather than `LOCALES`, so enabling a language is one edit.
+ * Phase 1 shipped the architecture with `pt` held back, and every phase since
+ * was coherent in production because of this line: the Portuguese dictionaries
+ * existed, the routes resolved, and no reader could reach a page that was half
+ * translated. `pt` joins the list here, with the copy complete and the numbers,
+ * dates and ordinals reading as Portuguese rather than as English with accents.
+ *
+ * A test asserts the selector and the proxy both read THIS list rather than
+ * `LOCALES`, so enabling a language was one edit - and holding one back again,
+ * if a future language needs the same runway, is the same one edit back.
  */
-export const ENABLED_LOCALES: readonly Locale[] = ["en"];
+export const ENABLED_LOCALES: readonly Locale[] = ["en", "pt"];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
@@ -38,7 +46,7 @@ export const DEFAULT_LOCALE: Locale = "en";
  * region and `/pt-PT/players/74972` is noise in a shared link, but a date
  * formatter very much does: `pt` alone can resolve to Brazilian conventions.
  */
-export const LOCALE_TAG: Record<Locale, string> = {
+export const LOCALE_TAG: Record<Locale, LocaleTag> = {
   en: "en-GB",
   pt: "pt-PT",
 };

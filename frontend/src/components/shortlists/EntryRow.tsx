@@ -15,7 +15,7 @@ import {
   type SampleCopy,
 } from "@/components/ui/SampleSizeBadgeView";
 import { TD, TR } from "@/components/ui/Table";
-import { formatCount, formatDateTime, formatEuro } from "@/lib/format";
+import { bindFormatters, type LocaleTag } from "@/lib/format";
 import { EMPTY_FORM_STATE } from "@/lib/forms";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
 
@@ -44,6 +44,7 @@ export function EntryRow({
   onToggle,
   sampleCopy,
   copy,
+  tag,
 }: {
   entry: ShortlistEntry;
   shortlistId: number;
@@ -56,7 +57,13 @@ export function EntryRow({
   sampleCopy: Record<string, SampleCopy>;
   /** Same reason: the words come from the server page, not a dictionary. */
   copy: Record<string, string>;
+  /** And the locale tag, so the numbers in this row group and the dates
+   * read the way the rest of the page does. A bound formatter cannot be
+   * passed across this boundary - a function is not serialisable - but the
+   * tag is a string, and `Intl` is in the browser too. */
+  tag: LocaleTag;
 }) {
+  const f = bindFormatters(tag);
   const { player } = entry;
 
   return (
@@ -96,7 +103,7 @@ export function EntryRow({
               {player.club ? <span>· {player.club}</span> : null}
               {player.minutes !== null ? (
                 <>
-                  <span>· {copy.minutes.replace("{minutes}", formatCount(player.minutes))}</span>
+                  <span>· {copy.minutes.replace("{minutes}", f.count(player.minutes))}</span>
                   <SampleSizeBadgeView
                     band={player.sample_band}
                     copy={sampleCopy[player.sample_band]}
@@ -115,14 +122,14 @@ export function EntryRow({
 
       <TD numeric>{player?.age ?? "—"}</TD>
       <TD numeric>
-        {player?.market_value_eur != null ? formatEuro(player.market_value_eur) : "—"}
+        {player?.market_value_eur != null ? f.euro(player.market_value_eur) : "—"}
       </TD>
 
       <TD className="whitespace-nowrap">
         <StatusBadge status={entry.status} label={entry.status_label} />
         <div className="mt-1 text-[11px] text-subtle">
           {entry.last_reviewed_at ? (
-            copy.reviewed.replace("{when}", formatDateTime(entry.last_reviewed_at))
+            copy.reviewed.replace("{when}", f.dateTime(entry.last_reviewed_at))
           ) : (
             // Not "never reviewed": the player was saved and nothing has been
             // claimed about them yet, which is a different and fairer thing to
