@@ -326,7 +326,23 @@ no TLS termination, no backups and no secret management.
 `.github/workflows/pipeline.yml` refreshes the data on the cadence in
 `config/competitions.yaml`. It checks for a production database first and exits
 cleanly when there is none, so it does not fail every week until this phase is
-done. Set the `POSTGRES_*` secrets in the repository and it starts working.
+done.
+
+Set **`DATABASE_URL`** in the repository's Actions secrets and it starts
+working: the whole connection string, exactly as the provider gives it and as
+Render already has it. The five `POSTGRES_*` secrets still work for a Postgres
+with no URL to hand, and the settings object prefers the URL when both are set.
+
+Use the URL for a managed provider. It carries `sslmode=require`, which Neon
+refuses the connection without and which five separate parts have nowhere to
+put - the failure reads `connection is insecure (try using sslmode=require)`,
+alongside a password error that is a consequence rather than the cause.
+
+Alongside it: `FOOTYSTATS_API_KEY`, without which the production check refuses
+the environment, and `CORS_ALLOW_ORIGINS`, without which it refuses it for a
+different reason. `API_ORIGIN`, `SITE_ORIGIN` and `INTERNAL_TOKEN` close the
+loop so a publication reaches the site; without them the pipeline warns and
+carries on, and the API picks the data up on its next restart.
 
 A failed load publishes nothing — `--verify` runs the quality suite inside the
 transaction and rolls back on any failure.

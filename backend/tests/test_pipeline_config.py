@@ -207,3 +207,53 @@ class TestNothingIsAskedBeforeThereIsSomewhereToAsk:
         report = self.position_of(workflow, "Report that there is nothing to refresh")
         gate = self.position_of(workflow, "Decide what this run should do")
         assert report < gate, "the explanation arrives after the step that made it necessary"
+
+
+class TestTheConnectionTravelsWhole:
+    """A managed database is reached by its URL, not by five pieces of one.
+
+    The settings object has preferred `DATABASE_URL` all along, and Render
+    passes one. The pipeline assembled its own from five secrets instead, and
+    an assembled one has nowhere to put `sslmode` - which Neon requires and
+    refuses the connection without:
+
+        ERROR: connection is insecure (try using `sslmode=require`)
+
+    So the five-part path could not have worked against the deployed database
+    whatever was in the secrets. Both forms are passed now, and the settings
+    object decides, exactly as it does for the service.
+    """
+
+    @staticmethod
+    def steps_with_credentials(workflow: dict) -> list[dict]:
+        job = next(iter(workflow["jobs"].values()))
+        return [s for s in job["steps"] if "POSTGRES_HOST" in (s.get("env") or {})]
+
+    def test_every_step_that_takes_the_parts_also_takes_the_url(self, workflow: dict) -> None:
+        steps = self.steps_with_credentials(workflow)
+        assert steps, "no step reads the database credentials at all"
+        missing = [s["name"] for s in steps if "DATABASE_URL" not in s["env"]]
+        assert missing == [], f"these take the parts but not the whole: {missing}"
+
+    def test_the_preflight_accepts_either_form(self, workflow: dict) -> None:
+        job = next(iter(workflow["jobs"].values()))
+        preflight = next(s for s in job["steps"] if s.get("id") == "preflight")
+        assert "DATABASE_URL" in (preflight.get("env") or {})
+        assert "DATABASE_URL" in preflight["run"], (
+            "the preflight would report no database for a deployment that has one"
+        )
+
+    def test_the_settings_still_prefer_the_url(self) -> None:
+        # The workflow passes both, so which wins is decided here. If this
+        # stopped preferring the URL, the sslmode would be dropped again and
+        # the connection would be refused - with a message about the password.
+        from app.core.config import Settings
+
+        settings = Settings(
+            database_url="postgresql://whole:url@example.neon.tech/db?sslmode=require",
+            postgres_host="ignored.example",
+            postgres_user="ignored",
+        )
+        assert "example.neon.tech" in settings.sqlalchemy_url
+        assert "sslmode=require" in settings.sqlalchemy_url
+        assert "ignored" not in settings.sqlalchemy_url
