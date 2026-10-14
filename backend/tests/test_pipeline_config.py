@@ -297,3 +297,27 @@ class TestTheWorkflowParsesWhereItHasTo:
             # `Strict` subclasses SafeLoader and only narrows it, so this
             # constructs nothing a safe load would not.
             yaml.load(workflow.read_text(encoding="utf-8"), Loader=Strict)  # noqa: S506
+
+
+class TestAnOverrunLeavesEvidence:
+    """A step killed by the timeout must not take its log with it.
+
+    Eight steps pipe their output through `tee`, and a pipe makes Python
+    buffer stdout. The first production-scale identity resolution ran for
+    forty-five minutes, was killed by the job timeout, and uploaded an empty
+    `pipeline-identity.log` - so the one question worth asking, where the time
+    went, had no evidence at all.
+    """
+
+    def test_python_output_is_unbuffered(self, workflow: dict) -> None:
+        job = next(iter(workflow["jobs"].values()))
+        assert (job.get("env") or {}).get("PYTHONUNBUFFERED") == "1", (
+            "a step killed by the timeout will upload an empty log"
+        )
+
+    def test_the_steps_that_pipe_are_the_reason(self, workflow: dict) -> None:
+        # If nothing piped any more, the setting would be harmless rather than
+        # necessary, and this test should be deleted rather than kept passing.
+        job = next(iter(workflow["jobs"].values()))
+        piped = [s for s in job["steps"] if "| tee" in str(s.get("run", ""))]
+        assert piped, "nothing pipes its output; PYTHONUNBUFFERED is no longer load-bearing"

@@ -77,6 +77,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    env:
+      # Eight steps pipe their output through `tee`, and a pipe makes Python
+      # buffer stdout. A step killed by the job timeout is killed before that
+      # buffer is flushed, so its log arrives EMPTY - which is how the first
+      # production-scale identity resolution spent forty-five minutes and
+      # recorded nothing about where they went. The one thing a run that
+      # overruns has to leave behind is where it was.
+      PYTHONUNBUFFERED: "1"
+
     steps:
       - uses: actions/checkout@v4
 
