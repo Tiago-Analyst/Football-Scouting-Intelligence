@@ -514,7 +514,7 @@ def _check_roles(view, record, player_key, name, validation) -> None:  # type: i
     per-90 rates beside percentiles would still produce a plausible number.
     """
     from app.analytics.percentiles import PercentileScope
-    from app.analytics.roles import get_roles
+    from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
 
     fit = view.role_fit(player_key)
     if fit is None:
@@ -542,7 +542,27 @@ def _check_roles(view, record, player_key, name, validation) -> None:  # type: i
             inner = inner_scores.get(score_key)
             parts[f"score:{score_key}"] = (weight, inner.score if inner else None)
 
-        mine, _, working = independent_weighted(parts, role.min_coverage)
+        # THE SHARED FLOOR, NOT THE ROLE'S OWN.
+        #
+        # `role.min_coverage` no longer exists; it was retired as a validity
+        # gate and kept as `legacy_min_coverage` for the record, because it
+        # encoded what the provider happened to supply rather than what a role
+        # needs. This line still named it, so the step raised `AttributeError`
+        # the first time it ran against real data.
+        #
+        # Renaming it to `legacy_min_coverage` would compile and be wrong in a
+        # worse way: the validator would check a gate production does not use,
+        # and with the default of 1.0 it would refuse a number for every player
+        # with any gap while the engine produced one - a wall of disagreements
+        # about a rule nothing enforces.
+        #
+        # `RoleScorer` passes `SECONDARY_COVERAGE_FLOOR` to `weighted_score`,
+        # which returns no score below it. That is the rule being verified, so
+        # that is the floor used here. The constant is imported rather than
+        # restated: it is a football decision, and a copy would drift. The
+        # arithmetic is still re-derived independently, which is the part worth
+        # checking.
+        mine, _, working = independent_weighted(parts, SECONDARY_COVERAGE_FLOOR)
 
         validation.add(
             Check(

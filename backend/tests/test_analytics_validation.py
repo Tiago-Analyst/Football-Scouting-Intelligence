@@ -198,3 +198,71 @@ class TestWeightedRecomputation:
         parts = {"tackles_per90": (60.0, 50.0), "score:ball_security": (40.0, 70.0)}
         _, _, working = independent_weighted(parts, 1.0)
         assert "1 of them scores" in working
+
+
+class TestTheRoleCheckRunsAtAll:
+    """The orchestration, not just the arithmetic.
+
+    Everything above tests the helpers, thoroughly, and none of it touches
+    `_check_roles` - which is how a reference to a renamed attribute survived
+    in it. The first time the step ran against real data it raised:
+
+        AttributeError: 'RoleDefinition' object has no attribute 'min_coverage'
+
+    The pipeline reached it only after four earlier blockers were cleared, so
+    the defect sat behind them. A stub view is enough to have caught it.
+    """
+
+    def test_it_recomputes_a_role_without_reaching_for_a_retired_attribute(self) -> None:
+        from pipelines.quality.validate_analytics import _check_roles
+
+        from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, get_roles
+
+        role = next(iter(get_roles().values()))
+
+        class StubScore:
+            def __init__(self, key: str) -> None:
+                self.key = key
+                self.score = 50.0
+
+        class StubFit:
+            def __init__(self) -> None:
+                self.all_scores = [StubScore(role.key)]
+
+        class StubRanked:
+            """Every metric fully present, so the floor cannot be the reason
+            nothing is produced."""
+
+            def __init__(self, oriented: float) -> None:
+                self.oriented = oriented
+
+        class StubView:
+            def role_fit(self, player_key: object) -> StubFit:
+                return StubFit()
+
+            def rank(self, player_key: object, metrics: list, scope: object) -> dict:
+                return {metric: StubRanked(50.0) for metric in metrics}
+
+            def scores(self, player_key: object, scope: object = None) -> dict:
+                return {}
+
+        class StubRecord:
+            position_group = role.primary_position
+
+        validation = Validation()
+        _check_roles(StubView(), StubRecord(), "p1", "Someone", validation)
+
+        checks = [c for c in validation.checks if c.kind == "role"]
+        assert checks, "the role check produced nothing"
+        # Full coverage of the metric side, so a number is produced and the two
+        # agree. The point is that it ran.
+        assert checks[0].independent is not None
+        assert SECONDARY_COVERAGE_FLOOR == 0.50
+
+    def test_a_role_definition_has_no_min_coverage_to_reach_for(self) -> None:
+        """Pins the rename itself, so this cannot be reintroduced quietly."""
+        from app.analytics.roles import get_roles
+
+        role = next(iter(get_roles().values()))
+        assert not hasattr(role, "min_coverage")
+        assert hasattr(role, "legacy_min_coverage")
