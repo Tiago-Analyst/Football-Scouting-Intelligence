@@ -129,6 +129,13 @@ class CompetitionResult:
     #: a provider refusing everything. Distinguished from a per-player error
     #: because the two need opposite handling.
     fatal: bool = False
+    #: True when the subscription does not carry this competition at all.
+    #: Neither transient nor fatal: every other competition in the run is
+    #: unaffected, and no re-run will acquire this one. It is tracked
+    #: separately so the verdict can name it and say what to do, rather than
+    #: reporting it as a competition that "could not be read" and inviting the
+    #: re-run that kept this pipeline from publishing for five days.
+    not_subscribed: bool = False
 
     @property
     def ok(self) -> bool:
@@ -310,7 +317,7 @@ def ingest_competition(
 
     # Imported here with the logger, following this module's pattern: `app` is
     # only importable once the path setup at the bottom of the imports has run.
-    from app.providers.footystats import FootyStatsAuthError
+    from app.providers.footystats import FootyStatsAuthError, FootyStatsNotSubscribedError
 
     log = get_logger(__name__)
     started = time.monotonic()
@@ -340,8 +347,18 @@ def ingest_competition(
         result.seconds = time.monotonic() - started
         log.error("footystats_auth_failed", season_id=season_id)
         return result
+    except FootyStatsNotSubscribedError as exc:
+        result.error = f"roster refused: {exc}"
+        result.not_subscribed = True
+        result.seconds = time.monotonic() - started
+        log.error("footystats_not_subscribed", season_id=season_id, error=result.error)
+        return result
     except Exception as exc:
-        result.error = f"roster failed: {type(exc).__name__}"
+        # The message, not just the class. `FootyStatsError` alone is what this
+        # log said for five days of hourly failures, and it names nothing: the
+        # status code, the endpoint and the API's own account of the refusal all
+        # live in the message that was being thrown away.
+        result.error = f"roster failed: {type(exc).__name__}: {exc}"
         result.seconds = time.monotonic() - started
         log.error("footystats_roster_failed", season_id=season_id, error=result.error)
         return result
@@ -616,6 +633,64 @@ def write_manifest(report: RunReport, generation: Generation | None = None) -> P
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return target
+
+
+def verdict(report: RunReport) -> int:
+    """The exit code, and the words that go with it.
+
+    WHAT THE EXIT CODE MEANS, AND WHAT IT DOES NOT
+
+    Not "is the universe complete" - that is `complete`, emitted separately,
+    and it is what gates the load. Conflating the two made every partial run
+    look broken and hid the runs that really were.
+
+    It used to return 1 whenever any player had failed, which is the same
+    mistake pointing the other way: one transient 500 on one player out of
+    twenty-three thousand turned a run that had saved an hour of good progress
+    into a red job. Those players are simply not in `done`, so they are
+    pending, so `complete` is false, so nothing is published and the next run
+    retries exactly them. That is the design working, not failing.
+
+    So the exit code answers one question: did something happen that another
+    run will not get past on its own? A rejected key, a competition outside the
+    subscription, or a roster that could not be read. Those need a person.
+
+    Split out of `main` so it can be tested against a report rather than
+    against a whole run. The alternative was a test that reimplemented these
+    branches and therefore asserted nothing about them.
+    """
+    if report.fatal:
+        print("\nExiting non-zero: this run failed for a reason retrying will not fix.")
+        return 1
+
+    # Named before the generic refusal, and named individually, because this is
+    # the one failure whose fix is a decision rather than a repair - and the one
+    # the generic message actively misdirected, by inviting a re-run that could
+    # not possibly help. The universe cannot be completed while the config asks
+    # for a competition the subscription does not carry, so every hourly
+    # continuation refuses to load a generation that is otherwise finished.
+    unsubscribed = [c for c in report.competitions if c.not_subscribed]
+    if unsubscribed:
+        print("\nExiting non-zero: the subscription does not carry every competition asked for.")
+        for competition in unsubscribed:
+            print(f"  {competition.season_id}  {competition.name}")
+        print(
+            "\nRe-running will not change this. Either choose these leagues on the\n"
+            "FootyStats account, or move them to `excluded` in config/competitions.yaml\n"
+            "with the reason - an exclusion recorded there is declared, and a\n"
+            "competition quietly dropped is not."
+        )
+        return 1
+
+    # The message now carries each competition's own error. The generic line
+    # alone sent five days of hourly failures to a log that named nothing.
+    refused = [c for c in report.competitions if c.error]
+    if refused:
+        print("\nExiting non-zero: at least one competition could not be read at all.")
+        for competition in refused:
+            print(f"  {competition.season_id}  {competition.name}: {competition.error}")
+        return 1
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -914,29 +989,7 @@ def main(argv: list[str] | None = None) -> int:
         fatal=report.fatal,
     )
 
-    # WHAT THE EXIT CODE MEANS, AND WHAT IT DOES NOT
-    #
-    # Not "is the universe complete" - that is `complete`, emitted separately,
-    # and it is what gates the load. Conflating the two made every partial run
-    # look broken and hid the runs that really were.
-    #
-    # It used to return 1 whenever any player had failed, which is the same
-    # mistake pointing the other way: one transient 500 on one player out of
-    # twenty-three thousand turned a run that had saved an hour of good
-    # progress into a red job. Those players are simply not in `done`, so they
-    # are pending, so `complete` is false, so nothing is published and the next
-    # run retries exactly them. That is the design working, not failing.
-    #
-    # So the exit code answers one question: did something happen that another
-    # run will not get past on its own? A rejected key, or a competition whose
-    # roster could not be read at all. Those need a person.
-    if report.fatal:
-        print("\nExiting non-zero: this run failed for a reason retrying will not fix.")
-        return 1
-    if any(c.error for c in report.competitions):
-        print("\nExiting non-zero: at least one competition could not be read at all.")
-        return 1
-    return 0
+    return verdict(report)
 
 
 if __name__ == "__main__":

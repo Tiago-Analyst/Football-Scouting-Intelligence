@@ -43,8 +43,9 @@ refresh:
 # FootyStats competitions to ingest
 # ---------------------------------------------------------------------------
 #
-# 47 of the 50 subscribed competitions, being those with a
-# 2026 or later season in the catalogue. Three are excluded below.
+# 45 competitions, being those with a 2026 or later season in the catalogue
+# that the subscription actually carries. Five are excluded below, for two
+# different reasons - read them before adding anything back.
 footystats:
   - season_id: 17550
     name: Africa CAF Champions League
@@ -216,11 +217,6 @@ footystats:
     country: Portugal
     season: 20262027
     added_on: 2026-08-29
-  - season_id: 17178
-    name: Russia Russian Premier League
-    country: Russia
-    season: 20262027
-    added_on: 2026-08-29
   - season_id: 17426
     name: Saudi Arabia Professional League
     country: Saudi Arabia
@@ -248,11 +244,6 @@ footystats:
     added_on: 2026-08-29
   - season_id: 17199
     name: Spain La Liga
-    country: Spain
-    season: 20262027
-    added_on: 2026-08-29
-  - season_id: 17269
-    name: Spain Segunda División
     country: Spain
     season: 20262027
     added_on: 2026-08-29
@@ -286,13 +277,17 @@ footystats:
 # Subscribed, but excluded
 # ---------------------------------------------------------------------------
 #
-# These three are on the subscription, and the catalogue carries no season for
-# them later than the year shown. Their countries do have 2026 entries, but
-# only for cups and minor competitions - the top flights themselves stop.
+# Recorded here rather than dropped so nobody has to rediscover why they are
+# missing. Two different reasons, and the difference matters: the first three
+# are absent from the catalogue, and the last two are absent from *this
+# subscription*. Choosing those two leagues on the FootyStats account is all
+# it would take to move them back up.
 #
+# The first three are on the subscription, and the catalogue carries no season
+# for them later than the year shown. Their countries do have 2026 entries, but
+# only for cups and minor competitions - the top flights themselves stop.
 # Loading them would put football several years old on a site that presents
-# itself as current, which is worse than their absence. Recorded here rather
-# than dropped so nobody has to rediscover why they are missing.
+# itself as current, which is worse than their absence.
 excluded:
   - name: Argentina Primera División
     latest_season: 20202021
@@ -306,6 +301,33 @@ excluded:
     latest_season: 20152016
     latest_season_id: 855
     reason: no season later than this exists in the catalogue
+
+  # THESE TWO HAVE A CURRENT SEASON. THE SUBSCRIPTION DOES NOT CARRY IT.
+  #
+  # `/league-players` answers HTTP 417 for both: "League is not chosen by the
+  # user". Confirmed on 2026-10-19 against `/league-list?chosen_leagues_only=
+  # true`, which returns 50 leagues and neither of these under any season id,
+  # while Spain La Liga (17199) on the same key returns 200 players.
+  #
+  # They were listed above from 2026-08-29, so every refresh since asked for a
+  # competition the account cannot read. Because a refused roster left the
+  # generation permanently incomplete, the pipeline refused to load a universe
+  # whose every player had in fact been fetched - hourly, from 2026-10-14 until
+  # this entry was written. Nothing was ever published.
+  #
+  # Listed with the season they were asked for, not `latest_season`: the season
+  # is current and the ids are good, so they can be moved back verbatim once
+  # the leagues are chosen on the account.
+  - name: Russia Russian Premier League
+    season_id: 17178
+    season: 20262027
+    excluded_on: 2026-10-19
+    reason: not chosen on the FootyStats subscription - /league-players answers HTTP 417
+  - name: Spain Segunda División
+    season_id: 17269
+    season: 20262027
+    excluded_on: 2026-10-19
+    reason: not chosen on the FootyStats subscription - /league-players answers HTTP 417
 
 # ---------------------------------------------------------------------------
 # Transfermarkt

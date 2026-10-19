@@ -97,8 +97,58 @@ class FootyStatsAuthError(FootyStatsError):
     """
 
 
+class FootyStatsNotSubscribedError(FootyStatsError):
+    """The key is good; this competition is not on the subscription.
+
+    A third kind, because it needs a third handling. An auth failure condemns
+    the whole run and a transient failure is worth retrying, but this is
+    permanent and local: every other competition will succeed, and no number of
+    re-runs will make this one. Retrying it is the specific mistake that cost
+    this pipeline five days - a refusal reported as "could not be read at all,
+    run again to continue" kept an otherwise finished generation from ever
+    being declared complete, so the hourly continuation refused to load a
+    universe whose every player had in fact been fetched.
+
+    Raised on 417, which is what the API answers for a competition outside the
+    plan. The response body carries the reason in plain words ("League is not
+    chosen by the user"), and it is read into the message: without it the
+    exception says only "HTTP 417", which names neither the cause nor the fix.
+    """
+
+
 #: HTTP statuses that mean the credential is the problem.
 AUTH_STATUSES = frozenset({401, 403})
+
+#: The status for a competition the subscription does not carry. FootyStats
+#: reuses "Expectation Failed" for it rather than 403, so it cannot be folded
+#: in with the credential failures above: the key is fine.
+NOT_SUBSCRIBED_STATUS = 417
+
+
+#: Enough of the API's own words to name a cause, truncated because the field
+#: is free text from a service and an exception message reaches the logs.
+_EXPLANATION_LIMIT = 200
+
+
+def _explain(exc: urllib.error.HTTPError) -> str:
+    """The API's own account of why it refused, or "" if it gave none.
+
+    Wrapped in a bare except on purpose. This runs while an error is already
+    being handled, and the only thing worse than an unexplained failure is an
+    explanation attempt that replaces it with its own traceback - the caller
+    would lose the status code too. An unreadable body is simply no
+    explanation.
+
+    The body is the API's JSON and carries no credential, unlike the URL.
+    """
+    try:
+        payload = json.loads(exc.read().decode("utf-8", errors="replace"))
+        message = payload.get("message") if isinstance(payload, dict) else None
+        if not isinstance(message, str):
+            return ""
+        return " ".join(message.split())[:_EXPLANATION_LIMIT]
+    except Exception:
+        return ""
 
 
 def _ssl_context() -> ssl.SSLContext:
@@ -298,7 +348,12 @@ class FootyStatsProvider(PerformanceDataProvider):
                 ) as response:
                     body = json.loads(response.read().decode("utf-8", errors="replace"))
             except urllib.error.HTTPError as exc:
-                last = f"HTTP {exc.code}"
+                # The body, before the status: this API explains itself in
+                # `message` and a bare "HTTP 417" names neither the cause nor
+                # the fix. Read once - the stream is consumed - and carried
+                # into every message built below.
+                explanation = _explain(exc)
+                last = f"HTTP {exc.code}" + (f" ({explanation})" if explanation else "")
                 # A rejected credential is fatal, and distinguishable, because
                 # retrying it wastes the whole run's budget on calls that
                 # cannot succeed.
@@ -306,6 +361,14 @@ class FootyStatsProvider(PerformanceDataProvider):
                     raise FootyStatsAuthError(
                         f"{path} refused: {last}. The API key is missing, wrong or "
                         f"not entitled to this endpoint."
+                    ) from None
+                # Permanent and local rather than fatal: see the exception.
+                if exc.code == NOT_SUBSCRIBED_STATUS:
+                    raise FootyStatsNotSubscribedError(
+                        f"{path} refused: {last}. This competition is not on the "
+                        f"subscription, so no re-run will fetch it. Choose the league "
+                        f"on the FootyStats account, or record it under `excluded` in "
+                        f"config/competitions.yaml."
                     ) from None
                 # 4xx other than rate limiting will not fix themselves.
                 if exc.code not in {429, 500, 502, 503, 504}:

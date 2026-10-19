@@ -104,7 +104,37 @@ class TestCompetitionList:
         their top flights stop years ago in this catalogue."""
         for entry in competitions.get("excluded") or []:
             assert entry["reason"], entry
-            assert entry["latest_season"], entry
+
+    def test_every_exclusion_identifies_the_season_it_refers_to(self, competitions: dict) -> None:
+        """A reason without a season is not actionable.
+
+        There are two kinds here and they are identified differently. One is
+        excluded because the catalogue has nothing current, so it names the
+        newest season that does exist (`latest_season`). The other has a
+        perfectly current season that this subscription does not carry, so it
+        names that season and its id - and can be moved back verbatim once the
+        league is chosen on the account. Requiring `latest_season` of both, as
+        this test once did, would have forced the second kind to claim its
+        season was stale, which is the one thing it is not.
+        """
+        for entry in competitions.get("excluded") or []:
+            stale = bool(entry.get("latest_season"))
+            unsubscribed = bool(entry.get("season_id")) and bool(entry.get("season"))
+            assert stale or unsubscribed, entry
+
+    def test_an_unsubscribed_exclusion_is_not_also_listed_for_ingest(
+        self, competitions: dict
+    ) -> None:
+        """The two lists contradicting each other is how this started.
+
+        A competition named in both would be asked for and refused on every
+        run, and a refused roster leaves the generation permanently incomplete
+        - so nothing is ever published, hourly, until somebody reads the log.
+        """
+        ingested = {str(e["season_id"]) for e in competitions["footystats"]}
+        for entry in competitions.get("excluded") or []:
+            season_id = entry.get("season_id") or entry.get("latest_season_id")
+            assert str(season_id) not in ingested, entry
 
     def test_transfermarkt_is_ingested_whole(self, competitions: dict) -> None:
         """Filtering it before load would discard the identities that identity
