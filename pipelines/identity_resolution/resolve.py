@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -98,6 +99,202 @@ def _identities(session, source: str):  # type: ignore[no-untyped-def]
     ]
 
 
+class _phase:
+    """Print what is starting, then what it cost. Unbuffered, because a step
+    killed mid-flight is exactly the one whose timings are wanted.
+
+    Lowercase on purpose: it reads as a statement at the call site rather than
+    as a class being constructed, and it is local to this module.
+    """
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+        self.started = time.monotonic()
+        print(f"{label}...", flush=True)
+
+    def done(self, detail: str = "") -> None:
+        elapsed = time.monotonic() - self.started
+        suffix = f" - {detail}" if detail else ""
+        print(f"{self.label}: {elapsed:.1f}s{suffix}", flush=True)
+
+
+#: Merges per statement.
+#:
+#: PostgreSQL's extended protocol carries at most 65,535 bound parameters in
+#: one statement, and the widest statement here binds four per merge. So the
+#: ceiling is ~16,000 and a refresh already plans ~5,100 - close enough that
+#: one good season of new competitions would reach it, and the failure would
+#: arrive as a protocol error naming none of this.
+#:
+#: 2,000 keeps the widest statement at 8,000 parameters and the whole batch at
+#: three statements per phase, which is still four orders of magnitude fewer
+#: round trips than one per merge.
+MERGE_CHUNK = 2_000
+
+
+@dataclass(frozen=True)
+class PlannedMerge:
+    """One decided merge, before any of it is written."""
+
+    performance_player_id: int
+    identity_player_id: int
+    bridge_id: int
+    method: str
+    confidence: float
+
+
+def _chunks(planned: list[PlannedMerge]) -> list[list[PlannedMerge]]:
+    return [planned[i : i + MERGE_CHUNK] for i in range(0, len(planned), MERGE_CHUNK)]
+
+
+@dataclass
+class MergeOutcome:
+    merged: list[PlannedMerge]
+    #: Refused because the move would have put the same competition and season
+    #: on one player twice. Nothing about them was written.
+    refused: list[PlannedMerge]
+
+
+def merge_all(  # type: ignore[no-untyped-def]
+    session,
+    planned: list[PlannedMerge],
+) -> MergeOutcome:
+    """Move every decided merge's facts and provenance, then drop the duplicates.
+
+    WHY THIS IS A BATCH AND NOT A LOOP
+
+    It was a loop, and the loop issued five statements per player: two selects
+    to detect a collision, two updates, one delete. At ~5,100 merges that is
+    ~25,000 sequential round trips to a database in another region, and the
+    step ran for twenty minutes without finishing. Nothing about it was slow
+    except the waiting: the load step moves ~900,000 rows into the same
+    database in 178 seconds, because it moves them in sets.
+
+    So this issues four statements for the whole batch, whatever its size: one
+    select to read every (competition, season) either side already holds, two
+    updates driven by a VALUES join, and one delete. Postgres handles a VALUES
+    list of this many rows without complaint - the load already sends far more.
+
+    ORDER MATTERS AND IS NOT INTERCHANGEABLE
+
+    `dim_player` cascades to both its facts and its source bridge, so
+    **everything that points at a duplicate must be repointed before it is
+    deleted**. Deleting first takes the statistics this phase exists to keep,
+    and - discovered the hard way - takes the bridge row with them, which is how
+    the mapping back to the provider's id is lost. A caller doing the bridge
+    update afterwards updates nothing and is told nothing, so this function owns
+    the whole operation rather than trusting the order it is called in.
+
+    COLLISIONS ARE DECIDED IN ORDER, AGAINST THIS BATCH'S OWN EFFECTS
+
+    A merge is refused when it would put the same competition and season on one
+    player twice - a real possibility once a player appears in two competitions
+    the sources name differently, and silently overwriting one with the other
+    would lose a season.
+
+    Two different performance players can resolve to the same identity player,
+    so the second one's collision may be with rows the *first one in this batch*
+    just moved. Reading the collision state once up front and deciding against
+    that snapshot would miss exactly those, and the batch would do what the loop
+    refused to. The accepted rows are therefore accumulated as the decisions are
+    made, which reproduces what the loop saw without asking the database again.
+    """
+    outcome = MergeOutcome(merged=[], refused=[])
+    if not planned:
+        return outcome
+
+    from sqlalchemy import BigInteger, Float, String, column, delete, select, update, values
+
+    from app.models import BridgePlayerSource, DimPlayer, FactPlayerSeasonStats
+
+    # Every (competition, season) held by anyone involved, in one query rather
+    # than two per merge.
+    involved = {p.performance_player_id for p in planned}
+    involved |= {p.identity_player_id for p in planned}
+    held: dict[int, set[tuple[str, str]]] = {}
+    for player_id, competition_id, season_id in session.execute(
+        select(
+            FactPlayerSeasonStats.player_id,
+            FactPlayerSeasonStats.competition_id,
+            FactPlayerSeasonStats.season_id,
+        ).where(FactPlayerSeasonStats.player_id.in_(involved))
+    ):
+        held.setdefault(player_id, set()).add((competition_id, season_id))
+
+    for plan in planned:
+        incoming = held.get(plan.performance_player_id, set())
+        target = held.setdefault(plan.identity_player_id, set())
+        if incoming & target:
+            outcome.refused.append(plan)
+            continue
+        target |= incoming
+        outcome.merged.append(plan)
+
+    accepted = outcome.merged
+    if not accepted:
+        return outcome
+
+    # Every fact row first, then every bridge row, then the guard, and only
+    # then the deletes. Chunked, but the phases are not interleaved: a chunk
+    # that deleted its duplicates before a later chunk's bridges had moved
+    # would reintroduce the cascade this function exists to avoid.
+    for chunk in _chunks(accepted):
+        pairs = values(
+            column("performance_id", BigInteger),
+            column("identity_id", BigInteger),
+            name="merge_pair",
+        ).data([(p.performance_player_id, p.identity_player_id) for p in chunk])
+
+        session.execute(
+            update(FactPlayerSeasonStats)
+            .where(FactPlayerSeasonStats.player_id == pairs.c.performance_id)
+            .values(player_id=pairs.c.identity_id)
+        )
+
+    # Before the deletes, never after: the cascade would take these rows with it.
+    moved = 0
+    for chunk in _chunks(accepted):
+        bridges = values(
+            column("bridge_id", BigInteger),
+            column("identity_id", BigInteger),
+            column("method", String),
+            column("confidence", Float),
+            name="bridge_move",
+        ).data([(p.bridge_id, p.identity_player_id, p.method, p.confidence) for p in chunk])
+
+        result = session.execute(
+            update(BridgePlayerSource)
+            .where(BridgePlayerSource.id == bridges.c.bridge_id)
+            .values(
+                player_id=bridges.c.identity_id,
+                match_method=bridges.c.method,
+                match_confidence=bridges.c.confidence,
+            )
+        )
+        moved += result.rowcount
+
+    if moved != len(accepted):
+        # The bridge is how a re-run recognises a player it has already seen.
+        # Losing it does not break anything visibly - it just quietly recreates
+        # the duplicate next time - so refuse loudly instead. Checked over the
+        # whole batch rather than per row, which is a stronger guard than the
+        # loop's: no duplicate has been deleted yet, and the transaction is
+        # still open, so the caller's rollback loses nothing.
+        raise RuntimeError(
+            f"{len(accepted) - moved} of {len(accepted)} bridge rows were "
+            f"not repointed (the updates matched {moved}); refusing to delete "
+            "the duplicates and lose the provider mappings"
+        )
+
+    for chunk in _chunks(accepted):
+        session.execute(
+            delete(DimPlayer).where(
+                DimPlayer.player_id.in_([p.performance_player_id for p in chunk])
+            )
+        )
+    return outcome
+
+
 def merge_player(  # type: ignore[no-untyped-def]
     session,
     performance_player_id: int,
@@ -107,71 +304,24 @@ def merge_player(  # type: ignore[no-untyped-def]
     method: str,
     confidence: float,
 ) -> bool:
-    """Move one player's facts and provenance onto the identity row, then drop
-    the duplicate.
+    """Merge one player. A batch of one, so one code path is tested, not two.
 
-    Order matters and is not interchangeable. `dim_player` cascades to both its
-    facts and its source bridge, so **everything that points at the duplicate
-    must be repointed before it is deleted**. Deleting first takes the
-    statistics this phase exists to keep, and - discovered the hard way - takes
-    the bridge row with them, which is how the mapping back to the provider's id
-    is lost. A caller doing the bridge update afterwards updates nothing and is
-    told nothing, so this function owns the whole operation rather than trusting
-    the order it is called in.
-
-    Returns False without changing anything when the move would collide with a
-    row that is already there - the same competition and season twice for one
-    player. That is a real possibility once a player appears in two competitions
-    the sources name differently, and silently overwriting one with the other
-    would lose a season.
+    Returns False without changing anything when the move would collide - see
+    `merge_all`, which this delegates to entirely.
     """
-    from sqlalchemy import delete, select, update
-
-    from app.models import BridgePlayerSource, DimPlayer, FactPlayerSeasonStats
-
-    existing = set(
-        session.execute(
-            select(FactPlayerSeasonStats.competition_id, FactPlayerSeasonStats.season_id).where(
-                FactPlayerSeasonStats.player_id == identity_player_id
+    outcome = merge_all(
+        session,
+        [
+            PlannedMerge(
+                performance_player_id=performance_player_id,
+                identity_player_id=identity_player_id,
+                bridge_id=bridge_id,
+                method=method,
+                confidence=confidence,
             )
-        ).all()
+        ],
     )
-    incoming = session.execute(
-        select(FactPlayerSeasonStats.competition_id, FactPlayerSeasonStats.season_id).where(
-            FactPlayerSeasonStats.player_id == performance_player_id
-        )
-    ).all()
-
-    if existing & set(incoming):
-        return False
-
-    session.execute(
-        update(FactPlayerSeasonStats)
-        .where(FactPlayerSeasonStats.player_id == performance_player_id)
-        .values(player_id=identity_player_id)
-    )
-
-    # Before the delete, never after: the cascade would take this row with it.
-    moved = session.execute(
-        update(BridgePlayerSource)
-        .where(BridgePlayerSource.id == bridge_id)
-        .values(
-            player_id=identity_player_id,
-            match_method=method,
-            match_confidence=confidence,
-        )
-    )
-    if moved.rowcount != 1:
-        # The bridge is how a re-run recognises a player it has already seen.
-        # Losing it does not break anything visibly - it just quietly recreates
-        # the duplicate next time - so refuse loudly instead.
-        raise RuntimeError(
-            f"bridge row {bridge_id} was not repointed (matched {moved.rowcount} rows); "
-            "refusing to delete the duplicate and lose the provider mapping"
-        )
-
-    session.execute(delete(DimPlayer).where(DimPlayer.player_id == performance_player_id))
-    return True
+    return bool(outcome.merged)
 
 
 def write_report(results, report: ResolutionReport) -> Path:  # type: ignore[no-untyped-def]
@@ -322,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
     from pipelines.identity_resolution.matcher import (
         DEFAULT_THRESHOLD,
         IdentityResolver,
+        MatchResult,
         MatchStatus,
     )
 
@@ -333,8 +484,10 @@ def main(argv: list[str] | None = None) -> int:
     report = ResolutionReport()
 
     try:
+        reading = _phase("Reading identities")
         performance = _identities(session, PERFORMANCE_SOURCE)
         identity = _identities(session, IDENTITY_SOURCE)
+        reading.done(f"{len(performance):,} + {len(identity):,}")
 
         if not performance:
             print(
@@ -357,9 +510,20 @@ def main(argv: list[str] | None = None) -> int:
         resolver = IdentityResolver([i for _, _, i in identity], threshold=threshold)
         by_source_id = {i.source_player_id: (b, p) for b, p, i in identity}
 
+        # EVERY PHASE SAYS WHEN IT STARTED AND HOW LONG IT TOOK.
+        #
+        # This step once ran for nineteen minutes and printed one line - the
+        # one above - before being cut off. With no phase boundaries in the log
+        # there was no way to tell matching from merging, so diagnosing it meant
+        # guessing, and a sixty-minute run bought one number.
+        matching = _phase("Matching")
         results = resolver.resolve_all([i for _, _, i in performance])
+        matching.done(f"{len(results):,} resolved")
+
         performance_by_id = {i.source_player_id: (b, p) for b, p, i in performance}
 
+        planned: list[PlannedMerge] = []
+        planned_by_id: dict[int, MatchResult] = {}
         for result in results:
             counter = {
                 MatchStatus.MATCHED: "matched",
@@ -383,29 +547,44 @@ def main(argv: list[str] | None = None) -> int:
             if target_player.player_id == player.player_id:
                 continue  # already the same row
 
-            merged = merge_player(
-                session,
-                player.player_id,
-                target_player.player_id,
-                bridge_id=bridge.id,
-                method=result.method,
-                confidence=result.confidence,
+            # Decided here, written below. The decisions are unchanged and in
+            # the same order; only the writing is batched.
+            planned.append(
+                PlannedMerge(
+                    performance_player_id=player.player_id,
+                    identity_player_id=target_player.player_id,
+                    bridge_id=bridge.id,
+                    method=result.method,
+                    confidence=result.confidence,
+                )
             )
-            if not merged:
-                report.conflicts += 1
+            planned_by_id[player.player_id] = result
+
+        if planned:
+            merging = _phase(f"Merging {len(planned):,} players")
+            outcome = merge_all(session, planned)
+            merging.done(f"{len(outcome.merged):,} merged, {len(outcome.refused):,} refused")
+
+            report.merged = len(outcome.merged)
+            report.conflicts = len(outcome.refused)
+            for refused in outcome.refused:
+                conflict = planned_by_id[refused.performance_player_id]
                 log.warning(
                     "identity_merge_conflict",
-                    footystats_id=result.source.source_player_id,
-                    transfermarkt_id=result.target.source_player_id,
+                    footystats_id=conflict.source.source_player_id,
+                    transfermarkt_id=(
+                        conflict.target.source_player_id if conflict.target else None
+                    ),
                 )
-                continue
-
-            report.merged += 1
 
         path = write_report(results, report)
 
         if args.apply:
+            # Named too: everything above is one open transaction, so this is
+            # where a batch's whole cost can land.
+            committing = _phase("Committing")
             session.commit()
+            committing.done()
         else:
             session.rollback()
 
