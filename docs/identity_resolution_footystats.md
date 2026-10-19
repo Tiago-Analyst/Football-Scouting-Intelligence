@@ -15,9 +15,9 @@ reach the threshold whatever its similarity.
 
 | Outcome | Count | Share |
 | --- | ---: | ---: |
-| Matched | 5133 | 59.9% |
-| Ambiguous | 2 | 0.0% |
-| Unmatched | 3440 | 40.1% |
+| Matched | 5722 | 66.7% |
+| Ambiguous | 5 | 0.1% |
+| Unmatched | 2848 | 33.2% |
 | Manually confirmed | 0 | 0.0% |
 
 ## What each outcome means

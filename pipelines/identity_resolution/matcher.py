@@ -421,6 +421,77 @@ def _same_nationality(left: Identity, right: Identity) -> bool | None:
     return left.nationality.strip().lower() == right.nationality.strip().lower()
 
 
+#: Tokens the shorter name must carry before a containment counts as evidence.
+#:
+#: One is not enough. "Murillo" is contained in "Murillo Santiago Costa dos
+#: Santos" and also in every other Murillo, and a single given name shared with
+#: a birthday is the thinnest possible case - 88 of the 732 observed
+#: containments are of this shape and they are the ones left to a person.
+MIN_CONTAINED_TOKENS = 2
+
+
+def _name_contained(left: Identity, right: Identity) -> bool:
+    """Whether one name is the other with whole words dropped from the end.
+
+    THE CASE THIS EXISTS FOR
+
+    Transfermarkt keeps a Hispanic or Lusophone player under a given name and
+    first surname; FootyStats keeps the full registered name. "Ramón Sosa" and
+    "Ramón Sosa Acosta" are one footballer, and so are "Guilherme Castilho" and
+    "Guilherme Castilho Carvalho". Measured over a real resolution of 8,575
+    players, 732 refusals were of this shape - a quarter of every refusal that
+    had an exact date of birth to go on.
+
+    `name_similarity` already claims this ground in its own docstring, and
+    cannot reach it: its third term is how much of the LONGER name was
+    accounted for, so each dropped surname costs a fixed share. Those 732
+    scored 0.60 to 0.77 against a strong-name band starting at 0.85.
+
+    WHY CONTAINMENT RATHER THAN A LOWER BAND
+
+    Lowering the band would admit a different population entirely. Sharing a
+    surname and a birthday with a different given name scores about the same
+    0.75, and some of those are two people: Timothy Dieng and Seny Dieng,
+    Jacob Stensson and Daniel Stensson. Merging one of them would attach one
+    footballer's statistics to another's profile, which is the failure this
+    module exists to avoid and the one nothing downstream can detect.
+
+    Containment is exact, not fuzzy. Every word of the shorter name appears in
+    the longer one, and the given names agree - so the two differ only by
+    words one source did not record, never by a word the two disagree about.
+
+    The given name must match in FIRST position. As a set member it would be
+    satisfied by a surname of one matching a middle name of the other, which is
+    how unrelated people with long names start to look alike.
+    """
+    left_tokens, right_tokens = list(left.tokens), list(right.tokens)
+    if not left_tokens or not right_tokens:
+        return False
+
+    shorter, longer = (
+        (left_tokens, right_tokens)
+        if len(left_tokens) <= len(right_tokens)
+        else (right_tokens, left_tokens)
+    )
+    if len(shorter) < MIN_CONTAINED_TOKENS or len(shorter) == len(longer):
+        # Equal length is not containment: `name_similarity` handles reordering
+        # and this would only restate it, including for two names that merely
+        # permute into each other.
+        return False
+
+    if shorter[0] != longer[0]:
+        return False
+
+    # Multiset containment. A name carrying "santos" twice must not be matched
+    # by one carrying it once, which a set comparison would allow.
+    remaining = list(longer)
+    for token in shorter:
+        if token not in remaining:
+            return False
+        remaining.remove(token)
+    return True
+
+
 def _compatible_position(left: Identity, right: Identity) -> bool | None:
     if left.position_group is None or right.position_group is None:
         return None
@@ -472,6 +543,29 @@ def score_pair(source: Identity, target: Identity) -> tuple[float, str, list[str
             if nationality or club:
                 return 0.90, "dob+strong_name+supporting", reasons
             return 0.86, "dob+strong_name", reasons
+
+        # ONE NAME IS THE OTHER WITH SURNAMES DROPPED.
+        #
+        # Below the fuzzy strong band and above a weak name, because the
+        # evidence is of a different kind rather than a different degree: the
+        # words present agree exactly and the given names agree in position, so
+        # the two names differ only by words one source did not record. See
+        # `_name_contained` for the population this recovers and the one it
+        # deliberately leaves refused.
+        #
+        # Supporting evidence is REQUIRED, not a bonus. Containment plus a
+        # birthday alone would merge a common given name and a common surname
+        # on a shared birthday, which in a Brazilian or Spanish population is
+        # not remote. With nationality or club it reaches the threshold and no
+        # further: two candidates that both qualify stay within `DEFAULT_MARGIN`
+        # of each other and the resolver calls them ambiguous rather than
+        # picking one.
+        if _name_contained(source, target) and (nationality or club):
+            reasons.append("name=contained")
+            if nationality and club:
+                return 0.92, "dob+contained_name+nationality+club", reasons
+            return 0.90, "dob+contained_name+supporting", reasons
+
         # A shared birthday is common enough that it cannot carry a weak name.
         return min(0.70, 0.45 + name * 0.3), "dob_only_weak_name", reasons
 
