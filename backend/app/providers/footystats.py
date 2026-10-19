@@ -257,8 +257,18 @@ class FootyStatsProvider(PerformanceDataProvider):
     ) -> None:
         self._settings = settings or get_settings()
         self._key = self._settings.footystats_api_key.get_secret_value().strip()
-        if not self._key:
-            raise FootyStatsError("No FootyStats API key is configured.")
+        # NOT REFUSED HERE. A key is needed to call the API, and this class is
+        # also used to read snapshots off disk: `pipelines.load.load_providers`
+        # constructs it and then replaces `_get` with a `SnapshotReader`, so a
+        # load makes no request at all. Demanding the key here made the load
+        # step fail with "No FootyStats API key is configured" for a key it
+        # could not have used, and the obvious fix - handing the credential to
+        # that step - would give a live API key to a job that only reads files.
+        #
+        # The refusal lives in `_get` instead, which is the one place a key is
+        # actually required. Nothing is weakened: no request can be built
+        # without one, and `build_performance_provider` still refuses earlier
+        # and more precisely, on `settings.footystats_configured`.
 
         self._mapping = mapping if mapping is not None else get_mapping()
         self._mapping.require()
@@ -331,6 +341,16 @@ class FootyStatsProvider(PerformanceDataProvider):
         an exception: it carries the key as a query parameter, and an exception
         message reaches logs and, in development, responses.
         """
+        # Before the URL is built, so a keyless request cannot be assembled at
+        # all - let alone sent and answered with a 403 that reads like a
+        # rejected key rather than an absent one.
+        if not self._key:
+            raise FootyStatsError(
+                f"No FootyStats API key is configured, and {path} needs one. "
+                "Reading snapshots from disk does not: that path replaces this "
+                "method, so a live call is being made where one was not expected."
+            )
+
         query = urllib.parse.urlencode({"key": self._key, **params})
         url = f"{self._settings.footystats_base_url.rstrip('/')}{path}?{query}"
         if not url.lower().startswith("https://"):

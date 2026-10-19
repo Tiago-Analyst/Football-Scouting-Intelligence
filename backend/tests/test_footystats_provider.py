@@ -136,9 +136,34 @@ def stub(provider: FootyStatsProvider, **responses: Any) -> FakeTransport:
 
 
 class TestConstruction:
-    def test_it_refuses_without_a_key(self) -> None:
-        with pytest.raises(FootyStatsError):
-            FootyStatsProvider(build_settings(footystats_api_key=""))
+    def test_it_refuses_to_call_the_api_without_a_key(self) -> None:
+        """The refusal is on the call, not on construction.
+
+        This class is also how snapshots are read off disk:
+        `pipelines.load.load_providers` constructs it and replaces `_get` with
+        a `SnapshotReader`, so a load makes no request and needs no key.
+        Refusing in the constructor made the load step fail for a credential it
+        could not have used, and the tempting fix - giving that step the key -
+        would hand a live API key to a job that only reads files.
+
+        What must hold is that no request is ever built without a key, which is
+        what this now pins.
+        """
+        provider = FootyStatsProvider(build_settings(footystats_api_key=""))
+
+        with pytest.raises(FootyStatsError, match="needs one"):
+            provider._get("/league-list")
+
+    def test_a_keyless_provider_still_reads_snapshots(self) -> None:
+        """The case the constructor guard was breaking.
+
+        `_get` replaced, so nothing reaches the network and the absent key is
+        irrelevant - which is exactly the situation the load step is in.
+        """
+        provider = FootyStatsProvider(build_settings(footystats_api_key=""))
+        provider._get = lambda path, **params: {"data": [{"id": 1}]}  # type: ignore[method-assign]
+
+        assert provider._roster("17199") == [{"id": 1}]
 
     def test_it_reports_what_the_mapping_grants(self, provider: FootyStatsProvider) -> None:
         """Availability is read from the verified mapping, never declared here.
