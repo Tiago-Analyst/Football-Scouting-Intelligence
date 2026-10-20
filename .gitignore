@@ -9,6 +9,21 @@
 *.key
 secrets/
 
+# Credential notes kept loose in the working directory. `passneon.txt` held a
+# Neon connection password and was one `git add -A` away from this repository's
+# history, where a rotation is the only remedy.
+#
+# Named explicitly, and then by shape for the next one - which will not be
+# called `passneon.txt`. Both patterns are anchored to the root and limited to
+# `.txt` on purpose: this project has sign-in, registration and an account
+# page, so an unanchored `*password*` would one day swallow a real component
+# like `frontend/src/.../PasswordField.tsx` and it would vanish from the diff
+# without anybody being told.
+/passneon.txt
+/pass*.txt
+/*password*.txt
+/*credentials*.txt
+
 # ---- Python --------------------------------------------------------------
 __pycache__/
 *.py[cod]
