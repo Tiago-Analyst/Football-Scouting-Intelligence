@@ -141,6 +141,10 @@ class PlannedMerge:
     bridge_id: int
     method: str
     confidence: float
+    #: True when a person wrote this pair into `data/manual/player_mapping.csv`.
+    #: Recorded on the bridge so a later automated run leaves it alone, which
+    #: is the whole point of someone having checked it.
+    manual: bool = False
 
 
 def _chunks(planned: list[PlannedMerge]) -> list[list[PlannedMerge]]:
@@ -203,7 +207,17 @@ def merge_all(  # type: ignore[no-untyped-def]
     if not planned:
         return outcome
 
-    from sqlalchemy import BigInteger, Float, String, column, delete, select, update, values
+    from sqlalchemy import (
+        BigInteger,
+        Boolean,
+        Float,
+        String,
+        column,
+        delete,
+        select,
+        update,
+        values,
+    )
 
     from app.models import BridgePlayerSource, DimPlayer, FactPlayerSeasonStats
 
@@ -259,8 +273,11 @@ def merge_all(  # type: ignore[no-untyped-def]
             column("identity_id", BigInteger),
             column("method", String),
             column("confidence", Float),
+            column("manual", Boolean),
             name="bridge_move",
-        ).data([(p.bridge_id, p.identity_player_id, p.method, p.confidence) for p in chunk])
+        ).data(
+            [(p.bridge_id, p.identity_player_id, p.method, p.confidence, p.manual) for p in chunk]
+        )
 
         result = session.execute(
             update(BridgePlayerSource)
@@ -269,6 +286,7 @@ def merge_all(  # type: ignore[no-untyped-def]
                 player_id=bridges.c.identity_id,
                 match_method=bridges.c.method,
                 match_confidence=bridges.c.confidence,
+                manual_override=bridges.c.manual,
             )
         )
         moved += result.rowcount
@@ -474,6 +492,7 @@ def main(argv: list[str] | None = None) -> int:
         IdentityResolver,
         MatchResult,
         MatchStatus,
+        load_manual_overrides,
     )
 
     configure_logging(get_settings())
@@ -507,7 +526,21 @@ def main(argv: list[str] | None = None) -> int:
             f"against {len(identity):,} from {IDENTITY_SOURCE}."
         )
 
-        resolver = IdentityResolver([i for _, _, i in identity], threshold=threshold)
+        # THE CONFIRMATIONS A PERSON WROTE DOWN, WHICH THIS STEP USED TO IGNORE.
+        #
+        # `data/manual/player_mapping.csv` exists, documents itself, and was
+        # read only by `pipelines.identity_resolution.run` - which produces a
+        # report and never writes to the database. The pipeline runs this
+        # module, which never loaded the file. So a person could follow the
+        # instructions in it, commit a checked pair, and have nothing happen,
+        # with nothing saying so.
+        overrides = load_manual_overrides()
+        if overrides:
+            print(f"{len(overrides)} manually confirmed mapping(s) will be applied.")
+
+        resolver = IdentityResolver(
+            [i for _, _, i in identity], threshold=threshold, manual_overrides=overrides
+        )
         by_source_id = {i.source_player_id: (b, p) for b, p, i in identity}
 
         # EVERY PHASE SAYS WHEN IT STARTED AND HOW LONG IT TOOK.
@@ -533,13 +566,26 @@ def main(argv: list[str] | None = None) -> int:
             }[result.status]
             setattr(report, counter, getattr(report, counter) + 1)
 
-            if not args.apply or result.status is not MatchStatus.MATCHED or not result.target:
+            # MANUAL belongs here as much as MATCHED. It means a person wrote
+            # this pair down, which is stronger evidence than anything the
+            # resolver produces - and it was being counted into the report and
+            # then skipped by this very condition, so the one status that
+            # represents a human decision was the one that never got applied.
+            decided = {MatchStatus.MATCHED, MatchStatus.MANUAL}
+            if not args.apply or result.status not in decided or not result.target:
                 continue
 
+            confirmed = (result.source.source, result.source.source_player_id) in overrides
             bridge, player = performance_by_id[result.source.source_player_id]
-            if bridge.manual_override:
+            if bridge.manual_override and not confirmed:
                 # A person decided this one. An automated re-run must not
                 # quietly undo it, or asking them was pointless.
+                #
+                # `not confirmed` because the file says a mapping in it "always
+                # wins". Skipping on the flag alone would make the flag
+                # permanent: once set, the row could never be corrected, and a
+                # person fixing their own mistake in the CSV would be ignored
+                # by the guard that exists to respect them.
                 report.skipped_confirmed += 1
                 continue
 
@@ -556,6 +602,11 @@ def main(argv: list[str] | None = None) -> int:
                     bridge_id=bridge.id,
                     method=result.method,
                     confidence=result.confidence,
+                    # The flag the guard above reads. Nothing in the project
+                    # set it, so it was read in three places and written in
+                    # none - which is why the data-quality page has always
+                    # reported zero confirmed by hand.
+                    manual=confirmed,
                 )
             )
             planned_by_id[player.player_id] = result
