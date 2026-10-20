@@ -9,6 +9,21 @@
 *.key
 secrets/
 
+# Credential notes kept loose in the working directory. `passneon.txt` held a
+# Neon connection password and was one `git add -A` away from this repository's
+# history, where a rotation is the only remedy.
+#
+# Named explicitly, and then by shape for the next one - which will not be
+# called `passneon.txt`. Both patterns are anchored to the root and limited to
+# `.txt` on purpose: this project has sign-in, registration and an account
+# page, so an unanchored `*password*` would one day swallow a real component
+# like `frontend/src/.../PasswordField.tsx` and it would vanish from the diff
+# without anybody being told.
+/passneon.txt
+/pass*.txt
+/*password*.txt
+/*credentials*.txt
+
 # ---- Python --------------------------------------------------------------
 __pycache__/
 *.py[cod]
@@ -96,3 +111,9 @@ docs/identity_resolution*.csv
 /screenshots/
 /football_validation_audit/
 /football_validation_audit.zip
+# Captures of the live site, so every one shows real players under their real
+# names - the same reason `data/processed/` is ignored above. 58 MB between the
+# directory and its zip, which is the other reason: a binary that large is
+# never worth a commit when the page it shows can be opened again.
+/prints_producao/
+/prints_producao.zip
