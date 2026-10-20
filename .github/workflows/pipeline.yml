@@ -30,26 +30,61 @@ name: Data pipeline
 
 on:
   schedule:
-    # Transfermarkt: Sundays 05:00 UTC. Matches refresh.transfermarkt.cron.
-    - cron: "0 5 * * 0"
-    # FootyStats: Mon/Wed/Fri 04:00 UTC. Matches refresh.footystats.cron.
-    # This is the CADENCE - when a new refresh generation may begin.
-    - cron: "0 4 * * 1,3,5"
-    # FootyStats continuation: hourly. Matches
+    # NOTHING HERE FIRES ON THE HOUR, AND THAT IS THE POINT.
+    #
+    # Measured over 393 hours to 20 October: 88 scheduled runs arrived of the
+    # ~393 an hourly cron asks for - 22%. Median gap 4.3 hours against the one
+    # requested, longest 11.6. Two of 87 intervals were within 90 minutes of an
+    # hour, and exactly one run in 88 started at :00.
+    #
+    # Not our doing: zero of 36 runs overlapped the next trigger, and one run
+    # in 88 was cancelled, so neither a long job nor the concurrency group
+    # below explains it. The minutes were spread evenly across the hour rather
+    # than bunched after :00, which is dropping rather than delay - and
+    # GitHub's documentation says both happen, that "high load times include
+    # the start of every hour", and that under enough load "some queued jobs
+    # may be dropped". Every cron here used to be at :00.
+    #
+    # The minutes below are off the hour and off each other. :15 and :20 are
+    # what the docs suggest, so they are the next crowd; these are not those.
+
+    # Transfermarkt: Sundays 05:23 UTC. Matches refresh.transfermarkt.cron.
+    - cron: "23 5 * * 0"
+
+    # FootyStats CADENCE - the only trigger that may begin a new generation.
+    # Matches refresh.footystats.cron.
+    #
+    # THREE ATTEMPTS, BECAUSE ONE WAS A SINGLE POINT OF FAILURE.
+    #
+    # `pipelines.load.resolve_source` maps a cron literal to a mode: this one
+    # may START, the hourly one below may only CONTINUE. That is deliberate -
+    # an hourly cron allowed to start would begin a sixteen-hour refresh every
+    # hour - but it makes this fire the only way a refresh ever begins. Dropped
+    # at 22%, a refresh does not run late; it does not run until the next
+    # Monday, Wednesday or Friday.
+    #
+    # The gate treats "a generation is already open" as a no-op, so the second
+    # and third attempts cost about a minute each on the days the first worked.
+    # At the observed rate, one attempt opens a generation 22% of the time and
+    # three about 53%.
+    - cron: "17 4,7,10 * * 1,3,5"
+
+    # FootyStats continuation: hourly, at :41. Matches
     # refresh.footystats.continuation_cron.
     #
-    # A complete refresh is ~23,500 requests, about fourteen hours at the
+    # A complete refresh is ~28,460 requests, about sixteen hours at the
     # account's rate limit, and a job fetches for ~45 minutes - so a generation
-    # needs roughly nineteen productive runs. On the cadence alone that is
-    # three weeks per refresh, publishing data older than the interval that
-    # produced it.
+    # needs roughly twenty-one productive runs. On the cadence alone that is
+    # months per refresh, publishing data older than the interval that produced
+    # it.
     #
     # These runs do nothing unless a generation is open: the gate below stops
     # them before the database checks and the fetch, so a quiet hour costs
-    # about a minute of setup. When one is open, a refresh finishes in roughly
-    # a day instead of three weeks. Budget: ~720 no-op minutes a month against
-    # the 2,000 included with a private repository - see docs/deployment.md.
-    - cron: "0 * * * *"
+    # about a minute of setup. Budget: ~720 no-op minutes a month against the
+    # 2,000 included with a private repository - see docs/deployment.md. That
+    # budget assumes the hourly cron is honoured; at the rate measured above it
+    # has been costing roughly a fifth of that.
+    - cron: "41 * * * *"
   workflow_dispatch:
     inputs:
       source:

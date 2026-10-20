@@ -10,6 +10,7 @@ drift. These tests make the drift fail rather than go unnoticed.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,83 @@ def workflow() -> dict:
     # YAML 1.1 reads a bare `on:` key as the boolean True.
     parsed["triggers"] = parsed.get("on") or parsed.get(True)
     return parsed
+
+
+class TestNothingFiresOnTheHour:
+    """Round numbers are what someone tidies a cron back to.
+
+    Measured over 393 hours to 20 October: 88 of the ~393 fires an hourly cron
+    asks for arrived - 22%, median gap 4.3 hours, and exactly one run in 88
+    started at :00. Not our doing: no run overlapped the next trigger and one
+    in 88 was cancelled. GitHub's documentation names the top of the hour as a
+    high load time and says queued jobs may be dropped under enough of it.
+
+    Every cron here was at :00. Moving them off it is the documented
+    mitigation, and it is the kind of change that looks like untidiness to the
+    next reader.
+    """
+
+    def test_no_schedule_fires_at_minute_zero(self, workflow: dict) -> None:
+        for entry in workflow["triggers"]["schedule"]:
+            minute = entry["cron"].split()[0]
+            assert minute != "0", f"{entry['cron']} is back on the hour"
+
+    def test_nor_at_the_minutes_the_documentation_suggests(self, workflow: dict) -> None:
+        """:15 and :20 are the examples GitHub gives, so they are where the
+        next wave of workflows moved to. Being off the hour is the point;
+        being off the obvious alternative costs nothing."""
+        for entry in workflow["triggers"]["schedule"]:
+            assert entry["cron"].split()[0] not in {"15", "20"}, entry["cron"]
+
+    def test_the_cadence_and_the_continuation_do_not_collide(self, workflow: dict) -> None:
+        """Both firing in the same minute queues one behind the other for no
+        benefit, and the queue is where fires are dropped."""
+        minutes = [entry["cron"].split()[0] for entry in workflow["triggers"]["schedule"]]
+        assert len(set(minutes)) == len(minutes), minutes
+
+
+class TestTheCadenceGetsMoreThanOneChance:
+    """It is the only trigger that may begin a generation.
+
+    `pipelines.load.resolve_source` maps a cron literal to a mode: the cadence
+    may START, the hourly continuation may only CONTINUE. That separation is
+    right - an hourly cron allowed to start would begin a sixteen-hour refresh
+    every hour - but it made one fire the only way a refresh ever begins.
+    Dropped at the measured rate, a refresh did not run late; it did not run
+    until the next Monday, Wednesday or Friday.
+    """
+
+    def test_the_footystats_cadence_fires_several_times_a_day(self, competitions: dict) -> None:
+        hours = competitions["refresh"]["footystats"]["cron"].split()[1]
+        assert "," in hours, "one attempt is a single point of failure"
+        assert len(hours.split(",")) >= 3
+
+    def test_the_attempts_are_spread_rather_than_consecutive(self, competitions: dict) -> None:
+        """Back-to-back retries meet the same busy period they just lost to."""
+        field = competitions["refresh"]["footystats"]["cron"].split()[1]
+        hours = sorted(int(hour) for hour in field.split(","))
+        gaps = [later - earlier for earlier, later in pairwise(hours)]
+        assert all(gap >= 2 for gap in gaps), hours
+
+    def test_only_the_cadence_may_start_one(self, competitions: dict) -> None:
+        """The guard that makes the extra attempts safe to add: a continuation
+        cron that could start would begin a refresh every hour."""
+        from pipelines.load.resolve_source import load_config, resolve_with_mode
+
+        config = load_config()
+        footystats = competitions["refresh"]["footystats"]
+
+        _, cadence_mode = resolve_with_mode(
+            event_name="schedule", schedule=footystats["cron"], input_source=None, config=config
+        )
+        _, continuation_mode = resolve_with_mode(
+            event_name="schedule",
+            schedule=footystats["continuation_cron"],
+            input_source=None,
+            config=config,
+        )
+        assert cadence_mode == "start"
+        assert continuation_mode == "continue_only"
 
 
 class TestCadence:
