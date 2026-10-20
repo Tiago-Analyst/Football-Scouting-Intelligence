@@ -336,6 +336,7 @@ class TestQualityEndpoint:
             "sources",
             "checks",
             "identity",
+            "identity_by_competition",
             "average_detailed_coverage_pct",
             "unavailable_metrics",
             # The same metrics with the profiling behind each absence, and -

@@ -43,6 +43,14 @@
     "manual": "Confirmados à mão",
     "manualHint": "Correcções curadas"
   },
+  "identityByCompetition": {
+    "title": "Reconciliação por competição",
+    "description": "A proporção acima é um número único para todo o produto, e esconde uma variação grande. A fonte de identidade cobre as primeiras divisões europeias muito mais de perto do que cobre a América do Sul, a Ásia ou ligas menores, e um jogador sem correspondência aí fica sem grupo posicional — logo não entra na vista analítica. Uma competição em baixo nesta tabela é uma que este site representa de forma fina enquanto a nomeia ao lado das que não. Contado sobre os jogadores com estatísticas em cada competição, que é um denominador diferente dos valores acima e não comparável com eles. Dos mais finos primeiro.",
+    "competition": "Competição",
+    "players": "Jogadores medidos",
+    "matched": "Reconciliados",
+    "share": "Proporção"
+  },
   "coverage": {
     "title": "Cobertura de estatísticas detalhadas",
     "description": "O fornecedor regista eventos detalhados apenas para alguns jogos, e as taxas construídas a partir desses eventos — passe, desarme, remate, npxG, xA — dividem pelos minutos que registou e não por todos os minutos jogados. Golos, assistências e golos sofridos são contadores de topo e dividem pelos minutos jogados. Esta é a proporção média entre as duas contagens em todas as épocas de jogador carregadas que trazem ambas.",

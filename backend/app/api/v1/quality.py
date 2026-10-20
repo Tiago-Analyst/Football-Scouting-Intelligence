@@ -18,6 +18,7 @@ from app.api.deps import SessionDep, SettingsDep
 from app.schemas.api import (
     AnalyticsFreshnessOut,
     CandidateChecksOut,
+    CompetitionIdentityCoverageOut,
     DataQualityResponse,
     DerivedMetricOut,
     IdentityCoverageOut,
@@ -79,6 +80,16 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             manual_overrides=identity.manual_overrides,
             ambiguous=identity.ambiguous,
         ),
+        identity_by_competition=[
+            CompetitionIdentityCoverageOut(
+                competition_id=c.competition_id,
+                name=c.name,
+                players=c.players,
+                matched=c.matched,
+                matched_share=c.matched_share,
+            )
+            for c in svc.identity_coverage_by_competition(db)
+        ],
         average_detailed_coverage_pct=svc.average_detailed_coverage(db),
         unavailable_metrics=svc.unavailable_metrics(settings),
         unavailable_detail=[

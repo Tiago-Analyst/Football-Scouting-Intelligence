@@ -43,6 +43,14 @@
     "manual": "Confirmed by hand",
     "manualHint": "Curated overrides"
   },
+  "identityByCompetition": {
+    "title": "Reconciliation by competition",
+    "description": "The share above is one number for the whole product, and it hides a wide spread. The identity source covers Europe's top divisions far more closely than it covers South America, Asia or smaller leagues, and a player with no counterpart there has no position group — so they are not in the analytical view at all. A competition low in this table is one this site represents thinly while naming it beside the ones it does not. Counted over players with statistics in each competition, which is a different denominator from the figures above and not comparable with them. Thinnest first.",
+    "competition": "Competition",
+    "players": "Players measured",
+    "matched": "Reconciled",
+    "share": "Share"
+  },
   "coverage": {
     "title": "Detailed statistics coverage",
     "description": "The provider records detailed events for only some matches, and the rates built from those events — passing, tackling, shooting, npxG, xA — divide by the minutes it recorded rather than by all minutes played. Goals, assists and goals conceded are top-level counters and divide by minutes played. This is the mean share between the two counts across every loaded player-season carrying both.",
