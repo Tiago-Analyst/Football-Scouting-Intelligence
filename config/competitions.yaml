@@ -22,15 +22,27 @@ refresh:
     # When a NEW refresh generation may start. Mondays, Wednesdays and Fridays,
     # early morning UTC.
     cron: "0 4 * * 1,3,5"
-    # When an UNFINISHED generation may continue. A complete refresh is ~23,500
-    # requests, about fourteen hours at the account's rate limit, and a job can
-    # only fetch for ~45 minutes - so a generation needs roughly nineteen
-    # productive runs. On the cadence cron alone that is three weeks per
-    # refresh, by which time the data it publishes is older than the interval.
+    # When an UNFINISHED generation may continue.
+    #
+    # THESE NUMBERS CHANGED WHEN THE ROSTER STARTED PAGINATING.
+    #
+    # They used to read ~23,500 requests and nineteen productive runs, derived
+    # from a universe of 8,862 players - which was 31% of the 28,311 the
+    # subscription actually offers, because `/league-players` returns 200 rows
+    # a page and only the first was ever read.
+    #
+    # Measured against the API across these 45 competitions: 28,311 players and
+    # ~150 roster pages, so ~28,460 requests. At the account's 1,800 an hour
+    # that is ~16 hours of fetching, and a job may fetch for ~45 minutes -
+    # ~1,350 requests - so a generation now needs roughly twenty-one productive
+    # runs rather than nineteen.
     #
     # Hourly runs do nothing unless a generation is open, so this costs a short
-    # no-op most of the time and finishes a refresh in about a day when one is
-    # running.
+    # no-op most of the time. It does NOT finish a refresh in about a day, as
+    # this comment used to claim: GitHub defers scheduled workflows under load,
+    # and the runs observed on 19-20 October fired roughly every four hours,
+    # not hourly. Twenty-one productive runs at that rate is three to four days
+    # per refresh. The cron asks for hourly; what arrives is fewer.
     continuation_cron: "0 * * * *"
     enabled: true
   transfermarkt:
