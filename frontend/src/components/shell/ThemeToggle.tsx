@@ -8,10 +8,26 @@ import { THEME_STORAGE_KEY } from "./ThemeScript";
 
 type Theme = "system" | "light" | "dark";
 
-const OPTIONS: { value: Theme; label: string; icon: string }[] = [
-  { value: "light", label: "Light", icon: "☀" },
-  { value: "system", label: "System", icon: "◐" },
-  { value: "dark", label: "Dark", icon: "☾" },
+/**
+ * The labels arrive as a prop rather than living here.
+ *
+ * `common.theme` has carried `label`, `light`, `system` and `dark` in both
+ * languages all along; this component simply never read them, so the control
+ * announced itself in English on the Portuguese site. It is a Client
+ * Component and cannot reach the dictionary, but `SiteHeader` is a Server
+ * Component that already holds it - the same route `LocaleSwitcher` takes.
+ */
+export interface ThemeLabels {
+  label: string;
+  light: string;
+  system: string;
+  dark: string;
+}
+
+const ORDER: { value: Theme; icon: string }[] = [
+  { value: "light", icon: "☀" },
+  { value: "system", icon: "◐" },
+  { value: "dark", icon: "☾" },
 ];
 
 /** Fired on same-tab writes; the storage event only fires in *other* tabs. */
@@ -66,25 +82,26 @@ function apply(theme: Theme): void {
  * afterwards, which avoids both a hydration mismatch and the cascading render
  * that a setState-in-effect would cause.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ labels }: { labels: ThemeLabels }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
     <div
       role="radiogroup"
-      aria-label="Colour theme"
+      aria-label={labels.label}
       className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5"
     >
-      {OPTIONS.map((option) => {
+      {ORDER.map((option) => {
         const active = theme === option.value;
+        const label = labels[option.value];
         return (
           <button
             key={option.value}
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={option.label}
-            title={option.label}
+            aria-label={label}
+            title={label}
             onClick={() => apply(option.value)}
             className={cn(
               "h-6 w-6 rounded text-xs leading-none transition-colors",

@@ -109,6 +109,27 @@ test("no translated value is left as the English one by accident", () => {
     "opportunities.results.minutes",
     "opportunities.results.stepRemoved",
 
+    // SHORTLIST AND LONGLIST ARE KEPT IN ENGLISH, DELIBERATELY.
+    //
+    // Both are the words Portuguese recruitment departments use, the way
+    // "scouting" is - Wyscout's own Portuguese material says "shortlist", and
+    // the alternatives are either vague ("lista", a list of what?) or a
+    // translation nobody says out loud ("lista restrita"). The navigation
+    // label said "Listas" and the body said "lista", which named the product's
+    // central object after the most generic word available.
+    //
+    // Portuguese treats it as feminine - "a shortlist", "as shortlists" - so
+    // every article and adjective around it was already correct.
+    "navigation.items.shortlists.label",
+    "shortlists.title",
+    "shortlists.meta.title",
+    "shortlists.meta.detailTitle",
+    "shortlists.detail.eyebrow",
+    "shortlists.statuses.longlist",
+
+    // Placeholders, a colon, two per-cent signs and an arrow. There is no
+    // sentence here to translate.
+    "recruitment.blocked.adaptedRow",
   ]);
   for (const name of FILES) {
     const en = loadJson("en", name);

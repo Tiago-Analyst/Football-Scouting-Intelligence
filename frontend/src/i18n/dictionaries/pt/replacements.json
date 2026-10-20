@@ -5,7 +5,7 @@
   },
   "eyebrow": "Recrutamento",
   "title": "Procura de substitutos",
-  "description": "Escolha um jogador e encontre candidatos que possam substituir esse perfil. Combina semelhança estatística, aptidão para o papel e comportabilidade.",
+  "description": "Escolha um jogador e encontre candidatos que possam substituir esse perfil. Combina semelhança estatística, adequação à função e comportabilidade.",
   "picker": {
     "title": "Escolher o jogador a substituir",
     "placeholder": "Pesquisar por nome…",
@@ -27,7 +27,7 @@
     "competition": "Competição",
     "contractWithin": "Contrato termina dentro de",
     "months": "{count} meses",
-    "apply": "Aplicar",
+    "apply": "Aplicar restrições",
     "budgetHint": "Define a componente de comportabilidade. Sem orçamento, fica de fora."
   },
   "table": {
@@ -35,7 +35,7 @@
     "age": "Idade",
     "club": "Clube",
     "similarity": "Semelhança",
-    "rawRoleFit": "Aptidão bruta",
+    "rawRoleFit": "Adequação bruta",
     "affordability": "Comportabilidade",
     "overall": "Global",
     "ranked": "Ordenado",
@@ -54,9 +54,9 @@
     "rankedTitle": "Porque existe esta coluna",
     "rankedBody": "A lista é ordenada por este valor, e não pelo Global. Uma pontuação construída sobre parte de uma época é lida mais perto da média desta pesquisa, na proporção de quanto futebol a sustenta; com os minutos de uma época inteira é usada tal como está. Ninguém é excluído e nenhuma pontuação é reescrita — o Global ao lado é a pontuação em si.",
     "overallTitle": "Como a pontuação global é construída",
-    "overallBody": "Semelhança estatística 55%, aptidão para o papel 30%, comportabilidade 15%. A comportabilidade é o valor de mercado face ao orçamento definido e nada mais — não é relação qualidade-preço, nem um juízo sobre se o clube venderia. É deixada inteiramente de fora do cálculo quando não há orçamento, em vez de ser adivinhada. Salários, comissões de agentes, elegíbilidade para inscrição e risco de adaptação não são entradas deste modelo e não estão representados em parte alguma da pontuação.",
+    "overallBody": "Semelhança estatística 55%, adequação à função 30%, comportabilidade 15%. A comportabilidade é o valor de mercado face ao orçamento definido e nada mais — não é relação qualidade-preço, nem um juízo sobre se o clube venderia. É deixada inteiramente de fora do cálculo quando não há orçamento, em vez de ser adivinhada. Salários, comissões de agentes, elegíbilidade para inscrição e risco de adaptação não são entradas deste modelo e não estão representados em parte alguma da pontuação.",
     "ranksTitle": "O que isto ordena",
-    "ranksBody": "As pontuações de substituição ordenam um perfil estatístico dentro dos filtros definidos. Não têm em conta o sistema táctico, o papel no plantel, a personalidade nem o historial clínico, e não são uma probabilidade."
+    "ranksBody": "As pontuações de substituição ordenam um perfil estatístico dentro dos filtros definidos. Não têm em conta o sistema táctico, a função no plantel, a personalidade nem o historial clínico, e não são uma probabilidade."
   },
   "targetTitle": "Substitutos para {player}"
 }

@@ -42,13 +42,13 @@ test("the search column says which number it is showing", () => {
   assert.equal(searchCopy.en.table.rawFit, "Raw fit");
   assert.notEqual(searchCopy.en.table.rawFit, "Fit");
   // Portuguese has to name it too, not just inherit the ambiguity.
-  assert.match(searchCopy.pt.table.rawFit, /^Aptidão bruta$/);
+  assert.match(searchCopy.pt.table.rawFit, /^Adequação bruta$/);
 });
 
 test("the search row prints the percentile the payload already carries", () => {
   assert.match(search, /best_role_percentile/);
   assert.match(flat(searchCopy.en.rawFitNote.second), /role fit percentile/i);
-  assert.match(flat(searchCopy.pt.rawFitNote.second), /percentil de aptidão para o papel/i);
+  assert.match(flat(searchCopy.pt.rawFitNote.second), /percentil de adequação à função/i);
 });
 
 test("the search explains both numbers, not one", () => {
@@ -60,9 +60,9 @@ test("the search explains both numbers, not one", () => {
   assert.match(en, /not across different roles/);
 
   const pt = flat(Object.values(searchCopy.pt.rawFitNote).join(" "));
-  assert.match(pt, /aptidão bruta para o papel/i);
+  assert.match(pt, /adequação bruta à função/i);
   assert.match(pt, /nota de observação/i);
-  assert.match(pt, /não entre papéis diferentes/i);
+  assert.match(pt, /não entre funções diferentes/i);
 });
 
 test("the sample band filter defaults to every band", () => {
@@ -89,7 +89,7 @@ test("recruitment says whether the profile can run before it is run", () => {
   assert.match(copy("pt", "recruitment"), /pronto para ordenar candidatos/i);
   assert.match(code, /unavailable/i);
   assert.match(copy("en", "recruitment"), /Choose a role preset or set your own weights/i);
-  assert.match(copy("pt", "recruitment"), /Escolha um papel predefinido/i);
+  assert.match(copy("pt", "recruitment"), /Escolha uma função predefinida/i);
   assert.equal(/title="Set your profile weights"/.test(code), false);
 });
 
@@ -120,9 +120,9 @@ test("a metric with no family does not print an empty heading", () => {
 test("opportunities shows the percentile beside the raw fit", () => {
   assert.match(opportunities, /best_role_percentile/);
   assert.match(copy("en", "opportunities"), /Raw role fit/);
-  assert.match(copy("pt", "opportunities"), /Aptidão bruta/);
+  assert.match(copy("pt", "opportunities"), /Adequação bruta/);
   assert.match(copy("en", "opportunities"), /role fit percentile/i);
-  assert.match(copy("pt", "opportunities"), /percentil \{percentile\} de aptidão/i);
+  assert.match(copy("pt", "opportunities"), /percentil \{percentile\} de adequação/i);
 });
 
 const presets = read("src/components/recruitment/RolePresets.tsx");
@@ -153,6 +153,6 @@ test("the builder states the order it is already in", () => {
   );
   assert.match(
     copy("pt", "recruitment"),
-    /Comece por um papel, ajuste os pesos, aplique filtros e ordene os candidatos/,
+    /Comece por uma função, ajuste os pesos, aplique filtros e ordene os candidatos/,
   );
 });

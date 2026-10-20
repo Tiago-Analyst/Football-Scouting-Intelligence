@@ -215,7 +215,7 @@ test("the percentile bar is still fed the untouched score", () => {
 test("a partial role shows its raw fit and withholds the percentile", () => {
   assert.match(profile, /partial_evidence/);
   assert.match(profileCopy.en, /Partial role evidence/i);
-  assert.match(profileCopy.pt, /Evidência parcial do papel/i);
+  assert.match(profileCopy.pt, /Evidência parcial da função/i);
   assert.match(profileCopy.en, /not available for partial role definitions/i);
   assert.match(profileCopy.pt, /indisponível para definições parciais/i);
 });
@@ -371,7 +371,7 @@ test("the raw role fit is still the headline number", () => {
   // The analytical figure. Replacing it with the ranking would hide the thing
   // a reader checks the ordering against.
   assert.match(opportunitiesCopy.en, /Raw role fit/);
-  assert.match(opportunitiesCopy.pt, /Aptidão bruta/);
+  assert.match(opportunitiesCopy.pt, /Adequação bruta/);
   assert.match(opportunities, /Math\.round\(entry\.best_role_score\)/);
 });
 

@@ -115,5 +115,8 @@ docs/identity_resolution*.csv
 # names - the same reason `data/processed/` is ignored above. 58 MB between the
 # directory and its zip, which is the other reason: a binary that large is
 # never worth a commit when the page it shows can be opened again.
-/prints_producao/
-/prints_producao.zip
+# By shape, not by name: `/prints_producao.zip` was an exact match, so the next
+# capture - `prints-producao-2026-10-20.zip` - landed untracked in the root and
+# was not covered by the rule written for exactly this.
+/prints[-_]*
+/capturas[-_]*

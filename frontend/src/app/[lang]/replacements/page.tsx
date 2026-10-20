@@ -235,7 +235,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             type="submit"
             className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
           >
-            Apply constraints
+            {t.replacements.constraints.apply}
           </button>
         </form>
 

@@ -70,10 +70,10 @@
     "maturityTitle": "Em que ponto das suas épocas estão as competições",
     "maturityBody": "Uma posição face a todas as competições carregadas soa a uma comparação com o jogo mais vasto. A maioria dessas competições tem apenas alguns jogos, pelo que é em larga medida uma posição face a jogadores que mal começaram. Cada população de comparação reporta quantas competições cobre, quantas jogaram época suficiente para um valor de época completa ser sequer possível, e os minutos medianos por trás dos valores que estão a ser ordenados. Isto é sobre tempo, não sobre força — uma liga que começou mais tarde não é mais fraca, e nada aqui ajusta à força da liga.",
     "maturityMeasured": "Medido no instantâneo em que isto foi auditado pela última vez: nove de 44 competições continham um jogador que tinha alcançado uma época completa, e 81,7% dos jogadores vinham das outras 35. Um jogador com menos de 180 minutos chegou ao décimo superior de uma métrica de todas as ligas 17,4% das vezes, contra 2,1% para um jogador com uma época completa — o acaso daria 10% a ambos. O percentil é deixado como está e a composição é reportada ao lado, porque um ajuste incorporado no número é um ajuste que ninguém pode verificar.",
-    "roleTitle": "Se um papel pode sequer ser medido",
-    "roleBefore": "A cobertura de métricas diz quanto da definição de um papel era mensurável. Não consegue dizer ",
+    "roleTitle": "Se uma função pode sequer ser medido",
+    "roleBefore": "A cobertura de métricas diz quanto da definição de uma função era mensurável. Não consegue dizer ",
     "roleEmphasis": "que",
-    "roleAfter": " parte. Um papel cujo conceito de futebol definidor está indisponível é assinalado como evidência parcial: a aptidão em bruto continua a ser mostrada, porque a evidência que existe é real, e o percentil é retido, porque uma pontuação parcial não pode ser ordenada face a jogadores medidos a partir da definição completa.",
+    "roleAfter": " parte. Uma função cujo conceito de futebol definidor está indisponível é assinalado como evidência parcial: a adequação em bruto continua a ser mostrada, porque a evidência que existe é real, e o percentil é retido, porque uma pontuação parcial não pode ser ordenada face a jogadores medidos a partir da definição completa.",
     "eventsTitle": "Sobre quantos eventos assenta uma taxa",
     "eventsBody": "Os minutos jogados nada dizem sobre isto: uma época completa de futebol pode conter quatro remates. As pontuações construídas sobre taxas de sucesso trazem a contagem dos eventos por que dividem, e abaixo de um limiar declarado são reportadas com essa contagem em vez de serem oferecidas como uma das dimensões mais fortes de um jogador. O percentil em si nunca é alterado."
   },

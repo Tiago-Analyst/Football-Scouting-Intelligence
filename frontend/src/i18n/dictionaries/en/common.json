@@ -41,7 +41,9 @@
     "loading": "Loading",
     "empty": "Nothing to show",
     "noResults": "No results",
-    "demoDataLabel": "Demo data."
+    "demoDataLabel": "Demo data.",
+    "loadingPage": "Loading page",
+    "loadingResults": "Loading results"
   },
   "freshness": {
     "label": "Data freshness",

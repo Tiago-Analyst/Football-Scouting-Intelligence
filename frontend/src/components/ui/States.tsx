@@ -34,11 +34,19 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = "Something went wrong",
+  title,
   description,
   action,
 }: {
-  title?: string;
+  /**
+   * Required, with no English default.
+   *
+   * It defaulted to "Something went wrong", which all seven call sites happen
+   * to override - so the fallback was dead text waiting for the first caller
+   * who forgot, and that caller's Portuguese readers would have been the ones
+   * to find out. A required prop makes the compiler ask instead.
+   */
+  title: string;
   description?: ReactNode;
   action?: ReactNode;
 }) {

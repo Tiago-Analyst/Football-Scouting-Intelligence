@@ -1,11 +1,11 @@
 {
   "meta": {
     "title": "Oportunidades de mercado",
-    "description": "Jogadores cuja aptidão para o papel, idade, tempo de jogo e posição de mercado podem merecer atenção."
+    "description": "Jogadores cuja adequação à função, idade, tempo de jogo e posição de mercado podem merecer atenção."
   },
   "eyebrow": "Mercado",
   "title": "Oportunidades de mercado",
-  "description": "Jogadores cuja aptidão para o papel, idade, tempo de jogo e posição de mercado podem merecer atenção. Defina os critérios; o ecrã mostra porque é que cada jogador apareceu.",
+  "description": "Jogadores cuja adequação à função, idade, tempo de jogo e posição de mercado podem merecer atenção. Defina os critérios; o ecrã mostra porque é que cada jogador apareceu.",
   "error": {
     "title": "Não foi possível carregar as oportunidades",
     "description": "A API não respondeu. Verifique se o backend está a correr."
@@ -16,8 +16,8 @@
     "apply": "Aplicar critérios",
     "any": "Qualquer",
     "maxAge": "Idade máxima",
-    "minRoleFit": "Aptidão bruta mínima",
-    "minRoleFitHint": "O compósito ponderado que está por trás do melhor papel de um jogador, 0 a 100. Não é o percentil de aptidão — um 80 bruto é uma pontuação alta nos seus próprios termos, seja qual for a população.",
+    "minRoleFit": "Adequação bruta mínima",
+    "minRoleFitHint": "O compósito ponderado que está por trás da melhor função de um jogador, 0 a 100. Não é o percentil de adequação — um 80 bruto é uma pontuação alta nos seus próprios termos, seja qual for a população.",
     "minimumMinutes": "Minutos mínimos",
     "minimumMinutesTooltipLabel": "Isto exclui jogadores por omissão?",
     "minimumMinutesTooltip": "Filtro opcional. Todos os jogadores são elegíveis por omissão, independentemente dos minutos jogados — isto define um mínimo apenas se o quiser, e fica vazio se não o preencher.",
@@ -32,14 +32,14 @@
     "funnel": "Onde o filtro estreitou",
     "emptyTitle": "Nenhum jogador cumpre estes critérios",
     "resetCriteria": "Repor critérios",
-    "rawRoleFit": "Aptidão bruta",
+    "rawRoleFit": "Adequação bruta",
     "outOfHundred": "/ 100",
-    "rolePercentile": "percentil {percentile} de aptidão",
+    "rolePercentile": "percentil {percentile} de adequação",
     "rankedNote": "ordenado {score} · {pct}% de uma época",
     "why": "Porque este jogador apareceu",
     "minutes": "{minutes} min",
     "marketValueNote": "Valor de mercado {value} — uma estimativa colaborativa, não um preço pedido.",
-    "emptyDescription": "Experimente baixar a aptidão mínima, subir o limite de idade ou alargar o tecto de valor de mercado.",
+    "emptyDescription": "Experimente baixar a adequação mínima, subir o limite de idade ou alargar o tecto de valor de mercado.",
     "stepRemaining": "restam {remaining}",
     "stepRemoved": " (−{removed})"
   }

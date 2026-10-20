@@ -78,12 +78,30 @@ inconsistency a glossary exists to stop).
 | Winger | **Extremo** |
 | Centre-Forward | **Avançado** |
 
+## Two rules this file settles
+
+**`role` is `função`, never `papel`.** *Função* is what a Portuguese coach or
+scout calls the job a player does on the pitch. *Papel* is the literal
+translation of the English word and reads as management-speak. The rule is
+total, including every contraction and determiner that has to move with it:
+*função* is feminine where *papel* was masculine, so *o papel* becomes *a
+função*, *do papel* becomes *da função*, *dois papéis* becomes *duas funções*.
+A find-and-replace that misses those produces confident-looking broken
+Portuguese, which is worse than leaving the old word alone.
+
+**`fit` is `adequação`, never `aptidão`.** This one is not taste. *Aptidão* is
+aptitude - a property of the player - and the product's central claim is that
+these scores describe suitability for a profile and **not** player quality.
+"As pontuações descrevem a aptidão, não a qualidade" asks a reader to hold a
+distinction that nearly collapses; "a adequação, não a qualidade" does not.
+All 41 occurrences meant fit; none meant aptitude in any other sense.
+
 ## Analytical concepts
 
 | English | Português (PT) | Notes |
 |---|---|---|
-| Raw Role Fit | **Aptidão bruta para o papel** | "Bruta" marks it as the unranked composite. Never "cru". |
-| Role Fit Percentile | **Percentil de aptidão para o papel** | |
+| Raw Role Fit | **Adequação bruta à função** | "Bruta" marks it as the unranked composite. Never "cru". *Adequação*, not *aptidão*: aptitude is about the player's ability, which is the one reading the product spends paragraphs denying. Suitability is what a fit is. |
+| Role Fit Percentile | **Percentil de adequação à função** | |
 | Metric Coverage | **Cobertura de métricas** | How much of a role definition could be measured. |
 | Analytical Metric Coverage | **Cobertura analítica de métricas** | |
 | Feature Coverage | **Cobertura de atributos** | Deliberately a different word from métricas: the product keeps these two ideas apart, and so must the translation. |
@@ -94,8 +112,8 @@ inconsistency a glossary exists to stop).
 | Low Sample | **Amostra reduzida** | |
 | Developing Sample | **Amostra em formação** | Describes the season, not the player. |
 | Established Sample | **Amostra consolidada** | |
-| Partial Role Evidence | **Evidência parcial do papel** | |
-| Full Role Fit | **Aptidão completa para o papel** | |
+| Partial Role Evidence | **Evidência parcial da função** | |
+| Full Role Fit | **Adequação completa à função** | |
 | Unavailable | **Indisponível** | Never "não disponível" in a badge: it must stay short. |
 | All-Leagues Percentile | **Percentil de todas as ligas** | |
 | Mixed Season Maturity | **Épocas em fases diferentes** | A literal "maturidade de época mista" says nothing in Portuguese. This names the actual fact: the competitions are at different points in their seasons. |
@@ -108,7 +126,7 @@ inconsistency a glossary exists to stop).
 | Contract expires | **Fim de contrato** | The event. |
 | Contract until | **Contrato até** | The profile card's label, which is followed by a date. "Fim de contrato até Dez 2027" would say the same thing twice. |
 | Market value | **Valor de mercado** | Always paired with the existing caveat that it is an estimate, not a fee. |
-| Shortlist | **Lista de candidatos** | |
+| Shortlist | **Shortlist** | Kept in English; see below. |
 | Replacement | **Substituto** | |
 | Opportunity | **Oportunidade** | |
 
@@ -120,6 +138,7 @@ inconsistency a glossary exists to stop).
 | per 90 / /90 | Written **/90** in both languages, as it already is. |
 | Box-to-box | Inside the role name only; see above. |
 | FootyStats, Transfermarkt | Product and dataset names. |
+| Shortlist, Longlist | The words Portuguese recruitment departments use, the way *scouting* is. The alternatives are either vague (*lista* - a list of what?) or something nobody says out loud (*lista restrita*). Portuguese treats it as feminine - *a shortlist*, *as shortlists* - so the articles around it were already right. |
 | Canonical metric keys (`npxg_per90`, …) | Identifiers, not copy. They appear in Data Quality and System Status as the provider's own field names and must match the provider and the configuration exactly. |
 | Role identifiers (`deep_lying_playmaker`, …) | Same reason: they are keys shared with `config/player_roles.yaml` and the API. |
 

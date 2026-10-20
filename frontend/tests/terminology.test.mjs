@@ -29,9 +29,9 @@ test("a raw role fit is never headed just 'Role fit'", () => {
   }
   for (const dict of ["replacements", "opportunities"]) {
     assert.match(copy("en", dict), /Raw role fit/i, dict);
-    // "Aptidão bruta" carries the same distinction: bruta is the
+    // "Adequação bruta" carries the same distinction: bruta is the
     // unranked composite, and the percentile is named separately.
-    assert.match(copy("pt", dict), /Aptidão bruta/i, dict);
+    assert.match(copy("pt", dict), /Adequação bruta/i, dict);
   }
 });
 
@@ -60,8 +60,8 @@ test("the comparison names all three role numbers it shows", () => {
   assert.match(en.metricCoverage, /metric coverage/);
   // Three different numbers, named as three in Portuguese too.
   const pt = dictionary("pt", "shortlists").comparison;
-  assert.match(pt.rawFit, /aptid\u00e3o bruta/);
-  assert.match(pt.roleFitPercentile, /percentil .* aptid\u00e3o para o papel/);
+  assert.match(pt.rawFit, /adequa\u00e7\u00e3o bruta/);
+  assert.match(pt.roleFitPercentile, /percentil .* adequa\u00e7\u00e3o \u00e0 fun\u00e7\u00e3o/);
   assert.match(pt.metricCoverage, /cobertura de m\u00e9tricas/);
 });
 
@@ -69,8 +69,14 @@ test("similarity says what it is not, wherever it is shown", () => {
   // The denial is the point: an index of 99 is read as 99% certain unless
   // something on the page says otherwise. The similarity search says it in
   // prose; the profile table says it under the number, where the number is.
+  // It used to be three lines of English written into the page, so this read
+  // the page source. The sentence now comes from `notes.indexBody`, which is
+  // a stronger place to check it: the page could only ever carry the denial
+  // in one language, and a Portuguese reader needs it just as much.
   const search = read("src/app/[lang]/similar/page.tsx").replace(/\s+/g, " ");
-  assert.match(search, /not a probability/);
+  assert.match(search, /\{t\.similarity\.notes\.indexBody\}/);
+  assert.match(copy("en", "similarity"), /not a probability/);
+  assert.match(copy("pt", "similarity"), /Não é a probabilidade/);
 
   assert.match(copy("en", "profile"), /index, not %/);
   assert.match(copy("pt", "profile"), /índice, não %/);

@@ -1,6 +1,6 @@
 {
   "productName": "Football Recruitment Intelligence",
-  "tagline": "Análise de recrutamento assente em percentis contextuais, papéis de jogador e semelhança estatística. As pontuações descrevem a aptidão estatística para um perfil, não a qualidade do jogador.",
+  "tagline": "Análise de recrutamento assente em percentis contextuais, funções de jogador e semelhança estatística. As pontuações descrevem a adequação estatística a um perfil, não a qualidade do jogador.",
   "attribution": "Dados de desempenho fornecidos pela FootyStats. Dados de mercado e de identidade derivados do conjunto de dados público do Transfermarkt (dcaribou/transfermarkt-datasets). Todos os dados do fornecedor continuam a ser propriedade do respectivo titular e não são redistribuídos em massa.",
   "theme": {
     "label": "Tema de cor",
@@ -41,7 +41,9 @@
     "loading": "A carregar",
     "empty": "Nada a mostrar",
     "noResults": "Sem resultados",
-    "demoDataLabel": "Dados de demonstração."
+    "demoDataLabel": "Dados de demonstração.",
+    "loadingPage": "A carregar a página",
+    "loadingResults": "A carregar resultados"
   },
   "freshness": {
     "label": "Actualidade dos dados",
@@ -54,7 +56,7 @@
   "meta": {
     "title": "Football Recruitment Intelligence",
     "titleTemplate": "%s · Football Recruitment Intelligence",
-    "description": "Inteligência de recrutamento para o futebol: percentis contextuais, papéis de jogador, semelhança estatística e análise de mercado.",
+    "description": "Inteligência de recrutamento para o futebol: percentis contextuais, funções de jogador, semelhança estatística e análise de mercado.",
     "ogLocale": "pt_PT"
   },
   "metricCensus": {

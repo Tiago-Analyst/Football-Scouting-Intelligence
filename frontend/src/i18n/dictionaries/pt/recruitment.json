@@ -6,7 +6,7 @@
   "eyebrow": "Recrutamento",
   "title": "Construtor de perfil de recrutamento",
   "description": "Defina o perfil que procura, pondere o que importa e ordene candidatos em relação a ele. Cada resultado mostra os percentis que o colocaram ali.",
-  "intro": "Comece por um papel, ajuste os pesos, aplique filtros e ordene os candidatos.",
+  "intro": "Comece por uma função, ajuste os pesos, aplique filtros e ordene os candidatos.",
   "weights": {
     "heading": "Pesos do perfil",
     "normalised": "Os pesos são normalizados, pelo que não têm de somar exactamente 100.",
@@ -28,8 +28,8 @@
     "reset": "Repor"
   },
   "states": {
-    "chooseTitle": "Escolha um papel predefinido ou defina os seus próprios pesos",
-    "chooseDescription": "Comece por um dos papéis nomeados, ou defina a ênfase manualmente. Ainda nada está ponderado, pelo que não há por que ordenar.",
+    "chooseTitle": "Escolha uma função predefinida ou defina os seus próprios pesos",
+    "chooseDescription": "Comece por uma das funções nomeadas, ou defina a ênfase manualmente. Ainda nada está ponderado, pelo que não há por que ordenar.",
     "readyTitle": "Este perfil está pronto para ordenar candidatos",
     "readyFallback": "Ajuste os filtros e construa a lista.",
     "readyActionBefore": "Prima ",
@@ -53,7 +53,7 @@
     "rankedNote": "ordenado {score} · {pct}% de uma época",
     "why": "Porquê {firstName}?",
     "rankingTitle": "O que esta ordenação é",
-    "rankingBody": "Uma ordenação de aptidão estatística face aos pesos que definiu. Não é uma medida de qualidade do jogador, e nada sabe sobre sistema táctico, histórico de lesões ou temperamento."
+    "rankingBody": "Uma ordenação de adequação estatística face aos pesos que definiu. Não é uma medida de qualidade do jogador, e nada sabe sobre sistema táctico, histórico de lesões ou temperamento."
   },
   "blocked": {
     "willRankNobody": "Este perfil não vai ordenar ninguém.",
@@ -61,7 +61,13 @@
     "build": "Construir lista",
     "cannotProduce": "{scores} não pode ser produzido para nenhum jogador, pelo que este perfil não corresponde a ninguém.",
     "setOne": "Ponha esse peso a zero para executar a pesquisa.",
-    "setMany": "Ponha esses pesos a zero para executar a pesquisa."
+    "setMany": "Ponha esses pesos a zero para executar a pesquisa.",
+    "adapt": "Adaptar os pesos aos dados disponíveis",
+    "adaptHint": "Põe a zero os pesos indisponíveis e reparte o que tinham pelas dimensões que estão ponderadas e disponíveis, mantendo o total igual.",
+    "adapted": "Pesos adaptados. Nada foi submetido — reveja as caixas e construa quando quiser.",
+    "adaptedRow": "{score}: {from}% → {to}%",
+    "adaptImpossible": "Todas as dimensões ponderadas estão indisponíveis, logo não há para onde mover o peso. Dê peso a uma dimensão que este conjunto de dados consiga produzir.",
+    "undo": "Anular"
   },
   "summary": {
     "subjectPlayer": "um jogador",

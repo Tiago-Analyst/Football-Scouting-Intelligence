@@ -61,7 +61,13 @@
     "build": "Build shortlist",
     "cannotProduce": "{scores} cannot be produced for any player, so this profile matches nobody.",
     "setOne": "Set that weight to zero to run the search.",
-    "setMany": "Set those weights to zero to run the search."
+    "setMany": "Set those weights to zero to run the search.",
+    "adapt": "Adapt weights to available data",
+    "adaptHint": "Sets the unavailable weights to zero and shares what they held across the dimensions that are weighted and available, keeping the total the same.",
+    "adapted": "Weights adapted. Nothing was submitted — review the boxes and build when you are ready.",
+    "adaptedRow": "{score}: {from}% → {to}%",
+    "adaptImpossible": "Every weighted dimension is unavailable, so there is nowhere to move the weight to. Give weight to a dimension this dataset can produce.",
+    "undo": "Undo"
   },
   "summary": {
     "subjectPlayer": "a player",

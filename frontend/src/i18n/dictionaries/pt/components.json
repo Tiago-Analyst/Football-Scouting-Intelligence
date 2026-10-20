@@ -37,7 +37,7 @@
     "description": "Pontuações compostas, medidas face a jogadores comparáveis.",
     "tooltipLabel": "O que é esta forma?",
     "tooltip": "Cada eixo é uma pontuação composta construída a partir dos percentis do jogador entre jogadores comparáveis, numa escala de 0 a 100. A forma mostra onde é forte em relação a esse grupo — não o quão bom é. As pontuações que não puderam ser calculadas são omitidas em vez de desenhadas a zero.",
-    "notQuality": "Uma pontuação descreve a aptidão estatística para um perfil entre jogadores comparáveis. Não é qualidade do jogador.",
+    "notQuality": "Uma pontuação descreve a adequação estatística a um perfil entre jogadores comparáveis. Não é qualidade do jogador.",
     "omitted": "Não representadas, por não terem podido ser calculadas: {scores}.",
     "ariaSummary": "{score} {value} de 100"
   },
@@ -67,13 +67,13 @@
     "source": "Do conjunto de dados público do Transfermarkt. Os valores são os aí reportados, que nem sempre correspondem ao que foi pago."
   },
   "presets": {
-    "start": "Começar por um papel",
-    "hide": "Ocultar papéis",
+    "start": "Começar por uma função",
+    "hide": "Ocultar funções",
     "recommended": "Ponto de partida recomendado",
-    "fills": "Preenche os pesos abaixo a partir da definição do próprio papel. Ajuste-os depois — nada fica bloqueado.",
+    "fills": "Preenche os pesos abaixo a partir da definição da própria função. Ajuste-os depois — nada fica bloqueado.",
     "startingFrom": "A partir de",
     "cannotScore": "Este perfil não pode ser pontuado com os dados carregados.",
-    "setToZero": "Pôr esse peso a zero produz uma ordenação, face a uma leitura mais estreita do papel do que a aqui nomeada.",
+    "setToZero": "Pôr esse peso a zero produz uma ordenação, face a uma leitura mais estreita da função do que a aqui nomeada.",
     "positions": {
       "GK": "Guarda-redes",
       "CB": "Defesa-central",
@@ -94,7 +94,7 @@
     "strengths": "Pontos fortes",
     "strengthsEmpty": "Nenhuma métrica se situa na faixa superior desta população de comparação.",
     "watchOuts": "Pontos de atenção",
-    "watchOutsEmpty": "Nenhuma métrica central a este papel se situa na faixa inferior.",
+    "watchOutsEmpty": "Nenhuma métrica central a esta função se situa na faixa inferior.",
     "notMeasured": "Não medido",
     "dataConfidence": "Confiança nos dados",
     "notCaptured": "Não captado por este modelo"

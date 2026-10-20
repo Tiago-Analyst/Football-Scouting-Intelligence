@@ -14,9 +14,18 @@ export function Skeleton({ className }: { className?: string }) {
  * It mirrors the real table's column count so the layout does not jump when
  * data arrives.
  */
-export function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; columns?: number }) {
+export function TableSkeleton({
+  rows = 6,
+  columns = 5,
+  label,
+}: {
+  rows?: number;
+  columns?: number;
+  /** What a screen reader announces. Required: this is the only text here. */
+  label: string;
+}) {
   return (
-    <div role="status" aria-label="Loading results">
+    <div role="status" aria-label={label}>
       <TableWrap>
         <Table>
           <THead>
@@ -46,10 +55,10 @@ export function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; column
 }
 
 /** Loading shape for a card-based section. */
-export function CardSkeleton({ lines = 3 }: { lines?: number }) {
+export function CardSkeleton({ lines = 3, label }: { lines?: number; label: string }) {
   return (
     <Card>
-      <div className="space-y-3 px-5 py-4" role="status" aria-label="Loading">
+      <div className="space-y-3 px-5 py-4" role="status" aria-label={label}>
         <Skeleton className="h-4 w-40" />
         {Array.from({ length: lines }, (_, i) => (
           <Skeleton key={i} className="h-3 w-full" />
