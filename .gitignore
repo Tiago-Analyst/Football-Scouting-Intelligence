@@ -111,3 +111,9 @@ docs/identity_resolution*.csv
 /screenshots/
 /football_validation_audit/
 /football_validation_audit.zip
+# Captures of the live site, so every one shows real players under their real
+# names - the same reason `data/processed/` is ignored above. 58 MB between the
+# directory and its zip, which is the other reason: a binary that large is
+# never worth a commit when the page it shows can be opened again.
+/prints_producao/
+/prints_producao.zip
