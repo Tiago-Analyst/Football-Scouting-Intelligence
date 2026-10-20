@@ -143,6 +143,43 @@ async function Report({
         </Card>
       ) : null}
 
+      {(report.identity_by_competition ?? []).length > 0 ? (
+        <Card>
+          <CardHeader
+            title={q.identityByCompetition.title}
+            description={q.identityByCompetition.description}
+          />
+          <CardBody className="p-0">
+            <TableWrap className="rounded-none border-0">
+              <Table>
+                <THead>
+                  <TR>
+                    {/* Share second, not last. The table is wider than a
+                        phone and scrolls inside its card like the others here,
+                        so the final column is the one that goes off-screen -
+                        and the share is the whole point of the table. */}
+                    <TH>{q.identityByCompetition.competition}</TH>
+                    <TH numeric>{q.identityByCompetition.share}</TH>
+                    <TH numeric>{q.identityByCompetition.matched}</TH>
+                    <TH numeric>{q.identityByCompetition.players}</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {(report.identity_by_competition ?? []).map((row) => (
+                    <TR key={row.competition_id}>
+                      <TD>{row.name}</TD>
+                      <TD numeric>{Math.round(row.matched_share * 100)}%</TD>
+                      <TD numeric>{f.count(row.matched)}</TD>
+                      <TD numeric>{f.count(row.players)}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            </TableWrap>
+          </CardBody>
+        </Card>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title={q.coverage.title} description={q.coverage.description} />

@@ -920,6 +920,22 @@ export interface IdentityCoverage {
   ambiguous: number;
 }
 
+/**
+ * One competition's share of players reconciled against the identity source.
+ *
+ * A different denominator from `IdentityCoverage`: that one divides by every
+ * player in the database, most of whom the identity source knows alone. This
+ * divides by the players with statistics in this competition. The two shares
+ * are not comparable.
+ */
+export interface CompetitionIdentityCoverage {
+  competition_id: string;
+  name: string;
+  players: number;
+  matched: number;
+  matched_share: number;
+}
+
 export interface AnalyticsFreshness {
   players: number;
   competitions: number;
@@ -984,6 +1000,8 @@ export interface DataQualityResponse {
   /** The same facts per source, published beside candidate. */
   providers?: ProviderQuality[];
   identity: IdentityCoverage | null;
+  /** The same reconciliation split by competition, thinnest first. */
+  identity_by_competition?: CompetitionIdentityCoverage[];
   average_detailed_coverage_pct: number | null;
   /** What the provider cannot supply at all. Empty in demo mode. */
   unavailable_metrics: string[];

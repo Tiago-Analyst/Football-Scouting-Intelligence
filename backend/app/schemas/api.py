@@ -1129,6 +1129,26 @@ class IdentityCoverageOut(BaseModel):
     ambiguous: int
 
 
+class CompetitionIdentityCoverageOut(BaseModel):
+    """One competition's share of players reconciled against the identity source.
+
+    A DIFFERENT DENOMINATOR FROM `IdentityCoverageOut`, ON PURPOSE.
+
+    That one divides by every player in the database, most of whom are known to
+    the identity source alone - it answers "how much of the whole carries two
+    sources". This divides by the players with statistics in this competition,
+    and answers "how much of what we measure here could be reconciled". The two
+    shares are not comparable and the page must not place them as if they were.
+    """
+
+    competition_id: str
+    name: str
+    #: Players with statistics in this competition.
+    players: int
+    matched: int
+    matched_share: float
+
+
 class AnalyticsFreshnessOut(BaseModel):
     """Whether the API is serving what the database currently holds."""
 
@@ -1219,6 +1239,12 @@ class DataQualityResponse(BaseModel):
     #: is how the page shows them.
     providers: list[ProviderQualityOut] = Field(default_factory=list)
     identity: IdentityCoverageOut | None = None
+    #: The same reconciliation split by competition, thinnest first. One
+    #: overall share reads as a property of the product; it is not, and the
+    #: spread is what a reader needs - a competition the identity source barely
+    #: covers is one this site barely represents while naming it beside the
+    #: ones it does.
+    identity_by_competition: list[CompetitionIdentityCoverageOut] = Field(default_factory=list)
     #: Mean share of played minutes carrying detailed statistics, across every
     #: loaded player-season that has both figures. `None` when unmeasurable.
     average_detailed_coverage_pct: float | None = None

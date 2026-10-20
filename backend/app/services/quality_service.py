@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -542,6 +542,94 @@ def identity_coverage(session: Session) -> IdentityCoverage:
         manual_overrides=manual,
         ambiguous=ambiguous,
     )
+
+
+@dataclass(frozen=True)
+class CompetitionIdentityCoverage:
+    """How much of one competition was reconciled against the identity source."""
+
+    competition_id: str
+    name: str
+    players: int
+    matched: int
+
+    @property
+    def matched_share(self) -> float:
+        return self.matched / self.players if self.players else 0.0
+
+
+def identity_coverage_by_competition(
+    session: Session,
+) -> list[CompetitionIdentityCoverage]:
+    """The same figure as `identity_coverage`, split by competition.
+
+    WHY THE SPLIT IS THE HONEST VIEW
+
+    One overall share reads as a property of the product. It is not: measured
+    over a real resolution it ran from 5% for the Copa Sudamericana to 92% for
+    Eliteserien, because the Transfermarkt dataset covers South America, Asia,
+    Canada and Finland far more thinly than it covers Europe's top divisions.
+
+    That matters to a reader, and not as a footnote. A player with no identity
+    counterpart has no position group, so they are not in the analytical view
+    at all - and a competition at 5% is one the site barely represents while
+    naming it alongside the Premier League. Nothing on the page said so.
+
+    Unmatched is not a failure and this is not a check. It is the size of what
+    each competition could be reconciled against, reported rather than averaged
+    away, for the same reason every per-90 figure carries the minutes behind it.
+
+    Counted over `fact_player_season_stats` rather than a player's current
+    competition: the current one is inherited from the identity row when a
+    merge happens, so grouping by it would ask the question of the answer.
+    """
+    matched_players = (
+        select(BridgePlayerSource.player_id)
+        .group_by(BridgePlayerSource.player_id)
+        .having(func.count(func.distinct(BridgePlayerSource.source)) > 1)
+        .subquery()
+    )
+
+    rows = session.execute(
+        select(
+            FactPlayerSeasonStats.competition_id,
+            # Defensive, and unreachable today: the fact table's foreign key to
+            # `dim_competition` makes a missing name impossible. Left in rather
+            # than tested, because a test for it would have to be a lie.
+            func.coalesce(DimCompetition.name, FactPlayerSeasonStats.competition_id),
+            func.count(func.distinct(FactPlayerSeasonStats.player_id)),
+            func.count(
+                func.distinct(
+                    case(
+                        (
+                            FactPlayerSeasonStats.player_id.in_(select(matched_players)),
+                            FactPlayerSeasonStats.player_id,
+                        ),
+                        else_=None,
+                    )
+                )
+            ),
+        )
+        .outerjoin(
+            DimCompetition,
+            DimCompetition.competition_id == FactPlayerSeasonStats.competition_id,
+        )
+        .group_by(FactPlayerSeasonStats.competition_id, DimCompetition.name)
+    ).all()
+
+    coverage = [
+        CompetitionIdentityCoverage(
+            competition_id=str(competition_id),
+            name=str(name),
+            players=int(players),
+            matched=int(matched),
+        )
+        for competition_id, name, players, matched in rows
+    ]
+    # Thinnest first: the reader needs the competitions the site represents
+    # least, and a list ordered by name buries them.
+    coverage.sort(key=lambda c: (c.matched_share, -c.players))
+    return coverage
 
 
 def average_detailed_coverage(session: Session) -> float | None:
