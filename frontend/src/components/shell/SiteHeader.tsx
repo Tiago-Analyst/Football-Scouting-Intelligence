@@ -48,7 +48,7 @@ export async function SiteHeader() {
           <Suspense fallback={<span aria-hidden className="h-[22px] w-[52px]" />}>
             <LocaleSwitcher current={locale} />
           </Suspense>
-          <ThemeToggle />
+          <ThemeToggle labels={t.common.theme} />
           <MobileNav t={t} locale={locale} />
         </div>
       </div>

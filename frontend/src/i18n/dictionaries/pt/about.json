@@ -8,11 +8,11 @@
   "description": "Para que serve a plataforma, como está construída, e em que ponto se encontra.",
   "intro": {
     "problem": "O recrutamento no futebol implica comparar jogadores que jogam em ligas diferentes, em sistemas diferentes, durante períodos diferentes. As estatísticas em bruto viajam mal através dessas fronteiras: nove passes progressivos por 90 minutos significam uma coisa para um defesa-central numa equipa de posse e algo inteiramente diferente para um médio numa equipa de contra-ataque.",
-    "purpose": "Esta plataforma existe para acrescentar o contexto que torna esses números comparáveis — percentis face a pares, perfis por papel, semelhança estatística — e para manter o raciocínio à vista, de modo a que um analista de recrutamento possa discutir o resultado em vez de simplesmente o aceitar."
+    "purpose": "Esta plataforma existe para acrescentar o contexto que torna esses números comparáveis — percentis face a pares, perfis por função, semelhança estatística — e para manter o raciocínio à vista, de modo a que um analista de recrutamento possa discutir o resultado em vez de simplesmente o aceitar."
   },
   "build": {
     "title": "Como está construída",
-    "pipeline": "Os dados de jogo e os dados de mercado são carregados em lotes agendados, reconciliados numa única identidade de jogador, transformados em métricas por 90 minutos e em percentis contextuais, e depois pontuados para papéis e semelhança. Está tudo pré-calculado e guardado, pelo que carregar uma página lê da base de dados em vez de desencadear uma chamada ao fornecedor ou a execução de um modelo.",
+    "pipeline": "Os dados de jogo e os dados de mercado são carregados em lotes agendados, reconciliados numa única identidade de jogador, transformados em métricas por 90 minutos e em percentis contextuais, e depois pontuados para funções e semelhança. Está tudo pré-calculado e guardado, pelo que carregar uma página lê da base de dados em vez de desencadear uma chamada ao fornecedor ou a execução de um modelo.",
     "stack": "Um serviço em Python e FastAPI é o dono da camada analítica e da base de dados; uma aplicação Next.js desenha a interface no servidor. A lógica analítica permanece no servidor."
   },
   "status": {

@@ -19,7 +19,7 @@
     "namePlaceholder": "Pesquisar jogadores…",
     "positionGroup": "Grupo posicional",
     "competition": "Competição",
-    "bestRole": "Melhor papel",
+    "bestRole": "Melhor função",
     "minAge": "Idade mín.",
     "maxAge": "Idade máx.",
     "minimumMinutes": "Minutos mínimos",
@@ -40,7 +40,7 @@
     "sortBy": "Ordenar por",
     "sorts": {
       "minutes": "Minutos jogados",
-      "role_score": "Aptidão para o papel",
+      "role_score": "Adequação à função",
       "market_value": "Valor de mercado",
       "age": "Idade",
       "name": "Nome"
@@ -51,7 +51,7 @@
     "showing": "a mostrar {from}–{to}",
     "demoData": "Dados de demonstração",
     "emptyTitle": "Nenhum jogador corresponde a estes filtros",
-    "emptyDescription": "Experimente alargar o intervalo de idades, baixar os minutos mínimos ou limpar o filtro de papel.",
+    "emptyDescription": "Experimente alargar o intervalo de idades, baixar os minutos mínimos ou limpar o filtro de função.",
     "resetFilters": "Repor filtros"
   },
   "table": {
@@ -59,8 +59,8 @@
     "age": "Idade",
     "club": "Clube",
     "competition": "Competição",
-    "bestRole": "Melhor papel",
-    "rawFit": "Aptidão bruta",
+    "bestRole": "Melhor função",
+    "rawFit": "Adequação bruta",
     "minutes": "Minutos",
     "value": "Valor",
     "contract": "Contrato",
@@ -73,9 +73,9 @@
     "page": "Página {page} de {pages}"
   },
   "rawFitNote": {
-    "title": "Os dois números da coluna Aptidão bruta",
-    "first": "A <strong>aptidão bruta para o papel</strong> é o compósito ponderado que está por trás do melhor papel de um jogador, numa escala de 0 a 100. É uma pontuação nos seus próprios termos: um 80 bruto é um 80 bruto seja qual for a população, o que a torna comparável entre jogadores dentro de um mesmo papel, mas não entre papéis diferentes, porque papéis com ponderações distintas não partilham uma escala.",
-    "second": "O número mais pequeno é o <strong>percentil de aptidão para o papel</strong>: onde esse compósito se situa entre os jogadores medidos para o mesmo papel. É o comparável, e é por ele que o melhor papel foi escolhido.",
+    "title": "Os dois números da coluna Adequação bruta",
+    "first": "A <strong>adequação bruta à função</strong> é o compósito ponderado que está por trás da melhor função de um jogador, numa escala de 0 a 100. É uma pontuação nos seus próprios termos: um 80 bruto é um 80 bruto seja qual for a população, o que a torna comparável entre jogadores dentro de um mesma função, mas não entre funções diferentes, porque funções com ponderações distintas não partilham uma escala.",
+    "second": "O número mais pequeno é o <strong>percentil de adequação à função</strong>: onde esse compósito se situa entre os jogadores medidos para a mesma função. É o comparável, e é por ele que a melhor função foi escolhido.",
     "third": "Nenhum deles é uma nota de observação, uma probabilidade ou uma medida de qualidade."
   }
 }

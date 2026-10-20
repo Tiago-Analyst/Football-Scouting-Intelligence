@@ -325,6 +325,13 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   },
                 }) ?? score.reason,
             }))}
+            scores={SCORES.map((score) => ({
+              key: score.key,
+              label:
+                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                score.label,
+              available: !unavailable.has(score.key),
+            }))}
             initiallyBlocked={blockedNow.map((score) => score.key)}
           />
         </form>

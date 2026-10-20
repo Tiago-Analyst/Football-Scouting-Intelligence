@@ -1,25 +1,25 @@
 {
   "meta": {
-    "title": "Listas",
-    "detailTitle": "Lista"
+    "title": "Shortlists",
+    "detailTitle": "Shortlist"
   },
   "eyebrow": "Espaço de trabalho",
-  "title": "Listas",
+  "title": "Shortlists",
   "description": "Guarde jogadores, escreva as suas notas, e compare até cinco lado a lado. Nada aqui é visível para mais ninguém.",
   "exportTitle": "A exportação limita-se às suas próprias selecções",
-  "exportBody": "Uma lista exporta como CSV com as colunas que já consegue ver, mais as suas notas. Não há exportação em massa da base de dados do fornecedor, e nenhuma será acrescentada.",
+  "exportBody": "Uma shortlist exporta como CSV com as colunas que já consegue ver, mais as suas notas. Não há exportação em massa da base de dados do fornecedor, e nenhuma será acrescentada.",
   "signedOut": {
-    "title": "Entre para guardar listas",
-    "description": "Todo o resto deste site é aberto. A conta existe apenas para que uma lista tenha dono — o seu, e de mais ninguém.",
+    "title": "Entre para guardar shortlists",
+    "description": "Todo o resto deste site é aberto. A conta existe apenas para que uma shortlist tenha dono — o seu, e de mais ninguém.",
     "signIn": "Entrar",
     "register": "Criar conta"
   },
   "index": {
-    "emptyTitle": "Ainda sem listas",
+    "emptyTitle": "Ainda sem shortlists",
     "emptyDescription": "Crie uma e depois guarde nela jogadores a partir de qualquer perfil.",
     "onePlayer": "1 jogador",
     "manyPlayers": "{count} jogadores",
-    "newTitle": "Nova lista",
+    "newTitle": "Nova shortlist",
     "create": "Criar",
     "name": "Nome",
     "namePlaceholder": "Laterais esquerdos, até 23 anos",
@@ -27,19 +27,19 @@
     "optional": "Opcional."
   },
   "detail": {
-    "eyebrow": "Lista",
-    "allShortlists": "Todas as listas",
+    "eyebrow": "Shortlist",
+    "allShortlists": "Todas as shortlists",
     "exportCsv": "Exportar CSV",
     "emptyTitle": "Ainda sem jogadores guardados",
-    "emptyDescription": "Abra o perfil de um jogador e guarde-o nesta lista.",
+    "emptyDescription": "Abra o perfil de um jogador e guarde-o nesta shortlist.",
     "searchPlayers": "Pesquisar jogadores",
-    "comparisonFailed": "Não foi possível mostrar essa comparação. Escolha até {max} jogadores desta lista.",
+    "comparisonFailed": "Não foi possível mostrar essa comparação. Escolha até {max} jogadores desta shortlist.",
     "renameTitle": "Mudar o nome",
     "saveChanges": "Guardar alterações",
-    "deleteTitle": "Eliminar esta lista",
+    "deleteTitle": "Eliminar esta shortlist",
     "deleteDescription": "Os jogadores e as suas notas vão com ela. Isto não pode ser desfeito.",
     "deleteButton": "Eliminar «{name}»",
-    "privateBefore": "Esta lista é visível apenas para o seu dono. ",
+    "privateBefore": "Esta shortlist é visível apenas para o seu dono. ",
     "privateLink": "Como os números são calculados",
     "privateAfter": "."
   },
@@ -58,8 +58,8 @@
     "value": "Valor",
     "status": "Estado",
     "assessment": "A sua avaliação",
-    "hiddenOne": "{count} outro jogador está escondido por este filtro. Continua na lista e continua na exportação.",
-    "hiddenMany": "{count} outros jogadores estão escondidos por este filtro. Continuam na lista e continuam na exportação."
+    "hiddenOne": "{count} outro jogador está escondido por este filtro. Continua na shortlist e continua na exportação.",
+    "hiddenMany": "{count} outros jogadores estão escondidos por este filtro. Continuam na shortlist e continuam na exportação."
   },
   "row": {
     "notInData": "Fora dos dados actuais",
@@ -79,7 +79,7 @@
     "saving": "A guardar…",
     "save": "Guardar avaliação",
     "compareAria": "Comparar {name}",
-    "removeSrOnly": " {name} desta lista",
+    "removeSrOnly": " {name} desta shortlist",
     "thisPlayer": "este jogador",
     "cancel": "Cancelar",
     "savingNote": "Guardar regista hoje como data de revisão. Uma caixa vazia limpa-a.",
@@ -93,15 +93,15 @@
     "strengths": "Pontos fortes",
     "strengthsEmpty": "Nada na faixa superior.",
     "watchOuts": "Pontos de atenção",
-    "watchOutsEmpty": "Nada na faixa inferior deste papel.",
+    "watchOutsEmpty": "Nada na faixa inferior desta função.",
     "caveatTitle": "Estas colunas não são medidas face à mesma população",
     "metric": "Métrica",
     "minutes": "Minutos",
     "age": "Idade",
     "marketValue": "Valor de mercado",
-    "bestRole": "Melhor papel",
-    "rawFit": "{score} de aptidão bruta",
-    "roleFitPercentile": "percentil {ordinal} de aptidão para o papel",
+    "bestRole": "Melhor função",
+    "rawFit": "{score} de adequação bruta",
+    "roleFitPercentile": "percentil {ordinal} de adequação à função",
     "metricCoverage": "{pct}% de cobertura de métricas",
     "status": "Estado",
     "note": "A sua nota",
@@ -110,7 +110,7 @@
     "footnote": "O valor destacado em cada linha é o maior por 90 minutos, não o melhor jogador: compara quantidades, que são as mesmas em todo o lado, e não percentis, que são posições dentro da competição de cada jogador."
   },
   "statuses": {
-    "longlist": "Lista alargada",
+    "longlist": "Longlist",
     "monitor": "A acompanhar",
     "scout": "Em observação",
     "priority": "Prioridade",

@@ -1,4 +1,5 @@
 import { CardSkeleton, Skeleton } from "@/components/ui/Skeleton";
+import { getDictionary } from "@/i18n/dictionaries";
 
 /**
  * Loading state for this route.
@@ -15,15 +16,16 @@ import { CardSkeleton, Skeleton } from "@/components/ui/Skeleton";
  * the routes that can legitimately not exist - a player id, a shortlist id -
  * have none above them and answer 404 properly.
  */
-export default function Loading() {
+export default async function Loading() {
+  const t = await getDictionary();
   return (
-    <div className="space-y-8" role="status" aria-label="Loading page">
+    <div className="space-y-8" role="status" aria-label={t.common.states.loadingPage}>
       <div className="space-y-2.5">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-8 w-72" />
         <Skeleton className="h-3.5 w-full max-w-xl" />
       </div>
-      <CardSkeleton lines={4} />
+      <CardSkeleton label={t.common.states.loading} lines={4} />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 {
   "meta": {
     "title": "Metodologia",
-    "description": "Como os números são feitos: métricas por 90 minutos, percentis por posição, aptidões para papéis e semelhança — e o que cada um deles não afirma."
+    "description": "Como os números são feitos: métricas por 90 minutos, percentis por posição, adequações às funções e semelhança — e o que cada um deles não afirma."
   },
   "eyebrow": "Transparência",
   "title": "Metodologia",
-  "description": "Como os dados de jogo em bruto se tornam percentis, pontuações, papéis e ordenações — e os limites do que esses resultados sustentam.",
+  "description": "Como os dados de jogo em bruto se tornam percentis, pontuações, funções e ordenações — e os limites do que esses resultados sustentam.",
   "supplied": {
     "title": "Que métricas o fornecedor fornece de facto",
     "checked": "Todas as métricas abaixo foram verificadas contra respostas reais registadas, e não contra a documentação do fornecedor, e a aritmética de cada uma foi reproduzida contra os valores por 90 minutos que o próprio fornecedor publica, onde publica algum.",
@@ -58,9 +58,9 @@
     "inverted": "Onde um valor baixo é bom, como ser desapossado ou ultrapassado em drible, o percentil é invertido, de modo a que uma pontuação mais alta se leia sempre como melhor dentro dessa faceta."
   },
   "roles": {
-    "title": "Papéis de jogador",
-    "what": "Um papel é uma combinação ponderada de métricas em percentil que descreve um estilo de jogador: um organizador recuado pondera o passe progressivo e a retenção, um médio recuperador pondera desarmes, intercepções e duelos.",
-    "best": "Cada jogador é pontuado face a cada papel compatível com o seu grupo posicional. O papel com pontuação mais alta é apresentado como a sua melhor aptidão estatística, com as alternativas mostradas por baixo."
+    "title": "Funções de jogador",
+    "what": "Uma função é uma combinação ponderada de métricas em percentil que descreve um estilo de jogador: um organizador recuado pondera o passe progressivo e a retenção, um médio recuperador pondera desarmes, intercepções e duelos.",
+    "best": "Cada jogador é pontuado face a cada função compatível com o seu grupo posicional. A função com pontuação mais alta é apresentado como a sua melhor adequação estatística, com as alternativas mostradas por baixo."
   },
   "similarity": {
     "title": "Semelhança estatística",
@@ -82,7 +82,7 @@
   "limits": {
     "heading": "O que estes resultados não significam",
     "notQualityTitle": "As pontuações não são qualidade do jogador",
-    "notQuality": "A pontuação de um papel mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 num papel e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
+    "notQuality": "A pontuação de uma função mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 num função e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
     "notProbabilityTitle": "A semelhança não é uma probabilidade",
     "notProbability": "O Índice de Semelhança exprime a proximidade entre dois perfis estatísticos. Não é a probabilidade de um jogador reproduzir o rendimento de outro.",
     "finishingTitle": "As métricas de finalização são ruidosas",

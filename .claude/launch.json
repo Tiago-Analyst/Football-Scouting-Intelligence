@@ -23,6 +23,19 @@
       ],
       "port": 8000,
       "cwd": "backend"
+    },
+    {
+      "name": "frontend-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start",
+        "--",
+        "--port",
+        "3100"
+      ],
+      "port": 3100,
+      "cwd": "frontend"
     }
   ]
 }

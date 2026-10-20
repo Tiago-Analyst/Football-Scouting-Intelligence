@@ -272,3 +272,45 @@ What remains genuinely undone:
   not, there is nothing to match against. No threshold change recovers a
   player the snapshot does not contain, and a player missing for that reason
   has not failed a quality check.
+
+## Why coverage is not shown on the scouting surfaces
+
+Reconciliation coverage varies from 5% to 92% between competitions, and the
+consequence reaches the product: a player with no Transfermarkt counterpart has
+no position group, so they are absent from the analytical view entirely. A
+scout filtering search to the Copa Sudamericana sees few players and has
+nothing on screen telling them whether that is the competition, their filters,
+or the data.
+
+It was considered for the search filters, the recruitment builder and
+opportunities - a small competition-level note, never a ranking input - and
+deliberately not built. Three reasons, in order of weight.
+
+**The numbers are about to move.** The roster endpoint paginates and the ingest
+read only the first page, so the product held 8,862 of 28,311 available players
+until that was fixed. The first full-universe publication changes every one of
+these percentages. A badge reading "Transfermarkt reconciliation: 18%" that is
+wrong a week later is worse than no badge, because a reader cannot tell a stale
+figure from a current one.
+
+**The data is not available at the level it would be read at.** Coverage is
+computed in `quality_service.identity_coverage_by_competition` and served on
+`/api/v1/data-quality`. The competitions endpoint the filters use carries
+`competition_id`, `name` and `player_count` and nothing else. Reaching it from
+search would mean either widening that endpoint or recomputing the share in the
+frontend, and a second implementation of a coverage rule is how two numbers
+start disagreeing in public.
+
+**A per-competition badge in a filter list is badge spam.** Forty-three
+entries, each with a percentage, on a control whose job is to let someone pick
+a league.
+
+The Data Quality page carries the full table, thinnest first, with the
+denominator explained and a sentence saying the shares there are not comparable
+with the global one. That is the right surface for a figure that needs a
+paragraph to be read correctly.
+
+**Revisit when** the first full-universe generation has published and the
+figures have held across two refreshes. At that point the cheapest honest
+version is one line on the search results when a single competition is
+selected, linking to the table - not a badge on every row.

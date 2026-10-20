@@ -238,19 +238,25 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                 <Table>
                   <THead>
                     <TR>
+                      {/* SIMILARITY SITS BESIDE THE NAME, NOT SIXTH.
+                          It was after age, club, competition and role, which
+                          at 1280px put the one number this page exists to
+                          answer behind a horizontal scroll. The identity
+                          columns still come first - a row is unreadable
+                          without knowing whose it is - and age moves after
+                          the role, where it reads as context rather than as
+                          the first thing worth knowing. */}
                       <TH>{t.similarity.table.player}</TH>
-                      <TH numeric>{t.similarity.table.age}</TH>
-                      <TH>{t.similarity.table.club}</TH>
-                      <TH>{t.similarity.table.competition}</TH>
-                      <TH>{t.similarity.table.bestRole}</TH>
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.similarity.table.similarity}<Tooltip label={t.similarity.notes.indexTitle}>
-                            Similarity in the shape of the statistical profile, on a 0&ndash;100
-                            scale. It is not a probability that two players are equivalent, and it
-                            says nothing about quality, tactical fit or temperament.
+                            {t.similarity.notes.indexBody}
                           </Tooltip>
                         </span>
                       </TH>
+                      <TH>{t.similarity.table.club}</TH>
+                      <TH>{t.similarity.table.competition}</TH>
+                      <TH>{t.similarity.table.bestRole}</TH>
+                      <TH numeric>{t.similarity.table.age}</TH>
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.similarity.table.featureCoverage}<Tooltip label={t.similarity.notes.coverageTitle}>{t.similarity.notes.coverageBody}</Tooltip>
                         </span>
@@ -275,16 +281,6 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             </span>
                           ) : null}
                         </TD>
-                        <TD numeric>{entry.player.age ?? "–"}</TD>
-                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
-                        <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
-                        <TD className="whitespace-nowrap">
-                          {entry.player.best_role_key ? (
-                            <RoleName role={entry.player.best_role_key} />
-                          ) : (
-                            "–"
-                          )}
-                        </TD>
                         {/* The index, and - at the same size - what it rests
                             on when that is thin. A 94 printed in bold beside
                             a 55% in small grey text reads as "94, with a
@@ -303,6 +299,16 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             </span>
                           ) : null}
                         </TD>
+                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
+                        <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
+                        <TD className="whitespace-nowrap">
+                          {entry.player.best_role_key ? (
+                            <RoleName role={entry.player.best_role_key} />
+                          ) : (
+                            "–"
+                          )}
+                        </TD>
+                        <TD numeric>{entry.player.age ?? "–"}</TD>
                         {/* How much of the intended comparison actually
                             happened. Deliberately its own column rather than
                             folded into the index: mixing them would change what

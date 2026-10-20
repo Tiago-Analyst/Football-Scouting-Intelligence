@@ -27,7 +27,7 @@
     "competition": "Competition",
     "contractWithin": "Contract expires within",
     "months": "{count} months",
-    "apply": "Apply",
+    "apply": "Apply constraints",
     "budgetHint": "Sets the market fit component. Without a budget it is left out."
   },
   "table": {

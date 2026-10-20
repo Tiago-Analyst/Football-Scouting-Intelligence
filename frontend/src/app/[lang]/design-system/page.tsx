@@ -268,8 +268,10 @@ export default async function DesignSystemPage() {
               <Skeleton className="h-3 w-24" />
             </div>
           </div>
-          <CardSkeleton />
-          <TableSkeleton rows={3} columns={4} />
+          {/* A developer-facing gallery, so these labels are specimens rather
+              than product copy and stay in English. */}
+          <CardSkeleton label="Loading" />
+          <TableSkeleton rows={3} columns={4} label="Loading results" />
         </div>
       </Section>
 
