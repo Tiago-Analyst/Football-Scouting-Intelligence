@@ -21,7 +21,6 @@ before acting on it.
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
 from collections import Counter
 from pathlib import Path
@@ -35,33 +34,12 @@ from pipelines.identity_resolution.matcher import (
     IdentityResolver,
     MatchResult,
     MatchStatus,
+    load_manual_overrides,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
-MANUAL_MAPPING = REPO_ROOT / "data" / "manual" / "player_mapping.csv"
 SEASON = "2026-2027"
-
-
-def load_manual_overrides(path: Path = MANUAL_MAPPING) -> dict[tuple[str, str], str]:
-    """Read human-confirmed mappings.
-
-    These win over anything the resolver decides. A person who has checked a
-    pair should never have their decision overwritten by a later automated run.
-    """
-    if not path.exists():
-        return {}
-    overrides: dict[tuple[str, str], str] = {}
-    with path.open(encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle):
-            if not row.get("source") or row["source"].lstrip().startswith("#"):
-                continue
-            source = row["source"].strip()
-            source_id = (row.get("source_player_id") or "").strip()
-            target_id = (row.get("target_player_id") or "").strip()
-            if source and source_id and target_id:
-                overrides[(source, source_id)] = target_id
-    return overrides
 
 
 def transfermarkt_identities(provider: TransfermarktDatasetProvider) -> list[Identity]:

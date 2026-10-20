@@ -22,11 +22,13 @@ the higher score.
 
 from __future__ import annotations
 
+import csv
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from difflib import SequenceMatcher
 from enum import StrEnum
+from pathlib import Path
 
 from app.schemas.canonical import PositionGroup
 from app.schemas.market import normalize_name
@@ -47,6 +49,36 @@ STRONG_NAME = 0.85
 # Blocks larger than this are skipped when a candidate has no date of birth.
 # Without it, a common surname would pull thousands of comparisons.
 MAX_SURNAME_BLOCK = 400
+
+#: Where a person records a pair they have checked themselves.
+MANUAL_MAPPING = Path(__file__).resolve().parents[2] / "data" / "manual" / "player_mapping.csv"
+
+
+def load_manual_overrides(path: Path = MANUAL_MAPPING) -> dict[tuple[str, str], str]:
+    """Read human-confirmed mappings: `(source, source_player_id) -> target_id`.
+
+    These win over anything the resolver decides. A person who has checked a
+    pair should never have their decision overwritten by a later automated run.
+
+    Lives here rather than in `run.py`, where it used to, because `resolve.py`
+    is what the pipeline runs and it could not import it: `run.py` pulls in
+    `app.providers` at module level, and `resolve.py` only puts `backend` on
+    the path inside `main()`. The reader sat in the one module the production
+    path could not reach, which is most of why the file it reads did nothing.
+    """
+    if not path.exists():
+        return {}
+    overrides: dict[tuple[str, str], str] = {}
+    with path.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            if not row.get("source") or row["source"].lstrip().startswith("#"):
+                continue
+            source = row["source"].strip()
+            source_id = (row.get("source_player_id") or "").strip()
+            target_id = (row.get("target_player_id") or "").strip()
+            if source and source_id and target_id:
+                overrides[(source, source_id)] = target_id
+    return overrides
 
 
 class MatchStatus(StrEnum):
