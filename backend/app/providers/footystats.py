@@ -125,6 +125,33 @@ AUTH_STATUSES = frozenset({401, 403})
 NOT_SUBSCRIBED_STATUS = 417
 
 
+#: A ceiling on how many pages of one roster will be requested.
+#:
+#: The largest competition observed reports 11 pages. This is not a limit on
+#: real data; it bounds a pager that reports nonsense, because the cost of
+#: believing one is the run's entire request budget spent on a single
+#: competition.
+MAX_ROSTER_PAGES = 100
+
+
+def _page_count(pager: object) -> int:
+    """How many pages to ask for, from the pager the API returned.
+
+    One when there is no pager, when it is unreadable, or when it reports
+    something impossible. Absence means a single page - the snapshot reader
+    sends no pager and holds the whole roster - so this must never be the
+    reason a load reads less than it has.
+    """
+    if not isinstance(pager, dict):
+        return 1
+    raw = pager.get("max_page")
+    try:
+        pages = int(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(pages, MAX_ROSTER_PAGES))
+
+
 #: Enough of the API's own words to name a cause, truncated because the field
 #: is free text from a service and an exception message reaches the logs.
 _EXPLANATION_LIMIT = 200
@@ -467,10 +494,75 @@ class FootyStatsProvider(PerformanceDataProvider):
 
     def _roster(self, season_id: str) -> list[dict[str, Any]]:
         if season_id not in self._roster_cache:
-            body = self._get("/league-players", season_id=season_id)
-            rows = body.get("data") if isinstance(body, dict) else None
-            self._roster_cache[season_id] = [r for r in (rows or []) if isinstance(r, dict)]
+            self._roster_cache[season_id] = self._roster_pages(season_id)
         return self._roster_cache[season_id]
+
+    def _roster_pages(self, season_id: str) -> list[dict[str, Any]]:
+        """Every page of a competition's roster, not just the first.
+
+        WHAT THIS WAS COSTING
+
+        `/league-players` returns 200 rows a page and says so in `pager`, which
+        this method read `data` from and ignored. Measured across the 45
+        configured competitions, the product was fetching 8,862 of 28,311
+        available players - 31%. The England League Cup supplied 200 of 2,019,
+        the Champions League 200 of 1,999, Spain's La Liga 200 of 587.
+
+        Every count downstream inherited that: the published dataset, the
+        percentile populations it is measured against, and the identity
+        resolution, whose per-competition match rate tracked how complete a
+        slice each competition got.
+
+        TERMINATION IS DRIVEN BY `max_page`, DELIBERATELY
+
+        Not by "a short page means the end". The snapshot reader that the load
+        path substitutes for `_get` answers every call with the whole roster
+        and no pager at all, so a loop that stopped on a short page would ask
+        forever for a competition holding exactly 200 players. An absent pager
+        means one page, which is right for a snapshot and right for an endpoint
+        that does not paginate.
+
+        The id check is the other half. A server that ignored `page` would
+        otherwise have its first page counted `max_page` times, and nothing
+        downstream distinguishes a tripled roster from a real one.
+        """
+        rows: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        page = 1
+        pages = 1
+
+        while page <= pages:
+            body = self._get("/league-players", season_id=season_id, page=page)
+            if not isinstance(body, dict):
+                break
+
+            if page == 1:
+                pages = _page_count(body.get("pager"))
+
+            fresh = 0
+            for row in body.get("data") or []:
+                if not isinstance(row, dict):
+                    continue
+                identifier = row.get("id")
+                # Only a row that HAS an id takes part in the duplicate check.
+                # Keyed on `str(row.get("id"))` instead, every row without one
+                # collides on "None" and the second is dropped - a silent loss
+                # in the records `record_roster` keeps for the club they carry.
+                if identifier is not None:
+                    key = str(identifier)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                rows.append(row)
+                fresh += 1
+
+            if fresh == 0 and page > 1:
+                # Nothing new on a page the pager promised: stop rather than
+                # spend the rate limiter's budget on repeats.
+                break
+            page += 1
+
+        return rows
 
     def get_players(self, competition_id: str, season_id: str) -> list[PlayerIdentity]:
         self._competition_entry(competition_id)
