@@ -50,11 +50,19 @@ def _step(workflow: dict, name: str) -> dict:
 
 
 class TestTheScheduleDecidesTheSource:
+    """The literals come from the config, not from this file.
+
+    They used to be typed out here as well, so moving the crons off the hour -
+    a one-line change in two files - broke five tests that were restating the
+    data they were handed. A cron is configuration; what this module promises
+    is that whichever literal a source claims resolves to that source.
+    """
+
     def test_sunday_refreshes_the_market_source(self, config: dict) -> None:
         assert (
             resolve(
                 event_name="schedule",
-                schedule="0 5 * * 0",
+                schedule=config["refresh"]["transfermarkt"]["cron"],
                 input_source=None,
                 config=config,
             )
@@ -66,7 +74,7 @@ class TestTheScheduleDecidesTheSource:
         assert (
             resolve(
                 event_name="schedule",
-                schedule="0 4 * * 1,3,5",
+                schedule=config["refresh"]["footystats"]["cron"],
                 input_source=None,
                 config=config,
             )
@@ -74,10 +82,11 @@ class TestTheScheduleDecidesTheSource:
         )
 
     def test_whitespace_in_the_cron_does_not_change_the_answer(self, config: dict) -> None:
+        spaced = config["refresh"]["footystats"]["cron"].replace(" ", "  ")
         assert (
             resolve(
                 event_name="schedule",
-                schedule="0  4 * *  1,3,5",
+                schedule=spaced,
                 input_source=None,
                 config=config,
             )
@@ -116,7 +125,7 @@ class TestManualRunsUseWhatWasChosen:
         assert (
             resolve(
                 event_name="workflow_dispatch",
-                schedule="0 5 * * 0",
+                schedule=config["refresh"]["transfermarkt"]["cron"],
                 input_source="footystats",
                 config=config,
             )
@@ -323,19 +332,25 @@ class TestIdentityResolutionRunsOnEveryRefresh:
 
 
 class TestTheContinuationSchedule:
-    """A refresh takes about fourteen hours of fetching; a job manages forty-five
-    minutes. On the cadence cron alone that is three weeks per refresh, which
+    """A refresh takes about sixteen hours of fetching; a job manages forty-five
+    minutes. On the cadence cron alone that is months per refresh, which
     publishes data older than the interval that produced it.
     """
 
-    def test_the_hourly_cron_exists_and_is_claimed(self, workflow: dict, config: dict) -> None:
+    def test_the_continuation_cron_exists_and_is_claimed(
+        self, workflow: dict, config: dict
+    ) -> None:
+        continuation = config["refresh"]["footystats"]["continuation_cron"]
         triggers = workflow.get("on") or workflow.get(True)
         scheduled = {" ".join(entry["cron"].split()) for entry in triggers["schedule"]}
-        assert "0 * * * *" in scheduled
-        assert cron_map(config)["0 * * * *"] == ("footystats", "continue_only")
+        assert continuation in scheduled
+        assert cron_map(config)[continuation] == ("footystats", "continue_only")
+        # Hourly is the property that matters, not the minute it lands on.
+        assert continuation.split()[1:] == ["*", "*", "*", "*"]
 
     def test_the_cadence_cron_may_start_a_generation(self, config: dict) -> None:
-        assert cron_map(config)["0 4 * * 1,3,5"] == ("footystats", "start")
+        cadence = config["refresh"]["footystats"]["cron"]
+        assert cron_map(config)[cadence] == ("footystats", "start")
 
     def test_a_manual_run_may_start_one(self, config: dict) -> None:
         from pipelines.load.resolve_source import START, resolve_with_mode

@@ -20,8 +20,15 @@ version: 1
 refresh:
   footystats:
     # When a NEW refresh generation may start. Mondays, Wednesdays and Fridays,
-    # early morning UTC.
-    cron: "0 4 * * 1,3,5"
+    # early morning UTC - at :17, and three times, for reasons the workflow
+    # sets out in full.
+    #
+    # In short: this is the only trigger permitted to begin a generation, and
+    # 78% of scheduled fires were measured not arriving at all. One attempt
+    # made a refresh a coin-toss that, when lost, cost the whole cycle rather
+    # than an hour. The gate makes the later attempts no-ops on the days the
+    # first one worked.
+    cron: "17 4,7,10 * * 1,3,5"
     # When an UNFINISHED generation may continue.
     #
     # THESE NUMBERS CHANGED WHEN THE ROSTER STARTED PAGINATING.
@@ -39,16 +46,27 @@ refresh:
     #
     # Hourly runs do nothing unless a generation is open, so this costs a short
     # no-op most of the time. It does NOT finish a refresh in about a day, as
-    # this comment used to claim: GitHub defers scheduled workflows under load,
-    # and the runs observed on 19-20 October fired roughly every four hours,
-    # not hourly. Twenty-one productive runs at that rate is three to four days
-    # per refresh. The cron asks for hourly; what arrives is fewer.
-    continuation_cron: "0 * * * *"
+    # this comment once claimed.
+    #
+    # Measured over 393 hours to 20 October: 88 of the ~393 fires an hourly
+    # cron asks for arrived - 22%, median gap 4.3 hours. Twenty-one productive
+    # runs at that rate is three to four days per refresh. The cron asks for
+    # hourly; what arrives is a fifth of it.
+    #
+    # Moved from :00 to :41 because GitHub names the top of the hour as a high
+    # load time and drops queued jobs under enough of it. Whether that recovers
+    # the missing four fifths is not yet known - the figures above are the
+    # baseline to measure it against.
+    continuation_cron: "41 * * * *"
     enabled: true
   transfermarkt:
     # Sundays. The public dataset is rebuilt on its own schedule; fetching
     # more often mostly re-downloads an unchanged archive.
-    cron: "0 5 * * 0"
+    #
+    # Off the hour for the same reason as the FootyStats crons, and left at one
+    # attempt: a missed Sunday costs a week of market data that changes slowly,
+    # not a refresh cycle of the statistics the product is built on.
+    cron: "23 5 * * 0"
     enabled: true
 
 # ---------------------------------------------------------------------------
