@@ -13,9 +13,17 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+
+/** Rendered code only: the comment beside this very change quotes `step={5}`. */
+const code = (file) =>
+  read(file)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
 const COMPONENT = read("src/components/recruitment/BlockedProfile.tsx");
 const PAGE = read("src/app/[lang]/recruitment/page.tsx");
 const LIB = read("src/lib/weights.ts");
+
+import { adaptWeights } from "../src/lib/weights.ts";
 
 const en = JSON.parse(read("src/i18n/dictionaries/en/recruitment.json"));
 const pt = JSON.parse(read("src/i18n/dictionaries/pt/recruitment.json"));
@@ -96,4 +104,35 @@ test("the build button still refuses while a blocked weight stands", () => {
   // Adapting is an offer. Declining it must leave the previous protection
   // exactly as it was.
   assert.match(COMPONENT, /disabled=\{blocked\.length > 0\}/);
+});
+
+test("the weight boxes accept the values adapting produces", () => {
+  // THE DEFECT THIS EXISTS FOR.
+  //
+  // The inputs carried `step={5}`, which a browser enforces as a validity
+  // constraint, not just as a stepper increment. Redistribution preserves the
+  // total exactly, so it produces values like 36, 46 and 18 - and the form
+  // then refused to submit while the Build button sat there enabled, doing
+  // nothing when pressed. Enabled and inert is the worst of the three states
+  // it could have been in.
+  const rendered = code("src/app/[lang]/recruitment/page.tsx");
+  assert.match(rendered, /step=\{1\}/);
+  assert.equal(/step=\{5\}/.test(rendered), false, "the weights are back on a five-point step");
+});
+
+test("every weight the shipped default adapts to is a plain integer", () => {
+  // Tied to the real numbers rather than to the attribute alone: if the
+  // redistribution ever started producing fractions, `step={1}` would refuse
+  // them in exactly the same silent way.
+  const result = adaptWeights([
+    { key: "ball_progression", weight: 30, available: false },
+    { key: "ball_security", weight: 20, available: true },
+    { key: "defensive_activity", weight: 25, available: true },
+    { key: "duel_dominance", weight: 15, available: false },
+    { key: "chance_creation", weight: 10, available: true },
+  ]);
+  for (const [key, value] of result.weights) {
+    assert.equal(Number.isInteger(value), true, `${key} came out as ${value}`);
+    assert.equal(value >= 0 && value <= 100, true, `${key} is outside the input's min/max`);
+  }
 });

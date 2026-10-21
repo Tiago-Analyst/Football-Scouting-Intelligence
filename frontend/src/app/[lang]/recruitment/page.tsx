@@ -190,7 +190,20 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   name={score.key}
                   min={0}
                   max={100}
-                  step={5}
+                  // ANY INTEGER, NOT MULTIPLES OF FIVE.
+                  //
+                  // It was `step={5}`, which the browser enforces as a
+                  // validity constraint and not just as a stepper increment.
+                  // Adapting a profile redistributes weight exactly, so it
+                  // produces values like 36, 46 and 18 - and the form then
+                  // refused to submit while the Build button sat there
+                  // enabled, doing nothing when pressed.
+                  //
+                  // Rounding the redistribution to fives instead would break
+                  // the guarantee that matters more: the total is preserved
+                  // exactly, and a total a reader typed is not always
+                  // divisible by five.
+                  step={1}
                   defaultValue={first(params[score.key]) ?? String(score.preset)}
                   className="tabular h-8 w-16 rounded-md border border-border bg-surface px-2 text-right text-sm"
                 />
