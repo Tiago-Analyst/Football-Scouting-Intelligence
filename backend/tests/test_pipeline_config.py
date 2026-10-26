@@ -429,3 +429,40 @@ class TestAnOverrunLeavesEvidence:
         job = next(iter(workflow["jobs"].values()))
         piped = [s for s in job["steps"] if "| tee" in str(s.get("run", ""))]
         assert piped, "nothing pipes its output; PYTHONUNBUFFERED is no longer load-bearing"
+
+
+class TestTheCadenceIsFortnightly:
+    """Two generations a month is what the Actions allowance can carry.
+
+    Reading every page of the roster took a generation from 8,862 players to
+    28,311. At the subscription's 1,800 requests an hour that is ~16 hours of
+    waiting on a rate limiter, billed as ~950 Actions minutes against the
+    2,000 a month the free plan includes. Mondays, Wednesdays and Fridays is
+    roughly 7,600 minutes; the account spent its 2,000 by 22 October and every
+    scheduled run after that failed before starting a step.
+    """
+
+    def test_it_runs_on_days_of_the_month_rather_than_days_of_the_week(
+        self, competitions: dict
+    ) -> None:
+        day_of_month = competitions["refresh"]["footystats"]["cron"].split()[2]
+        assert day_of_month != "*", "the cadence is back to every week"
+        assert len(day_of_month.split(",")) == 2, day_of_month
+
+    def test_the_day_of_week_field_stays_unrestricted(self, competitions: dict) -> None:
+        """The trap this would otherwise walk into.
+
+        Cron treats a restricted day-of-month and a restricted day-of-week as
+        ALTERNATIVES, not as a conjunction. `17 4 1,15 * 1,3,5` fires on the
+        1st, the 15th *and* every Monday, Wednesday and Friday - more often
+        than the schedule it replaced, not less, which is the opposite of why
+        it was changed.
+        """
+        fields = competitions["refresh"]["footystats"]["cron"].split()
+        assert fields[4] == "*", f"day-of-week is {fields[4]!r}, so this fires weekly too"
+
+    def test_the_two_windows_are_a_fortnight_apart(self, competitions: dict) -> None:
+        days = sorted(
+            int(day) for day in competitions["refresh"]["footystats"]["cron"].split()[2].split(",")
+        )
+        assert days[1] - days[0] >= 12, days

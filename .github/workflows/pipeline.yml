@@ -61,13 +61,31 @@ on:
     # an hourly cron allowed to start would begin a sixteen-hour refresh every
     # hour - but it makes this fire the only way a refresh ever begins. Dropped
     # at 22%, a refresh does not run late; it does not run until the next
-    # Monday, Wednesday or Friday.
+    # window.
     #
     # The gate treats "a generation is already open" as a no-op, so the second
     # and third attempts cost about a minute each on the days the first worked.
     # At the observed rate, one attempt opens a generation 22% of the time and
     # three about 53%.
-    - cron: "17 4,7,10 * * 1,3,5"
+    #
+    # FORTNIGHTLY: THE 1st AND THE 15th, NOT MON/WED/FRI.
+    #
+    # Reading every page of the roster took a generation from 8,862 players to
+    # 28,311. At the subscription's 1,800 requests an hour that is ~16 hours of
+    # waiting on a rate limiter, which GitHub bills as ~950 Actions minutes -
+    # against the 2,000 a month the free plan includes. Three generations a
+    # week is roughly 7,600 minutes. The account spent its 2,000 by 22 October
+    # and every scheduled run since has failed before starting a step.
+    #
+    # Two a month is ~1,900 minutes of fetching, so this is the cadence the
+    # plan can actually carry. It is also defensible on the football: match
+    # data changes at the rate matches are played, not three times a week.
+    #
+    # The day-of-week field MUST stay `*`. Cron treats a restricted
+    # day-of-month and a restricted day-of-week as alternatives rather than as
+    # a conjunction, so `1,15 * 1,3,5` would fire on the 1st, the 15th AND
+    # every Monday, Wednesday and Friday - more often than before, not less.
+    - cron: "17 4,7,10 1,15 * *"
 
     # FootyStats continuation: hourly, at :41. Matches
     # refresh.footystats.continuation_cron.
