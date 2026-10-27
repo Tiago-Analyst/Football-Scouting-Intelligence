@@ -19,9 +19,8 @@ version: 1
 # from a file - and a test asserts the two sets match.
 refresh:
   footystats:
-    # When a NEW refresh generation may start. The 1st and the 15th, early
-    # morning UTC - at :17, and three times, for reasons the workflow sets out
-    # in full.
+    # When a NEW refresh generation may start. Mondays, early morning UTC -
+    # at :17, and three times, for reasons the workflow sets out in full.
     #
     # In short: this is the only trigger permitted to begin a generation, and
     # 78% of scheduled fires were measured not arriving at all. One attempt
@@ -29,20 +28,30 @@ refresh:
     # than an hour. The gate makes the later attempts no-ops on the days the
     # first one worked.
     #
-    # FORTNIGHTLY, BECAUSE A REFRESH NOW COSTS WHAT IT FETCHES.
+    # WEEKLY, ON MONDAYS, NOW THAT THE FETCH IS FREE.
     #
-    # It was Mondays, Wednesdays and Fridays, chosen when a generation fetched
-    # 8,862 players. Reading every page of the roster made that 28,311, which
-    # at the subscription's 1,800 requests an hour is ~16 hours of waiting -
-    # roughly 950 Actions minutes per generation, against the 2,000 a month
-    # the free plan includes. The account spent them all by 22 October and
-    # every run since has failed before starting.
+    # The history is worth keeping because the number moved twice for two
+    # different reasons. It was Mondays, Wednesdays and Fridays, chosen when a
+    # generation fetched 8,862 players. Reading every page of the roster made
+    # that 28,311 - ~16 hours of waiting on the subscription's 1,800 requests
+    # an hour, billed as ~950 Actions minutes of a sleeping machine - so the
+    # account spent its 2,000 by 22 October and it was cut to the 1st and the
+    # 15th to fit what was left.
     #
-    # Cron has no "every two weeks", so this is the 1st and the 15th. The
-    # day-of-week field MUST stay `*`: cron treats a restricted day-of-month
+    # The repository went public on 27 October. Actions is free for public
+    # repositories, so the allowance that chose the fortnight no longer exists,
+    # and the cadence goes back to being a question about football: a round of
+    # matches a week is what there is to refresh.
+    #
+    # Monday rather than any other day because Transfermarkt refreshes on
+    # Sunday at 05:23 and identity resolution matches FootyStats players
+    # against it, so starting on Monday works from market data a day old.
+    #
+    # The DAY-OF-MONTH field MUST stay `*` - the mirror of the trap the
+    # fortnightly schedule had to avoid. Cron treats a restricted day-of-month
     # and a restricted day-of-week as alternatives, not as a conjunction, so
-    # `1,15 * 1,3,5` would fire on both - which is the opposite of the point.
-    cron: "17 4,7,10 1,15 * *"
+    # `1,15 * 1` would fire on the 1st, the 15th AND every Monday.
+    cron: "17 4,7,10 * * 1"
     # When an UNFINISHED generation may continue.
     #
     # THESE NUMBERS CHANGED WHEN THE ROSTER STARTED PAGINATING.
