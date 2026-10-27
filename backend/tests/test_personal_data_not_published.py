@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import csv
 import pathlib
+import re
 import shutil
 import subprocess
 
@@ -165,3 +166,34 @@ class TestNoOtherTrackedFileCarriesThePopulation:
             if IDENTIFYING & header and len(lines) > 25:
                 offenders.append(f"{path}: {len(lines) - 1} rows")
         assert offenders == [], offenders
+
+
+class TestTheVerificationDoesNotCarryItsOwnSample:
+    """`docs/git_history_cleanup.md` documents a content search for the removed
+    data. It did so with a real player's name written into the command.
+
+    That failed twice over. It put a name from the deleted population back into
+    a tracked file in `docs/`, which is what the rewrite was for. And it made
+    the check worthless: the search then always matched the document holding it,
+    so it could never return empty, and a verification that cannot fail proves
+    nothing.
+
+    The probe belongs in `data/processed/`, which is git-ignored. This test
+    exists because substituting a name here reads like helpfulness.
+    """
+
+    PLACEHOLDER = "<a name from the file>"
+
+    def document(self) -> str:
+        path = DOCS / "git_history_cleanup.md"
+        if not path.exists():
+            pytest.skip("the cleanup record is not in this checkout")
+        return path.read_text(encoding="utf-8")
+
+    def test_the_content_search_probes_a_placeholder(self) -> None:
+        probes = re.findall(r'git grep -l "([^"]*)"', self.document())
+        assert probes, "the documented content search is gone"
+        assert probes == [self.PLACEHOLDER] * len(probes), probes
+
+    def test_it_still_says_why_not_to_substitute_one(self) -> None:
+        assert "Do not substitute a real name" in self.document()
