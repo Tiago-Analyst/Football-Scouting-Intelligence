@@ -118,13 +118,19 @@ every scheduled run from 22 October 2026 onward, and that
 is a private-repository limit. Going public removed the constraint rather than
 accommodating it.
 
-**So the cadence is now an open question, and the answer it currently gives is
-the wrong one.** `17 4,7,10 1,15 * *` — the 1st and the 15th — was chosen to
-fit 2,000 minutes, because a generation spends roughly 950 of them asleep
-between calls to the provider's rate limiter. That time is now free. Whatever
-the cadence should be, it should be decided by how often match data changes,
-which is the rate matches are played, and no longer by a bill. Nobody has
-revisited it yet; this paragraph is the note saying it is owed.
+**So the cadence was revisited, the same day.** `17 4,7,10 1,15 * *` — the 1st
+and the 15th — had been chosen to fit 2,000 minutes, because a generation
+spends roughly 950 of them asleep between calls to the provider's rate limiter.
+That time is now free, so the schedule is `17 4,7,10 * * 1`: **weekly, on
+Mondays**, which is a round of matches, and Monday in particular because
+Transfermarkt refreshes on Sunday and identity resolution matches against it.
+
+Weekly is tighter than it looks. A generation needs ~21 productive
+continuation runs, which at the measured 22% arrival rate is three to four
+days — about three days of slack. The overrun case is safe rather than merely
+survivable: `Generations.for_run` resumes an open generation and refuses to
+abandon one, so a Monday landing on an unfinished refresh continues it instead
+of starting a second.
 
 ## The state of the decision
 

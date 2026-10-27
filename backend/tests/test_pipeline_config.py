@@ -431,38 +431,49 @@ class TestAnOverrunLeavesEvidence:
         assert piped, "nothing pipes its output; PYTHONUNBUFFERED is no longer load-bearing"
 
 
-class TestTheCadenceIsFortnightly:
-    """Two generations a month is what the Actions allowance can carry.
+class TestTheCadenceIsWeekly:
+    """One generation a week, on a day of the week rather than of the month.
 
-    Reading every page of the roster took a generation from 8,862 players to
-    28,311. At the subscription's 1,800 requests an hour that is ~16 hours of
-    waiting on a rate limiter, billed as ~950 Actions minutes against the
-    2,000 a month the free plan includes. Mondays, Wednesdays and Fridays is
-    roughly 7,600 minutes; the account spent its 2,000 by 22 October and every
-    scheduled run after that failed before starting a step.
+    The number moved twice for two different reasons, and the guard has to
+    follow the second one. Mondays, Wednesdays and Fridays was chosen when a
+    generation fetched 8,862 players; reading every page of the roster made
+    that 28,311, or ~950 Actions minutes of waiting on a rate limiter per
+    generation, so the 2,000 a month a PRIVATE repository gets ran out on 22
+    October and the cadence was cut to the 1st and the 15th to fit.
+
+    The repository went public on 27 October 2026. Actions is free for public
+    repositories, so that allowance no longer binds and the cadence is back to
+    a question about football: a round of matches a week.
     """
 
-    def test_it_runs_on_days_of_the_month_rather_than_days_of_the_week(
+    def test_it_runs_on_a_day_of_the_week_rather_than_days_of_the_month(
         self, competitions: dict
     ) -> None:
-        day_of_month = competitions["refresh"]["footystats"]["cron"].split()[2]
-        assert day_of_month != "*", "the cadence is back to every week"
-        assert len(day_of_month.split(",")) == 2, day_of_month
+        fields = competitions["refresh"]["footystats"]["cron"].split()
+        assert fields[4] != "*", "no day-of-week is set, so this is not a weekly cadence"
+        assert len(fields[4].split(",")) == 1, f"{fields[4]!r} is more than one day a week"
 
-    def test_the_day_of_week_field_stays_unrestricted(self, competitions: dict) -> None:
-        """The trap this would otherwise walk into.
+    def test_the_day_of_month_field_stays_unrestricted(self, competitions: dict) -> None:
+        """The same trap as before, now facing the other way.
 
         Cron treats a restricted day-of-month and a restricted day-of-week as
-        ALTERNATIVES, not as a conjunction. `17 4 1,15 * 1,3,5` fires on the
-        1st, the 15th *and* every Monday, Wednesday and Friday - more often
-        than the schedule it replaced, not less, which is the opposite of why
-        it was changed.
+        ALTERNATIVES, not as a conjunction. While the cadence was the 1st and
+        the 15th, the day-of-WEEK field had to stay `*`. Now that it is a
+        weekday, the day-of-MONTH field is the one that must: `17 4 1,15 * 1`
+        fires on the 1st, the 15th *and* every Monday.
         """
         fields = competitions["refresh"]["footystats"]["cron"].split()
-        assert fields[4] == "*", f"day-of-week is {fields[4]!r}, so this fires weekly too"
+        assert fields[2] == "*", f"day-of-month is {fields[2]!r}, so this fires on those days too"
 
-    def test_the_two_windows_are_a_fortnight_apart(self, competitions: dict) -> None:
-        days = sorted(
-            int(day) for day in competitions["refresh"]["footystats"]["cron"].split()[2].split(",")
+    def test_it_starts_after_the_transfermarkt_refresh(self, competitions: dict) -> None:
+        """Why Monday and not some other day.
+
+        Identity resolution matches FootyStats players against Transfermarkt,
+        which refreshes on Sunday. Starting the day after means the market data
+        underneath a generation is a day old rather than nearly a week.
+        """
+        footystats_day = int(competitions["refresh"]["footystats"]["cron"].split()[4])
+        transfermarkt_day = int(competitions["refresh"]["transfermarkt"]["cron"].split()[4])
+        assert footystats_day == (transfermarkt_day + 1) % 7, (
+            f"footystats runs on day {footystats_day} and transfermarkt on {transfermarkt_day}"
         )
-        assert days[1] - days[0] >= 12, days

@@ -68,24 +68,37 @@ on:
     # At the observed rate, one attempt opens a generation 22% of the time and
     # three about 53%.
     #
-    # FORTNIGHTLY: THE 1st AND THE 15th, NOT MON/WED/FRI.
+    # WEEKLY: MONDAYS. THE ALLOWANCE THAT CHOSE THE FORTNIGHT IS GONE.
     #
     # Reading every page of the roster took a generation from 8,862 players to
     # 28,311. At the subscription's 1,800 requests an hour that is ~16 hours of
     # waiting on a rate limiter, which GitHub bills as ~950 Actions minutes -
-    # against the 2,000 a month the free plan includes. Three generations a
-    # week is roughly 7,600 minutes. The account spent its 2,000 by 22 October
-    # and every scheduled run since has failed before starting a step.
+    # against the 2,000 a month a PRIVATE repository gets. The account spent
+    # its 2,000 by 22 October and every scheduled run failed before starting a
+    # step, which is why this was briefly the 1st and the 15th.
     #
-    # Two a month is ~1,900 minutes of fetching, so this is the cadence the
-    # plan can actually carry. It is also defensible on the football: match
-    # data changes at the rate matches are played, not three times a week.
+    # The repository went public on 27 October 2026 and Actions is free for
+    # public repositories, so the ~950 minutes of a sleeping machine cost
+    # nothing and the constraint that picked the fortnight no longer exists.
+    # The cadence is a football question again: a round of matches a week.
     #
-    # The day-of-week field MUST stay `*`. Cron treats a restricted
-    # day-of-month and a restricted day-of-week as alternatives rather than as
-    # a conjunction, so `1,15 * 1,3,5` would fire on the 1st, the 15th AND
-    # every Monday, Wednesday and Friday - more often than before, not less.
-    - cron: "17 4,7,10 1,15 * *"
+    # Monday because Transfermarkt refreshes Sunday at 05:23 and identity
+    # resolution matches FootyStats players against it - so a Monday start
+    # works from market data a day old rather than six.
+    #
+    # Weekly is tighter than it looks and still fits. A generation needs ~21
+    # productive continuation runs, and at the measured 22% arrival rate that
+    # is three to four days, leaving ~3 days of slack. An overrun is safe
+    # rather than merely tolerable: `Generations.for_run` resumes an open
+    # generation and refuses to abandon one, so a Monday landing on an
+    # unfinished refresh continues it instead of starting a second.
+    #
+    # The DAY-OF-MONTH field MUST stay `*` - the mirror of the trap the
+    # fortnightly schedule had to avoid. Cron treats a restricted day-of-month
+    # and a restricted day-of-week as alternatives rather than as a
+    # conjunction, so `1,15 * 1` would fire on the 1st, the 15th AND every
+    # Monday.
+    - cron: "17 4,7,10 * * 1"
 
     # FootyStats continuation: hourly, at :41. Matches
     # refresh.footystats.continuation_cron.
@@ -98,10 +111,15 @@ on:
     #
     # These runs do nothing unless a generation is open: the gate below stops
     # them before the database checks and the fetch, so a quiet hour costs
-    # about a minute of setup. Budget: ~720 no-op minutes a month against the
-    # 2,000 included with a private repository - see docs/deployment.md. That
-    # budget assumes the hourly cron is honoured; at the rate measured above it
-    # has been costing roughly a fifth of that.
+    # about a minute of setup - ~720 no-op minutes a month if every fire
+    # arrives, and roughly a fifth of that at the rate measured above.
+    #
+    # That used to be a budget, measured against the 2,000 minutes a private
+    # repository gets; see docs/deployment.md. Since 27 October 2026 the
+    # repository is public and Actions is free, so the number is now a
+    # description rather than a constraint. It is kept because it is still the
+    # honest cost of leaving an hourly cron switched on, and because the
+    # repository may not stay public.
     - cron: "41 * * * *"
   workflow_dispatch:
     inputs:
