@@ -1,14 +1,15 @@
 # Where this project actually stands
 
-**Snapshot taken 27 October 2026, 15:10 UTC.** Every number below was read from
-a live source at that moment - the production health endpoint, the GitHub
-Actions API, `git ls-remote` - and not from another document.
+**Snapshot taken 27 October 2026, 16:10 UTC**, re-read after the manual
+continuation run described below. Every number was read from a live source at
+that moment - the production health endpoint, the GitHub Actions API,
+`git ls-remote` - and not from another document.
 
 This file exists because two documents in `docs/` went stale this month and
 each one went stale by claiming something was *still to do* after it had been
 done. So the rule for this one: **it describes a moment, and it says what makes
-it wrong.** If you are reading it after the dates in "What happens next", stop
-trusting it and re-read the sources named in each section.
+it wrong.** If you are reading it after the dates in "What makes this file
+wrong", stop trusting it and re-read the sources named in each section.
 
 ## What is serving right now
 
@@ -50,37 +51,60 @@ change as already upstream; the diff looks large only because `main` has since
 moved in the same files). Their tips were `a4b66b1` and `99e6d65` if either is
 ever wanted back.
 
-## The data pipeline is frozen, and has been since 22 October
+## The data pipeline was frozen for five days, and is running again
 
 This is the part that matters and the part a status table usually hides.
 
-**The last run that did any work ended 22 October 2026 at 20:16 UTC.** Since
-then: **30 scheduled runs, 30 failures, each lasting four seconds** - the
-signature of a job refused before its first step, which is what Actions
-billing exhaustion looks like from the outside.
+**Between 22 October 20:16 UTC and 27 October 16:08 UTC the pipeline did no
+work at all.** Thirty scheduled runs in that window, thirty failures, each
+lasting four seconds - the signature of a job refused before its first step,
+which is what an exhausted Actions allowance looks like from the outside.
 
-The in-flight generation, as of that last working run:
+Going public removed that limit, because Actions is free on public
+repositories. For several hours afterwards that was an inference rather than an
+observation: no pipeline run had arrived to test it. **A manual
+`workflow_dispatch` on 27 October at 15:22 UTC settled it** - run
+`40530275313`, 46 minutes, every step green past the seventeen the failing runs
+never reached.
+
+The in-flight generation, after that run:
 
 | | |
 | --- | --- |
 | generation | `20261021T092049Z` |
 | status in the database | `IN_PROGRESS` |
-| checkpoint | revision 10 |
-| players fetched in that run | 1,265, 0 failed |
-| only copy of the raw data | Actions cache `footystats-gen-20261021T092049Z-0010`, 89.4 MB |
+| checkpoint | revision 11 |
+| players fetched | 13,923 of a universe of ~28,311 - roughly half |
+| that run's contribution | 1,264 players, 0 failed |
+| only copy of the raw data | Actions cache `footystats-gen-20261021T092049Z-0011`, 97.9 MB |
 
-Going public removed the billing limit - Actions is free on public
-repositories - but **no pipeline run has arrived since the flip**, so that the
-fix works is inferred, not observed. The hourly continuation had roughly four
-opportunities in the hours after the flip and took none of them, which is
-unremarkable at the measured 22% arrival rate and is also not evidence of
-anything.
+It fetched and stopped cleanly inside its time budget; nothing was loaded or
+published, which is the design rather than a shortfall - a partial universe
+must not reach production, so the data serving now is untouched.
 
-### The dated risk
+**The `expected` field in the fetch log is not a target.** It read 11,439 on 22
+October and 13,352 on 27 October while `completed` went from 11,394 to 12,659:
+it counts players discovered so far, as roster pages are read, and will keep
+climbing. The ~28,311 denominator comes from the workflow's own record of what
+reading every roster page produces, not from that field.
 
-GitHub removes an Actions cache that has not been **accessed** for 7 days. That
-cache was last accessed at **22 October 20:16 UTC**, by the run that wrote it.
-Nothing has read it since.
+### Dispatching it manually is safe, and it is worth knowing why
+
+`workflow_dispatch` takes only a `source`, and the resolver returns mode
+`start` for any manual run - the mode that is *allowed* to open a new
+generation. That is permission, not instruction. With a generation
+`IN_PROGRESS` the gate returns `FETCH` on the same id, with the reason
+"continuing generation ... rather than starting another"; `START_NEW` appears
+only when nothing is live. Both were confirmed by calling `resolve_with_mode`
+and `decide_from_state` directly before the dispatch, and then by the run
+itself: the restore step *succeeded*, which a `START_NEW` run cannot do because
+it has nothing to restore.
+
+### The deadline that made the dispatch urgent, and how it closed
+
+GitHub removes an Actions cache that has not been **accessed** for 7 days, and
+that cache is the only copy of a generation's raw data between runs. The
+arithmetic before the dispatch:
 
 ```
 cache written / last read   22 Oct 20:16 UTC
@@ -88,20 +112,31 @@ cache written / last read   22 Oct 20:16 UTC
 first weekly scheduled run   2 Nov 04:17 UTC   <-- four days too late
 ```
 
-So the weekly cadence cannot be what rescues this generation. Only the hourly
-continuation can, by arriving before 29 October and touching the key - a
-restore that *hits* counts as an access and resets the window. At 22% arrival
-over the ~53 remaining hourly opportunities, that is close to certain, and
-"close to certain" is not the same as arranged.
+The weekly cadence could not have rescued this generation: it would have
+arrived after the only copy was gone. After the dispatch the order is the right
+way round, with about 36 hours to spare.
 
-If the cache is evicted, the failure is not a fresh start. `fact_refresh_generation`
-still says `IN_PROGRESS`, the gate still emits `action=FETCH` for
-`20261021T092049Z`, the restore misses, and the verify step is **fatal when the
-disk holds nothing** - by design, so that a lost generation is never silently
-replaced by a different one. Recovery would then be a deliberate act: either
-re-run the continuation manually before the deadline, or abandon the generation
-in the database and let a Monday start a new one, at the cost of the ~12,659
-players already fetched.
+```
+cache written / last read   27 Oct 16:07 UTC
+7-day eviction due           3 Nov 16:07 UTC
+first weekly scheduled run   2 Nov 04:17 UTC   <-- now comfortably inside
+```
+
+**This recurs, so it belongs here as a rule rather than as an incident.** A
+generation in flight is only as safe as its last cache access; a restore that
+*hits* counts as an access and resets the window; and a weekly cadence against
+a seven-day eviction leaves almost no margin on its own. The hourly
+continuation is what normally keeps the window open, so whenever it has not run
+for days - for any reason, billing or otherwise - the clock is already running.
+
+And if a cache is ever evicted, the failure is not a fresh start.
+`fact_refresh_generation` still says `IN_PROGRESS`, the gate still emits
+`action=FETCH` for that generation, the restore misses, and the verify step is
+**fatal when the disk holds nothing** - by design, so that a lost generation is
+never silently replaced by a different one. Recovery is then a deliberate act:
+dispatch the continuation manually, or abandon the generation in the database
+with `python -m pipelines.footystats.generations --abandon <id>` and let a
+Monday start a new one, at the cost of every player already fetched.
 
 **Check it with:** `gh api repos/Tiago-Analyst/Football-Scouting-Intelligence/actions/caches`
 and look at `last_accessed_at` for the `footystats-gen-` keys.
@@ -142,8 +177,9 @@ a Monday landing mid-refresh continues it instead of opening a second.
 
 | Item | State |
 | --- | --- |
-| Pipeline works post-flip | **Unverified** - no run has arrived since |
-| Generation `20261021T092049Z` | In flight, cache eviction due 29 Oct 20:16 UTC |
+| Pipeline works post-flip | **Verified** 27 Oct 16:08 UTC, by dispatch `40530275313` |
+| Generation `20261021T092049Z` | In flight at checkpoint 11, ~half fetched. Cache eviction due 3 Nov 16:07 UTC, after the 2 Nov run |
+| Whether a *scheduled* run arrives | **Still unobserved.** The dispatch proves the job runs; it does not prove GitHub's scheduler is delivering to this repository again |
 | README player-season counts | Stale; the health endpoint is authoritative |
 | History-wide sweep for image blobs | Never completed - see `publication_clearance.md` |
 | One residual player name in 144 commits | Accepted, not removed, deliberately and dated |
@@ -153,7 +189,7 @@ a Monday landing mid-refresh continues it instead of opening a second.
 
 Any of these, and it should be re-read against its sources rather than trusted:
 
-- a pipeline run arrives and succeeds, or arrives and fails for a new reason
-- 29 October 2026 passes
-- 2 November 2026 passes
+- a *scheduled* pipeline run arrives, which has not happened since the flip
+- the generation passes checkpoint 11, or stops being `IN_PROGRESS`
+- 2 November 2026 passes, or 3 November 2026 16:07 UTC passes without a run
 - the analytics figures in `/health` change, which happens on every promotion
