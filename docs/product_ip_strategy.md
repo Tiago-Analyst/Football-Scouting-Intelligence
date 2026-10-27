@@ -122,20 +122,26 @@ settled.
   repository's history is not private in the way people assume. Splitting means
   a fresh history for whatever stays public, or accepting that the weights are
   recoverable from the past.
-- **Done, in the working tree.** `docs/identity_resolution_footystats.csv` was
-  8,575 rows of names, dates of birth and nationalities of real people, in a
-  public repository. The resolver now writes it to `data/processed/`, which is
-  git-ignored; `.gitignore` refuses the old path and any sibling; and
+- **Done.** `docs/identity_resolution_footystats.csv` was 8,575 rows of names,
+  dates of birth and nationalities of real people, in a public repository. The
+  resolver now writes it to `data/processed/`, which is git-ignored;
+  `.gitignore` refuses the old path and any sibling; and
   `docs/identity_resolution_example.csv` documents the columns with six
   invented players. The aggregate report, which is the part worth publishing,
   is unchanged.
 
-  **Not done: the history.** Three earlier commits still contain the file, so
-  it remains retrievable from the published repository until the history is
-  rewritten and force-pushed. Note that a rewrite does not reach forks, clones
-  or GitHub's own cached views of those blobs — those need a request to GitHub
-  support. Treat the data as having been disclosed and act accordingly rather
-  than assuming a rewrite undoes it.
+  **The history too.** It was rewritten with `git filter-repo` — 51 of 57
+  commits at the time — after the repository was made private and with a fork
+  count of zero, which is what made the removal complete rather than nominal.
+  `docs/git_history_cleanup.md` holds the procedure, the record and the
+  commands to re-verify it; a content search across all commits confirms the
+  data is in none of them.
+
+  Still true, and the reason this is not filed as finished: a rewrite is not
+  erasure on a hosting platform. GitHub can serve unreachable objects by SHA
+  for a period and its cached views may hold them, which needs a request to
+  GitHub Support rather than a push. **Treat the data as having been disclosed**
+  and act on that basis rather than assuming the rewrite undid it.
 - Decide what happens to the generated provider documentation. Files like
   `docs/footystats_provider_status.md`, `docs/config_availability.md` and
   `docs/footystats_denominator_validation.md` are the accumulated record of

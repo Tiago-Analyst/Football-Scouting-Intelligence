@@ -43,11 +43,20 @@ Empty output means no commit touches the path. Stronger, because it searches
 content rather than paths:
 
 ```bash
-git rev-list --all | while read c; do git grep -l "Ilnur Alshin" "$c" -- 2>/dev/null; done
+git rev-list --all | while read c; do git grep -l "<a name from the file>" "$c" -- 2>/dev/null; done
 ```
 
-Empty output means the data is in no commit. And that the ignore rules are the
-right shape:
+Empty output means the data is in no commit.
+
+**Do not substitute a real name into this document.** Take the probe from the
+regenerated output in `data/processed/`, which is git-ignored, run the search,
+and leave the placeholder as it is. An earlier version of this file carried a
+real player's name inside that command, which put one back into a tracked file
+in `docs/` — the precise thing the rewrite was for — and made the check
+useless besides, since it then always matched this document and could never
+return empty. A verification that cannot fail is not a verification.
+
+And that the ignore rules are the right shape:
 
 ```bash
 git check-ignore -v docs/identity_resolution_footystats.csv   # must match
