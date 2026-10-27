@@ -53,7 +53,7 @@ the working tree.
 | Checked | Result |
 | --- | --- |
 | `.env`, `.neon`, `secrets/`, `.pem`, `.key` in any commit | only `.env.example` and `frontend/.env.local.example` |
-| contents of those templates | placeholders — `change_me_locally`, an empty `FOOTYSTATS_API_KEY=` |
+| contents of those templates | placeholders — `change_me_locally`, and a `FOOTYSTATS_API_KEY` with no value |
 | strings shaped like an API key (32+ hex) anywhere in history | none |
 | credentials in connection URLs | all test fixtures — `u:p@h`, `ep-x`, `SUPER_SECRET_PW`, `db.example.com` |
 | provider data under `data/raw` or `data/processed` ever committed | none; only `.gitkeep` and one manifest |
