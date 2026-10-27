@@ -115,14 +115,29 @@ marginal cost at that point is zero.
 Actions is free for public repositories. The 2,000-minute allowance that halted
 every scheduled run from 22 October 2026 onward, and that
 `.github/workflows/pipeline.yml` was reduced to a fortnightly cadence to fit,
-is a private-repository limit. Going public removes the constraint rather than
-accommodating it, and the cadence becomes a question about how often match data
-changes instead of a question about billing.
+is a private-repository limit. Going public removed the constraint rather than
+accommodating it.
+
+**So the cadence is now an open question, and the answer it currently gives is
+the wrong one.** `17 4,7,10 1,15 * *` — the 1st and the 15th — was chosen to
+fit 2,000 minutes, because a generation spends roughly 950 of them asleep
+between calls to the provider's rate limiter. That time is now free. Whatever
+the cadence should be, it should be decided by how often match data changes,
+which is the rate matches are played, and no longer by a bill. Nobody has
+revisited it yet; this paragraph is the note saying it is owed.
 
 ## The state of the decision
 
-Cleared on both counts, and not yet acted on. Changing visibility is an account
-action with disclosure that does not reverse, so it stays with the maintainer.
+Cleared on both counts, and **done: the repository was made public on 27
+October 2026**, by the maintainer, with a fork count and star count of zero at
+that moment.
+
+What followed immediately, as confirmation that the Actions block was a
+private-repository limit and nothing else: jobs that had been failing in two
+seconds since 22 October executed normally, and CI went green on `main` the
+same hour. Its first real run also caught a line in this very document that
+matched the secret scanner's pattern — the sentence describing the key as
+absent, which is fixed above.
 
 One thing to re-read before flipping, from `docs/git_history_cleanup.md`: a
 rewrite is not erasure on a hosting platform. The removed blobs were confirmed
