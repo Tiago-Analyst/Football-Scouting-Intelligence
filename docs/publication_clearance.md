@@ -85,6 +85,31 @@ failed on an unrelated classifier error, and this was the one whose result was
 not recoverable another way. No image is tracked now; that no image was ever
 committed is unverified.
 
+### One name is accepted rather than removed
+
+`docs/git_history_cleanup.md` carried a real player's name inside the content
+search it recommends. It is out of the working tree, and it remains in 144 of
+the 205 commits. **Decided on 27 October 2026: accept it, do not rewrite.**
+
+The reasoning, so this does not read as an oversight later. It is one name
+standing alone in a shell command, with no date of birth or nationality beside
+it — categorically unlike the removed file, which carried all three per row,
+8,575 times, and whose sensitive part was the date of birth. The person is a
+professional footballer whose name appears in public squad lists and match
+reports, so a name detached from any data row adds nothing to what is already
+published about them. Against that, a second rewrite would touch 144 commits,
+break every existing clone, and still not reach GitHub's cached objects without
+a support request.
+
+The argument the other way is real and is recorded here rather than dismissed:
+the standard written in this repository is that *data deriving from a provider
+is not thereby less personal*. Applied literally, that standard says remove it.
+This decision is proportionality preferred over consistency with that rule, and
+it was taken knowingly.
+
+If the history is ever rewritten for some other reason, fold this in then — the
+marginal cost at that point is zero.
+
 ## Consequence for the Actions allowance
 
 Actions is free for public repositories. The 2,000-minute allowance that halted
