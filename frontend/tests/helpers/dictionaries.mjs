@@ -33,3 +33,27 @@ export function copy(locale, file) {
 export function copyOf(locale, ...files) {
   return files.map((f) => copy(locale, f)).join(" ");
 }
+
+/**
+ * Metric names that are allowed to read the same in English and Portuguese.
+ *
+ * Three guards ask this question - the vocabulary test, the architecture
+ * test's identical-value sweep and the glossary test - so the answer lives
+ * here rather than in three lists that would drift.
+ *
+ * `PRESERVED_NOTATION`: xG, xA and npxG are what scouts write and search for
+ * in both languages. "Golos esperados" would be a translation nobody asked
+ * for.
+ *
+ * `SAME_WORD_IN_BOTH`: a real coincidence. `passe` is the Portuguese noun, so
+ * "Passes /90" is already correct. Listed separately from the notation, and
+ * one key at a time, so the next identical pair has to be justified rather
+ * than absorbed into a growing exemption.
+ */
+export const PRESERVED_NOTATION = new Set(["xg_per90", "xa_per90", "npxg_per90"]);
+export const SAME_WORD_IN_BOTH = new Set(["passes_per90"]);
+
+/** True when `key` may read identically in both dictionaries. */
+export function mayMatchEnglish(key) {
+  return PRESERVED_NOTATION.has(key) || SAME_WORD_IN_BOTH.has(key);
+}

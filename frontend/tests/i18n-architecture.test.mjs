@@ -91,10 +91,11 @@ test("no translated value is left as the English one by accident", () => {
     "common.meta.title",
     "common.meta.titleTemplate",
     "common.theme.label",
-    // Notation, not words. xA and npxG are written the same way by Portuguese
-    // analysts, and translating them would make the figures unreadable to the
-    // people who use them.
+    // Notation, not words. xG, xA and npxG are written the same way by
+    // Portuguese analysts, and translating them would make the figures
+    // unreadable to the people who use them.
     "glossary.concepts.perNinety",
+    "glossary.metrics.xg_per90",
     "glossary.metrics.xa_per90",
     "glossary.metrics.npxg_per90",
     "glossary.evidenceNouns.shots",
@@ -130,6 +131,12 @@ test("no translated value is left as the English one by accident", () => {
     // Placeholders, a colon, two per-cent signs and an arrow. There is no
     // sentence here to translate.
     "recruitment.blocked.adaptedRow",
+
+    // `passe` is the Portuguese noun, so "Passes /90" is already correct.
+    // The authority for which metric names may read identically is
+    // `helpers/dictionaries.mjs`; this entry exists because this sweep is
+    // keyed by dotted path rather than by metric key.
+    "glossary.metrics.passes_per90",
   ]);
   for (const name of FILES) {
     const en = loadJson("en", name);

@@ -290,6 +290,8 @@ def to_score(
                 satisfied=d.satisfied,
                 available=[metric_label(m) for m in d.available],
                 missing=[metric_label(m) for m in d.missing],
+                available_keys=[str(m) for m in d.available],
+                missing_keys=[str(m) for m in d.missing],
             )
             for d in getattr(score, "core_dimensions", ())
         ],
@@ -853,6 +855,7 @@ def _unscored_roles(view: AnalyticsView, player_id: str) -> list[UnscoredRoleOut
                 coverage_pct=result.coverage * 100.0,
                 required_pct=SECONDARY_COVERAGE_FLOOR * 100.0,
                 missing=[metric_label(m) for m in result.missing],
+                missing_keys=[str(m) for m in result.missing],
             )
         )
     # Closest first: the role that came nearest is the one worth naming.

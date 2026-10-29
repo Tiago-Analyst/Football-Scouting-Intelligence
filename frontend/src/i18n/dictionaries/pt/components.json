@@ -39,7 +39,10 @@
     "tooltip": "Cada eixo é uma pontuação composta construída a partir dos percentis do jogador entre jogadores comparáveis, numa escala de 0 a 100. A forma mostra onde é forte em relação a esse grupo — não o quão bom é. As pontuações que não puderam ser calculadas são omitidas em vez de desenhadas a zero.",
     "notQuality": "Uma pontuação descreve a adequação estatística a um perfil entre jogadores comparáveis. Não é qualidade do jogador.",
     "omitted": "Não representadas, por não terem podido ser calculadas: {scores}.",
-    "ariaSummary": "{score} {value} de 100"
+    "ariaSummary": "{score} {value} de 100",
+    "noneComputed": "Não foi possível calcular nenhuma pontuação de inteligência para este jogador.",
+    "tooFew": "Só foi possível calcular {count} pontuações, o que é pouco para traçar um perfil.",
+    "tooFewOne": "Só foi possível calcular uma pontuação, o que é pouco para traçar um perfil."
   },
   "marketChart": {
     "title": "Valor de mercado ao longo do tempo",

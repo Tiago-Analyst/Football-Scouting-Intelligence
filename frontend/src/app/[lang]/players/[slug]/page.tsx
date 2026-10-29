@@ -9,6 +9,7 @@ import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
+import { metricNames } from "@/i18n/metricNames";
 
 import { AllLeaguesHeading } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
@@ -314,12 +315,12 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                   <span className="text-xs text-subtle">
                     {t.profile.intelligence.unavailable.replace(
                       "{metrics}",
-                      score.missing
-                        .map(
-                          (m) =>
-                            t.glossary.metrics[m as keyof typeof t.glossary.metrics] ?? m,
-                        )
-                        .join(", "),
+                      // `missing` is English prose built from the key by the
+                      // backend; `missing_keys` is the key. Looking a label up
+                      // in a glossary keyed by metric key can never match, so
+                      // this read "Progressive passes /90" in Portuguese -
+                      // with the translation sitting in the dictionary, unused.
+                      metricNames(t, score.missing_keys, score.missing),
                     )}
                   </span>
                 )}
@@ -419,7 +420,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             ? ` · ${
                                 t.glossary.coverageBands[
                                   role.coverage_band as keyof typeof t.glossary.coverageBands
-                                ] ?? ""
+                                ] ?? role.coverage_label ?? ""
                               }`
                             : null}
                         </span>
@@ -483,12 +484,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             ·{" "}
                             {t.profile.roles.unscoredMissing.replace(
                               "{metrics}",
-                              role.missing
-                                .map(
-                                  (m) =>
-                                    t.glossary.metrics[m as keyof typeof t.glossary.metrics] ?? m,
-                                )
-                                .join(", "),
+                              metricNames(t, role.missing_keys, role.missing),
                             )}
                           </span>
                         ) : null}
@@ -830,7 +826,9 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                                 : "mt-0.5 block text-[10px] text-warning"
                             }
                           >
-                            {entry.coverage_label}
+                            {t.glossary.coverageBands[
+                              entry.coverage_band as keyof typeof t.glossary.coverageBands
+                            ] ?? entry.coverage_label}
                           </span>
                         </TD>
                         <TD numeric>

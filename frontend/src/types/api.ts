@@ -268,6 +268,16 @@ export interface Score {
   dominant_share?: number | null;
   components: ScoreComponent[];
   missing: string[];
+  /**
+   * The same list as metric keys.
+   *
+   * `missing` above is English, built by the backend from the key. Looking a
+   * label up in a glossary keyed by metric key can never match, so the page
+   * fell back to the English every time. Prefer this; `missing` is the
+   * fallback for a key no glossary knows yet.
+   */
+  missing_keys?: string[];
+
   /** Hand-written, and qualitative only: limits no report can derive. */
   caveat: string | null;
   /** Roles only. What was missing, generated from what was actually missing. */
@@ -299,6 +309,9 @@ export interface CoreDimension {
   /** Metrics that evidenced it, and metrics that could have and did not. */
   available: string[];
   missing: string[];
+  /** Both lists as metric keys, so each language names them itself. */
+  available_keys?: string[];
+  missing_keys?: string[];
 }
 
 export interface UnscoredRole {
@@ -309,6 +322,8 @@ export interface UnscoredRole {
   /** What this role requires before it will produce a score, 0-100. */
   required_pct: number;
   missing: string[];
+  /** The same, as metric keys. See the note on `Score.missing_keys`. */
+  missing_keys?: string[];
 }
 
 export interface RoleFit {

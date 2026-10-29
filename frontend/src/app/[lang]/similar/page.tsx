@@ -357,7 +357,11 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             {entry.shared_features} / {entry.expected_features}
                             {entry.coverage_band === "limited" ||
                             entry.coverage_band === "very_limited" ? (
-                              <span className="ml-1 text-warning">{entry.coverage_label}</span>
+                              <span className="ml-1 text-warning">
+                                  {t.glossary.coverageBands[
+                                    entry.coverage_band as keyof typeof t.glossary.coverageBands
+                                  ] ?? entry.coverage_label}
+                                </span>
                             ) : null}
                           </span>
                         </TD>

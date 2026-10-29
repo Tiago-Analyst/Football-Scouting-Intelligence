@@ -150,6 +150,16 @@ class CoreDimensionOut(BaseModel):
     #: tells a reader what to go and look for.
     available: list[str] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list)
+    #: The same two lists as metric keys.
+    #:
+    #: The labels above are English, built by `metric_label` from the key. A
+    #: Portuguese reader was shown "aerial duel win percentage: missing
+    #: Accurate crosses /90" because the interface looked the label up in its
+    #: own glossary, which is keyed by metric key, and a label can never
+    #: match. Keys let each language write its own metric name; the labels
+    #: stay for callers that have no glossary.
+    available_keys: list[str] = Field(default_factory=list)
+    missing_keys: list[str] = Field(default_factory=list)
 
 
 class ScoreEvidenceOut(BaseModel):
@@ -297,6 +307,8 @@ class UnscoredRoleOut(BaseModel):
     required_pct: float
     #: The components that were not available, by display label.
     missing: list[str] = Field(default_factory=list)
+    #: The same, as metric keys, so each language can name them itself.
+    missing_keys: list[str] = Field(default_factory=list)
 
 
 class RoleFitOut(BaseModel):
