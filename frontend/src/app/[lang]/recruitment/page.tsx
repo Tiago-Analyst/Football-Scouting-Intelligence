@@ -380,7 +380,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
             ) : (
               <EmptyState
                 title={t.recruitment.states.readyTitle}
-                description={summary ?? "Adjust the filters, then build the shortlist."}
+                description={summary ?? t.recruitment.states.readyFallback}
                 action={
                   <p className="text-xs text-subtle">{t.recruitment.states.readyActionBefore}<strong>{t.recruitment.filters.build}</strong>{t.recruitment.states.readyActionAfter}</p>
                 }

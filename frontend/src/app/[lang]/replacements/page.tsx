@@ -274,11 +274,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           score and hiding the sort key was the worst of both. */}
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.replacements.table.ranked}<Tooltip label={t.replacements.notes.rankedTitle}>
-                            The list is ordered by this, not by Overall. A score built on part of a
-                            season is read closer to the average for this search, in proportion to
-                            how much football stands behind it; at a full season&apos;s minutes it
-                            is used as it stands. Nobody is excluded and no score is rewritten —
-                            Overall beside it is the score itself.
+                            {t.replacements.notes.rankedBody}
                           </Tooltip>
                         </span>
                       </TH>

@@ -127,8 +127,39 @@ test("the replacements table shows the column it is sorted by", () => {
 });
 
 test("the ranked column says it is the sort key and Overall is not", () => {
-  const flattened = flat(replacements);
-  assert.match(flattened, /ordered by this, not by Overall/);
+  // This used to assert the sentence was IN the page, which is how it came to
+  // be five lines of English JSX while `notes.rankedBody` carried the same
+  // sentence in both languages, unused. A Portuguese reader opened the
+  // tooltip and got English. So: the page must point at the key, and each
+  // dictionary must be the thing that says it.
+  assert.match(flat(replacements), /t\.replacements\.notes\.rankedBody/);
+  assert.equal(/ordered by this, not by Overall/.test(flat(replacements)), false);
+  assert.match(replacementsCopy.en, /ordered by this, not by Overall/);
+  assert.match(replacementsCopy.pt, /ordenada por este valor, e não pelo Global/);
+});
+
+test("and the similarity table explains its own ordering the same way", () => {
+  // Same defect, same shape, found in the same audit: `similarity.py` sorts
+  // on the adjusted value, so a 97 can sit below an 80, and the page showed
+  // only the 97.
+  const page = readFileSync(
+    new URL("../src/app/[lang]/similar/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(flat(page), /t\.similarity\.table\.ranked/);
+  assert.match(page, /entry\.ranking_similarity/);
+  assert.match(page, /entry\.evidence_weight/);
+  assert.match(page, /entry\.ranking_note_message/);
+  for (const [lang, expected] of [
+    ["en", /ordered by this, not by Similarity/],
+    ["pt", /ordenada por este valor, e não pela Semelhança/],
+  ]) {
+    const copy = readFileSync(
+      new URL(`../src/i18n/dictionaries/${lang}/similarity.json`, import.meta.url),
+      "utf8",
+    );
+    assert.match(copy, expected, `${lang}: notes.rankedBody`);
+  }
 });
 
 test("a short-sample candidate says how much of a season it rests on", () => {

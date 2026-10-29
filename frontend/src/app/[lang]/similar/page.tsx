@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName } from "@/components/player/RoleName";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -253,6 +254,21 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                           </Tooltip>
                         </span>
                       </TH>
+                      {/* WHAT THE LIST IS ORDERED BY, BESIDE WHAT IT SHOWS.
+                          `similarity.py` sorts on `ranking.ranked`, not on
+                          `similarity`, so a 97 built on 500 minutes lands
+                          below an 80 built on a full season. Correct, and
+                          unreadable while only one of the two numbers was on
+                          screen: the audit read the last row of a descending
+                          column as a broken sort. The index is untouched -
+                          this column is the sort key, named as such, in the
+                          one place a reader is already looking. */}
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">{t.similarity.table.ranked}<Tooltip label={t.similarity.notes.rankedTitle}>
+                            {t.similarity.notes.rankedBody}
+                          </Tooltip>
+                        </span>
+                      </TH>
                       <TH>{t.similarity.table.club}</TH>
                       <TH>{t.similarity.table.competition}</TH>
                       <TH>{t.similarity.table.bestRole}</TH>
@@ -299,6 +315,27 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             </span>
                           ) : null}
                         </TD>
+                        {/* The sort key, with the share of a season behind it
+                            shown only where the ordering actually moved -
+                            printing "100% of a season" on every full-season row
+                            would teach a reader to stop seeing it. The sentence
+                            in the tooltip is the backend's own, by code, so a
+                            second wording here cannot drift from the first. */}
+                        <TD numeric className="font-medium">
+                          <span title={apiMessage(t, f, entry.ranking_note_message) ?? undefined}>
+                            {entry.ranking_similarity != null
+                              ? Math.round(entry.ranking_similarity)
+                              : Math.round(entry.similarity)}
+                          </span>
+                          {entry.evidence_weight != null && entry.evidence_weight < 1 ? (
+                            <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                              {t.similarity.table.seasonShare.replace(
+                                "{pct}",
+                                String(Math.round(entry.evidence_weight * 100)),
+                              )}
+                            </span>
+                          ) : null}
+                        </TD>
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
                         <TD className="whitespace-nowrap">
@@ -339,7 +376,12 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                   </TBody>
                 </Table>
               </TableWrap>
-              <p className="text-xs text-muted">{f.count(similar.results.length)} results</p>
+              <p className="text-xs text-muted">
+                {t.similarity.results.count.replace(
+                  "{count}",
+                  f.count(similar.results.length),
+                )}
+              </p>
             </>
           )}
 
