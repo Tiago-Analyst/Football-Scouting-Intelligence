@@ -284,16 +284,52 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                   <TBody>
                     {similar.results.map((entry) => (
                       <TR key={entry.player.player_id} interactive>
+                        {/* `max-w-28` on a phone, and nothing above `sm`.
+                            The sort key missed a 390px viewport, and in
+                            Portuguese it missed by more, because SEMELHANÇA
+                            and ORDENADO are longer words than their English
+                            headers. Measured in Portuguese: 172 + 136 + 122
+                            = 430 against 390. The cell padding came down to
+                            `px-2` below `sm` (see `ui/Table.tsx`), which got
+                            it to 381, and the table starts 18px in from the
+                            page gutter - so capping the name here is the
+                            last nine pixels.
+
+                            The name WRAPS rather than truncating. The column
+                            was 172 wide for a longest name of 144: the
+                            browser had room in a 1054px table and so never
+                            broke a line. A second line costs a little height
+                            and loses nothing, where an ellipsis would hide
+                            part of a name to show a number - the wrong trade
+                            on the page where you are choosing who to look
+                            at.
+
+                            `min-w-24` is the other half of it: once the badge
+                            stopped holding the column open, the browser
+                            settled the name at 85px, which wraps a long name
+                            into three lines. The floor costs nothing - the
+                            first three columns come to 322 of 390 - and
+                            keeps the column readable rather than merely
+                            narrow. */}
                         <TD>
                           <Link
                             href={`/players/${entry.player.player_id}`}
-                            className="font-medium transition-colors hover:text-accent"
+                            className="block max-w-28 min-w-24 font-medium break-words transition-colors hover:text-accent sm:max-w-none sm:min-w-0"
                           >
                             {entry.player.name}
                           </Link>
                           {!entry.comparable_strength ? (
+                            /* The badge, not the name, was setting this
+                               column's width: "Força de perfil diferente" is
+                               140px and `Badge` is `whitespace-nowrap`, so
+                               the column stayed 156 wide however narrow the
+                               name got. `whitespace-normal` below `sm` lets
+                               those three words wrap; above it the badge
+                               reads on one line as before. */
                             <span className="mt-0.5 block">
-                              <Badge tone="warning">{t.similarity.table.differentStrength}</Badge>
+                              <Badge tone="warning" className="max-w-28 whitespace-normal sm:max-w-none sm:whitespace-nowrap">
+                                {t.similarity.table.differentStrength}
+                              </Badge>
                             </span>
                           ) : null}
                         </TD>
