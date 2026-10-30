@@ -239,7 +239,10 @@ export default async function DesignSystemPage() {
 
       <Section title="Filters">
         <div className="max-w-xs">
-          <FilterPanel activeCount={2}>
+          <FilterPanel
+            activeCount={2}
+            labels={{ heading: "Filters", reset: "Reset", active: "{count} active" }}
+          >
             <FilterGroup title="Profile">
               <Field label="Name" htmlFor="ds-name">
                 <TextInput id="ds-name" type="search" placeholder="Search players…" />

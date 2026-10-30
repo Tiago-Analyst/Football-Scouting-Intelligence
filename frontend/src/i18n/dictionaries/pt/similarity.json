@@ -38,11 +38,16 @@
     "competition": "Competição",
     "bestRole": "Melhor função",
     "similarity": "Semelhança",
+    "ranked": "Ordenado",
+    "seasonShare": "{pct}% de uma época",
     "featureCoverage": "Cobertura de atributos",
     "value": "Valor",
     "contract": "Contrato",
     "differentStrength": "Força de perfil diferente",
     "limitedEvidence": "Evidência limitada"
+  },
+  "results": {
+    "count": "{count} resultados"
   },
   "empty": {
     "title": "Nenhum jogador semelhante corresponde a estes filtros",
@@ -51,6 +56,8 @@
   "notes": {
     "indexTitle": "O que é o Índice de Semelhança Estatística?",
     "indexBody": "Semelhança na forma do perfil estatístico, numa escala de 0 a 100. Não é a probabilidade de dois jogadores serem equivalentes, e nada diz sobre qualidade, encaixe táctico ou temperamento.",
+    "rankedTitle": "Porque um 97 pode ficar abaixo de um 80",
+    "rankedBody": "A lista é ordenada por este valor, e não pela Semelhança. Um índice construído sobre parte de uma época é lido mais perto da média desta pesquisa, na proporção de quanto futebol o sustenta; com os minutos de uma época inteira é usado tal como está. Ninguém é excluído e nenhum índice é reescrito — a Semelhança ao lado é o índice em si, e é por isso que um 97 obtido em algumas centenas de minutos pode ficar abaixo de um 80 de uma época inteira.",
     "coverageTitle": "Porque é que a cobertura importa?",
     "coverageBody": "Quanto da comparação pretendida se concretizou de facto. Um índice de 92 sobre seis de onze atributos é uma resposta segura a uma pergunta mais estreita do que o mesmo índice sobre onze, e o índice sozinho não os distingue. Reportada ao lado, nunca incorporada nele.",
     "notProbabilityTitle": "Semelhança não é probabilidade",

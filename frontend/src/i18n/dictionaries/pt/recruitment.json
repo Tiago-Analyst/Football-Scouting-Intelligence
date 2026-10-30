@@ -49,6 +49,7 @@
     "demoData": "Dados de demonstração",
     "partialTitle": "Parte deste perfil não pode ser pontuada",
     "crossLeagueTitle": "Comparação entre ligas",
+    "crossLeagueBody": "Os percentis entre ligas não têm actualmente em conta as diferenças de força entre competições.",
     "candidateMeta": "{age} anos · {position} · {club} · {competition}",
     "rankedNote": "ordenado {score} · {pct}% de uma época",
     "why": "Porquê {firstName}?",

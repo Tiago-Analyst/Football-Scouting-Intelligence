@@ -56,10 +56,19 @@ export async function IntelligenceRadar({ scores }: { scores: Score[] }) {
       />
       <CardBody>
         {available.length < MINIMUM_AXES ? (
+          /* These two sentences were English literals with no dictionary key
+             at all - not a bypassed key, a missing one - so a Portuguese
+             reader with a thin profile got the only paragraph on the card in
+             English. They sat in a ternary rather than between tags, which is
+             why the component-literal guard never saw them. The singular is
+             its own key: "1 scores" is the kind of thing a reader notices
+             before they notice the number. */
           <p className="text-sm text-muted">
             {available.length === 0
-              ? "No intelligence score could be computed for this player."
-              : `Only ${available.length} score${available.length === 1 ? "" : "s"} could be computed, which is too few to draw a profile from.`}
+              ? t.components.radar.noneComputed
+              : available.length === 1
+                ? t.components.radar.tooFewOne
+                : t.components.radar.tooFew.replace("{count}", String(available.length))}
           </p>
         ) : (
           <Shape t={t} scores={available} />

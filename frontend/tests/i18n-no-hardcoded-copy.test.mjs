@@ -124,3 +124,136 @@ test("and the key it reads is not left saying something else", () => {
   assert.equal(en.constraints.apply, "Apply constraints");
   assert.equal(pt.constraints.apply, "Aplicar restrições");
 });
+
+/**
+ * The other half of the same failure, caught structurally.
+ *
+ * Both tests above look for text that *looks* like English. That misses the
+ * two leaks the production audit of 29 October found, for opposite reasons:
+ *
+ *   - `>Previous<` and `>Next<` in the player search pagination are single
+ *     words, and `BETWEEN_TAGS` deliberately needs two - so a Portuguese
+ *     reader got "Page 1 of 216" and "Next" while `players.pagination` sat
+ *     fully translated in both dictionaries, unused.
+ *   - the Ranked tooltip in the replacement finder was a five-line English
+ *     paragraph, and `BETWEEN_TAGS` never matched it because a comma breaks
+ *     its `[a-z]+` run. `notes.rankedBody` existed in both languages, unused.
+ *
+ * So this asks a different question, and the English dictionary answers it:
+ * if a component contains a literal that the dictionary *already provides*,
+ * the key exists and the component is going around it. That is the whole test
+ * - no list of forbidden English words, nothing to keep up to date, and
+ * nothing that fires on a unit or a metric name. Adding a key cannot break
+ * it; bypassing one does.
+ */
+const EN_DIR = fileURLToPath(new URL("../src/i18n/dictionaries/en/", import.meta.url));
+
+/** JSX collapses runs of whitespace and spells some characters as entities. */
+function normalize(text) {
+  return text
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dictionaryValues() {
+  const values = [];
+  const walk = (node, trail) => {
+    if (typeof node === "string") values.push({ key: trail, text: normalize(node) });
+    else if (node && typeof node === "object") {
+      for (const [key, child] of Object.entries(node)) {
+        walk(child, trail ? `${trail}.${key}` : key);
+      }
+    }
+  };
+  for (const file of readdirSync(EN_DIR)) {
+    if (!file.endsWith(".json")) continue;
+    walk(JSON.parse(readFileSync(path.join(EN_DIR, file), "utf8")), path.basename(file, ".json"));
+  }
+  return values;
+}
+
+test("no component inlines a sentence the dictionary already provides", () => {
+  // Sentence length only. A short value like "Age" appears inside longer
+  // prose often enough that matching it would say nothing.
+  const sentences = dictionaryValues().filter(
+    (entry) => entry.text.length >= 40 && !entry.text.includes("{"),
+  );
+  const bad = [];
+  for (const file of sources()) {
+    const name = relative(file);
+    if (EXEMPT.some((rule) => rule.test(name))) continue;
+    const body = normalize(code(file));
+    for (const entry of sentences) {
+      if (body.includes(entry.text)) bad.push(`${name} inlines ${entry.key}`);
+    }
+  }
+  assert.deepEqual(bad, [], `copy that should be read from the dictionary:\n  ${bad.join("\n  ")}`);
+});
+
+test("nor a short label it already provides, between its tags", () => {
+  // This is the `>Previous<` case. Scoped to text between tags so that a
+  // value which happens to read like an identifier cannot fire from a prop.
+  const labels = new Map();
+  for (const entry of dictionaryValues()) {
+    if (entry.text.length > 24 || entry.text.length < 3) continue;
+    if (/[{}]/.test(entry.text)) continue;
+    if (!/^[A-Z]/.test(entry.text)) continue;
+    if (!labels.has(entry.text)) labels.set(entry.text, entry.key);
+  }
+  const bad = [];
+  for (const file of sources()) {
+    const name = relative(file);
+    if (EXEMPT.some((rule) => rule.test(name))) continue;
+    for (const match of code(file).matchAll(/>\s*([A-Za-z][^<>{}\n]{2,23})\s*</g)) {
+      const text = normalize(match[1]);
+      if (labels.has(text)) bad.push(`${name}: >${text}< is ${labels.get(text)}`);
+    }
+  }
+  assert.deepEqual(bad, [], `hardcoded labels:\n  ${bad.join("\n  ")}`);
+});
+
+test("the pagination that started this reads from the dictionary", () => {
+  const page = readFileSync(
+    new URL("../src/app/[lang]/players/(search)/page.tsx", import.meta.url),
+    "utf8",
+  );
+  for (const key of ["label", "previous", "next", "page"]) {
+    assert.match(page, new RegExp(`t\.players\.pagination\.${key}`));
+  }
+  assert.equal(/>\s*(?:Previous|Next)\s*</.test(page), false);
+  assert.equal(/aria-label="Pagination"/.test(page), false);
+});
+
+test("and so does the column that explains the similarity ordering", () => {
+  // The list is sorted on the evidence-adjusted value, so the raw index is
+  // not in descending order. Both numbers have to be on screen, and the
+  // explanation has to exist in both languages, or the table reads as broken.
+  const page = readFileSync(
+    new URL("../src/app/[lang]/similar/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(page, /t\.similarity\.table\.ranked/);
+  assert.match(page, /t\.similarity\.notes\.rankedBody/);
+  assert.match(page, /entry\.ranking_similarity/);
+  assert.match(page, /entry\.evidence_weight/);
+  assert.match(page, /apiMessage\(t, f, entry\.ranking_note_message\)/);
+  // The raw index stays its own column, unrelabelled.
+  assert.match(page, /\{Math\.round\(entry\.similarity\)\}/);
+
+  for (const lang of ["en", "pt"]) {
+    const dict = JSON.parse(
+      readFileSync(
+        new URL(`../src/i18n/dictionaries/${lang}/similarity.json`, import.meta.url),
+        "utf8",
+      ),
+    );
+    assert.ok(dict.table.ranked, `${lang}: table.ranked`);
+    assert.ok(dict.table.seasonShare.includes("{pct}"), `${lang}: seasonShare placeholder`);
+    assert.ok(dict.notes.rankedBody.length > 80, `${lang}: notes.rankedBody`);
+    // Not a probability, and not a relabelled Similarity.
+    assert.equal(/probabilit/i.test(dict.notes.rankedBody), false);
+  }
+});

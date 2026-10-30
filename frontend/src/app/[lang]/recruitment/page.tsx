@@ -5,6 +5,7 @@ import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
+import { componentName } from "@/i18n/metricNames";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { BlockedProfile } from "@/components/recruitment/BlockedProfile";
@@ -380,7 +381,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
             ) : (
               <EmptyState
                 title={t.recruitment.states.readyTitle}
-                description={summary ?? "Adjust the filters, then build the shortlist."}
+                description={summary ?? t.recruitment.states.readyFallback}
                 action={
                   <p className="text-xs text-subtle">{t.recruitment.states.readyActionBefore}<strong>{t.recruitment.filters.build}</strong>{t.recruitment.states.readyActionAfter}</p>
                 }
@@ -442,7 +443,13 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               ) : null}
               {results.context_caveat ? (
                 <Callout tone="warning" title={t.recruitment.results.crossLeagueTitle}>
-                  {results.context_caveat}
+                  {/* The title came from the dictionary and the body came from
+                      the API, so a Portuguese reader got a translated heading
+                      over an English sentence. `percentiles.py` holds one
+                      constant caveat, which is why this can be a key; the
+                      API's own sentence stays as the fallback in case that
+                      ever stops being true. */}
+                  {t.recruitment.results.crossLeagueBody || results.context_caveat}
                 </Callout>
               ) : null}
 
@@ -517,10 +524,14 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             key={component.metric}
                             className="grid grid-cols-[9.5rem_1fr_3rem] items-center gap-3"
                           >
+                            {/* `component.metric` is a SCORE key here, not a
+                                metric key - a recruitment profile is weighted
+                                over the eight scores. Looking it up in the
+                                metric glossary could never match, so every
+                                row read the API's English beneath weight
+                                boxes that were already Portuguese. */}
                             <span className="text-xs text-muted">
-                              {t.glossary.metrics[
-                                component.metric as keyof typeof t.glossary.metrics
-                              ] ?? component.label}
+                              {componentName(t, component.metric, component.label)}
                             </span>
                             <PercentileBar percentile={component.percentile ?? 0} />
                             <span className="tabular text-right text-[11px] text-subtle">

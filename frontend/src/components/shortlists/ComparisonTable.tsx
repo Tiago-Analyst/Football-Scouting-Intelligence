@@ -289,7 +289,7 @@ export function ComparisonTable({
           <TBody>
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Minutes
+                {c.minutes}
               </TH>
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>
@@ -309,7 +309,7 @@ export function ComparisonTable({
 
             <TR>
               <TH scope="row" className="sticky left-0 z-10 bg-surface">
-                Age
+                {c.age}
               </TH>
               {players.map((column) => (
                 <TD key={column.player.player_id} numeric>

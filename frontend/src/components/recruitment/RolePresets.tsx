@@ -1,5 +1,9 @@
+import { apiMessage } from "@/components/player/ApiMessage";
+import { roleLabel } from "@/components/player/RoleName";
 import { AppLink as Link } from "@/components/ui/AppLink";
 import { getDictionary } from "@/i18n/dictionaries";
+import { formatters } from "@/i18n/format";
+import { componentName } from "@/i18n/metricNames";
 
 import type { RolePreset } from "@/types/api";
 
@@ -26,18 +30,16 @@ import type { RolePreset } from "@/types/api";
  * non-zero ones would leave the rest on the page's own defaults and silently
  * blend two profiles.
  */
-const GROUP_LABELS: Record<string, string> = {
-  GK: "Goalkeeper",
-  CB: "Centre-back",
-  FB_WB: "Full-back / wing-back",
-  DM: "Defensive midfield",
-  CM: "Central midfield",
-  AM: "Attacking midfield",
-  WINGER: "Winger",
-  FORWARD: "Forward",
-};
-
-const GROUP_ORDER = Object.keys(GROUP_LABELS);
+/**
+ * The order the position sections appear in, and nothing else.
+ *
+ * This was a `Record<string, string>` of English labels, which is why the
+ * Portuguese builder read "Goalkeeper", "Centre-back" and so on above lists
+ * of roles - while `components.presets.positions` carried all eight in both
+ * languages. The labels come from the dictionary now; only the order lives
+ * here, because order is not copy.
+ */
+const GROUP_ORDER = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWARD"];
 
 function presetHref(preset: RolePreset, scoreKeys: string[]): string {
   const params = new URLSearchParams();
@@ -95,7 +97,9 @@ export async function RolePresets({
                 weights" heading, so an h3 here skips a level and a screen
                 reader's outline gains a section that is not there. */}
             <h2 className="mb-1 text-[10px] font-semibold tracking-widest text-subtle uppercase">
-              {GROUP_LABELS[group]}
+              {t.components.presets.positions[
+                group as keyof typeof t.components.presets.positions
+              ] ?? group}
             </h2>
             <ul className="space-y-0.5">
               {roles.map((preset) => (
@@ -108,7 +112,7 @@ export async function RolePresets({
                         : "text-xs text-muted transition-colors hover:text-accent"
                     }
                   >
-                    {preset.label}
+                    {roleLabel(t, preset.key)}
                   </Link>
                 </li>
               ))}
@@ -131,10 +135,11 @@ export async function RolePresets({
  */
 export async function ActivePreset({ preset }: { preset: RolePreset }) {
   const t = await getDictionary();
+  const f = await formatters();
   return (
     <div className="rounded-md border border-border bg-surface-2 px-3 py-2.5">
       <p className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
-        <span>{t.components.presets.startingFrom}<span className="text-accent">{preset.label}</span>
+        <span>{t.components.presets.startingFrom}<span className="text-accent">{roleLabel(t, preset.key)}</span>
         </span>
         {preset.measurable_pct != null && preset.measurable_pct < 100 ? (
           <span
@@ -144,19 +149,39 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
                 : "rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-subtle"
             }
           >
-            {Math.round(preset.measurable_pct)}% measurable
+            {t.components.presets.measurable.replace(
+              "{pct}",
+              String(Math.round(preset.measurable_pct)),
+            )}
           </span>
         ) : null}
       </p>
-      {preset.description ? (
-        <p className="mt-1 text-[11px] leading-relaxed text-subtle">{preset.description}</p>
+      {/* The role's own description, caveat and shortfall note all arrived
+          as English prose the backend composed. `glossary.roleCaveats` had
+          every caveat in both languages already, unused; the descriptions
+          are new. Each falls back to the API sentence for a role no
+          dictionary knows yet, so a role added to the config degrades to
+          English rather than to nothing. */}
+      {t.glossary.roleDescriptions[
+        preset.key as keyof typeof t.glossary.roleDescriptions
+      ] ?? preset.description ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-subtle">
+          {t.glossary.roleDescriptions[
+            preset.key as keyof typeof t.glossary.roleDescriptions
+          ] ?? preset.description}
+        </p>
       ) : null}
       {preset.unavailable_scores.length > 0 ? (
         <div className="mt-2 space-y-1">
           <p className="text-[11px] font-medium text-warning">{t.components.presets.cannotScore}</p>
           {preset.unavailable_scores.map((score) => (
             <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
-              {score.reason}
+              {apiMessage(t, f, {
+                code: score.missing?.length
+                  ? "score_unavailable_missing"
+                  : "score_unavailable_no_candidate",
+                values: { score: score.key, metrics: (score.missing ?? []).join(",") },
+              }) ?? score.reason}
             </p>
           ))}
           {/* How much of the role survives the amputation, said as a number
@@ -165,7 +190,14 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
               name on it; a reader should know that in advance, not deduce it
               from results that no longer look like the role. */}
           {preset.coverage_note ? (
-            <p className="text-[11px] leading-relaxed text-subtle">{preset.coverage_note}</p>
+            <p className="text-[11px] leading-relaxed text-subtle">
+              {/* Composed here from the same two numbers the API used, rather
+                  than printing its sentence: the note names the role, and the
+                  role's name is translated. */}
+              {t.components.presets.coverageNote
+                .replace("{pct}", String(Math.round(preset.measurable_pct ?? 0)))
+                .replace("{role}", roleLabel(t, preset.key))}
+            </p>
           ) : (
             <p className="text-[11px] leading-relaxed text-subtle">{t.components.presets.setToZero}</p>
           )}
@@ -174,14 +206,29 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
 
       {preset.unmapped.length > 0 ? (
         <p className="mt-2 text-[11px] leading-relaxed text-warning">
-          {Math.round(preset.expressible * 100)}% of this role is covered by the weights below.{" "}
-          {preset.unmapped.join(", ")} {preset.unmapped.length === 1 ? "is" : "are"} part of the
-          role but not of any score the builder weights, so{" "}
-          {preset.unmapped.length === 1 ? "it" : "they"} cannot be carried across.
+          {/* Singular and plural are two sentences rather than one with
+              "is/are" spliced in: Portuguese inflects the verb and the
+              participle together, so stitching them from fragments produces
+              agreement errors that read as broken rather than as foreign. */}
+          {(preset.unmapped.length === 1
+            ? t.components.presets.partialOne
+            : t.components.presets.partialMany
+          )
+            .replace("{pct}", String(Math.round(preset.expressible * 100)))
+            .replace(
+              "{scores}",
+              preset.unmapped
+                .map((key) => componentName(t, key, key))
+                .join(", "),
+            )}
         </p>
       ) : null}
-      {preset.caveat ? (
-        <p className="mt-2 text-[11px] leading-relaxed text-subtle">{preset.caveat}</p>
+      {t.glossary.roleCaveats[preset.key as keyof typeof t.glossary.roleCaveats] ??
+      preset.caveat ? (
+        <p className="mt-2 text-[11px] leading-relaxed text-subtle">
+          {t.glossary.roleCaveats[preset.key as keyof typeof t.glossary.roleCaveats] ??
+            preset.caveat}
+        </p>
       ) : null}
     </div>
   );

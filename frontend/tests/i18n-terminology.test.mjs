@@ -101,7 +101,10 @@ test("the mapping comes from English, not from whatever the caller had", () => {
 
 test("a table row asks for no context, and a profile header asks for prominent", () => {
   const search = read("src/app/[lang]/players/(search)/page.tsx");
-  assert.match(search, /<RoleName role=\{player\.best_role_key\} \/>/);
+  // Matched on the shape rather than on the variable's name: this asserted
+  // `role={player.best_role_key}` and broke when the cell renderer's
+  // parameter was renamed, which changes nothing a reader can see.
+  assert.match(search, /<RoleName role=\{\w+\.best_role_key\} \/>/);
   assert.equal(
     /<RoleName[^>]*context="prominent"/.test(search),
     false,

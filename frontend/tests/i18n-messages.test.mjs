@@ -20,6 +20,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { mayMatchEnglish } from "./helpers/dictionaries.mjs";
 
 const BACKEND = fileURLToPath(new URL("../../backend/app/", import.meta.url));
 const DICT = fileURLToPath(new URL("../src/i18n/dictionaries/", import.meta.url));
@@ -202,8 +203,11 @@ test("every metric the profile can show has a Portuguese name", () => {
   const pt = JSON.parse(readFileSync(path.join(DICT, "pt", "glossary.json"), "utf8")).metrics;
   for (const [key, name] of Object.entries(en)) {
     assert.ok(pt[key], `no Portuguese name for ${key}`);
-    // xA and npxG are notation and stay as they are; everything else moves.
-    if (!/^x[AG]|npxG/.test(name)) {
+    // Notation stays as it is, and so do the handful of names that are the
+    // same word in both languages. Matched on the KEY rather than on the
+    // shape of the English: `/^x[AG]/` also exempted anything that merely
+    // began with those letters.
+    if (!mayMatchEnglish(key)) {
       assert.notEqual(pt[key], name, `${key} is still English: "${name}"`);
     }
   }

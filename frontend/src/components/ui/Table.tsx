@@ -102,7 +102,14 @@ export function TH({
       scope={scope}
       colSpan={colSpan}
       className={cn(
-        "border-b border-border px-4 py-2.5 text-xs font-medium tracking-wide text-muted uppercase",
+        // `px-2` below `sm`, `px-4` above. Sixteen pixels either side of
+        // every cell is thirty-two per column, and a ten-column table spends
+        // three hundred of a 390px phone on padding alone. Measured on the
+        // similar-players table at 390px: the first three columns came to
+        // 430px in Portuguese, so the column the list is sorted by sat off
+        // screen; at `px-2` they come to 382. Vertical padding is untouched,
+        // so row height and tap targets are unchanged.
+        "border-b border-border px-2 py-2.5 text-xs font-medium tracking-wide text-muted uppercase sm:px-4",
         numeric ? "text-right" : "text-left",
         className,
       )}
@@ -126,7 +133,7 @@ export function TD({
   return (
     <td
       colSpan={colSpan}
-      className={cn("px-4 py-2.5", numeric && "tabular text-right", className)}
+      className={cn("px-2 py-2.5 sm:px-4", numeric && "tabular text-right", className)}
     >
       {children}
     </td>

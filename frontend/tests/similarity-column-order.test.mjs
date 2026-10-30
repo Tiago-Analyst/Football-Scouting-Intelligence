@@ -8,6 +8,11 @@
  *
  * Column order is the kind of thing that drifts back when someone adds a
  * column, which is why it is pinned rather than left to review.
+ *
+ * `ranked` is third, immediately after the index, because it is the value the
+ * list is actually sorted on. Separating the two by four columns is what made
+ * the production audit read a correctly sorted table as broken: the index is
+ * not in descending order, and the reason was off screen.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -33,6 +38,9 @@ function bodyOrder() {
   for (const cell of body[0].matchAll(/<TD[\s\S]*?<\/TD>/g)) {
     const text = cell[0];
     if (/entry\.player\.name/.test(text)) cells.push("player");
+    // Before the plain index: the ranked cell falls back to `entry.similarity`
+    // when the backend sends no adjustment, so the narrower test comes first.
+    else if (/entry\.ranking_similarity/.test(text)) cells.push("ranked");
     else if (/entry\.similarity/.test(text)) cells.push("similarity");
     else if (/entry\.player\.club/.test(text)) cells.push("club");
     else if (/entry\.player\.competition/.test(text)) cells.push("competition");
@@ -54,9 +62,10 @@ test("the index is the second column, right after the player", () => {
 
 test("identity still reads left to right before the context columns", () => {
   const keys = headerKeys();
-  assert.deepEqual(keys.slice(0, 6), [
+  assert.deepEqual(keys.slice(0, 7), [
     "player",
     "similarity",
+    "ranked",
     "club",
     "competition",
     "bestRole",
@@ -69,6 +78,7 @@ test("no useful column was dropped to make room", () => {
   for (const column of [
     "player",
     "similarity",
+    "ranked",
     "club",
     "competition",
     "bestRole",
@@ -86,15 +96,28 @@ test("the cells are in the same order as the headers", () => {
   // one column, with nothing on screen looking wrong.
   const body = bodyOrder();
   assert.equal(body.includes("?"), false, "a cell could not be identified");
-  assert.deepEqual(body.slice(0, 6), [
+  assert.deepEqual(body.slice(0, 7), [
     "player",
     "similarity",
+    "ranked",
     "club",
     "competition",
     "bestRole",
     "age",
   ]);
   assert.deepEqual(body, headerKeys().slice(0, body.length));
+});
+
+test("the ranked column is the sort key, and the index is left alone", () => {
+  // The two must stay separate columns with separate names. Relabelling the
+  // adjusted value "Similarity", or showing only it, would quietly redefine a
+  // published 0-100 index while leaving its name and scale unchanged.
+  const keys = headerKeys();
+  assert.equal(keys.indexOf("ranked"), keys.indexOf("similarity") + 1);
+  assert.match(PAGE, /\{Math\.round\(entry\.similarity\)\}/);
+  assert.match(PAGE, /t\.similarity\.notes\.rankedBody/);
+  // The share of a season is shown only where the ordering actually moved.
+  assert.match(PAGE, /entry\.evidence_weight != null && entry\.evidence_weight < 1/);
 });
 
 test("feature coverage stays its own column beside the index", () => {

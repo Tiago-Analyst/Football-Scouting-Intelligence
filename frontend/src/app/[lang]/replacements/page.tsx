@@ -255,16 +255,25 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 <Table>
                   <THead>
                     <TR>
+                      {/* THE ANSWER COMES SECOND, NOT SEVENTH.
+                          Overall was the seventh column and Ranked the
+                          eighth, behind age, club and the three components.
+                          Measured on a 390px phone: the table is 1054px
+                          wide, only Player and Age were on screen, and
+                          reaching the column the list is SORTED BY took
+                          507px of sideways scrolling. A reader on a phone
+                          saw a list of names in an order with no visible
+                          cause.
+
+                          Player 119 + Overall 88 + Ranked 102 = 309px, so
+                          all three fit in 390 with room to spare. The
+                          components follow immediately, because the way to
+                          read this table is the composite first and then
+                          what it was built from; age, club and the market
+                          columns are context and go behind the scroll.
+                          Nothing was dropped. The similar-players table
+                          made this same move for the same reason. */}
                       <TH>{t.replacements.table.player}</TH>
-                      <TH numeric>{t.replacements.table.age}</TH>
-                      <TH>{t.replacements.table.club}</TH>
-                      <TH numeric>{t.replacements.table.similarity}</TH>
-                      {/* The raw score, as the backend sends it - not the
-                          standing among players evaluated for the same role.
-                          The product keeps the two apart everywhere else, and
-                          "Role fit" alone is which of them nobody can tell. */}
-                      <TH numeric>{t.replacements.table.rawRoleFit}</TH>
-                      <TH numeric>{t.replacements.table.affordability}</TH>
                       <TH numeric>{t.replacements.table.overall}</TH>
                       {/* The column the list is actually sorted by.
                           Without it the Overall column reads as broken: it is
@@ -274,14 +283,19 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           score and hiding the sort key was the worst of both. */}
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.replacements.table.ranked}<Tooltip label={t.replacements.notes.rankedTitle}>
-                            The list is ordered by this, not by Overall. A score built on part of a
-                            season is read closer to the average for this search, in proportion to
-                            how much football stands behind it; at a full season&apos;s minutes it
-                            is used as it stands. Nobody is excluded and no score is rewritten —
-                            Overall beside it is the score itself.
+                            {t.replacements.notes.rankedBody}
                           </Tooltip>
                         </span>
                       </TH>
+                      <TH numeric>{t.replacements.table.similarity}</TH>
+                      {/* The raw score, as the backend sends it - not the
+                          standing among players evaluated for the same role.
+                          The product keeps the two apart everywhere else, and
+                          "Role fit" alone is which of them nobody can tell. */}
+                      <TH numeric>{t.replacements.table.rawRoleFit}</TH>
+                      <TH numeric>{t.replacements.table.affordability}</TH>
+                      <TH numeric>{t.replacements.table.age}</TH>
+                      <TH>{t.replacements.table.club}</TH>
                       <TH numeric>{t.replacements.table.value}</TH>
                       <TH numeric>{t.replacements.table.contract}</TH>
                     </TR>
@@ -301,15 +315,6 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                               <Badge tone="warning">{t.replacements.table.differentStrength}</Badge>
                             </span>
                           ) : null}
-                        </TD>
-                        <TD numeric>{entry.player.age ?? "–"}</TD>
-                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
-                        <TD numeric>{Math.round(entry.similarity)}</TD>
-                        <TD numeric>
-                          {entry.role_fit !== null ? Math.round(entry.role_fit) : "–"}
-                        </TD>
-                        <TD numeric>
-                          {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
                         </TD>
                         <TD numeric className="font-medium text-accent">
                           {/* Null when a component the score needs was not
@@ -352,6 +357,15 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             </span>
                           ) : null}
                         </TD>
+                        <TD numeric>{Math.round(entry.similarity)}</TD>
+                        <TD numeric>
+                          {entry.role_fit !== null ? Math.round(entry.role_fit) : "–"}
+                        </TD>
+                        <TD numeric>
+                          {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
+                        </TD>
+                        <TD numeric>{entry.player.age ?? "–"}</TD>
+                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD numeric>
                           {entry.player.market_value_eur !== null
                             ? f.euro(entry.player.market_value_eur)

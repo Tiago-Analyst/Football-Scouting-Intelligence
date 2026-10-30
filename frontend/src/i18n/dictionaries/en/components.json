@@ -39,7 +39,10 @@
     "tooltip": "Each axis is a composite score built from the player's percentiles among comparable players, on a 0–100 scale. The shape shows where they are strong relative to that group — not how good they are. Scores that could not be computed are left off rather than drawn at zero.",
     "notQuality": "A score describes statistical fit with a profile among comparable players. It is not player quality.",
     "omitted": "Not plotted, because they could not be computed: {scores}.",
-    "ariaSummary": "{score} {value} of 100"
+    "ariaSummary": "{score} {value} of 100",
+    "noneComputed": "No intelligence score could be computed for this player.",
+    "tooFew": "Only {count} scores could be computed, which is too few to draw a profile from.",
+    "tooFewOne": "Only one score could be computed, which is too few to draw a profile from."
   },
   "marketChart": {
     "title": "Market value over time",
@@ -83,7 +86,11 @@
       "AM": "Attacking midfield",
       "WINGER": "Winger",
       "FORWARD": "Forward"
-    }
+    },
+    "measurable": "{pct}% measurable",
+    "partialOne": "{pct}% of this role is covered by the weights below. {scores} is part of the role but not of any score the builder weights, so it cannot be carried across.",
+    "partialMany": "{pct}% of this role is covered by the weights below. {scores} are part of the role but not of any score the builder weights, so they cannot be carried across.",
+    "coverageNote": "{pct}% of this preset's configured weight is measurable with the current provider data. Setting the unavailable weights to zero leaves a search that no longer covers everything {role} is named for."
   },
   "interpretation": {
     "title": "Scouting interpretation",
