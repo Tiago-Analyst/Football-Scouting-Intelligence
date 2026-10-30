@@ -9,10 +9,10 @@ market analysis, built on top of performance and market data.
 > Player search, profiles with percentiles and role fit, statistical
 > similarity, a recruitment profile builder, replacement finder, market
 > opportunities, authentication and shortlists. Performance data comes from
-> FootyStats (8,701 player-seasons, 44 competitions) and market data from the
-> public Transfermarkt dataset (79,800 valuations), both refreshed on their own
-> schedules. `APP_MODE=demo` still runs the whole site on a generated dataset
-> for local work, and labels it as such.
+> FootyStats (5,383 player-seasons, 43 competitions) and market data from the
+> public Transfermarkt dataset, both refreshed on their own schedules.
+> `APP_MODE=demo` still runs the whole site on a generated dataset for local
+> work, and labels it as such.
 
 ## Current state, stated plainly
 
@@ -51,11 +51,22 @@ market analysis, built on top of performance and market data.
 
 | Source | What it supplies | Cadence |
 | --- | --- | --- |
-| FootyStats | Performance: 8,701 player-seasons across 44 competitions | Mon/Wed/Fri 04:00 UTC |
-| Transfermarkt (public dataset) | Market: 79,800 valuations and transfer history | Sundays 05:00 UTC |
+| FootyStats | Performance: 5,383 player-seasons across 43 competitions | Mondays 04:17, 07:17, 10:17 UTC; hourly at :41 to continue |
+| Transfermarkt (public dataset) | Market: valuations and transfer history | Sundays 05:23 UTC |
 
 Both are loaded and live. Which provider a scheduled run refreshes is resolved
 once, from the cron that fired, against `config/competitions.yaml`.
+
+The three Monday attempts are the only trigger that may begin a new FootyStats
+generation; the hourly run may only continue one that is already open. A full
+refresh is ~28,460 requests and a job fetches for ~45 minutes, so a generation
+spans roughly twenty-one productive runs and publishes nothing until the whole
+universe is in place.
+
+**The counts above are a snapshot, and go stale by design.** A generation
+publishes as one universe, so every figure changes at once when it is promoted.
+`GET /health` reports what production is actually serving, with the timestamp
+it was built at; that endpoint is the source of truth, not this table.
 
 ### About FootyStats
 
