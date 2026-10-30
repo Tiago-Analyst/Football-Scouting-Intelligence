@@ -28,6 +28,22 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+#: The only heights a footballer can have. A value outside this range is a data
+#: entry error at the source, not a short player.
+#:
+#: These live here, in the vocabulary every layer depends on, because the bound
+#: was previously written out by hand in four places and two of them disagreed:
+#: `dim_player`'s check constraint and the Transfermarkt reader said 140-220,
+#: while this schema and the FootyStats reader said 100-250. A provider value of
+#: 100 therefore passed both the reader and the schema and was rejected by the
+#: database - which, in a 1000-row insert, failed the whole batch and with it
+#: the entire nightly load. Two production runs were lost that way.
+#:
+#: Anything that bounds a height imports these. The numbers are the database's,
+#: because the database is where the rule is actually enforced.
+MIN_HEIGHT_CM = 140
+MAX_HEIGHT_CM = 220
+
 
 class PositionGroup(StrEnum):
     """Standardised position groups (master spec section 8).
@@ -207,7 +223,11 @@ class PlayerIdentity(BaseModel):
     nationality: str | None = None
     secondary_nationality: str | None = None
     preferred_foot: PreferredFoot | None = None
-    height_cm: int | None = Field(default=None, ge=100, le=250)
+    #: Bounded by what the database will store, so an out-of-range height
+    #: cannot travel this far. A reader that meets one must drop the height and
+    #: keep the player - losing a field, never a record - which is why the
+    #: rejection belongs in the reader and this is only the net beneath it.
+    height_cm: int | None = Field(default=None, ge=MIN_HEIGHT_CM, le=MAX_HEIGHT_CM)
     raw_position: str
     #: The standardised group, when the source is specific enough to determine
     #: one. `None` where it is not, which is a real case rather than a defect:

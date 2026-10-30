@@ -38,7 +38,7 @@ from app.providers.market_base import (
     MarketDataProvider,
     MarketDataUnavailableError,
 )
-from app.schemas.canonical import PositionGroup, PreferredFoot
+from app.schemas.canonical import MAX_HEIGHT_CM, MIN_HEIGHT_CM, PositionGroup, PreferredFoot
 from app.schemas.market import (
     MarketClub,
     MarketCompetition,
@@ -64,9 +64,9 @@ REQUIRED_TABLES = ("players", "clubs", "competitions", "player_valuations", "tra
 SOURCE_URL = "https://github.com/dcaribou/transfermarkt-datasets"
 LICENCE = "CC0-1.0"
 
-# A height outside this range is a data entry error, not a footballer.
-MIN_HEIGHT_CM = 140
-MAX_HEIGHT_CM = 220
+# The bound this reader has always applied, now imported rather than restated:
+# see `MIN_HEIGHT_CM` in `app.schemas.canonical`. The numbers here were right;
+# having them written out separately is what let another reader be wrong.
 
 # Placeholder the source writes instead of a null.
 MISSING_LABEL = "Missing"
