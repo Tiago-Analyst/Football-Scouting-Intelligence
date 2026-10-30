@@ -146,7 +146,22 @@ export function formatCount(tag: LocaleTag, value: number): string {
 }
 
 /**
- * The six, bound to one locale.
+ * A share, as a percentage, in the reader's own notation: 99.9% / 99,9%.
+ *
+ * One decimal at most, and none when the figure is whole. Rounding a share to
+ * a whole number here would have printed "100% of player-seasons carry
+ * minutes" for a figure of 0.999, which is the kind of quiet overstatement
+ * this whole page exists to avoid.
+ */
+export function formatPercent(tag: LocaleTag, share: number): string {
+  return share.toLocaleString(tag, {
+    style: "percent",
+    maximumFractionDigits: 1,
+  });
+}
+
+/**
+ * The seven, bound to one locale.
  *
  * Here rather than in `@/i18n/format` because this module imports nothing:
  * the shortlist row is a Client Component, and a module that reaches
@@ -158,6 +173,8 @@ export interface Formatters {
   tag: LocaleTag;
   /** Grouped integer: 2,195 / 2195. */
   count: (value: number) => string;
+  /** A 0-1 share as a percentage: 99.9% / 99,9%. */
+  percent: (share: number) => string;
   /** Compact euro amount: €4.0m / €4,0m. */
   euro: (value: number) => string;
   /** Month and year: Jun 2028 / jun. 2028. */
@@ -174,6 +191,7 @@ export function bindFormatters(tag: LocaleTag): Formatters {
   return {
     tag,
     count: (value) => formatCount(tag, value),
+    percent: (share) => formatPercent(tag, share),
     euro: (value) => formatEuro(tag, value),
     date: (iso) => formatDate(tag, iso),
     dateTime: (iso) => formatDateTime(tag, iso),

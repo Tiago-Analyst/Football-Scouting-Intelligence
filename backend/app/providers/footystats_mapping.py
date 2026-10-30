@@ -85,6 +85,11 @@ class AbsentField:
 
     metric: CanonicalMetric
     reason: str
+    #: `reason` with the words removed - the field names and sample
+    #: counts it cites - so a non-English reader gets the evidence
+    #: rather than a blank. Empty when the YAML entry carries none,
+    #: and the English `reason` is then the only thing to show.
+    reason_values: dict[str, str | int | float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -362,7 +367,14 @@ def _parse_absent(block: Any) -> dict[CanonicalMetric, AbsentField]:
             raise MappingError(
                 f"'{entry['metric']}' in 'absent' is not a canonical metric"
             ) from exc
-        out[metric] = AbsentField(metric=metric, reason=str(entry["reason"]).strip())
+        raw_values = entry.get("reason_values") or {}
+        if not isinstance(raw_values, dict):
+            raise MappingError(f"'reason_values' for '{metric.value}' must be a mapping")
+        out[metric] = AbsentField(
+            metric=metric,
+            reason=str(entry["reason"]).strip(),
+            reason_values={str(k): v for k, v in raw_values.items()},
+        )
     return out
 
 

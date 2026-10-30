@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -53,6 +53,26 @@ STALE_AFTER = timedelta(days=7)
 MIN_MINUTES_COVERAGE = 0.80
 
 
+@dataclass(frozen=True)
+class Explain:
+    """What a check found, as a code and its values.
+
+    `Check.detail` is a finished English sentence. This is the same finding
+    with the words left out, so the interface can write it in the reader's
+    language instead of matching the English. The reasoning in full is on
+    `Message` in `app.schemas.api`; this is that pattern reaching the one
+    place where the sentence is persisted rather than composed per request.
+
+    `code` names the situation and is NOT always `Check.name`: one check can
+    report two different findings - mixed sources or clean ones - and each
+    needs its own sentence. `values` stays flat and primitive, because
+    anything nested is a template language growing inside a database column.
+    """
+
+    code: str
+    values: dict[str, str | int | float] = field(default_factory=dict)
+
+
 @dataclass
 class Check:
     entity: str
@@ -60,6 +80,10 @@ class Check:
     status: str
     count: int
     detail: str | None = None
+    #: The same finding as `detail`, for a reader who does not read English.
+    #: Optional only so a new check cannot fail to compile; a test asserts
+    #: that every check which carries prose carries this too.
+    explain: Explain | None = None
 
     @property
     def failed(self) -> bool:
@@ -88,6 +112,7 @@ def freshness_checks(session: Session) -> list[Check]:
                 "fail",
                 0,
                 "No load has ever recorded a quality check. Run the loader.",
+                Explain("load_never_recorded"),
             )
         ]
 
@@ -102,6 +127,7 @@ def freshness_checks(session: Session) -> list[Check]:
                 _verdict(age <= STALE_AFTER, warn_only=True),
                 int(age.total_seconds() // 86400),
                 f"last loaded {age.days} day(s) ago",
+                Explain("freshness", {"source": source, "days": age.days}),
             )
         )
     return checks
@@ -136,6 +162,7 @@ def volume_checks(session: Session) -> list[Check]:
             _verdict(valuations > 0, warn_only=True),
             valuations,
             None if valuations else "no market valuations loaded",
+            None if valuations else Explain("no_valuations_loaded"),
         ),
     ]
 
@@ -145,7 +172,16 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
     coverage = metric_coverage(session, source=source)
     rows = coverage[0].rows if coverage else 0
     if rows == 0:
-        return [Check("fact_player_season_stats", "metric_coverage", "fail", 0, "no rows")]
+        return [
+            Check(
+                "fact_player_season_stats",
+                "metric_coverage",
+                "fail",
+                0,
+                "no rows",
+                Explain("no_rows"),
+            )
+        ]
 
     checks: list[Check] = []
     minutes = next(c for c in coverage if c.metric.value == "minutes")
@@ -156,6 +192,7 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
             _verdict(minutes.coverage >= MIN_MINUTES_COVERAGE),
             minutes.populated,
             f"{minutes.coverage:.1%} of player-seasons carry minutes",
+            Explain("minutes_coverage", {"share": minutes.coverage}),
         )
     )
 
@@ -170,6 +207,11 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
             _verdict(not absent, warn_only=True),
             len(absent),
             ", ".join(sorted(m.value for m in absent)) if absent else "every metric populated",
+            # The metric KEYS, not the joined English: the interface already
+            # has a name for each one in the reader's language.
+            Explain("metrics_absent", {"metrics": ",".join(sorted(m.value for m in absent))})
+            if absent
+            else Explain("every_metric_populated"),
         )
     )
     if absent:
@@ -183,6 +225,14 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
                     f"{len(impact.derived_metrics)} derived metrics, "
                     f"{len(impact.scores)} intelligence scores and "
                     f"{len(impact.roles)} roles cannot be computed"
+                ),
+                Explain(
+                    "features_disabled",
+                    {
+                        "derived_count": len(impact.derived_metrics),
+                        "score_count": len(impact.scores),
+                        "role_count": len(impact.roles),
+                    },
                 ),
             )
         )
@@ -198,6 +248,18 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
                 ", ".join(
                     f"{c.metric.value} {c.coverage:.0%}"
                     for c in sorted(sparse, key=lambda c: c.coverage)[:8]
+                ),
+                # "key percent" pairs, so the interface can name each metric
+                # itself. The eight-item cap above is kept: it is what makes
+                # the sentence readable.
+                Explain(
+                    "metrics_sparse",
+                    {
+                        "metric_shares": ",".join(
+                            f"{c.metric.value} {round(c.coverage * 100)}"
+                            for c in sorted(sparse, key=lambda c: c.coverage)[:8]
+                        )
+                    },
                 ),
             )
         )
@@ -252,6 +314,7 @@ def integrity_checks(session: Session) -> list[Check]:
             _verdict(ratio < 0.05, warn_only=True),
             no_position,
             f"{ratio:.1%} of players have no position group",
+            Explain("position_group_unmapped", {"share": ratio}),
         ),
         Check(
             "fact_player_season_stats",
@@ -270,6 +333,9 @@ def integrity_checks(session: Session) -> list[Check]:
                 if mixed
                 else f"sources loaded: {', '.join(sorted(sources)) or 'none'}"
             ),
+            Explain("demo_mixed_with_real", {"sources": ",".join(real_sources)})
+            if mixed
+            else Explain("sources_loaded", {"sources": ",".join(sorted(sources))}),
         ),
     ]
 
@@ -327,6 +393,9 @@ def ownership_checks(session: Session) -> list[Check]:
                     if stranded
                     else f"sources: {', '.join(sorted(fact_sources)) or 'none'}"
                 ),
+                Explain("facts_from_a_dead_source", {"sources": ",".join(stranded)})
+                if stranded
+                else Explain("fact_sources", {"sources": ",".join(sorted(fact_sources))}),
             )
         )
 
@@ -374,6 +443,7 @@ def ownership_checks(session: Session) -> list[Check]:
             duplicate_values,
             "several dates for one player is a history, not a duplicate; "
             "this counts one source claiming one player on one date twice",
+            Explain("duplicate_same_source_valuation"),
         )
     )
 
@@ -415,6 +485,7 @@ def ownership_checks(session: Session) -> list[Check]:
                 f"than minutes played. Provider values are preserved; per-90 figures "
                 f"follow the validated denominator per metric family."
             ),
+            Explain("recorded_minutes_exceed_played", {"share": share}),
         )
     )
 
@@ -488,6 +559,11 @@ def persist(
             status=check.status,
             record_count=check.count,
             detail=check.detail,
+            detail_message=(
+                {"code": check.explain.code, "values": check.explain.values}
+                if check.explain
+                else None
+            ),
             refresh_id=refresh_id or generation_id,
             generation_id=generation_id,
             context="CANDIDATE" if candidate else None,

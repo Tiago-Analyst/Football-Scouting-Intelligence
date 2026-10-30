@@ -45,6 +45,10 @@ class CheckRecord:
     status: str
     record_count: int
     detail: str | None
+    #: `{code, values}` as the check recorded it, or None for a row written
+    #: before checks carried codes. The API turns it into a `Message`;
+    #: `detail` stays the fallback.
+    detail_message: dict | None
     executed_at: datetime
     #: Which refresh generation the check describes, and whether that
     #: generation was a candidate in staging or is the dataset being served.
@@ -145,6 +149,7 @@ def _record(row: FactDataQuality) -> CheckRecord:
         status=row.status,
         record_count=row.record_count,
         detail=row.detail,
+        detail_message=row.detail_message,
         executed_at=row.executed_at,
         refresh_id=row.refresh_id,
         generation_id=row.generation_id,
@@ -669,6 +674,11 @@ class MetricAvailability:
     metric: str
     label: str
     reason: str | None
+    #: `{code, values}` for the same evidence, or None when the mapping
+    #: records no values. The code is the metric, because each of these
+    #: reasons is its own sentence about its own fields - there is no
+    #: shared template to key on.
+    reason_message: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -698,6 +708,7 @@ def metric_availability(
 
     info = provider.info
     reasons = info.absent_reasons
+    reason_values = info.absent_reason_values
     derived = [
         DerivedMetricNote(metric=name, label=_metric_label(name), formula=formula)
         for name, formula in sorted(info.derived_metrics.items())
@@ -709,6 +720,11 @@ def metric_availability(
             metric=metric.value,
             label=_metric_label(metric.value),
             reason=reasons.get(metric.value),
+            reason_message=(
+                {"code": f"absent:{metric.value}", "values": reason_values[metric.value]}
+                if metric.value in reason_values
+                else None
+            ),
         )
         for metric in CanonicalMetric
         if metric not in available

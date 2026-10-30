@@ -327,6 +327,107 @@ class TestQualityEndpoint:
         client.cookies.clear()
         assert client.get("/api/v1/data-quality").status_code == 200
 
+    def test_serialising_a_finding_keeps_its_code_and_its_values(self) -> None:
+        """The serialiser itself, with no database in the way.
+
+        The two tests below read whatever this developer's database happens to
+        hold, and skip when it holds no coded check - which is honest, and is
+        also why they cannot be the only cover. The mapping from a stored row
+        to the sentence the page renders is asserted here, directly.
+        """
+        from app.api.v1.quality import _check_out
+        from app.services.quality_service import CheckRecord
+
+        record = CheckRecord(
+            source="footystats",
+            entity="fact_player_season_stats",
+            check_name="minutes_coverage",
+            status="pass",
+            record_count=5383,
+            detail="99.9% of player-seasons carry minutes",
+            detail_message={"code": "minutes_coverage", "values": {"share": 0.999}},
+            executed_at=datetime.now(UTC),
+        )
+        out = _check_out(record)
+        assert out.detail_message is not None
+        assert out.detail_message.code == "minutes_coverage"
+        # The fraction, not "99.9%": the page decides whether that comma is a
+        # comma, and a formatted string cannot be reformatted.
+        assert out.detail_message.values == {"share": 0.999}
+        assert out.detail == "99.9% of player-seasons carry minutes"
+
+    def test_serialising_a_row_from_before_the_codes_gives_no_message(self) -> None:
+        """Null, so the page falls back to the English it has.
+
+        The shapes a JSON column can actually hold, rather than the one shape
+        the pipeline writes: nothing stored, and a row whose code is missing or
+        empty. Each must be None, because an empty code renders as a blank
+        sentence where a finding used to be.
+        """
+        from app.api.v1.quality import _check_out
+        from app.services.quality_service import CheckRecord
+
+        for stored in (None, {}, {"values": {"share": 0.5}}, {"code": ""}):
+            record = CheckRecord(
+                source="footystats",
+                entity="dim_player",
+                check_name="position_group_mapped",
+                status="warn",
+                record_count=1,
+                detail="7.2% of players have no position group",
+                detail_message=stored,
+                executed_at=datetime.now(UTC),
+            )
+            assert _check_out(record).detail_message is None, stored
+
+    def test_a_finding_travels_as_a_code_the_reader_can_translate(self, client: TestClient) -> None:
+        """The page is public and bilingual; this endpoint's prose was not.
+
+        Every check recorded with a code must carry it through serialisation,
+        because `detail` alone is a finished English sentence and the only way
+        to translate one of those is to match it - which breaks the moment
+        anybody improves the wording.
+        """
+        body = client.get("/api/v1/data-quality").json()
+        coded = [c for c in body["checks"] if c.get("detail_message")]
+        if not coded:
+            pytest.skip("no check in this database carries a code yet")
+        for check in coded:
+            assert check["detail_message"]["code"], check["check_name"]
+            assert isinstance(check["detail_message"]["values"], dict)
+            # The English is kept, not replaced. A reader with no dictionary
+            # for a new code still gets a sentence.
+            assert check["detail"]
+
+    def test_a_check_with_no_code_is_null_rather_than_empty(self, client: TestClient) -> None:
+        """Rows recorded before the codes existed have none, and must say so.
+
+        An empty `{code: "", values: {}}` renders as a blank sentence, which is
+        worse than the English it replaced: the page would show nothing where
+        it used to show a finding.
+        """
+        body = client.get("/api/v1/data-quality").json()
+        for check in body["checks"]:
+            message = check.get("detail_message")
+            assert message is None or message["code"]
+
+    def test_the_provider_evidence_carries_its_own_values(self, client: TestClient) -> None:
+        """The three metrics FootyStats cannot supply.
+
+        Their reasons cite field names and sample counts - "non-null in 0 of
+        the 10,464 sampled records". Those numbers belong in the mapping that
+        records the evidence, not copied into a dictionary on the other side
+        where they would go stale silently.
+        """
+        body = client.get("/api/v1/data-quality").json()
+        coded = [m for m in body["unavailable_detail"] if m.get("reason_message")]
+        if not coded:
+            pytest.skip("this provider's mapping records no reason values")
+        for metric in coded:
+            assert metric["reason_message"]["code"] == f"absent:{metric['metric']}"
+            assert metric["reason_message"]["values"], metric["metric"]
+            assert metric["reason"]
+
     def test_it_returns_what_the_page_needs(self, client: TestClient) -> None:
         body = client.get("/api/v1/data-quality").json()
         assert set(body) == {

@@ -1035,6 +1035,16 @@ class QualityCheckOut(BaseModel):
     status: Literal["pass", "warn", "fail"]
     record_count: int
     detail: str | None
+    #: The same finding as `detail`, as a code and its values, so the interface
+    #: can write the sentence in the reader's language.
+    #:
+    #: Null on a check recorded before the codes existed. This is the one
+    #: `Message` in the API that is PERSISTED rather than composed per
+    #: request, so old rows genuinely do not have one and no amount of
+    #: serialising can invent it - recovering the numbers would mean parsing
+    #: the stored English. The reader sees `detail` for those, in English,
+    #: until the next load of that source supersedes them.
+    detail_message: Message | None = None
     executed_at: datetime
     #: The refresh this check describes - a FootyStats generation, or an id
     #: the workflow minted for a Transfermarkt refresh - and whether it was a
@@ -1222,6 +1232,13 @@ class MetricAvailabilityOut(BaseModel):
     #: Null when nothing was recorded. Absent evidence is stated as absent
     #: rather than filled with a plausible sentence.
     reason: str | None = None
+    #: The same evidence as a code and its values - the field names and
+    #: sample counts `reason` cites - so a reader who does not read
+    #: English gets the evidence rather than the English.
+    #:
+    #: The code is `absent:<metric>`: each of these reasons is its own
+    #: sentence about its own fields, so there is no shared template.
+    reason_message: Message | None = None
 
 
 class DerivedMetricOut(BaseModel):

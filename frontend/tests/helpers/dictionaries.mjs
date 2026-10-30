@@ -50,8 +50,21 @@ export function copyOf(locale, ...files) {
  * one key at a time, so the next identical pair has to be justified rather
  * than absorbed into a growing exemption.
  */
-export const PRESERVED_NOTATION = new Set(["xg_per90", "xa_per90", "npxg_per90"]);
-export const SAME_WORD_IN_BOTH = new Set(["passes_per90"]);
+export const PRESERVED_NOTATION = new Set([
+  "xg_per90",
+  "xa_per90",
+  "npxg_per90",
+  // The canonical counts the quality checks list, as opposed to the per-90
+  // rates above. Same notation, same reason.
+  "xg",
+  "xa",
+  "npxg",
+]);
+export const SAME_WORD_IN_BOTH = new Set([
+  "passes_per90",
+  // And the canonical count it is built from.
+  "passes",
+]);
 
 /** True when `key` may read identically in both dictionaries. */
 export function mayMatchEnglish(key) {
