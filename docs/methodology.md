@@ -179,11 +179,33 @@ shows.
 > **An all-leagues population is mostly made of seasons that have barely
 > started.**
 
-Measured on the loaded data: of 44 competitions, **nine** contain a player who
-has reached a full season's minutes. The other 35 are weeks old — Germany's top
-flight at 90 minutes a player, France's and Italy's at 180 — and they hold
-**82% of the players**. So a rank against "all covered competitions" is largely
-a rank against two matches of football.
+Measured against production on **30 October 2026**, per position group: of 42
+to 43 competitions, between **nine and seventeen** contain a player who has
+reached a full season's minutes, and **55% to 83% of the population** comes
+from the rest. The median player in an all-leagues population has between 299
+and 540 minutes — three to six matches.
+
+| Position group | Competitions | With a full season | Share from the rest | Median minutes |
+| --- | --- | --- | --- | --- |
+| Goalkeepers | 43 | 17 | 55% | 540 |
+| Centre-backs | 43 | 15 | 64% | 457 |
+| Full-backs and wing-backs | 43 | 12 | 73% | 441 |
+| Defensive midfielders | 43 | 11 | 73% | 439 |
+| Central midfielders | 42 | 10 | 76% | 444 |
+| Attacking midfielders | 42 | 9 | 80% | 363 |
+| Wingers | 42 | 10 | 79% | 359 |
+| Forwards | 43 | 9 | 83% | 299 |
+
+The spread is not noise. Whether a competition counts as established is
+measured inside the position group, and goalkeepers accumulate minutes fastest
+because they are the least rotated; forwards slowest. So the same all-leagues
+rank is a thinner comparison for a forward than for a goalkeeper, which is the
+opposite of what a single figure for the whole dataset would suggest.
+
+These figures move with every generation. They are dated because an undated
+measurement in a document is indistinguishable from a claim, and this
+paragraph previously read "nine of 44 competitions … 82% of the players" long
+after the data had stopped saying so.
 
 This is not a strength question and must not be confused with one. A league
 whose season began in August is not weaker than one that began in March; it has

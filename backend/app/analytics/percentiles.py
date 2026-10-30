@@ -132,11 +132,15 @@ class ComparisonContext:
     # -- How far into their seasons this population is ----------------------
     #
     # A percentile against "all covered competitions" sounds like a comparison
-    # with the wider game. Measured on the loaded data it is mostly a
-    # comparison with two matches: of 44 competitions, nine contain a player
-    # who has reached a full season's minutes, and 82% of the population comes
-    # from the other 35. Germany's top flight is loaded at 90 minutes a
-    # player, France's and Italy's at 180.
+    # with the wider game. On the loaded data most of that population has
+    # barely started its season, so the rank is largely against a handful of
+    # matches - and how few depends on the position, because a goalkeeper
+    # accumulates minutes faster than a forward.
+    #
+    # The figures are NOT repeated here. They change with every generation,
+    # and the copy that used to sit in this comment outlived the data by
+    # weeks. `docs/methodology.md` carries them, per position group and with
+    # the date they were measured; the fields below report them per request.
     #
     # None of that makes the percentile wrong - it is an honest rank within
     # the population it names. It makes it easy to misread as something

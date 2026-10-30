@@ -1,16 +1,20 @@
 """What an all-leagues percentile is actually a rank against.
 
-"All covered competitions" reads as a comparison with the wider game.
-Measured on the loaded data it is mostly a comparison with two matches: nine
-of 44 competitions contain a player who has reached a full season's minutes,
-and the rest are weeks old - Germany's top flight at 90 minutes a player,
-France's and Italy's at 180.
+"All covered competitions" reads as a comparison with the wider game. On the
+loaded data most of that population has barely started its season, so the
+rank is largely against a handful of matches - and how few depends on the
+position, since a goalkeeper accumulates minutes faster than a forward.
 
 The percentile is not wrong. It is an honest rank within the population it
 names, and nothing here changes a single number. What was missing was any way
 for a reader to know what that population is made of, and these hold the
 description to being measured from the population itself rather than written
 down and left to rot.
+
+The counts that used to open this docstring were written down and left to rot
+exactly as that last sentence warns: they said nine of 44 competitions long
+after production said otherwise. Dated figures belong in
+`docs/methodology.md`; these tests assert the shape, not the numbers.
 """
 
 from __future__ import annotations
