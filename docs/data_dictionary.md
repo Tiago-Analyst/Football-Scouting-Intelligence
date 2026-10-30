@@ -122,7 +122,7 @@ Applied through Alembic migrations; never created by hand.
 | `dim_competition` | 5 | 1 | 1 |
 | `dim_player` | 14 | 6 | 7 |
 | `dim_season` | 4 | 2 | 0 |
-| `fact_data_quality` | 11 | 4 | 4 |
+| `fact_data_quality` | 12 | 4 | 4 |
 | `fact_market_value` | 6 | 5 | 1 |
 | `fact_player_season_stats` | 45 | 51 | 3 |
 | `fact_refresh_generation` | 14 | 6 | 1 |
