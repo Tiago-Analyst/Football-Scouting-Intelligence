@@ -54,6 +54,8 @@ from app.core.logging import get_logger
 from app.providers.base import PerformanceDataProvider, ProviderError, UnknownEntityError
 from app.providers.footystats_mapping import FootyStatsMapping, get_mapping
 from app.schemas.canonical import (
+    MAX_HEIGHT_CM,
+    MIN_HEIGHT_CM,
     CanonicalMetric,
     Club,
     Competition,
@@ -579,7 +581,24 @@ class FootyStatsProvider(PerformanceDataProvider):
 
     def _identity(self, row: dict[str, Any], competition_id: str) -> PlayerIdentity:
         raw_position = str(row.get("position") or "Unknown")
+        # Height: reject the impossible, keep the player. The same rule as the
+        # Transfermarkt reader applies, and now from the same constants: this
+        # filter used to accept 100-250 while the database accepted 140-220, so
+        # a provider height of 100cm passed here and failed on insert. It did
+        # not fail alone - players are inserted in batches of a thousand, so
+        # one impossible height rejected the batch and ended the load.
         height = _as_int(row.get("height"))
+        if height is not None and not (MIN_HEIGHT_CM <= height <= MAX_HEIGHT_CM):
+            # Warned rather than corrected, for the reason given at the minutes
+            # check below: a provider value that cannot be true is evidence
+            # about the provider, and inventing a plausible one destroys it.
+            log.warning(
+                "footystats_implausible_height",
+                source_player_id=str(row["id"]),
+                height=height,
+                note=f"outside {MIN_HEIGHT_CM}-{MAX_HEIGHT_CM}cm; treated as unknown",
+            )
+            height = None
         return PlayerIdentity(
             source_player_id=str(row["id"]),
             full_name=str(row.get("known_as") or row.get("full_name") or row["id"]),
@@ -589,7 +608,7 @@ class FootyStatsProvider(PerformanceDataProvider):
             # absent rather than inferred.
             secondary_nationality=None,
             preferred_foot=None,
-            height_cm=height if height and 100 <= height <= 250 else None,
+            height_cm=height,
             raw_position=raw_position,
             # Unset for everyone but goalkeepers. See the module docstring.
             position_group=self._positions.get(raw_position),

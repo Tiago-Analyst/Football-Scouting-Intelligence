@@ -38,7 +38,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.schemas.canonical import PositionGroup, PreferredFoot
+from app.schemas.canonical import MAX_HEIGHT_CM, MIN_HEIGHT_CM, PositionGroup, PreferredFoot
 
 # VARCHAR + CHECK rather than a native PostgreSQL enum: altering a native enum
 # needs its own migration and locks, and these value sets will grow.
@@ -136,8 +136,13 @@ class DimPlayer(Base):
 
     __table_args__ = (
         # Section 24: impossible values must not be storable.
+        # Composed from the shared bound rather than written out, so a reader
+        # and this constraint cannot come to disagree about what a possible
+        # height is. The numbers are unchanged from migration 0002, which keeps
+        # its own literals because an applied migration is history.
         CheckConstraint(
-            "height_cm IS NULL OR (height_cm BETWEEN 140 AND 220)", name="height_plausible"
+            f"height_cm IS NULL OR (height_cm BETWEEN {MIN_HEIGHT_CM} AND {MAX_HEIGHT_CM})",
+            name="height_plausible",
         ),
         CheckConstraint(
             "current_market_value_eur IS NULL OR current_market_value_eur >= 0",
