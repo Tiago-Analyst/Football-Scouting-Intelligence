@@ -58,6 +58,7 @@ English exactly as it did before.
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0015_quality_detail_message"

@@ -182,7 +182,9 @@ def _message(stored: dict | None) -> Message | None:
     # followed by a quoted literal is how `tests/i18n-messages.test.mjs`
     # harvests the codes the backend can emit, and `code=str(stored["code"])`
     # fed it the string "code" as if it were one.
-    code = stored.get("code") if stored else None
+    if not stored:
+        return None
+    code = stored.get("code")
     if not code:
         return None
     return Message(code=str(code), values=stored.get("values") or {})
