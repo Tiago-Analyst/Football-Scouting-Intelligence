@@ -226,9 +226,13 @@ class TestQualityReporting:
         assert unmapped.detail_message["code"] == "position_group_unmapped"
         # The share as a fraction, for a page that decides its own notation.
         # Storing "6.9%" would have made the number a string in one language.
-        assert 0.0 <= unmapped.detail_message["values"]["share"] <= 1.0
-        # And the English stays, correct and unchanged, as the fallback.
-        assert unmapped.detail == "6.9% of players have no position group"
+        share = unmapped.detail_message["values"]["share"]
+        assert 0.0 <= share <= 1.0
+        # And the English stays as the fallback, saying the same thing. The
+        # two are compared to each other rather than to a figure written down
+        # here: the fixture's share differs between a developer's database and
+        # CI's, and pinning either one asserts the data rather than the code.
+        assert unmapped.detail == f"{share:.1%} of players have no position group"
 
     def test_a_check_with_nothing_to_say_stores_no_message(self, loaded) -> None:
         """A passing check has no sentence, so it has no code either.
