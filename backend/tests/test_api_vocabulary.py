@@ -26,8 +26,9 @@ import json
 from pathlib import Path
 
 from app.analytics.coverage import CoverageBand
+from app.analytics.intelligence import get_definitions
 from app.analytics.metrics import DerivedMetric
-from app.analytics.roles import RoleCoverage
+from app.analytics.roles import RoleCoverage, load_roles
 from app.analytics.similarity import FeatureCoverage
 
 VOCABULARY_PATH = (
@@ -51,6 +52,14 @@ def current() -> dict[str, list[str]]:
     return {
         "metrics": sorted(metric.value for metric in DerivedMetric),
         "coverage_bands": sorted(bands),
+        # The eight intelligence scores and the configured roles. Both reach a
+        # reader as words, and both are keyed by key on the other side: the
+        # recruitment cards named their score components from the API's
+        # English because they asked the METRIC glossary for a SCORE key, and
+        # the role presets showed fourteen English role names with all
+        # fifteen translations sitting unused.
+        "scores": sorted(get_definitions()),
+        "roles": sorted(load_roles()),
     }
 
 
@@ -58,7 +67,7 @@ def test_frontend_vocabulary_matches_the_enums() -> None:
     recorded = json.loads(VOCABULARY_PATH.read_text(encoding="utf-8"))
     live = current()
 
-    for field in ("metrics", "coverage_bands"):
+    for field in ("metrics", "coverage_bands", "scores", "roles"):
         added = sorted(set(live[field]) - set(recorded[field]))
         removed = sorted(set(recorded[field]) - set(live[field]))
         assert not added, (

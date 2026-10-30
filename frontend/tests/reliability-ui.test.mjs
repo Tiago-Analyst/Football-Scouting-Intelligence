@@ -83,9 +83,17 @@ test("the old bare message is only a fallback, never the whole answer", () => {
 });
 
 test("a preset says how much of itself is measurable before it is run", () => {
+  // This asserted the literal "% measurable" was IN the component, which is
+  // how that word stayed English on the Portuguese builder. The claim worth
+  // pinning is that the figure is shown and that both languages can say it.
   assert.match(presets, /measurable_pct/);
-  assert.match(flat(presets), /% measurable/);
+  assert.match(flat(presets), /t\.components\.presets\.measurable/);
   assert.match(presets, /coverage_note/);
+  for (const lang of ["en", "pt"]) {
+    const copy = dictionary(lang, "components").presets;
+    assert.ok(copy.measurable.includes("{pct}"), `${lang}: presets.measurable`);
+    assert.ok(copy.coverageNote.includes("{role}"), `${lang}: presets.coverageNote names the role`);
+  }
 });
 
 test("no page recomputes a ranking the backend owns", () => {

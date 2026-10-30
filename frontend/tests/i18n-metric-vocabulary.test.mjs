@@ -135,3 +135,80 @@ test("the radar's thin-profile sentences come from the dictionary", () => {
     assert.equal(radar.tooFewOne.includes("{count}"), false, `${lang}: tooFewOne is literal`);
   }
 });
+
+/**
+ * Scores and roles, which are the same defect in two more vocabularies.
+ *
+ * The recruitment results named each score component from the API's English
+ * label, because `ScoreComponentOut.metric` holds a SCORE key there and the
+ * card asked the METRIC glossary for it - a lookup that cannot match. So
+ * "Ball security" and "Defensive activity" sat directly beneath weight boxes
+ * reading "Segurança de bola" and "Actividade defensiva".
+ *
+ * And the role presets rendered `preset.label` - fourteen English role names
+ * above the Portuguese builder, with all fifteen translations in
+ * `glossary.roles`, unused.
+ *
+ * Three occurrences of one mistake: a translated vocabulary bypassed because
+ * the lookup used the wrong key or the wrong glossary. These make the
+ * vocabularies themselves checkable.
+ */
+for (const lang of ["en", "pt"]) {
+  test(`${lang} names every intelligence score`, () => {
+    const scores = dictionary(lang).scores;
+    const missing = vocabulary.scores.filter((key) => !scores[key]?.label);
+    assert.deepEqual(missing, [], `${lang} has no name for:\n  ${missing.join("\n  ")}`);
+  });
+
+  test(`${lang} names every configured role`, () => {
+    const roles = dictionary(lang).roles;
+    const missing = vocabulary.roles.filter((key) => !roles[key]);
+    assert.deepEqual(missing, [], `${lang} has no name for:\n  ${missing.join("\n  ")}`);
+  });
+}
+
+test("the score and role names are translated, not copied", () => {
+  const en = dictionary("en");
+  const pt = dictionary("pt");
+  const scores = vocabulary.scores.filter(
+    (key) => en.scores[key]?.label && en.scores[key].label === pt.scores[key]?.label,
+  );
+  assert.deepEqual(scores, [], `untranslated score names:\n  ${scores.join("\n  ")}`);
+  const roles = vocabulary.roles.filter((key) => en.roles[key] && en.roles[key] === pt.roles[key]);
+  assert.deepEqual(roles, [], `untranslated role names:\n  ${roles.join("\n  ")}`);
+});
+
+test("no component renders an API label where a key is in hand", () => {
+  // `preset.label`, `score.label`, `component.label` and friends are English
+  // the backend built from the key. Rendering one is only correct as the
+  // FALLBACK of a glossary lookup - `?? x.label` - never on its own.
+  const files = [
+    "../src/components/recruitment/RolePresets.tsx",
+    "../src/app/[lang]/recruitment/page.tsx",
+    "../src/app/[lang]/players/[slug]/page.tsx",
+  ];
+  const bad = [];
+  for (const file of files) {
+    const body = readFileSync(new URL(file, import.meta.url), "utf8");
+    for (const match of body.matchAll(/\{\s*(\w+)\.label\s*\}/g)) {
+      bad.push(`${file}: {${match[1]}.label} rendered with no glossary lookup`);
+    }
+  }
+  assert.deepEqual(bad, [], bad.join("\n"));
+});
+
+test("the presets read the role glossary and hold no copy of their own", () => {
+  const src = readFileSync(
+    new URL("../src/components/recruitment/RolePresets.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /roleLabel\(t, preset\.key\)/);
+  assert.match(src, /t\.components\.presets\.positions\[/);
+  // The English position labels this component used to carry.
+  assert.equal(/GK: "Goalkeeper"/.test(src), false);
+});
+
+test("componentName asks the score glossary before the metric one", () => {
+  const src = readFileSync(new URL("../src/i18n/metricNames.ts", import.meta.url), "utf8");
+  assert.match(src, /scores\[key\]\?\.label \?\? metrics\[key\] \?\? label/);
+});

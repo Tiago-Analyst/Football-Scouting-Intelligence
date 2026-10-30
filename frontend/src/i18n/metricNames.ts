@@ -29,3 +29,24 @@ export function metricNames(
   if (!source) return labels.map((label) => glossary[label] ?? label).join(", ");
   return source.map((key, i) => glossary[key] ?? labels[i] ?? key).join(", ");
 }
+
+/**
+ * Name one component of a score, whichever vocabulary its key belongs to.
+ *
+ * `ScoreComponentOut.metric` is named for a metric and does not always hold
+ * one. On a player profile it is a metric key; in a recruitment result it is
+ * one of the eight intelligence SCORE keys, because a recruitment profile is
+ * weighted over scores rather than over metrics. The recruitment cards looked
+ * every one of them up in `glossary.metrics`, which cannot hold
+ * `ball_security`, so they fell back to the API's English label - "Ball
+ * security", "Defensive activity", "Chance creation" - directly beneath
+ * weight boxes that said "Segurança de bola" and "Actividade defensiva".
+ *
+ * So: ask both glossaries. The scores first, since that is the narrower set
+ * and a key cannot be in both.
+ */
+export function componentName(t: Dictionary, key: string, label: string): string {
+  const scores = t.glossary.scores as Record<string, { label?: string } | undefined>;
+  const metrics = t.glossary.metrics as Record<string, string>;
+  return scores[key]?.label ?? metrics[key] ?? label;
+}

@@ -5,6 +5,7 @@ import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
+import { componentName } from "@/i18n/metricNames";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { BlockedProfile } from "@/components/recruitment/BlockedProfile";
@@ -517,10 +518,14 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             key={component.metric}
                             className="grid grid-cols-[9.5rem_1fr_3rem] items-center gap-3"
                           >
+                            {/* `component.metric` is a SCORE key here, not a
+                                metric key - a recruitment profile is weighted
+                                over the eight scores. Looking it up in the
+                                metric glossary could never match, so every
+                                row read the API's English beneath weight
+                                boxes that were already Portuguese. */}
                             <span className="text-xs text-muted">
-                              {t.glossary.metrics[
-                                component.metric as keyof typeof t.glossary.metrics
-                              ] ?? component.label}
+                              {componentName(t, component.metric, component.label)}
                             </span>
                             <PercentileBar percentile={component.percentile ?? 0} />
                             <span className="tabular text-right text-[11px] text-subtle">

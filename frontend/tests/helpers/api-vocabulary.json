@@ -53,5 +53,32 @@
     "partial",
     "reduced",
     "very_limited"
+  ],
+  "scores": [
+    "ball_progression",
+    "ball_security",
+    "chance_creation",
+    "defensive_activity",
+    "duel_dominance",
+    "finishing",
+    "goal_threat",
+    "one_v_one_threat"
+  ],
+  "roles": [
+    "advanced_playmaker",
+    "attacking_full_back",
+    "ball_playing_centre_back",
+    "ball_winning_midfielder",
+    "box_to_box_midfielder",
+    "complete_forward",
+    "creative_winger",
+    "deep_lying_playmaker",
+    "defensive_full_back",
+    "defensive_stopper",
+    "direct_winger",
+    "inside_forward",
+    "poacher",
+    "shot_stopper",
+    "target_forward"
   ]
 }

@@ -86,7 +86,11 @@
       "AM": "Attacking midfield",
       "WINGER": "Winger",
       "FORWARD": "Forward"
-    }
+    },
+    "measurable": "{pct}% measurable",
+    "partialOne": "{pct}% of this role is covered by the weights below. {scores} is part of the role but not of any score the builder weights, so it cannot be carried across.",
+    "partialMany": "{pct}% of this role is covered by the weights below. {scores} are part of the role but not of any score the builder weights, so they cannot be carried across.",
+    "coverageNote": "{pct}% of this preset's configured weight is measurable with the current provider data. Setting the unavailable weights to zero leaves a search that no longer covers everything {role} is named for."
   },
   "interpretation": {
     "title": "Scouting interpretation",
