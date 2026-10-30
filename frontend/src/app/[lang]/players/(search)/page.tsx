@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -67,6 +68,146 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     getCompetitions(),
     getRoles(),
   ]);
+
+  /**
+   * The table, as one ordered list rather than two.
+   *
+   * THE SORTED COLUMN COMES SECOND, WHATEVER IT IS.
+   *
+   * Measured on a 390px phone, sorted by role fit: the table is 1372px wide,
+   * only Player and Age were on screen, and the column the list was SORTED BY
+   * sat 753px to the right. The reader chose that sort themselves and then
+   * could not see it.
+   *
+   * The similar-players and replacement tables fixed the same thing by moving
+   * one fixed column left. Here the decisive column is whichever the reader
+   * picked, so a static order cannot answer it: the sorted column is promoted
+   * to second, and the rest keep their order behind it. Sorting by name or age
+   * changes nothing, because those are already in the first two.
+   *
+   * Header and cell are the same entry in this array, which is what makes the
+   * invariant structural: the two can no longer drift into the failure where
+   * every row's data has shifted one column and nothing on screen looks wrong.
+   */
+  type Column = {
+    key: string;
+    head: string;
+    numeric?: boolean;
+    className?: string;
+    cell: (player: NonNullable<typeof results>["items"][number]) => ReactNode;
+  };
+
+  const allColumns: Column[] = [
+    {
+      key: "player",
+      head: t.players.table.player,
+      cell: (player) => (
+        <>
+          <Link
+            href={`/players/${player.player_id}`}
+            className="font-medium transition-colors hover:text-accent"
+          >
+            {player.name}
+          </Link>
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <span className="text-xs text-subtle">
+              {positionName(t, player.raw_position) ??
+                t.glossary.positions[
+                  player.position_group as keyof typeof t.glossary.positions
+                ] ??
+                player.position_group}
+            </span>
+            {player.minutes !== null ? (
+              <SampleSizeBadge
+                band={player.sample_band}
+                minutes={player.minutes}
+                showTooltip={false}
+              />
+            ) : null}
+          </span>
+        </>
+      ),
+    },
+    { key: "age", head: t.players.table.age, numeric: true, cell: (p) => p.age ?? "–" },
+    {
+      key: "club",
+      head: t.players.table.club,
+      className: "whitespace-nowrap",
+      cell: (p) => p.club ?? "–",
+    },
+    {
+      key: "competition",
+      head: t.players.table.competition,
+      className: "whitespace-nowrap text-muted",
+      cell: (p) => p.competition,
+    },
+    {
+      key: "bestRole",
+      head: t.players.table.bestRole,
+      className: "whitespace-nowrap",
+      /* A table row: the Portuguese name alone. */
+      cell: (p) => (p.best_role_key ? <RoleName role={p.best_role_key} /> : (p.best_role ?? "–")),
+    },
+    {
+      /* "Fit" named two different numbers that this product keeps apart
+         everywhere else. The figure here is the Raw Role Fit - the weighted
+         composite - and the percentile under it is where that composite stands
+         among players measured for the same role. Both already arrive in the
+         payload; neither was named. */
+      key: "rawFit",
+      head: t.players.table.rawFit,
+      numeric: true,
+      className: "font-medium",
+      cell: (p) => (
+        <>
+          {p.best_role_score !== null ? Math.round(p.best_role_score) : "–"}
+          {p.best_role_percentile != null ? (
+            <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+              {f.ordinal(p.best_role_percentile)} {t.players.table.percentileSuffix}
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: "minutes",
+      head: t.players.table.minutes,
+      numeric: true,
+      cell: (p) => (p.minutes !== null ? f.count(p.minutes) : "–"),
+    },
+    {
+      key: "value",
+      head: t.players.table.value,
+      numeric: true,
+      cell: (p) => (p.market_value_eur !== null ? f.euro(p.market_value_eur) : "–"),
+    },
+    {
+      key: "contract",
+      head: t.players.table.contract,
+      numeric: true,
+      className: "whitespace-nowrap text-muted",
+      cell: (p) => (p.contract_expires ? f.date(p.contract_expires) : "–"),
+    },
+  ];
+
+  /** Which column each sort option is actually about. */
+  const SORTED_COLUMN: Record<string, string> = {
+    minutes: "minutes",
+    role_score: "rawFit",
+    market_value: "value",
+    age: "age",
+    name: "player",
+  };
+
+  const promoted = SORTED_COLUMN[filters.sort];
+  const columns =
+    promoted && allColumns.findIndex((column) => column.key === promoted) > 1
+      ? [
+          allColumns[0],
+          allColumns.find((column) => column.key === promoted)!,
+          ...allColumns.slice(1).filter((column) => column.key !== promoted),
+        ]
+      : allColumns;
 
   return (
     <div className="space-y-8">
@@ -309,82 +450,25 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   <Table>
                     <THead>
                       <TR>
-                        <TH>{t.players.table.player}</TH>
-                        <TH numeric>{t.players.table.age}</TH>
-                        <TH>{t.players.table.club}</TH>
-                        <TH>{t.players.table.competition}</TH>
-                        <TH>{t.players.table.bestRole}</TH>
-                        {/* "Fit" named two different numbers that this product
-                            keeps apart everywhere else. The figure here is the
-                            Raw Role Fit - the weighted composite - and the
-                            percentile under it is where that composite stands
-                            among players measured for the same role. Both
-                            already arrive in the payload; neither was named. */}
-                        <TH numeric>{t.players.table.rawFit}</TH>
-                        <TH numeric>{t.players.table.minutes}</TH>
-                        <TH numeric>{t.players.table.value}</TH>
-                        <TH numeric>{t.players.table.contract}</TH>
+                        {columns.map((column) => (
+                          <TH key={column.key} numeric={column.numeric}>
+                            {column.head}
+                          </TH>
+                        ))}
                       </TR>
                     </THead>
                     <TBody>
                       {results.items.map((player) => (
                         <TR key={player.player_id} interactive>
-                          <TD>
-                            <Link
-                              href={`/players/${player.player_id}`}
-                              className="font-medium transition-colors hover:text-accent"
+                          {columns.map((column) => (
+                            <TD
+                              key={column.key}
+                              numeric={column.numeric}
+                              className={column.className}
                             >
-                              {player.name}
-                            </Link>
-                            <span className="mt-0.5 flex items-center gap-1.5">
-                              <span className="text-xs text-subtle">
-                                {positionName(t, player.raw_position) ??
-                                  t.glossary.positions[
-                                    player.position_group as keyof typeof t.glossary.positions
-                                  ] ??
-                                  player.position_group}
-                              </span>
-                              {player.minutes !== null ? (
-                                <SampleSizeBadge
-                                  band={player.sample_band}
-                                  minutes={player.minutes}
-                                  showTooltip={false}
-                                />
-                              ) : null}
-                            </span>
-                          </TD>
-                          <TD numeric>{player.age ?? "–"}</TD>
-                          <TD className="whitespace-nowrap">{player.club ?? "–"}</TD>
-                          <TD className="whitespace-nowrap text-muted">{player.competition}</TD>
-                          <TD className="whitespace-nowrap">
-                            {/* A table row: the Portuguese name alone. */}
-                            {player.best_role_key ? (
-                              <RoleName role={player.best_role_key} />
-                            ) : (
-                              (player.best_role ?? "–")
-                            )}
-                          </TD>
-                          <TD numeric className="font-medium">
-                            {player.best_role_score !== null
-                              ? Math.round(player.best_role_score)
-                              : "–"}
-                            {player.best_role_percentile != null ? (
-                              <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                                {f.ordinal(player.best_role_percentile)} {t.players.table.percentileSuffix}
-                              </span>
-                            ) : null}
-                          </TD>
-                          <TD numeric>
-                            {player.minutes !== null ? f.count(player.minutes) : "–"}
-                          </TD>
-                          <TD numeric>
-                            {player.market_value_eur !== null
-                              ? f.euro(player.market_value_eur)
-                              : "–"}
-                          </TD>
-                          <TD numeric className="whitespace-nowrap text-muted">
-                            {player.contract_expires ? f.date(player.contract_expires) : "–"}
-                          </TD>
+                              {column.cell(player)}
+                            </TD>
+                          ))}
                         </TR>
                       ))}
                     </TBody>

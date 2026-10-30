@@ -49,6 +49,7 @@
     "demoData": "Demo data",
     "partialTitle": "Part of this profile cannot be scored",
     "crossLeagueTitle": "Cross-league comparison",
+    "crossLeagueBody": "Cross-league percentiles do not currently account for differences in competition strength.",
     "candidateMeta": "{age} years · {position} · {club} · {competition}",
     "rankedNote": "ranked {score} · {pct}% of a season",
     "why": "Why {firstName}?",

@@ -443,7 +443,13 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
               ) : null}
               {results.context_caveat ? (
                 <Callout tone="warning" title={t.recruitment.results.crossLeagueTitle}>
-                  {results.context_caveat}
+                  {/* The title came from the dictionary and the body came from
+                      the API, so a Portuguese reader got a translated heading
+                      over an English sentence. `percentiles.py` holds one
+                      constant caveat, which is why this can be a key; the
+                      API's own sentence stays as the fallback in case that
+                      ever stops being true. */}
+                  {t.recruitment.results.crossLeagueBody || results.context_caveat}
                 </Callout>
               ) : null}
 
