@@ -73,11 +73,15 @@ class ComparisonContextOut(BaseModel):
     #: How far into their seasons the competitions in this population are.
     #:
     #: An all-leagues rank sounds like a comparison with the wider game. On
-    #: the loaded data it is mostly a comparison with two matches: nine of 44
-    #: competitions contain a player who has reached a full season's minutes,
-    #: and 82% of the population comes from the other 35. The percentile is an
-    #: honest rank within the population it names; this says what that
-    #: population is made of, so the name cannot be read as something broader.
+    #: the loaded data most of that population has barely started its season,
+    #: so the rank is largely against a handful of matches. The percentile is
+    #: an honest rank within the population it names; these fields say what
+    #: that population is made of, so the name cannot be read as something
+    #: broader.
+    #:
+    #: Dated figures per position group live in `docs/methodology.md`, not
+    #: here: a count written into a comment goes stale while the comment keeps
+    #: asserting it.
     competitions_in_population: int = 0
     competitions_established: int = 0
     established_share: float = 1.0
