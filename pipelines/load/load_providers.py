@@ -62,22 +62,59 @@ BATCH = 5_000
 
 
 @dataclass
+class LoadedCheck:
+    """One check the loader ran, and what it found.
+
+    Was a five-tuple, unpacked positionally at four call sites. It grew a
+    sixth member - the code and values a non-English reader needs - and a
+    six-tuple unpacked by position is a bug waiting for the seventh.
+    """
+
+    entity: str
+    name: str
+    status: str
+    count: int
+    detail: str | None = None
+    #: `{code, values}`, or None. The same finding as `detail` with the
+    #: words left out, so the interface writes the sentence in the reader's
+    #: language rather than matching this English. See `Explain` in
+    #: `pipelines.quality.report`.
+    message: dict[str, object] | None = None
+
+
+@dataclass
 class LoadReport:
     source: str
     counts: dict[str, int] = field(default_factory=dict)
-    checks: list[tuple[str, str, str, int, str | None]] = field(default_factory=list)
+    checks: list[LoadedCheck] = field(default_factory=list)
 
     def record(self, entity: str, count: int) -> None:
         self.counts[entity] = count
 
     def check(
-        self, entity: str, name: str, status: str, count: int, detail: str | None = None
+        self,
+        entity: str,
+        name: str,
+        status: str,
+        count: int,
+        detail: str | None = None,
+        code: str | None = None,
+        values: dict[str, str | int | float] | None = None,
     ) -> None:
-        self.checks.append((entity, name, status, count, detail))
+        self.checks.append(
+            LoadedCheck(
+                entity,
+                name,
+                status,
+                count,
+                detail,
+                {"code": code, "values": values or {}} if code else None,
+            )
+        )
 
     @property
     def failed(self) -> bool:
-        return any(status == "fail" for _, _, status, _, _ in self.checks)
+        return any(check.status == "fail" for check in self.checks)
 
 
 def _chunks(rows: Sequence[dict[str, Any]], size: int = BATCH) -> Iterable[list[dict[str, Any]]]:
@@ -241,6 +278,7 @@ class ProviderLoader:
                 "warn",
                 dropped,
                 "clubs referencing a competition outside the covered set; reference cleared",
+                code="competition_reference_cleared",
             )
 
     # -- Players -------------------------------------------------------------
@@ -355,6 +393,7 @@ class ProviderLoader:
                 "warn",
                 dropped_clubs,
                 "players whose current club is outside the covered set; reference cleared",
+                code="club_reference_cleared",
             )
 
     # -- Facts ---------------------------------------------------------------
@@ -511,6 +550,8 @@ class ProviderLoader:
             "pass" if ratio < 0.05 else "warn",
             unmapped,
             f"{ratio:.1%} of players have no position group",
+            code="position_group_unmapped",
+            values={"share": ratio},
         )
 
         # Coverage: a competition with almost nobody in it usually means a
@@ -527,6 +568,8 @@ class ProviderLoader:
             "pass" if not thin else "warn",
             len(thin),
             "competitions with fewer than 10 players" if thin else None,
+            code="thin_competitions" if thin else None,
+            values={"minimum": 10} if thin else None,
         )
 
         negative = (
@@ -551,11 +594,12 @@ class ProviderLoader:
             [
                 {
                     "source": self.source,
-                    "entity": entity,
-                    "check_name": name,
-                    "status": status,
-                    "record_count": count,
-                    "detail": detail,
+                    "entity": check.entity,
+                    "check_name": check.name,
+                    "status": check.status,
+                    "record_count": check.count,
+                    "detail": check.detail,
+                    "detail_message": check.message,
                     # Written against staging, about a refresh that has not
                     # been promoted. The promotion flips these to PUBLISHED by
                     # source + refresh_id.
@@ -563,7 +607,7 @@ class ProviderLoader:
                     "generation_id": self.generation_id,
                     "context": "CANDIDATE" if self.candidate else None,
                 }
-                for entity, name, status, count, detail in self.report.checks
+                for check in self.report.checks
             ],
         )
 
@@ -958,9 +1002,9 @@ def main(argv: list[str] | None = None) -> int:
             # previous contents stay live.
             session.rollback()
             print(f"\nLOAD FAILED for source '{args.source}'. Nothing was written.")
-            for entity, name, status, count, detail in report.checks:
-                if status == "fail":
-                    print(f"  FAIL {entity}.{name}: {count} {detail or ''}")
+            for check in report.checks:
+                if check.status == "fail":
+                    print(f"  FAIL {check.entity}.{check.name}: {check.count} {check.detail or ''}")
             return 1
 
         if args.verify:
@@ -996,9 +1040,9 @@ def main(argv: list[str] | None = None) -> int:
     for entity, count in report.counts.items():
         print(f"  {entity:<16} {count:>9,}")
     print("\nQUALITY CHECKS")
-    for entity, name, status, count, detail in report.checks:
-        line = f"  [{status.upper():<4}] {entity}.{name}  ({count})"
-        print(f"{line}  {detail}" if detail else line)
+    for check in report.checks:
+        line = f"  [{check.status.upper():<4}] {check.entity}.{check.name}  ({check.count})"
+        print(f"{line}  {check.detail}" if check.detail else line)
     if verified:
         print(f"\nVERIFIED against {verified} serving quality checks before publishing.")
     return 0

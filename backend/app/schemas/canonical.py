@@ -410,6 +410,11 @@ class ProviderInfo(BaseModel):
     #: Why each unsupplied metric is unsupplied, where profiling established
     #: it. "Unavailable" with nothing behind it reads as "not looked at yet".
     absent_reasons: dict[str, str] = Field(default_factory=dict)
+    #: The same reasons with the words removed - the field names and
+    #: sample counts each one cites - keyed by metric, so the site can
+    #: state the evidence in the reader's language. Empty for a provider
+    #: whose mapping records no values; the English reason still stands.
+    absent_reason_values: dict[str, dict[str, str | int | float]] = Field(default_factory=dict)
 
     def supports(self, metric: CanonicalMetric) -> bool:
         return metric in self.available_metrics

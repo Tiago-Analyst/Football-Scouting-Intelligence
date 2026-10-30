@@ -9,6 +9,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
 import { MetricCensusLine } from "@/components/quality/MetricCensus";
+import { apiMessage } from "@/components/player/ApiMessage";
 import { getDictionary, type Dictionary } from "@/i18n/dictionaries";
 import { formatters, type Formatters } from "@/i18n/format";
 import { getDataQuality, getMeta } from "@/lib/system";
@@ -219,7 +220,9 @@ async function Report({
                         sample counts, and the reason says whether the gap
                         could ever close. */}
                     <p className="mt-0.5 text-xs leading-relaxed text-subtle">
-                      {metric.reason ?? q.unavailable.noReason}
+                      {apiMessage(t, f, metric.reason_message) ??
+                        metric.reason ??
+                        q.unavailable.noReason}
                     </p>
                   </li>
                 ))}
@@ -568,16 +571,25 @@ function ChecksTable({ t, f, checks }: { t: Dictionary; f: Formatters; checks: Q
 }
 
 function CheckRow({ t, f, check }: { t: Dictionary; f: Formatters; check: QualityCheck }) {
+  const detail = apiMessage(t, f, check.detail_message) ?? check.detail;
   return (
     <TR>
-      {/* The check's name, its entity and its detail are the pipeline's own
-          identifiers and its own report of what it found. They are the same
-          strings in the logs and in the database, so a reader comparing the
-          two is comparing like with like. */}
+      {/* The check's name and its entity are the pipeline's own identifiers,
+          the same strings in the logs and in the database, so a reader
+          comparing the two is comparing like with like. They stay untranslated
+          for exactly that reason.
+
+          What the check FOUND is a sentence for a reader, and it is the one
+          sentence in this API that was persisted as English prose rather than
+          as a code - so a Portuguese page printed seventeen English findings.
+          `detail_message` is that finding as a code and its values; `detail` is
+          the fallback, which is all a row recorded before the codes existed
+          has. A load supersedes those; nothing back-fills them by parsing the
+          English. */}
       <TD>
         <span className="font-medium">{check.check_name}</span>
         <span className="mt-0.5 block text-xs text-subtle">{check.entity}</span>
-        {check.detail ? <p className="mt-1 max-w-lg text-xs text-muted">{check.detail}</p> : null}
+        {detail ? <p className="mt-1 max-w-lg text-xs text-muted">{detail}</p> : null}
       </TD>
       <TD className="text-xs text-muted">{check.source}</TD>
       <TD numeric>{f.count(check.record_count)}</TD>

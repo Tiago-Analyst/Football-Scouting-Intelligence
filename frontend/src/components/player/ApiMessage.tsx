@@ -72,6 +72,26 @@ export function apiMessage(
  * numbers, and identifiers nobody has mapped yet, which should be visible
  * rather than blank.
  */
+/**
+ * A metric's name, from whichever vocabulary names it.
+ *
+ * Two exist, and they are not interchangeable. `glossary.metrics` is keyed by
+ * the DERIVED name - `progressive_passes_per90`, a rate. The quality checks
+ * report the CANONICAL key - `progressive_passes`, the raw count the provider
+ * supplies - and 38 of those 39 keys had no name anywhere, so a Portuguese
+ * page listed them as raw identifiers.
+ *
+ * Derived first, because that is what almost every message carries and what
+ * a reader sees on a profile. `penalties_taken` is the one key both blocks
+ * define, and keeping them separate is what makes the two answers
+ * distinguishable rather than a collision nobody can see.
+ */
+function metricName(t: Dictionary, key: string): string {
+  const derived = (t.glossary.metrics as Record<string, string>)[key];
+  if (derived) return derived;
+  return (t.glossary.canonicalMetrics as Record<string, string>)[key] ?? key;
+}
+
 function translateValue(
   t: Dictionary,
   f: Formatters,
@@ -82,6 +102,9 @@ function translateValue(
   // Portuguese. `String(value)` printed neither, which is how "Established
   // Sample - 2195 minutes played" reached the English profile.
   const raw = String(value);
+  // A share arrives as a fraction and is read as a percentage. Before the
+  // count branch below, which would have printed 0.999 as "0,999".
+  if (name === "share") return f.percent(Number(raw));
   if (typeof value === "number" && name !== "value_eur") return f.count(value);
   if (name === "criterion") return raw;
   switch (name) {
@@ -100,7 +123,7 @@ function translateValue(
     case "metrics":
       return raw
         .split(",")
-        .map((m) => (t.glossary.metrics as Record<string, string>)[m.trim()] ?? m.trim())
+        .map((m) => metricName(t, m.trim()))
         .join(", ");
     case "value_eur":
       // A euro amount, raw, because a formatted one cannot be reformatted:
@@ -135,6 +158,30 @@ function translateValue(
       return (t.messages as Record<string, string>)[raw] ?? raw;
     case "band":
       return t.glossary.sampleBands[raw as keyof typeof t.glossary.sampleBands] ?? raw;
+    case "metric_shares":
+      // "key percent" pairs: a sparse metric and how much of it is there.
+      // Its own case rather than `metrics` above, because that one looks the
+      // whole token up in the glossary and a token carrying a number cannot
+      // match - so every sparse metric would have printed as its raw key.
+      return raw
+        .split(",")
+        .map((pair) => {
+          const [key, pct] = pair.trim().split(/\s+/);
+          const metric = metricName(t, key ?? "");
+          return pct ? `${metric} ${pct}%` : metric;
+        })
+        .join(", ");
+    case "sources":
+      // Provider names, comma-joined. NOT translated and not given a
+      // glossary: "footystats" and "transfermarkt" are the providers' own
+      // names, and they are the same strings in the logs, the database and
+      // this page - which is the point of showing them. Only the joining is
+      // done here, so the list reads as a list in either language.
+      return raw
+        .split(",")
+        .map((source) => source.trim())
+        .filter(Boolean)
+        .join(", ");
     case "scores":
       // "key:number" pairs, so the score is named and the figure kept beside
       // it without anybody parsing a sentence.

@@ -848,6 +848,13 @@ export interface QualityCheck {
   status: CheckStatus;
   record_count: number;
   detail: string | null;
+  /**
+   * The same finding as a code and its values, so this side writes the
+   * sentence. Null on a check recorded before the codes existed: this is the
+   * one message in the API that is persisted rather than composed per
+   * request, so `detail` really is all those rows have.
+   */
+  detail_message?: ApiMessage | null;
   executed_at: string;
   /**
    * The refresh generation this check describes, and whether that generation
@@ -989,6 +996,12 @@ export interface MetricAvailability {
   label: string;
   /** Null when nothing was recorded. Absent evidence is stated as absent. */
   reason: string | null;
+  /**
+   * The same evidence - the provider field names and sample counts `reason`
+   * cites - as a code and its values. Keyed `absent:<metric>`, because each
+   * reason is its own sentence about its own fields.
+   */
+  reason_message?: ApiMessage | null;
 }
 
 /** A metric with no provider field, computed from ones that exist. */

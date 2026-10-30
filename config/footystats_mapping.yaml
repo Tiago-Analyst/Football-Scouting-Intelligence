@@ -415,18 +415,35 @@ rejected:
 # than no comment.
 #
 # Nothing is substituted for an absent metric and nothing is zero-filled.
+# `reason` is the English sentence, unchanged and still authoritative.
+# `reason_values` is the same evidence with the words removed, so the site can
+# state it in the reader's language without a second copy of these numbers
+# going stale somewhere else. The field names and the sample counts stay here,
+# in the file that is authoritative about fields; the interface supplies only
+# the grammar around them. A reason with no `reason_values` simply renders in
+# English, which is what happened to every one of these on the Portuguese
+# page before this existed.
 absent:
   - metric: progressive_passes
     reason: >-
       progressive_passes_total_overall exists as a key and is null in all
       691 sampled records. It is 45% of the ball_progression score, which is
       why its absence is the most expensive of the three.
+    reason_values:
+      field: progressive_passes_total_overall
+      sampled: 691
+      share_of_score: 45
+      score: ball_progression
   - metric: aerial_duels
     reason: >-
       only aerial_duels_won_total_overall is supplied. The attempt count is
       absent, and aerial_duels_won_percentage_overall - which would allow
       deriving it - returns 0 for every sampled record. The key
       aerial_duels_total_overall never appears at all.
+    reason_values:
+      supplied: aerial_duels_won_total_overall
+      percentage_field: aerial_duels_won_percentage_overall
+      missing_field: aerial_duels_total_overall
   - metric: successful_tackles
     reason: >-
       tackles_successful_total_overall is declared and never populated:
@@ -434,3 +451,7 @@ absent:
       tackles_total_overall is supplied and is NOT a substitute - attempts
       and successes are different measurements, and swapping one for the
       other would change what every score built on it means.
+    reason_values:
+      field: tackles_successful_total_overall
+      sampled: 10464
+      not_a_substitute: tackles_total_overall

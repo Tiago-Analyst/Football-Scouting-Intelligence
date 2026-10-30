@@ -22,6 +22,7 @@ from app.schemas.api import (
     DataQualityResponse,
     DerivedMetricOut,
     IdentityCoverageOut,
+    Message,
     MetricAvailabilityOut,
     ProviderQualityOut,
     PublishedChecksOut,
@@ -93,7 +94,12 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
         average_detailed_coverage_pct=svc.average_detailed_coverage(db),
         unavailable_metrics=svc.unavailable_metrics(settings),
         unavailable_detail=[
-            MetricAvailabilityOut(metric=m.metric, label=m.label, reason=m.reason)
+            MetricAvailabilityOut(
+                metric=m.metric,
+                label=m.label,
+                reason=m.reason,
+                reason_message=_message(m.reason_message),
+            )
             for m in unavailable
         ],
         derived_metrics=[
@@ -164,6 +170,26 @@ def _candidate_out(group) -> CandidateChecksOut:  # type: ignore[no-untyped-def]
     )
 
 
+def _message(stored: dict | None) -> Message | None:
+    """A persisted `{code, values}` as a `Message`.
+
+    Defensive about the shape because the column is JSON written by the
+    pipeline rather than by a schema: a row with no code says nothing the
+    interface can render, and should fall back to `detail` rather than reach a
+    reader as an empty sentence.
+    """
+    # The code is read out before the call rather than inside it. `code=`
+    # followed by a quoted literal is how `tests/i18n-messages.test.mjs`
+    # harvests the codes the backend can emit, and `code=str(stored["code"])`
+    # fed it the string "code" as if it were one.
+    if not stored:
+        return None
+    code = stored.get("code")
+    if not code:
+        return None
+    return Message(code=str(code), values=stored.get("values") or {})
+
+
 def _check_out(item) -> QualityCheckOut:  # type: ignore[no-untyped-def]
     return QualityCheckOut(
         source=item.source,
@@ -172,6 +198,7 @@ def _check_out(item) -> QualityCheckOut:  # type: ignore[no-untyped-def]
         status=item.status,
         record_count=item.record_count,
         detail=item.detail,
+        detail_message=_message(item.detail_message),
         executed_at=item.executed_at,
         refresh_id=item.refresh_id,
         generation_id=item.generation_id,

@@ -200,9 +200,59 @@ class TestQualityReporting:
         assert len(stored) == len(report.checks)
         assert {row.status for row in stored} <= {"pass", "warn", "fail"}
 
+    def test_a_finding_is_stored_as_a_code_and_its_values(self, loaded) -> None:
+        """Not only as the English sentence it used to be stored as.
+
+        `detail` is composed when the check runs and persisted, so it was the
+        one sentence in this API the interface could not translate - the
+        public quality page printed it in English on a Portuguese page. The
+        code and values are recorded beside it so the reader's own language
+        writes the sentence.
+
+        Asserted against what reached the DATABASE rather than the report:
+        the column is JSON written by the pipeline, and a value that does not
+        survive the round trip is exactly what nobody would notice.
+        """
+        session, _ = loaded
+        rows = {
+            row.check_name: row
+            for row in session.scalars(
+                select(FactDataQuality).where(FactDataQuality.source == SOURCE)
+            )
+        }
+
+        unmapped = rows["position_group_mapped"]
+        assert unmapped.detail_message is not None
+        assert unmapped.detail_message["code"] == "position_group_unmapped"
+        # The share as a fraction, for a page that decides its own notation.
+        # Storing "6.9%" would have made the number a string in one language.
+        share = unmapped.detail_message["values"]["share"]
+        assert 0.0 <= share <= 1.0
+        # And the English stays as the fallback, saying the same thing. The
+        # two are compared to each other rather than to a figure written down
+        # here: the fixture's share differs between a developer's database and
+        # CI's, and pinning either one asserts the data rather than the code.
+        assert unmapped.detail == f"{share:.1%} of players have no position group"
+
+    def test_a_check_with_nothing_to_say_stores_no_message(self, loaded) -> None:
+        """A passing check has no sentence, so it has no code either.
+
+        An empty `{code: "", values: {}}` would reach the page as a sentence
+        nobody wrote.
+        """
+        session, _ = loaded
+        passing = session.scalars(
+            select(FactDataQuality).where(
+                FactDataQuality.source == SOURCE,
+                FactDataQuality.check_name == "row_count",
+            )
+        ).one()
+        assert passing.detail is None
+        assert passing.detail_message is None
+
     def test_a_clean_demo_load_reports_no_failures(self, loaded) -> None:
         _, report = loaded
-        failures = [c for c in report.checks if c[2] == "fail"]
+        failures = [check for check in report.checks if check.status == "fail"]
         assert failures == []
 
     def test_report_flags_failure_when_a_check_fails(self, db_session: Session) -> None:

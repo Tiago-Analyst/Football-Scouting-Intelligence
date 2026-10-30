@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -312,6 +313,27 @@ class FactDataQuality(Base):
     refresh_id: Mapped[str | None] = mapped_column(String(64))
     generation_id: Mapped[str | None] = mapped_column(String(32))
     context: Mapped[str | None] = mapped_column(String(16))
+
+    #: THE SAME SENTENCE AS `detail`, AS A CODE AND ITS VALUES
+    #:
+    #: `detail` is a finished English sentence, composed when the check ran.
+    #: The interface has two languages, and matching that English to translate
+    #: it breaks the moment anybody improves the wording - so the check also
+    #: records what it found: `{"code": "minutes_coverage", "values": {...}}`,
+    #: and the reader's own language writes the sentence. See `Message` in
+    #: `app.schemas.api` for the full reasoning; this is that pattern reaching
+    #: the one place where the prose is PERSISTED rather than composed per
+    #: request.
+    #:
+    #: Nullable, and null on every row written before this column existed.
+    #: Those rows keep their English `detail` and the interface falls back to
+    #: it, so nothing breaks and nothing is back-filled by guessing numbers
+    #: out of a sentence. A source's checks become translatable at its next
+    #: load, not retroactively.
+    #:
+    #: Generic `JSON` rather than `JSONB`: it is read whole and never queried
+    #: into, so the indexing JSONB buys is not needed here.
+    detail_message: Mapped[dict | None] = mapped_column(JSON)
 
     __table_args__ = (
         CheckConstraint("status IN ('pass', 'warn', 'fail')", name="data_quality_status_valid"),

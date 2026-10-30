@@ -98,6 +98,14 @@ test("no translated value is left as the English one by accident", () => {
     "glossary.metrics.xg_per90",
     "glossary.metrics.xa_per90",
     "glossary.metrics.npxg_per90",
+    // The canonical counts the quality checks list, as opposed to the per-90
+    // rates above. Same notation, same argument.
+    "glossary.canonicalMetrics.xg",
+    "glossary.canonicalMetrics.xa",
+    "glossary.canonicalMetrics.npxg",
+    // And a genuine coincidence: "passe" is the Portuguese noun, so the
+    // plural is already correct.
+    "glossary.canonicalMetrics.passes",
     "glossary.evidenceNouns.shots",
     // What the position is called in Portuguese football.
     "glossary.roles.box_to_box_midfielder",

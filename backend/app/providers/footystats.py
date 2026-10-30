@@ -332,6 +332,11 @@ class FootyStatsProvider(PerformanceDataProvider):
             absent_reasons={
                 metric.value: entry.reason for metric, entry in self._mapping.absent.items()
             },
+            absent_reason_values={
+                metric.value: entry.reason_values
+                for metric, entry in self._mapping.absent.items()
+                if entry.reason_values
+            },
             notes=(
                 # Counted from the census rather than from whatever is in scope
                 # here, because four public pages each did their own arithmetic
