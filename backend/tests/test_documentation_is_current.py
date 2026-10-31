@@ -190,3 +190,36 @@ class TestGeneratedDocumentsSayTheyAreGenerated:
         head = read(name)[:800].lower()
         assert "generated" in head
         assert re.search(r"do not edit", head), name
+
+
+class TestTheReadmeCarriesNoFigureThatAPromotionChanges:
+    """A README is not re-read when a generation is published.
+
+    It said 8,701 player-seasons across 44 competitions, which was corrected to
+    5,383 across 43 on 29 October. On 31 October a promotion made that wrong
+    again - 14,677 - so the corrected figure was accurate for two days and
+    misleading by nearly a factor of three thereafter.
+
+    The problem is not the arithmetic. It is that a generation publishes as one
+    universe, so every such figure moves at once, at a moment nobody is editing
+    documentation. `GET /health` reports what is being served and carries the
+    timestamp it was built at; `docs/current_state.md` holds a dated snapshot
+    and says what makes it wrong. Neither needs a hand.
+
+    Deliberately narrow: two shapes, in one file. It does not object to numbers
+    in the README - `96 CHECK constraints` and `~28,460 requests` describe the
+    system's structure and cost, and a promotion does not touch either.
+    """
+
+    #: A count of data served, in the two shapes a promotion moves. The comma
+    #: group is optional so `43 competitions` is caught as well as `5,383`.
+    DRIFTING = re.compile(r"\d[\d,]*\s+(player-seasons?|competitions?)", re.IGNORECASE)
+
+    def test_no_player_season_or_competition_count(self) -> None:
+        # The whole match, not the group, so a failure names the figure as the
+        # README writes it rather than just the noun after it.
+        found = [m.group(0) for m in self.DRIFTING.finditer(README.read_text(encoding="utf-8"))]
+        assert found == [], (
+            f"README.md states a count a promotion will change: {found}. "
+            "Point at GET /health or docs/current_state.md instead."
+        )
