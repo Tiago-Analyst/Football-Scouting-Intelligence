@@ -39,8 +39,8 @@ def migration_url() -> str:
     anyway.
     """
     settings = get_settings()
-    if settings.migration_database_url:
-        return settings.migration_database_url
+    if settings.migration_sqlalchemy_url:
+        return settings.migration_sqlalchemy_url
     return direct_url(settings.sqlalchemy_url)
 
 

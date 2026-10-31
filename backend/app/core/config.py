@@ -43,6 +43,36 @@ def is_pooled(url: str) -> bool:
     return "-pooler." in host or "pooler." in host or "pgbouncer" in host
 
 
+def with_psycopg_driver(url: str) -> str:
+    """A provider's connection URL, on the driver this project depends on.
+
+    Managed providers hand out `postgresql://` or `postgres://`, and neither
+    names a driver. SQLAlchemy's default for them is psycopg2, which is not
+    installed here, so such a URL fails before it reaches the network:
+
+        ModuleNotFoundError: No module named 'psycopg2'
+
+    A function rather than a line inside `sqlalchemy_url`, because that is
+    where it used to live and `MIGRATION_DATABASE_URL` therefore skipped it.
+    Someone following the deployment runbook pasted Neon's own string into
+    that variable, as the runbook says to, and met the error above while
+    production waited on the migration. Anything that accepts a URL from
+    outside this process passes it through here.
+
+    A URL that already names a driver is returned untouched, psycopg2 included:
+    if someone has deliberately asked for it, that is their business, and this
+    is not the place to overrule it.
+    """
+    for prefix in ("postgresql+psycopg://", "postgresql+psycopg2://"):
+        if url.startswith(prefix):
+            return url
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+psycopg://", 1)
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
+
 class AppEnv(StrEnum):
     """Deployment environment. Governs how much detail errors may expose."""
 
@@ -171,21 +201,26 @@ class Settings(BaseSettings):
         are normalised onto the psycopg (v3) driver we actually depend on.
         """
         if self.database_url:
-            url = self.database_url
-            for prefix in ("postgresql+psycopg://", "postgresql+psycopg2://"):
-                if url.startswith(prefix):
-                    return url
-            if url.startswith("postgres://"):
-                return url.replace("postgres://", "postgresql+psycopg://", 1)
-            if url.startswith("postgresql://"):
-                return url.replace("postgresql://", "postgresql+psycopg://", 1)
-            return url
+            return with_psycopg_driver(self.database_url)
 
         password = self.postgres_password.get_secret_value()
         return (
             f"postgresql+psycopg://{self.postgres_user}:{password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def migration_sqlalchemy_url(self) -> str | None:
+        """Where migrations connect, when told explicitly. `None` when not.
+
+        `MIGRATION_DATABASE_URL` is pasted in by a person, from a provider's
+        console, usually under some pressure - so it gets the same driver
+        normalisation `DATABASE_URL` does. It used to get none, which made the
+        documented procedure fail on a correctly copied string.
+        """
+        if not self.migration_database_url:
+            return None
+        return with_psycopg_driver(self.migration_database_url)
 
     @property
     def is_production(self) -> bool:
