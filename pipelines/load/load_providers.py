@@ -32,7 +32,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from psycopg.errors import CheckViolation
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session_factory
@@ -135,6 +137,104 @@ def _bulk_insert(session: Session, model: type, rows: Sequence[dict[str, Any]]) 
     return total
 
 
+@dataclass(frozen=True)
+class Rejection:
+    """One provider row the database refused, and what it refused about it."""
+
+    #: The check constraint that said no, by name - the same name the error
+    #: carries, so a report and a log line can be matched up.
+    constraint: str
+
+
+def _refused_value(exc: IntegrityError) -> str | None:
+    """The constraint name when the database refused a VALUE; `None` otherwise.
+
+    The distinction this draws is the whole point of isolating anything.
+
+    A check constraint rejecting a row is a statement about the data: the
+    provider sent a height of 100cm, or a negative goal count, and no amount of
+    correct code makes that storable. Losing one such row is right.
+
+    A foreign key, a unique index or a NOT NULL rejecting a row is a statement
+    about *this loader*: it composed a row pointing at a club it never
+    inserted, or tried to insert the same player twice. Isolating those would
+    turn a defect into a quietly smaller load, which is exactly how a broken
+    join survives a release. Those re-raise.
+    """
+    orig = getattr(exc, "orig", None)
+    if not isinstance(orig, CheckViolation):
+        return None
+    diag = getattr(orig, "diag", None)
+    return getattr(diag, "constraint_name", None) or "unnamed_check_constraint"
+
+
+def _insert_isolating(
+    session: Session,
+    statement: Any,
+    rows: Sequence[dict[str, Any]],
+) -> tuple[list[Any], list[int], list[Rejection]]:
+    """Insert `rows`, setting aside only the ones the database refuses.
+
+    WHY THIS EXISTS
+
+    Rows go to PostgreSQL in batches, and a batch is one statement: if the
+    database refuses one row it refuses the statement, and because the whole
+    load is one transaction, the load ends. On 30 October a single provider
+    height of 100cm did exactly that to three consecutive scheduled runs -
+    28,000 players lost, three times, to one wrong number about one of them.
+
+    Tightening the reader that produced that value fixed that value. It did not
+    fix the shape of the problem: `dim_player` alone carries three check
+    constraints and the analytical schema carries 96, so the next impossible
+    figure a provider invents will arrive through a different one.
+
+    HOW
+
+    Each batch runs inside a SAVEPOINT. One that is refused is bisected and
+    each half retried, down to the single row that caused it, which is set
+    aside while everything around it lands. The cost is one savepoint per
+    batch when nothing is wrong, and about log2(batch) extra statements for
+    each row that is.
+
+    Returns what the statement returned (for the surviving rows, in order), the
+    indices of those rows in `rows`, and what was set aside. The caller needs
+    the indices because a `RETURNING` id is matched to its row by position, and
+    a dropped row silently shifts that mapping by one.
+    """
+    returned: list[Any] = []
+    kept: list[int] = []
+    rejected: list[Rejection] = []
+
+    def attempt(batch: Sequence[dict[str, Any]], offset: int) -> None:
+        try:
+            with session.begin_nested():
+                result = session.execute(statement, list(batch))
+                values = list(result) if result.returns_rows else []
+        except IntegrityError as exc:
+            constraint = _refused_value(exc)
+            if constraint is None:
+                raise
+            if len(batch) == 1:
+                rejected.append(Rejection(constraint=constraint))
+                log.warning(
+                    "load_row_refused_by_the_database",
+                    constraint=constraint,
+                    index=offset,
+                )
+                return
+            middle = len(batch) // 2
+            attempt(batch[:middle], offset)
+            attempt(batch[middle:], offset + middle)
+            return
+        returned.extend(values)
+        kept.extend(range(offset, offset + len(batch)))
+
+    for start in range(0, len(rows), BATCH):
+        attempt(rows[start : start + BATCH], start)
+
+    return returned, kept, rejected
+
+
 def _prefixed(source: str, identifier: str | None) -> str | None:
     return None if identifier is None else f"{source}:{identifier}"
 
@@ -170,6 +270,22 @@ class ProviderLoader:
         # Provider player id -> internal player_id, built as players are loaded.
         self._player_ids: dict[str, int] = {}
         self._known_clubs: set[str] = set()
+        #: Provider rows the database refused, across every table. Reported as
+        #: one check at the end rather than per table, because the question a
+        #: reader has is "how much did this load silently not contain".
+        self._rejected: list[Rejection] = []
+
+    def _insert_provider_rows(self, model: type, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert rows derived from a provider, keeping what the database takes.
+
+        For provider data only. Rows this loader composes itself - the quality
+        checks, the load record, the bridge - go through `_bulk_insert` and
+        still raise, because the database refusing those means the loader is
+        wrong, not the provider.
+        """
+        _, kept, rejected = _insert_isolating(self.session, model.__table__.insert(), rows)
+        self._rejected.extend(rejected)
+        return len(kept)
 
     # -- Reference data ------------------------------------------------------
 
@@ -205,7 +321,7 @@ class ProviderLoader:
 
         self.report.record(
             "competitions",
-            _bulk_insert(self.session, DimCompetition, list(rows.values())),
+            self._insert_provider_rows(DimCompetition, list(rows.values())),
         )
 
     def load_seasons(self) -> None:
@@ -227,7 +343,7 @@ class ProviderLoader:
 
         existing = {s for (s,) in self.session.execute(select(DimSeason.season_id))}
         new = [r for k, r in rows.items() if k not in existing]
-        self.report.record("seasons", _bulk_insert(self.session, DimSeason, new))
+        self.report.record("seasons", self._insert_provider_rows(DimSeason, new))
 
     def load_clubs(self) -> None:
         rows: dict[str, dict[str, Any]] = {}
@@ -270,7 +386,7 @@ class ProviderLoader:
                 dropped += 1
 
         self._known_clubs = set(rows)
-        self.report.record("clubs", _bulk_insert(self.session, DimClub, list(rows.values())))
+        self.report.record("clubs", self._insert_provider_rows(DimClub, list(rows.values())))
         if dropped:
             self.report.check(
                 "clubs",
@@ -360,14 +476,21 @@ class ProviderLoader:
                 row["current_competition_id"] = None
 
         ordered = list(identities.items())
-        inserted = self.session.execute(
+        inserted, kept, rejected = _insert_isolating(
+            self.session,
             DimPlayer.__table__.insert().returning(DimPlayer.player_id),
             [row for _, row in ordered],
         )
+        self._rejected.extend(rejected)
         player_ids = [pid for (pid,) in inserted]
+        # Zipped against the rows that SURVIVED, not against everything offered.
+        # A returned id belongs to its row by position, so pairing them against
+        # `ordered` after a row was set aside would hand every player after the
+        # rejected one somebody else's id - a corruption no constraint catches,
+        # because every id involved is real. `strict=True` is what makes a
+        # mistake here an exception rather than a wrong database.
         self._player_ids = {
-            source_id: player_id
-            for (source_id, _), player_id in zip(ordered, player_ids, strict=True)
+            ordered[index][0]: player_id for index, player_id in zip(kept, player_ids, strict=True)
         }
 
         _bulk_insert(
@@ -438,7 +561,7 @@ class ProviderLoader:
                 f"contradictory pairs blanked rather than guessed: {detail}",
             )
 
-        self.report.record("season_stats", _bulk_insert(self.session, FactPlayerSeasonStats, rows))
+        self.report.record("season_stats", self._insert_provider_rows(FactPlayerSeasonStats, rows))
 
     def load_market_values(self) -> None:
         if self.market is None:
@@ -466,7 +589,7 @@ class ProviderLoader:
                     }
                 )
 
-        self.report.record("market_values", _bulk_insert(self.session, FactMarketValue, rows))
+        self.report.record("market_values", self._insert_provider_rows(FactMarketValue, rows))
 
     def load_transfers(self) -> None:
         if self.market is None:
@@ -494,13 +617,59 @@ class ProviderLoader:
                     }
                 )
 
-        self.report.record("transfers", _bulk_insert(self.session, FactTransfer, rows))
+        self.report.record("transfers", self._insert_provider_rows(FactTransfer, rows))
 
     # -- Verification --------------------------------------------------------
+
+    def _report_rejected_rows(self) -> None:
+        """Say what the database refused, or say that it refused nothing.
+
+        Recorded even when the count is zero, because a check that passed and
+        a check that never ran are otherwise indistinguishable - and this one
+        in particular would be invisible exactly when it mattered.
+
+        `warn`, not `fail`. A `fail` rolls the load back, which would restore
+        the behaviour this exists to end: one impossible value costing an
+        entire refresh. Scale is caught by the checks below and by the serving
+        suite `--verify` runs, both of which notice a universe that arrived
+        several thousand rows short; this one says which constraint, and how
+        many.
+        """
+        if not self._rejected:
+            self.report.check(
+                "load",
+                "rows_accepted_by_the_database",
+                "pass",
+                0,
+                code="no_rows_refused",
+            )
+            return
+
+        counts: dict[str, int] = {}
+        for rejection in self._rejected:
+            counts[rejection.constraint] = counts.get(rejection.constraint, 0) + 1
+        # Sorted so the same load produces the same sentence twice running, and
+        # by count first so the worst offender leads.
+        named = ", ".join(
+            f"{constraint} ({count})"
+            for constraint, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        )
+        total = len(self._rejected)
+        self.report.check(
+            "load",
+            "rows_accepted_by_the_database",
+            "warn",
+            total,
+            f"{total} provider rows were refused and left out: {named}",
+            code="rows_refused_by_a_constraint",
+            values={"rows": total, "constraints": named},
+        )
 
     def run_quality_checks(self) -> None:
         """Section 24 checks, run against what was actually written."""
         s = self.session
+
+        self._report_rejected_rows()
 
         players = s.scalar(select(func.count()).select_from(DimPlayer)) or 0
         self.report.check("dim_player", "row_count", "pass" if players else "fail", players)

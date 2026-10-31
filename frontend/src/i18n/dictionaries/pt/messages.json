@@ -96,6 +96,8 @@
   "competition_reference_cleared": "Clubes a referenciar uma competição fora do conjunto coberto; limpou-se a referência em vez de descartar o clube.",
   "club_reference_cleared": "Jogadores cujo clube actual está fora do conjunto coberto; limpou-se a referência em vez de descartar o jogador.",
   "thin_competitions": "Competições com menos de {minimum} jogadores, o que normalmente indica uma extracção parcial e não uma liga pequena.",
+  "no_rows_refused": "Todas as linhas fornecidas pelos fornecedores foram aceites pela base de dados.",
+  "rows_refused_by_a_constraint": "{rows} linhas fornecidas pelos fornecedores foram recusadas pela base de dados e não estão incluídas: {constraints}.",
   "absent:progressive_passes": "{field} existe como chave e está nulo em todos os {sampled} registos amostrados. Vale {share_of_score}% da pontuação {score}, e é por isso que a sua ausência é a mais cara das três.",
   "absent:aerial_duels": "Só {supplied} é fornecido. A contagem de tentativas está ausente, e {percentage_field} - que permitiria derivá-la - devolve 0 em todos os registos amostrados. A chave {missing_field} nunca aparece.",
   "absent:successful_tackles": "{field} está declarado e nunca preenchido: não-nulo em 0 dos {sampled} registos amostrados que têm a chave. {not_a_substitute} é fornecido e NÃO é um substituto - tentativas e sucessos são medidas diferentes, e trocar uma pela outra mudaria o significado de todas as pontuações construídas sobre ela."
