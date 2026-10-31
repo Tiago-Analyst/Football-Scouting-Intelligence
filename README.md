@@ -9,8 +9,8 @@ market analysis, built on top of performance and market data.
 > Player search, profiles with percentiles and role fit, statistical
 > similarity, a recruitment profile builder, replacement finder, market
 > opportunities, authentication and shortlists. Performance data comes from
-> FootyStats (5,383 player-seasons, 43 competitions) and market data from the
-> public Transfermarkt dataset, both refreshed on their own schedules.
+> FootyStats and market data from the public Transfermarkt dataset, both
+> refreshed on their own schedules.
 > `APP_MODE=demo` still runs the whole site on a generated dataset for local
 > work, and labels it as such.
 
@@ -44,14 +44,14 @@ market analysis, built on top of performance and market data.
 | Data quality reporting | Working — measured feature impact, published |
 | FootyStats validation apparatus | Working — probe, profiler, mapping gate |
 | FootyStats field validation | Done — 36 metrics mapped, each with recorded evidence |
-| `FootyStatsProvider` | Working — reads the verified mapping, 47 competitions |
+| `FootyStatsProvider` | Working — reads the verified mapping, over the competitions `config/competitions.yaml` lists |
 | FootyStats ingestion | Working — resumable snapshots, load reads from disk |
 
 ### Current data sources
 
 | Source | What it supplies | Cadence |
 | --- | --- | --- |
-| FootyStats | Performance: 5,383 player-seasons across 43 competitions | Mondays 04:17, 07:17, 10:17 UTC; hourly at :41 to continue |
+| FootyStats | Performance: player-seasons across the competitions in `config/competitions.yaml` | Mondays 04:17, 07:17, 10:17 UTC; hourly at :41 to continue |
 | Transfermarkt (public dataset) | Market: valuations and transfer history | Sundays 05:23 UTC |
 
 Both are loaded and live. Which provider a scheduled run refreshes is resolved
@@ -63,10 +63,19 @@ refresh is ~28,460 requests and a job fetches for ~45 minutes, so a generation
 spans roughly twenty-one productive runs and publishes nothing until the whole
 universe is in place.
 
-**The counts above are a snapshot, and go stale by design.** A generation
-publishes as one universe, so every figure changes at once when it is promoted.
-`GET /health` reports what production is actually serving, with the timestamp
-it was built at; that endpoint is the source of truth, not this table.
+**This file deliberately carries no player-season or competition count.** A
+generation publishes as one universe, so every such figure changes at once when
+it is promoted — and a README is not re-read at that moment. The counts that
+used to be here were corrected on 29 October and were wrong again on 31
+October, by nearly a factor of three, for exactly that reason.
+
+For what production is serving right now, with the timestamp it was built at:
+
+```
+GET https://fri-backend.onrender.com/health
+```
+
+`docs/current_state.md` holds a dated snapshot and says what makes it wrong.
 
 ### About FootyStats
 
