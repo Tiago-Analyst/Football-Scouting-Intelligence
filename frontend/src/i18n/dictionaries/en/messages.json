@@ -96,6 +96,7 @@
   "competition_reference_cleared": "Clubs referencing a competition outside the covered set; the reference was cleared rather than the club dropped.",
   "club_reference_cleared": "Players whose current club is outside the covered set; the reference was cleared rather than the player dropped.",
   "thin_competitions": "Competitions with fewer than {minimum} players, which usually means a partial extract rather than a small league.",
+  "rows_refused_by_a_constraint": "{rows} rows the providers supplied were refused by the database and are not included: {constraints}.",
   "absent:progressive_passes": "{field} exists as a key and is null in all {sampled} sampled records. It is {share_of_score}% of the {score} score, which is why its absence is the most expensive of the three.",
   "absent:aerial_duels": "Only {supplied} is supplied. The attempt count is absent, and {percentage_field} - which would allow deriving it - returns 0 for every sampled record. The key {missing_field} never appears at all.",
   "absent:successful_tackles": "{field} is declared and never populated: non-null in 0 of the {sampled} sampled records that carry the key. {not_a_substitute} is supplied and is NOT a substitute - attempts and successes are different measurements, and swapping one for the other would change what every score built on it means."
