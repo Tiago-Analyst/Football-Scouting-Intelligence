@@ -117,9 +117,12 @@ The API serves from PostgreSQL, so it has nothing to show until a load has run.
 1. Provision the database. Create an application role — **not** the superuser.
 2. Set the secrets on both services.
 3. Run the production check. Fix anything it refuses.
-4. `alembic upgrade head`. Migration 0009 moves the analytical tables into
-   their own schema, which the connection has to be told about — see below,
-   and use the direct endpoint.
+4. `alembic upgrade head`, **as the database owner, on the direct endpoint**.
+   Not as the application role: it deliberately cannot alter tables, so a
+   migration run as it fails with `must be owner of table <name>`. Set
+   `MIGRATION_DATABASE_URL` to the owner's direct connection string — see
+   "Who runs a migration" below. Migration 0009 also moves the analytical
+   tables into their own schema, which the connection has to be told about.
 5. Load: `python -m pipelines.load.load_providers --source transfermarkt --replace --verify`
 6. Deploy the backend, then the frontend.
 7. Confirm `/health` returns 200 with `analytics: ok`.
@@ -189,11 +192,48 @@ it matters. There is still no tested restore, so this is the nearest thing.
 cd /app/backend && python -m alembic current
 ```
 
-**2. Migrate.**
+Reading the version is all this shell can do. Migrating from it cannot work —
+see the next step.
+
+**2. Migrate**, from a machine that can reach Neon, as the **owner**:
 
 ```bash
-cd /app/backend && python -m alembic upgrade head
+cd backend
+MIGRATION_DATABASE_URL='<owner, direct endpoint>' python -m alembic upgrade head
 ```
+
+#### Who runs a migration
+
+The owner, and never the application role. Once the role separation below is
+in place, `DATABASE_URL` is `fri_app`, which by design cannot perform DDL:
+
+```
+psycopg.errors.InsufficientPrivilege: must be owner of table fact_data_quality
+```
+
+That is the separation working, not a fault to route around. It means **the
+`fri-backend` shell cannot migrate**, because the only credentials it has are
+the web service's own. Run the migration somewhere you hold the owner's string
+and pass it as `MIGRATION_DATABASE_URL` for that command alone.
+
+Do **not** set `MIGRATION_DATABASE_URL` permanently on the web service. It
+would leave an owner credential in the environment of the one process this
+whole arrangement exists to keep away from DDL, and anything reaching that
+environment would have the database back.
+
+On PowerShell there is no inline `VAR=value command` prefix, so the variable is
+set, used and cleared as three statements:
+
+```powershell
+$env:MIGRATION_DATABASE_URL = '<owner, direct endpoint>'
+.\.venv\Scripts\python.exe -m alembic upgrade head
+Remove-Item Env:\MIGRATION_DATABASE_URL
+```
+
+The last line clears it from that shell only; the string stays in the shell's
+history, so treat the history as holding a credential.
+
+#### Why the direct endpoint
 
 Migrations connect to the **direct** endpoint, not the pooled one the service
 uses. They pin `search_path=public` with a startup parameter - the only way
@@ -204,14 +244,15 @@ parameters, so run through one and nothing begins:
 ERROR: unsupported startup parameter in options: search_path
 ```
 
-`alembic/env.py` derives Neon's direct host from the pooled one, so normally
-there is nothing to do. For a provider whose direct host is a different name,
-set `MIGRATION_DATABASE_URL` to it. Alembic refuses to run through a pooler
-rather than dropping the pin, because dropping it would put new operational
-tables in the schema a promotion swaps away, and report success.
+`alembic/env.py` derives Neon's direct host from the pooled one, so a URL that
+is already the owner's needs nothing further. Alembic refuses to run through a
+pooler rather than dropping the pin, because dropping it would put new
+operational tables in the schema a promotion swaps away, and report success.
 
-Nine revisions. Alembic stops at the first that fails rather than leaving the
-chain half applied.
+Alembic stops at the first revision that fails rather than leaving the chain
+half applied. `alembic current` against `alembic heads` says how many are
+outstanding; no count is written here, because a number in a document goes
+stale on the next migration and nothing checks it.
 
 | | |
 | --- | --- |
@@ -453,7 +494,9 @@ RESET ROLE;
 ```
 
 Migrations keep using the owner, which is what `MIGRATION_DATABASE_URL` is
-for. DDL is not something the web service should ever be able to do.
+for. DDL is not something the web service should ever be able to do — which
+also means its shell cannot migrate. "Who runs a migration" above says how,
+and what the failure looks like when this is forgotten.
 
 ### 2. Render
 
@@ -505,12 +548,14 @@ last served, and the pages that take live filters: `/players`, `/similar`,
 
 ### 3. Migrate and load, before the frontend expects anything
 
-From a machine that can reach Neon, with the same `DATABASE_URL`:
+From a machine that can reach Neon. The loads run as the application's own
+credentials; the migration does **not** — it needs the owner, for the reason
+given in "Who runs a migration" above:
 
 ```bash
 cd backend
 python -m scripts.check_production      # fix whatever it refuses
-alembic upgrade head
+MIGRATION_DATABASE_URL='<owner, direct endpoint>' alembic upgrade head
 cd ..
 python -m pipelines.transfermarkt.download
 python -m pipelines.load.load_providers --source transfermarkt --replace --verify
