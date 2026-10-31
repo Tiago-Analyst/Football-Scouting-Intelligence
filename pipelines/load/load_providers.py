@@ -636,13 +636,13 @@ class ProviderLoader:
         many.
         """
         if not self._rejected:
-            self.report.check(
-                "load",
-                "rows_accepted_by_the_database",
-                "pass",
-                0,
-                code="no_rows_refused",
-            )
+            # The row itself is what distinguishes "nothing was refused" from
+            # "nobody looked". No sentence and no code, because a passing check
+            # in this report has neither - see
+            # `test_a_check_with_nothing_to_say_stores_no_message`. A code with
+            # no `detail` beside it would also leave a reader whose language
+            # lacks that key with an empty sentence instead of the English one.
+            self.report.check("load", "rows_accepted_by_the_database", "pass", 0)
             return
 
         counts: dict[str, int] = {}

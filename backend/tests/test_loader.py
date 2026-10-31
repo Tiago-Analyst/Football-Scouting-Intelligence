@@ -386,11 +386,18 @@ class TestOneRefusedRowDoesNotEndTheLoad:
         # log and the error all say the same string.
         assert "ck_dim_player_date_of_birth_plausible" in check.message["values"]["constraints"]
 
-    def test_a_clean_load_says_so_rather_than_staying_silent(self, loaded) -> None:
-        """A check that passed and a check that never ran must differ."""
+    def test_a_clean_load_records_the_check_anyway(self, loaded) -> None:
+        """A check that passed and a check that never ran must differ.
+
+        The row is what makes the difference, so it is written even at zero.
+        It carries no sentence and no code: a passing check in this report has
+        neither, and one that had a code without a `detail` beside it would
+        reach a reader whose dictionary lacks that key as an empty string
+        where a sentence should be.
+        """
         _, report = loaded
         check = next(c for c in report.checks if c.name == "rows_accepted_by_the_database")
         assert check.status == "pass"
         assert check.count == 0
-        assert check.message is not None
-        assert check.message["code"] == "no_rows_refused"
+        assert check.detail is None
+        assert check.message is None
