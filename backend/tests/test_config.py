@@ -56,6 +56,40 @@ class TestDatabaseUrl:
         assert settings.sqlalchemy_url == "postgresql+psycopg2://u:p@h:5432/d"
 
 
+class TestTheMigrationUrlGetsTheSameTreatment:
+    """It did not, and the documented procedure failed because of it.
+
+    `MIGRATION_DATABASE_URL` exists so a migration can connect as the database
+    owner, since the application role deliberately cannot perform DDL. The
+    runbook says to paste the provider's own connection string into it - and
+    the provider's own string names no driver, so SQLAlchemy reached for
+    psycopg2 and died before touching the network:
+
+        ModuleNotFoundError: No module named 'psycopg2'
+
+    A correctly copied string, the documented variable, and a failure that
+    says nothing about either. Production waited on that migration.
+    """
+
+    @pytest.mark.parametrize(
+        "given",
+        ["postgres://o:p@h:5432/d", "postgresql://o:p@h:5432/d"],
+    )
+    def test_a_providers_own_string_is_normalised(self, given: str) -> None:
+        settings = build_settings(migration_database_url=given)
+        assert settings.migration_sqlalchemy_url == "postgresql+psycopg://o:p@h:5432/d"
+
+    def test_a_url_that_names_its_driver_is_left_alone(self) -> None:
+        settings = build_settings(migration_database_url="postgresql+psycopg2://o:p@h:5432/d")
+        assert settings.migration_sqlalchemy_url == "postgresql+psycopg2://o:p@h:5432/d"
+
+    def test_unset_stays_unset(self) -> None:
+        """`None` is what tells `alembic/env.py` to derive the direct host
+        instead, so an empty string must not read as "a URL was given"."""
+        assert build_settings().migration_sqlalchemy_url is None
+        assert build_settings(migration_database_url="").migration_sqlalchemy_url is None
+
+
 class TestFootyStatsGate:
     def test_absent_key_reports_not_configured(self) -> None:
         assert build_settings(footystats_api_key="").footystats_configured is False
@@ -224,7 +258,11 @@ class TestThePoolerCannotBeSentStartupParameters:
         )
 
         assert "def migration_url()" in source
-        assert "migration_database_url" in source
+        # The NORMALISED property, not the raw setting. Reading the raw one is
+        # what made a correctly pasted provider string fail on a missing
+        # psycopg2 - see `TestTheMigrationUrlGetsTheSameTreatment`.
+        assert "migration_sqlalchemy_url" in source
+        assert "settings.migration_database_url" not in source
         assert "direct_url(" in source
         # And it refuses rather than migrating through a pooler with no pin,
         # which would create operational tables in the schema promotions swap.
