@@ -10,6 +10,8 @@ between it and that is bridge-based resolution.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from pipelines.load.load_providers import ProviderLoader, purge
 from sqlalchemy import func, select
@@ -259,3 +261,143 @@ class TestQualityReporting:
         loader = build_loader(db_session)
         loader.report.check("x", "y", "fail", 1, None)
         assert loader.report.failed is True
+
+
+class TestOneRefusedRowDoesNotEndTheLoad:
+    """The database refusing a value used to cost the entire refresh.
+
+    Rows reach PostgreSQL in batches, and a batch is one statement: refuse one
+    row and the statement is refused, and because the load is one transaction,
+    the load ends. On 30 October a provider height of 100cm did that to three
+    consecutive scheduled runs - roughly 28,000 players lost, three times, to
+    one wrong number about one of them.
+
+    The height itself was fixed at the reader. This is about the shape: the
+    analytical schema carries 96 check constraints, so the next impossible
+    figure arrives through a different one. These use `date_of_birth`, which is
+    bounded by the database and not by the canonical schema - exactly the gap
+    the height had.
+    """
+
+    IMPOSSIBLE_BIRTH = date(1899, 6, 1)
+
+    @pytest.fixture
+    def partial(self, db_session: Session):
+        """A normal demo load, with one player born before the database allows.
+
+        Yields the names the provider offered, keyed by its own id, so the
+        assertions can be made against what the provider SAID rather than
+        against anything the loader derived - the bridge included, since the
+        bridge is built from the mapping under test and agrees with it however
+        wrong it is.
+        """
+        performance = MockPerformanceProvider(competitions=1, clubs_per_competition=2)
+        original = performance.get_players
+        offered: dict[str, str] = {}
+
+        def get_players(competition_id: str, season_id: str):
+            players = list(original(competition_id, season_id))
+            # Not the first: a rejection at index 0 shifts every id by one and
+            # is caught by almost any assertion. One in the middle is the case
+            # that corrupts quietly.
+            index = len(players) // 2
+            players[index] = players[index].model_copy(
+                update={"date_of_birth": self.IMPOSSIBLE_BIRTH}
+            )
+            for player in players:
+                offered[player.source_player_id] = player.full_name
+            return players
+
+        performance.get_players = get_players  # type: ignore[method-assign]
+        loader = ProviderLoader(
+            db_session,
+            source=SOURCE,
+            performance=performance,
+            market=MockMarketProvider(competitions=1, clubs_per_competition=2),
+        )
+        report = loader.run()
+        db_session.flush()
+        return db_session, report, loader, offered
+
+    def test_the_load_completes(self, partial) -> None:
+        """Rather than raising, which is what it used to do."""
+        _, report, _, _ = partial
+        assert report.counts["players"] > 0
+
+    def test_only_the_refused_row_is_missing(self, partial) -> None:
+        session, report, _, _ = partial
+        # Counted through the bridge, which is what carries the source;
+        # `dim_player` has no source column because a player is one person
+        # however many providers describe them.
+        bridged = session.scalar(
+            select(func.count())
+            .select_from(BridgePlayerSource)
+            .where(BridgePlayerSource.source == SOURCE)
+        )
+        assert bridged == report.counts["players"]
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(DimPlayer)
+                .where(DimPlayer.date_of_birth == self.IMPOSSIBLE_BIRTH)
+            )
+            == 0
+        )
+
+    def test_every_surviving_player_keeps_their_own_id(self, partial) -> None:
+        """The failure mode no constraint can catch.
+
+        A `RETURNING` id belongs to its row by position. Drop a row from the
+        middle of the batch and pair the ids against the rows that were
+        *offered* rather than the rows that *landed*, and every player after
+        the rejected one is handed the next player's id - stats and valuations
+        attached to the wrong footballer, with every id involved perfectly
+        real and every foreign key satisfied.
+
+        Asserted against the name the PROVIDER gave that id. An earlier version
+        of this compared the mapping to `bridge_player_source` and passed with
+        the bug reintroduced, because the bridge is written from the mapping
+        under test and agrees with it however wrong it is.
+        """
+        session, _, loader, offered = partial
+        assert loader._player_ids
+
+        stored = {
+            row.player_id: row.full_name
+            for row in session.scalars(
+                select(DimPlayer).where(DimPlayer.player_id.in_(loader._player_ids.values()))
+            )
+        }
+        mismatched = {
+            source_id: (offered[source_id], stored.get(player_id))
+            for source_id, player_id in loader._player_ids.items()
+            if stored.get(player_id) != offered[source_id]
+        }
+        assert mismatched == {}, f"{len(mismatched)} players carry another player's row"
+
+    def test_the_report_says_what_was_refused(self, partial) -> None:
+        _, report, _, _ = partial
+        check = next(c for c in report.checks if c.name == "rows_accepted_by_the_database")
+        assert check.status == "warn"
+        assert check.count == 1
+        assert check.message is not None
+        assert check.message["code"] == "rows_refused_by_a_constraint"
+        # Named by the constraint PostgreSQL itself reported, so the page, the
+        # log and the error all say the same string.
+        assert "ck_dim_player_date_of_birth_plausible" in check.message["values"]["constraints"]
+
+    def test_a_clean_load_records_the_check_anyway(self, loaded) -> None:
+        """A check that passed and a check that never ran must differ.
+
+        The row is what makes the difference, so it is written even at zero.
+        It carries no sentence and no code: a passing check in this report has
+        neither, and one that had a code without a `detail` beside it would
+        reach a reader whose dictionary lacks that key as an empty string
+        where a sentence should be.
+        """
+        _, report = loaded
+        check = next(c for c in report.checks if c.name == "rows_accepted_by_the_database")
+        assert check.status == "pass"
+        assert check.count == 0
+        assert check.detail is None
+        assert check.message is None

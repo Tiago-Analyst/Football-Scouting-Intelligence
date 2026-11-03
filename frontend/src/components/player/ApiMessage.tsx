@@ -182,6 +182,14 @@ function translateValue(
         .map((source) => source.trim())
         .filter(Boolean)
         .join(", ");
+    case "constraints":
+      // Database constraint names with their counts, already composed. NOT
+      // translated, for the reason `sources` is not: these are the names
+      // PostgreSQL itself uses, and they are the same string in the error, the
+      // log line and this page - which is what makes a reader able to search
+      // for one. A glossary would have to carry all 96 and would go stale the
+      // first time a migration adds the 97th.
+      return raw;
     case "scores":
       // "key:number" pairs, so the score is named and the figure kept beside
       // it without anybody parsing a sentence.
