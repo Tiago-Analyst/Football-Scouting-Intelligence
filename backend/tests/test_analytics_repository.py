@@ -90,9 +90,50 @@ class TestReadingTheUniverse:
         assert populated > 150
 
     def test_dimensions_are_resolved_to_names(self, universe: LoadedUniverse) -> None:
-        with_club = [p for p in universe.players if p.club_id]
+        with_club = [p for p in universe.players if p.current_club_id]
         assert with_club
-        assert any(p.club_name for p in with_club)
+        assert any(p.current_club_name for p in with_club)
+
+    def test_the_performance_club_is_never_the_current_club_by_default(
+        self, universe: LoadedUniverse
+    ) -> None:
+        """The read that produced the context defect.
+
+        `club_id = player.current_club_id` filled the season's club from the
+        player's dimension, so every profile showed the club they are at now
+        beside the competition they played in last - and a player who had
+        moved read as a Danish club in USA MLS.
+
+        The season's club is now read off the fact row, which usually has
+        none. That is the honest answer: `fact_player_season_stats.club_id` is
+        only written when the club is already in `dim_club`, and the
+        performance provider's clubs are keyed in its own vocabulary. Absent
+        is reported as absent.
+        """
+        borrowed = [
+            p
+            for p in universe.players
+            if p.performance_club_name is not None
+            and p.current_club_name is not None
+            and p.performance_club_name == p.current_club_name
+            and p.competition_country != p.current_competition_country
+        ]
+        assert borrowed == [], (
+            f"{len(borrowed)} player-seasons carry the current club as the club that "
+            "played a season in another country"
+        )
+
+    def test_the_two_contexts_are_read_from_their_own_sources(
+        self, universe: LoadedUniverse
+    ) -> None:
+        """Both halves are populated, or the split above proves nothing.
+
+        A version of this that only asserted the new fields EXIST passed with
+        every one of them null.
+        """
+        assert any(p.current_club_name for p in universe.players)
+        assert any(p.current_competition_name for p in universe.players)
+        assert any(p.competition_country for p in universe.players)
 
     def test_sources_are_reported(self, universe: LoadedUniverse) -> None:
         """Whichever source is seeded. Naming one here couples the suite to the

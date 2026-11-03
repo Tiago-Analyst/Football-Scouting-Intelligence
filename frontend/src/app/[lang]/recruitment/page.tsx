@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
+import { playerLine } from "@/lib/playerLine";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { componentName } from "@/i18n/metricNames";
@@ -469,19 +470,24 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             </Link>
                           </span>
                         }
-                        description={`${t.recruitment.results.candidateMeta
-                          .replace("{age}", String(candidate.player.age ?? "–"))
-                          .replace(
-                            "{position}",
-                            positionName(t, candidate.player.raw_position) ??
-                              candidate.player.position_group,
-                          )
-                          .replace("{club}", candidate.player.club ?? "–")
-                          .replace("{competition}", candidate.player.competition)}${
+                        description={[
+                          candidate.player.age !== null
+                            ? t.profile.years.replace(
+                                "{age}",
+                                String(candidate.player.age),
+                              )
+                            : null,
+                          playerLine(
+                            t,
+                            candidate.player,
+                            positionName(t, candidate.player.raw_position),
+                          ),
                           candidate.player.market_value_eur !== null
-                            ? ` · ${f.euro(candidate.player.market_value_eur)}`
-                            : ""
-                        }`}
+                            ? f.euro(candidate.player.market_value_eur)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                         action={
                           /* The profile score, and - when the order used
                              something else - what the order used. A list

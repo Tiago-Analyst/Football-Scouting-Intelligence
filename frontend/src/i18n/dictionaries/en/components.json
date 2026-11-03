@@ -1,4 +1,7 @@
 {
+  "playerLine": {
+    "nowAt": "now: {club}"
+  },
   "dataConfidence": {
     "title": "Data confidence",
     "tooltipLabel": "What is data confidence?",

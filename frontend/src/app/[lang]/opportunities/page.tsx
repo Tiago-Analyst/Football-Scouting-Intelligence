@@ -2,7 +2,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
 
 import { apiMessage } from "@/components/player/ApiMessage";
-import { positionName } from "@/components/player/PositionName";
+import { PlayerLine } from "@/components/player/PlayerLine";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { AppLink as Link } from "@/components/ui/AppLink";
@@ -226,13 +226,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                         description={
                           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span>
-                              {positionName(t, entry.player.raw_position) ??
-                        t.glossary.positions[
-                          entry.player.position_group as keyof typeof t.glossary.positions
-                        ] ??
-                        entry.player.position_group}{" "}
-                              ·{" "}
-                              {entry.player.club} · {entry.player.competition}
+                              <PlayerLine t={t} player={entry.player} />
                             </span>
                             {/* A player can reach this list on 41 minutes,
                                 deliberately - nothing is excluded for a short

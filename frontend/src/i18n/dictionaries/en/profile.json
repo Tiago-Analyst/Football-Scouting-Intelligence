@@ -4,6 +4,18 @@
   "footed": "{foot} footed",
   "height": "{cm}cm",
   "demoData": "Demo data",
+  "context": {
+    "performance": "Performance context",
+    "performanceHint": "The season these numbers come from",
+    "market": "Current market context",
+    "marketHint": "Where the player is now",
+    "competition": "Competition",
+    "season": "Season",
+    "club": "Club",
+    "clubThatSeason": "Club that season",
+    "notRecorded": "Not recorded",
+    "minutes": "Minutes played"
+  },
   "tiles": {
     "bestRole": "Best role",
     "notAvailable": "Not available",
@@ -73,7 +85,7 @@
     "open": "Open similarity search",
     "player": "Player",
     "age": "Age",
-    "club": "Club",
+    "club": "Current club",
     "bestRole": "Best role",
     "similarity": "Similarity",
     "indexNotPercent": "index, not %",

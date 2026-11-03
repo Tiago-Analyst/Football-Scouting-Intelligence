@@ -4,6 +4,7 @@
   "role_population_too_small": "Too few players were evaluated for this role to place a score among them.",
   "no_role_defined_for_position": "No role is defined for this position group, so there is nothing to score this profile against.",
   "no_role_reached_coverage": "No role reached the metric coverage it requires. The closest was {role}, which was measurable to {coverage_pct}% of its definition against the {required_pct}% it needs. The player is unchanged and every metric they do carry is below; what is missing is provider data, not performance.",
+  "context_club_in_another_country": "The season below was played in {competition}. The current club, {club}, plays in {current_competition} — a different country.",
   "low_evidence_count": "Low evidence — {count} {noun_key}",
   "evidence_count": "{count} {noun_key}",
   "low_evidence_title": "Below {threshold} {noun_key}, this is reported but not offered as one of the player's strongest dimensions. The percentile is unchanged.",

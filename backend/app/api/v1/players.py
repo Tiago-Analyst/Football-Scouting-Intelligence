@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.analytics.contracts import expires_within
+from app.analytics.countries import in_the_same_country
 from app.analytics.coverage import (
     COVERAGE_BAND_LABEL,
     COVERAGE_EXPLANATION,
@@ -205,6 +206,66 @@ def to_context(
     )
 
 
+def _readable_competition(name: str | None) -> str | None:
+    """A competition name a reader can read, when the provider sent a slug.
+
+    The market source stores its competitions by their URL segment -
+    "premier-league", "jupiler-pro-league" - and a profile showing that beside
+    "China Chinese Super League" looks like a page that has broken rather than
+    one reporting two providers.
+
+    Narrow on purpose. Only a name that is ALL lower case, has no spaces and
+    does have a hyphen is touched, which is the shape a slug has and the shape
+    a real name does not. The performance source's names are left exactly
+    alone: title-casing "USA MLS" would produce "Usa Mls", and a prettifier
+    that damages the good names to rescue the bad ones is not worth having.
+    """
+    if not name or " " in name or "-" not in name or name != name.lower():
+        return name
+    return " ".join(word.capitalize() for word in name.split("-"))
+
+
+def _context_note(record: PlayerRecord) -> Message | None:
+    """Why the performance and the market halves name different places.
+
+    WHAT THIS CAN AND CANNOT COMPARE
+
+    The two providers key competitions in their own vocabularies and nothing
+    maps between them: the same league is `footystats:17097`, "Netherlands
+    Eredivisie", and `transfermarkt:NL1`, "eredivisie". Comparing ids reports
+    a difference for 58% of rows, most of them the same league twice, so an
+    id comparison would make this note meaningless by firing constantly.
+
+    Country is carried by both and is a real answer to a smaller question.
+    It cannot tell a first division from a second, so a player who dropped a
+    division at home produces no note - and that is stated here rather than
+    papered over, because the note's worth depends on it meaning something
+    when it does appear.
+
+    Nothing is inferred about WHY. A summer transfer and a stale market record
+    look identical from here, and the sentence says what is so rather than
+    guessing which.
+    """
+    if not record.current_club_name:
+        # No market record, so there are not two contexts to reconcile.
+        return None
+    same = in_the_same_country(record.current_competition_country, record.competition_country)
+    # `None` is UNKNOWN - one of the two did not say where it is - and is left
+    # alone rather than read as a difference. Silence on a profile that may be
+    # unremarkable beats a note on one that is.
+    if same is not False:
+        return None
+    return Message(
+        code="context_club_in_another_country",
+        values={
+            "club": record.current_club_name,
+            "current_competition": _readable_competition(record.current_competition_name)
+            or record.current_competition_country,
+            "competition": record.competition_name,
+        },
+    )
+
+
 def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
     fit = view.best_roles.get(record.player_key)
     best = fit.best if fit else None
@@ -214,8 +275,12 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
         age=record.age,
         position_group=record.position_group.value,
         raw_position=record.raw_position,
-        club=record.club_name,
+        club=record.current_club_name,
         competition=record.competition_name,
+        current_competition=_readable_competition(record.current_competition_name),
+        performance_club=record.performance_club_name,
+        season=record.comparable_season or None,
+        context_note=_context_note(record),
         nationality=record.nationality,
         minutes=record.minutes,
         sample_band=record.sample_band.value,
@@ -670,7 +735,7 @@ def list_players(
             return False
         if competition and record.competition_id != competition:
             return False
-        if club and record.club_id != club:
+        if club and record.current_club_id != club:
             return False
         if nationality and record.nationality != nationality:
             return False

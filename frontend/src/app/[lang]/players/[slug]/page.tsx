@@ -16,6 +16,7 @@ import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { DataConfidence } from "@/components/player/DataConfidence";
 import { IntelligenceRadar } from "@/components/player/IntelligenceRadar";
 import { MarketValueChart } from "@/components/player/MarketValueChart";
+import { PlayerContext } from "@/components/player/PlayerContext";
 import { ScoutingInterpretation } from "@/components/player/ScoutingInterpretation";
 import { SimilarityBreakdown } from "@/components/player/SimilarityBreakdown";
 import { TransferHistory } from "@/components/player/TransferHistory";
@@ -126,14 +127,15 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                 <span>{player.nationality}</span>
               </>
             ) : null}
-            {player.club ? (
-              <>
-                <Sep />
-                <span>{player.club}</span>
-              </>
-            ) : null}
-            <Sep />
-            <span>{player.competition}</span>
+            {/* The club and the competition are NOT here any more.
+
+                They used to sit side by side on this line, and they answer
+                different questions: the club is where the player is now and
+                the competition is where the season below was played. A reader
+                met "a Danish club, USA MLS" as one description of one state,
+                which is not a thing that can be true, and nothing on the page
+                said otherwise. They are below, each under the context it
+                belongs to. */}
             {player.preferred_foot ? (
               <>
                 <Sep />
@@ -173,6 +175,9 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
         }
       />
 
+      {/* Before the numbers, what the numbers are about. */}
+      <PlayerContext player={player} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label={t.profile.tiles.bestRole}
@@ -203,7 +208,15 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
         <StatTile
           label={t.profile.tiles.minutesPlayed}
           value={player.minutes !== null ? f.count(player.minutes) : "–"}
-          hint={t.profile.tiles.season.replace("{season}", "2026/27")}
+          // The record's own season, not a literal. This read
+          // "2026/27" - right in the month it was written, wrong for
+          // every single-year league in the set, and a claim nobody
+          // was checking.
+          hint={
+            player.season
+              ? t.profile.tiles.season.replace("{season}", player.season)
+              : undefined
+          }
         />
         <StatTile
           label={t.profile.tiles.marketValue}

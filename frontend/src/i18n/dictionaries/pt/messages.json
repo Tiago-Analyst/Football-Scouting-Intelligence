@@ -4,6 +4,7 @@
   "role_population_too_small": "Foram avaliados poucos jogadores para esta função para situar uma pontuação entre eles.",
   "no_role_defined_for_position": "Não há nenhum função definida para este grupo posicional, pelo que não existe nada contra que avaliar este perfil.",
   "no_role_reached_coverage": "Nenhum função atingiu a cobertura de métricas que exige. O mais próximo foi {role}, mensurável em {coverage_pct}% da sua definição contra os {required_pct}% de que precisa. O jogador não mudou e todas as métricas que tem estão abaixo; o que falta são dados do fornecedor, não desempenho.",
+  "context_club_in_another_country": "A época abaixo foi jogada em {competition}. O clube actual, {club}, joga em {current_competition} — outro país.",
   "low_evidence_count": "Evidência reduzida — {count} {noun_key}",
   "evidence_count": "{count} {noun_key}",
   "low_evidence_title": "Abaixo de {threshold} {noun_key}, isto é reportado mas não apresentado como uma das dimensões mais fortes do jogador. O percentil não é alterado.",

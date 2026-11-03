@@ -34,7 +34,7 @@
   "table": {
     "player": "Player",
     "age": "Age",
-    "club": "Club",
+    "club": "Current club",
     "competition": "Competition",
     "bestRole": "Best role",
     "similarity": "Similarity",
