@@ -29,9 +29,22 @@ function sources(dir = SRC) {
   return found;
 }
 
-/** Rendered code only: a comment may quote the very string it forbids. */
+/**
+ * Rendered code only: a comment may quote the very string it forbids.
+ *
+ * A JSX comment is a comment INSIDE AN EXPRESSION CONTAINER, and stripping
+ * the comment alone leaves the braces behind as `{}`. That is not harmless:
+ * the scan below looks for copy following a `>`, and an empty container
+ * between the tag and the words hides them. "Recorded minutes" reached a
+ * Portuguese profile behind exactly that, under a comment explaining the
+ * line above it - so widening the scan to end at `{` was not enough on its
+ * own, and the first attempt at this guard still passed.
+ *
+ * The container goes with the comment.
+ */
 function code(file) {
   return readFileSync(file, "utf8")
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/[^\n]*$/gm, "");
 }
@@ -44,8 +57,22 @@ const relative = (file) => file.slice(file.indexOf("src")).split(path.sep).join(
  * Two or more words, because a single word between tags is as often a unit, a
  * symbol or a wrapped expression as it is copy, and flagging every one of
  * those trains people to ignore the test.
+ *
+ * ENDING AT `{` AS WELL AS AT `<`
+ *
+ * It used to require a closing tag straight after, and "Recorded minutes"
+ * reached a Portuguese profile through the gap: the label was followed by a
+ * conditional tooltip, not by a tag.
+ *
+ *     <span className="flex items-center gap-1.5">
+ *       Recorded minutes
+ *       {sample.coverage_explanation ? (
+ *
+ * Copy followed by an expression is still copy. `components.dataConfidence
+ * .recordedMinutes` had been sitting translated in both dictionaries the
+ * whole time, which is the shape this whole file was written for.
  */
-const BETWEEN_TAGS = />\s*([A-Z][a-z]+(?:\s+[a-z]+){1,8})\s*</g;
+const BETWEEN_TAGS = />\s*([A-Z][a-z]+(?:\s+[a-z]+){1,8})\s*[<{]/g;
 
 /** Attributes a screen reader or a tooltip reads out loud. */
 const SPOKEN_ATTRIBUTES = /\b(?:aria-label|aria-description|title|placeholder|alt)\s*=\s*"([^"]{4,})"/g;

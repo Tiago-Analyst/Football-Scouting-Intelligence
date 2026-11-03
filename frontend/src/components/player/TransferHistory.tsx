@@ -48,7 +48,15 @@ export async function TransferHistory({ transfers }: { transfers: Transfer[] }) 
                     </TD>
                     <TD>{transfer.from_club ?? "–"}</TD>
                     <TD className="font-medium">{transfer.to_club ?? "–"}</TD>
-                    <TD className="text-muted">{transfer.transfer_type}</TD>
+                    <TD className="text-muted">
+                      {/* A closed seven-value vocabulary from the market
+                          source, printed raw until now - so a Portuguese
+                          transfer history said "loan". An unmapped value
+                          still shows, rather than disappearing. */}
+                      {t.glossary.transferTypes[
+                        transfer.transfer_type as keyof typeof t.glossary.transferTypes
+                      ] ?? transfer.transfer_type}
+                    </TD>
                     <TD numeric>
                       {transfer.fee_eur === null ? (
                         // Not "€0". A fee nobody published and a free transfer

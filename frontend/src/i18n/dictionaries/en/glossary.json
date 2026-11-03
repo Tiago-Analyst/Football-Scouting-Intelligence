@@ -26,6 +26,25 @@
     "WINGER": "Winger",
     "FORWARD": "Centre-Forward"
   },
+  "positionsPlural": {
+    "GK": "Goalkeepers",
+    "CB": "Centre-Backs",
+    "FB_WB": "Full-Backs",
+    "DM": "Defensive Midfielders",
+    "CM": "Central Midfielders",
+    "AM": "Attacking Midfielders",
+    "WINGER": "Wingers",
+    "FORWARD": "Centre-Forwards"
+  },
+  "transferTypes": {
+    "permanent": "Permanent",
+    "loan": "Loan",
+    "loan_end": "Loan ended",
+    "free": "Free transfer",
+    "youth": "Youth",
+    "retired": "Retired",
+    "unknown": "Not stated"
+  },
   "sampleBands": {
     "very_low": "Very Low Sample",
     "low": "Low Sample",

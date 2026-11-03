@@ -26,6 +26,25 @@
     "WINGER": "Extremo",
     "FORWARD": "Avançado"
   },
+  "positionsPlural": {
+    "GK": "Guarda-redes",
+    "CB": "Defesas-centrais",
+    "FB_WB": "Laterais",
+    "DM": "Médios defensivos",
+    "CM": "Médios centro",
+    "AM": "Médios ofensivos",
+    "WINGER": "Extremos",
+    "FORWARD": "Avançados"
+  },
+  "transferTypes": {
+    "permanent": "Definitiva",
+    "loan": "Empréstimo",
+    "loan_end": "Fim de empréstimo",
+    "free": "Transferência livre",
+    "youth": "Formação",
+    "retired": "Retirado",
+    "unknown": "Não indicado"
+  },
   "sampleBands": {
     "very_low": "Amostra muito reduzida",
     "low": "Amostra reduzida",
