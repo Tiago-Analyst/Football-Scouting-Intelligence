@@ -84,13 +84,33 @@ test("an unrecorded performance club is said, never filled in from the market so
   const source = read(CONTEXT);
   assert.match(
     source,
-    /player\.performance_club \?\? copy\.notRecorded/,
-    "the performance club falls back to something other than saying it is unrecorded",
+    /performance_club == null\s*\?\s*copy\.notRecorded/,
+    "an unrecorded performance club no longer says it is unrecorded",
   );
   assert.equal(
-    /performance_club \?\? player\.club/.test(source),
+    /performance_club \?\? player\.club|performance_club \|\| player\.club/.test(source),
     false,
     "the performance club falls back to the CURRENT club, which is the original defect",
+  );
+});
+
+test("the season's club is shown only when it is a different club", () => {
+  // Two thirds of the pairs are one club under two providers' spellings -
+  // "Once Caldas SA" and "Once Caldas". Two labelled rows would read as a
+  // transfer that never happened, inside the card built to stop exactly that
+  // kind of misreading.
+  const source = read(CONTEXT);
+  assert.match(
+    source,
+    /player\.clubs_agree === false/,
+    "the card decides for itself whether two club names are two clubs",
+  );
+  // `=== false` and not a falsy test: `null` means the names do not settle
+  // it, and showing a difference on that claims more than the data says.
+  assert.equal(
+    /!player\.clubs_agree|clubs_agree !== true/.test(source),
+    false,
+    "an unsettled comparison is being read as a difference",
   );
 });
 

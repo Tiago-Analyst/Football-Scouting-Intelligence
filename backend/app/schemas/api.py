@@ -435,9 +435,32 @@ class PlayerSummary(BaseModel):
     current_competition: str | None = None
     #: The club that played this season, where it is recorded.
     #:
-    #: Usually null, and null rather than filled in with the current club,
-    #: which is what this field exists to stop happening again.
+    #: Null rather than filled in with the current club, which is what this
+    #: field exists to stop happening again.
     performance_club: str | None = None
+    #: Whether `performance_club` and `club` name the same club.
+    #:
+    #: Three answers, and the third is the one that matters. `True` they are
+    #: one club, `False` they are two, `None` the names do not settle it.
+    #:
+    #: WHY THE API ANSWERS THIS RATHER THAN THE INTERFACE
+    #:
+    #: The two names come from different providers, who spell clubs
+    #: differently. On the served data two thirds of the pairs are ONE club:
+    #:
+    #:     Once Caldas SA           / Once Caldas
+    #:     Gangwon FC               / Gangwon Football Club
+    #:     CD Popular Junior FC SA  / Junior FC
+    #:
+    #: Shown as two labelled rows those read as a transfer that never
+    #: happened - the same class of defect as the club and competition that
+    #: used to share a line. The comparison is
+    #: `app.analytics.clubs.same_club`, written for identity resolution and
+    #: already pinned against Manchester United versus Manchester City.
+    #:
+    #: An interface that compared the strings itself would answer "different"
+    #: for all three above, which is why this is not left to it.
+    clubs_agree: bool | None = None
     #: The season the performance belongs to, e.g. "2026".
     #:
     #: Additive, and the profile used to print a hardcoded "2026/27" beside
