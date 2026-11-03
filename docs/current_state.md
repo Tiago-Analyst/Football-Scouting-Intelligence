@@ -1,6 +1,6 @@
 # Where this project actually stands
 
-**Snapshot taken 3 November 2026, 11:10 UTC.** Every number below was read from
+**Snapshot taken 3 November 2026, 11:25 UTC.** Every number below was read from
 a live source at that moment — the production health endpoint, the public
 data-quality endpoint, the GitHub Actions API, `git ls-remote` — and not from
 another document, this file's previous version included.
@@ -22,15 +22,16 @@ The previous snapshot was 31 October. Three of its five triggers fired.
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | 14,677 player-seasons across 43 competitions, built 11:04:24 UTC |
+| analytics | 14,677 player-seasons across 43 competitions, built 11:22:25 UTC |
 | excluded | 8,830 player-seasons, for having no position group |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
 
 Unchanged from 31 October, and that is the point of the section below: nothing
-about the served universe moved this week. The view was rebuilt at 11:04
-because merging #68 redeployed the backend.
+about the served universe moved this week. The view is rebuilt whenever the
+backend redeploys, which it did three times this morning as the fixes below
+landed.
 
 ### The figures, reconciled
 
@@ -78,7 +79,7 @@ at promotion rather than at load.
 system that was serving correctly, and an alarm that rings without cause trains
 whoever receives it to ignore it. That is a worse state than silence.
 
-### The run that left those rows behind
+### The run that left those rows behind, and why it failed
 
 Run `41303978077`, 1 November 11:54, the Transfermarkt refresh. It failed at
 **Record the quality report**:
@@ -92,9 +93,25 @@ Everything before it succeeded — the dataset was retrieved, profiled, loaded,
 verified, identities resolved, unreachable market history dropped. The failure
 is at the step that records the report, against staging.
 
-**Why a Transfermarkt load reports no player-season metric coverage is not
-explained here**, because nothing read for this snapshot establishes it. It is
-in "What is open".
+`build_loader` passes Transfermarkt `performance=None`: it supplies valuations
+and transfers and no performance data at all. So `metric_coverage` scoped to
+that source returns no rows, which is the correct answer, and `coverage_checks`
+reported the correct answer as a failure.
+
+**It was not an episode.** 1 November was the first Transfermarkt run to reach
+that step since the repository went public — the Sundays before it were refused
+by the exhausted Actions allowance, four seconds and no steps — and it would
+have failed every Sunday after. The source's last recorded quality check is
+dated 27 August.
+
+Fixed in `f89e77b`. The fact already lived in `build_loader` and is now
+`MARKET_ONLY_SOURCES` beside it, imported by the report rather than restated.
+The check reports a pass with its own sentence; `no rows` is still a failure
+for a source that should have them, and for the unscoped report.
+
+**Still unobserved:** no Transfermarkt refresh has completed since 27 August.
+Sunday 8 November is the first opportunity, and until it arrives this is
+established by reading the code rather than by watching it work.
 
 ## The pipeline
 
@@ -110,23 +127,30 @@ quality-report failure above. Every run since 1 November 14:30 has succeeded.
 | status | `PUBLISHED` | `IN_PROGRESS` |
 | created | 21 Oct 09:20 | 2 Nov 12:21 |
 | published | 31 Oct 02:48 | — |
-| players | 28,754 of 28,754 | 3,987 of 4,488 *so far* |
+| players | 28,754 of 28,754 | 3,753 of 4,490 *so far* |
 | competitions | 45 of 45 | 8 of 9 *so far* |
 
-`refresh.state` is `Fetching`. The Monday cadence opened the new generation on
-schedule, which is the first time that has been observed rather than inferred.
+`refresh.state` is `Fetching`, and a continuation run was in flight while this
+was read — so the in-flight column is a moment inside a run, not a result. It
+read 3,987 of 4,488 fifteen minutes earlier; `completed` can go down as well as
+up when a checkpoint is restored.
+
+The Monday cadence opened the new generation on schedule, which is the first
+time that has been observed rather than inferred.
 
 **Neither figure in the "in flight" column is a target.** `expected` counts
 players discovered as roster pages are read and climbs throughout; the previous
 generation's own `expected` read 11,439 on 22 October and settled at 28,754.
 The same applies to the competition count.
 
-### The two fixes this week came from one incident
+### The fixes this week, and what they have in common
 
 | | |
 | --- | --- |
 | `83c4448` | One height bound, instead of four copies of which two disagreed |
 | `17c9d64` | One refused row costs one row, not the whole load |
+| `377f294` | A candidate refresh no longer declares the served view stale |
+| `f89e77b` | A market-only source is no longer failed for having no performance data |
 
 The first stopped a provider value of 100cm ending three consecutive runs. The
 second stopped the *shape* of that: rows reach PostgreSQL in batches, a batch
@@ -136,6 +160,12 @@ aside, reported as a `warn` naming the constraint.
 
 Nothing is enumerated against the schema's 96 check constraints, deliberately:
 a second copy of the schema is the defect `83c4448` removed.
+
+Three of the four are the same shape, and it is worth naming because it is how
+this week's time was actually spent. A fact was written down in more than one
+place — the height bound in four, the "has performance data" fact in two, the
+"what is served" question answered by a proxy — and the copies came to
+disagree. None was a difficult error. All of them cost production time.
 
 ## Actions caches
 
@@ -165,7 +195,7 @@ let a Monday start a new one, at the cost of every player already fetched.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only (377f294)
+GitHub:     main only (f89e77b)
 Local:      main, in sync
 Worktrees:  1
 ```
@@ -191,8 +221,9 @@ test fixes this direction and explains it in place.
 
 | Item | State |
 | --- | --- |
-| Transfermarkt's quality report | **Unexplained.** Run `41303978077` failed with `metric_coverage: no rows` against staging. It has not recurred, and the candidate rows it left are still in the database |
-| Render memory | Render emailed that `fri-backend` exceeded its memory limit. The view rebuilt cleanly at 11:04 and nothing has been OOM-killed, but the served universe nearly tripled on 31 October and the view is rebuilt in a 512 MB container on every restart |
+| A Transfermarkt refresh completing | **Unobserved since 27 August.** The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
+| The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
+| Render memory | Render emailed that `fri-backend` exceeded its memory limit. The view rebuilt cleanly three times this morning and nothing has been OOM-killed, but the served universe nearly tripled on 31 October and the view is rebuilt in a 512 MB container on every restart |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October and wants rotating |
 | 15 dead generation caches | 2.1 GB belonging to a published generation. They age out on their own |
@@ -211,5 +242,6 @@ Any of these, and it should be re-read against its sources rather than trusted:
 - a scheduled pipeline run fails
 - the three figures stop adding to the database's player-season count, which
   would mean a fourth exclusion nobody has written down
-- the Transfermarkt quality report fails a second time, which would make it a
-  defect rather than an episode
+- **Sunday 8 November passes.** Either a Transfermarkt refresh completed, which
+  is the first since 27 August and the confirmation `f89e77b` is still waiting
+  for, or it did not, which is a new problem
