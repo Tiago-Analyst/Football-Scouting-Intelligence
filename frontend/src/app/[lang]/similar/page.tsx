@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { apiMessage } from "@/components/player/ApiMessage";
+import { PlayerLine } from "@/components/player/PlayerLine";
+import { playerLine } from "@/lib/playerLine";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName } from "@/components/player/RoleName";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -73,13 +75,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                   <span>
                     <span className="text-sm font-medium">{player.name}</span>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {positionName(t, player.raw_position) ??
-                        t.glossary.positions[
-                          player.position_group as keyof typeof t.glossary.positions
-                        ] ??
-                        player.position_group}{" "}
-                      · {player.club} ·{" "}
-                      {player.competition}
+                      <PlayerLine t={t} player={player} />
                     </span>
                   </span>
                   <span className="text-xs text-subtle">
@@ -130,13 +126,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
         eyebrow={t.similarity.eyebrow}
         title={t.similarity.targetTitle.replace("{player}", target.name)}
         description={[
-          positionName(t, target.raw_position) ??
-            t.glossary.positions[
-              target.position_group as keyof typeof t.glossary.positions
-            ] ??
-            target.position_group,
-          target.club,
-          target.competition,
+          playerLine(t, target, positionName(t, target.raw_position)),
           target.age !== null
             ? t.profile.years.replace("{age}", String(target.age))
             : null,

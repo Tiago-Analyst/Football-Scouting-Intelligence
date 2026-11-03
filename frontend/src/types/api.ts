@@ -399,8 +399,24 @@ export interface PlayerSummary {
   age: number | null;
   position_group: string;
   raw_position: string | null;
+  /**
+   * The CURRENT club — where the player is now.
+   *
+   * `competition` below is where the season's football was played, and the
+   * two are different questions. Printing them side by side without saying
+   * which was which produced profiles reading "a Danish club, USA MLS".
+   */
   club: string | null;
+  /** The competition the PERFORMANCE was played in. */
   competition: string;
+  /** The competition the current club plays in. Null off the market source. */
+  current_competition?: string | null;
+  /** The club that played this season, where it is recorded. Usually null. */
+  performance_club?: string | null;
+  /** The season the performance belongs to, e.g. "2026". */
+  season?: string | null;
+  /** Why the two contexts name different places, when they do. */
+  context_note?: ApiMessage | null;
   nationality: string | null;
   minutes: number | null;
   sample_band: SampleBand;

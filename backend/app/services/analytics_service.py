@@ -73,10 +73,20 @@ class PlayerRecord:
     full_name: str
     position_group: PositionGroup
     raw_position: str | None
+    #: -- Performance context -------------------------------------------------
+    #: The competition, the season and every metric below belong together and
+    #: describe football that has been played. See `LoadedPlayer`.
     competition_id: str
     competition_name: str
-    club_id: str | None
-    club_name: str | None
+    competition_country: str | None
+    performance_club_name: str | None
+    #: -- Current market context ----------------------------------------------
+    #: Where the player is now, which is a different question with a different
+    #: answer and used to share the name `club` with the one above.
+    current_club_id: str | None
+    current_club_name: str | None
+    current_competition_name: str | None
+    current_competition_country: str | None
     nationality: str | None
     preferred_foot: PreferredFoot | None
     height_cm: int | None
@@ -318,8 +328,12 @@ def build_view(settings: Settings) -> AnalyticsView:
             raw_position=loaded.raw_position,
             competition_id=loaded.competition_id,
             competition_name=loaded.competition_name,
-            club_id=loaded.club_id,
-            club_name=loaded.club_name,
+            competition_country=loaded.competition_country,
+            performance_club_name=loaded.performance_club_name,
+            current_club_id=loaded.current_club_id,
+            current_club_name=loaded.current_club_name,
+            current_competition_name=loaded.current_competition_name,
+            current_competition_country=loaded.current_competition_country,
             nationality=loaded.nationality,
             preferred_foot=loaded.preferred_foot,
             height_cm=loaded.height_cm,
@@ -408,7 +422,12 @@ def build_view(settings: Settings) -> AnalyticsView:
             display_name=record.full_name,
             position_group=record.position_group,
             competition_id=record.competition_id,
-            club_id=record.club_id,
+            # The current club, which is what `exclude_same_club` means: a
+            # filter that stops a search suggesting the target's own team-mate
+            # is asking where they play now, not who they played for in May.
+            # Unchanged in meaning - only the field's name stopped being
+            # ambiguous about which club it held.
+            club_id=record.current_club_id,
             age=record.age,
             market_value_eur=record.market_value_eur,
             contract_expires=record.contract_expires,

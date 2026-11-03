@@ -33,7 +33,7 @@
   "table": {
     "player": "Player",
     "age": "Age",
-    "club": "Club",
+    "club": "Current club",
     "similarity": "Similarity",
     "rawRoleFit": "Raw role fit",
     "affordability": "Affordability",

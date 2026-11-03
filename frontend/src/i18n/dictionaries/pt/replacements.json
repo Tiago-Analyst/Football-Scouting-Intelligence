@@ -33,7 +33,7 @@
   "table": {
     "player": "Jogador",
     "age": "Idade",
-    "club": "Clube",
+    "club": "Clube actual",
     "similarity": "Semelhança",
     "rawRoleFit": "Adequação bruta",
     "affordability": "Comportabilidade",

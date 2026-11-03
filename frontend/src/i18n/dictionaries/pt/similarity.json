@@ -34,7 +34,7 @@
   "table": {
     "player": "Jogador",
     "age": "Idade",
-    "club": "Clube",
+    "club": "Clube actual",
     "competition": "Competição",
     "bestRole": "Melhor função",
     "similarity": "Semelhança",

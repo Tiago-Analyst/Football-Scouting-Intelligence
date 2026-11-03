@@ -49,16 +49,54 @@ from app.schemas.canonical import (
 
 @dataclass(frozen=True)
 class LoadedPlayer:
-    """One player-season as stored, before analytics are computed over it."""
+    """One player-season as stored, before analytics are computed over it.
+
+    TWO CONTEXTS, NAMED AS TWO
+
+    A row here answers two different questions and used to answer them under
+    one set of names, which is how a profile came to read
+
+        club: a Danish club
+        competition: USA MLS
+        contract: expires 2027
+
+    with nothing wrong in the database. The competition, the season and every
+    metric describe A SEASON THAT HAS BEEN PLAYED. The club, the value and the
+    contract describe WHERE THE PLAYER IS NOW. Both were true; one of them was
+    called `club` and sat next to the other on the same line.
+
+    So the fields say which they belong to. `competition_*` and
+    `performance_club_*` are the season; `current_*` is today. Nothing here is
+    reconciled into a single state, because they are not one state - a player
+    who moved in the summer has a July club and a May competition, and that is
+    football rather than a defect.
+    """
 
     player_key: str
     full_name: str
     position_group: PositionGroup | None
     raw_position: str | None
+    #: -- Performance context: the season these metrics come from ------------
     competition_id: str
     competition_name: str
-    club_id: str | None
-    club_name: str | None
+    competition_country: str | None
+    #: The club this player-season was played for.
+    #:
+    #: Almost always absent. `fact_player_season_stats.club_id` is only written
+    #: when the club is already in `dim_club`, and the performance provider's
+    #: clubs are keyed in its own vocabulary, so for real data this is null far
+    #: more often than not. Absent is reported as absent: the current club used
+    #: to be shown here instead, which is the defect this split removes.
+    performance_club_name: str | None
+    #: -- Current market context: where the player is now ---------------------
+    current_club_id: str | None
+    current_club_name: str | None
+    #: The competition the CURRENT club plays in, in the market provider's own
+    #: vocabulary. Not comparable by id with `competition_id` above - the two
+    #: providers key competitions differently and nothing maps between them -
+    #: which is why `competition_country` exists beside it.
+    current_competition_name: str | None
+    current_competition_country: str | None
     nationality: str | None
     preferred_foot: PreferredFoot | None
     height_cm: int | None
@@ -181,10 +219,21 @@ def fingerprint(session: Session) -> UniverseFingerprint:
 
 def load_universe(session: Session, *, source: str | None = None) -> LoadedUniverse:
     """Read every stored player-season, with the dimensions they refer to."""
-    competitions = {
-        row.competition_id: row.name for row in session.scalars(select(DimCompetition)).all()
-    }
-    clubs = {row.club_id: row.name for row in session.scalars(select(DimClub)).all()}
+    competition_rows = session.scalars(select(DimCompetition)).all()
+    competitions = {row.competition_id: row.name for row in competition_rows}
+    #: The only thing a competition from one provider and a competition from
+    #: the other can be compared by.
+    #
+    # FootyStats calls it `footystats:17097`, "Netherlands Eredivisie";
+    # Transfermarkt calls the same league `transfermarkt:NL1`, "eredivisie".
+    # There is no mapping between the two vocabularies and this product has
+    # never needed one, so comparing the ids answers "different" for leagues
+    # that are the same. Both carry a country, and a country is a real answer
+    # to a smaller question - it cannot tell a first division from a second,
+    # and nothing here claims it can.
+    competition_countries = {row.competition_id: row.country for row in competition_rows}
+    club_rows = session.scalars(select(DimClub)).all()
+    clubs = {row.club_id: row.name for row in club_rows}
 
     # Keyed on the starting year rather than the season's name: two providers
     # write the same season as "2026/27" and "2026/2027", and pooling them is
@@ -247,7 +296,8 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
             continue
 
         sources.add(row.source)
-        club_id = player.current_club_id
+        current_club_id = player.current_club_id
+        current_competition_id = player.current_competition_id
         loaded.append(
             LoadedPlayer(
                 player_key=player_key,
@@ -256,15 +306,33 @@ def load_universe(session: Session, *, source: str | None = None) -> LoadedUnive
                 raw_position=player.raw_position,
                 competition_id=row.competition_id,
                 competition_name=competitions.get(row.competition_id, row.competition_id),
-                club_id=club_id,
-                club_name=clubs.get(club_id) if club_id else None,
+                competition_country=competition_countries.get(row.competition_id),
+                # `row.club_id`, which this read used to throw away and replace
+                # with the current club. The row knows which club played the
+                # season; where it does not, nothing does, and the answer is
+                # null rather than a club that was never there.
+                performance_club_name=clubs.get(row.club_id) if row.club_id else None,
+                current_club_id=current_club_id,
+                current_club_name=clubs.get(current_club_id) if current_club_id else None,
+                current_competition_name=(
+                    competitions.get(current_competition_id) if current_competition_id else None
+                ),
+                current_competition_country=(
+                    competition_countries.get(current_competition_id)
+                    if current_competition_id
+                    else None
+                ),
                 nationality=player.nationality,
                 preferred_foot=player.preferred_foot,
                 height_cm=player.height_cm,
                 date_of_birth=player.date_of_birth,
                 market_value_eur=player.current_market_value_eur,
                 contract_expires=player.contract_expires,
-                stats=_stats_from_row(row, player_key=player_key, club_id=club_id or ""),
+                # The club on the row, not the one the player is at now. This
+                # argument used to carry the current club, which stamped a
+                # season's statistics with a club that may never have fielded
+                # them.
+                stats=_stats_from_row(row, player_key=player_key, club_id=row.club_id or ""),
                 # Falls back to the provider's id, which is what it was before:
                 # a season nothing knows about is better compared narrowly than
                 # pooled with seasons it may not belong to.

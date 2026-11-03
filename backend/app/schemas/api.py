@@ -396,15 +396,64 @@ class SampleOut(BaseModel):
 
 
 class PlayerSummary(BaseModel):
-    """A player as they appear in a list."""
+    """A player as they appear in a list.
+
+    TWO CONTEXTS
+
+    These fields answer two questions, and reading them as one answer is what
+    produced profiles like "a Danish club, in USA MLS, under contract to 2027".
+    Nothing there was wrong; the three facts were about different moments and
+    were printed on one line.
+
+      PERFORMANCE - a season that has been played:
+        `competition`, `season`, `minutes`, `performance_club`, every metric.
+
+      CURRENT MARKET - where the player is now:
+        `club`, `current_competition`, `market_value_eur`, `contract_expires`.
+
+    `club` keeps its name and its meaning - the current club, which is what it
+    has always held and what the search filter and the team-mate exclusion
+    both mean by it. What changes is that the other half is now named, so a
+    reader is no longer left to assume the two belong together.
+    """
 
     player_id: str
     name: str
     age: int | None
     position_group: str
     raw_position: str | None
+    #: The CURRENT club. See the note above.
     club: str | None
+    #: The competition the PERFORMANCE below was played in.
     competition: str
+    #: The competition the current club plays in, as the market provider names
+    #: it. Null where the market source does not cover the player.
+    #:
+    #: Not comparable with `competition` by string: the two providers name the
+    #: same league "Netherlands Eredivisie" and "eredivisie". `context_note`
+    #: is where the comparison that CAN be made is reported.
+    current_competition: str | None = None
+    #: The club that played this season, where it is recorded.
+    #:
+    #: Usually null, and null rather than filled in with the current club,
+    #: which is what this field exists to stop happening again.
+    performance_club: str | None = None
+    #: The season the performance belongs to, e.g. "2026".
+    #:
+    #: Additive, and the profile used to print a hardcoded "2026/27" beside
+    #: the minutes - correct in the month it was written and a claim nobody
+    #: was checking.
+    season: str | None = None
+    #: Why the two contexts above describe different places, when they do.
+    #:
+    #: Absent when there is nothing to explain, which is the common case. Set
+    #: when the current club's competition is in a different COUNTRY from the
+    #: competition the performance comes from - the only comparison the two
+    #: provider vocabularies support. A transfer across a border is the usual
+    #: cause and is perfectly legitimate; it is surfaced rather than resolved,
+    #: because the alternative is a reader noticing it themselves and trusting
+    #: nothing else on the page.
+    context_note: Message | None = None
     nationality: str | None
     minutes: int | None
     sample_band: str

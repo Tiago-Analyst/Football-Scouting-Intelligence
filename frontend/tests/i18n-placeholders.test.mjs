@@ -98,6 +98,14 @@ function samples(locale) {
     standing: "reading_strong",
     criterion: "screen_age_at_most",
     criterion_value: 23,
+    // -- proper nouns, passed through ---------------------------------------
+    // Club and competition names as the providers write them. Not translated
+    // and given no glossary: "Finland Veikkausliiga" is the same string on
+    // the page, in the database and in the provider's own response, and a
+    // glossary would have to carry every club in the world.
+    club: "Lyngby Boldklub",
+    competition: "Finland Veikkausliiga",
+    current_competition: "superliga",
     // -- names that are deliberately not translated -------------------------
     // Provider names and PostgreSQL constraint names are the same string in
     // the logs, the database and the page, which is the point of showing them.

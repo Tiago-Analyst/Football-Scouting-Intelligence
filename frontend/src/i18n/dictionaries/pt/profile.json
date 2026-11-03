@@ -4,6 +4,18 @@
   "footed": "pé {foot}",
   "height": "{cm}cm",
   "demoData": "Dados de demonstração",
+  "context": {
+    "performance": "Contexto de desempenho",
+    "performanceHint": "A época de onde vêm estes números",
+    "market": "Contexto de mercado actual",
+    "marketHint": "Onde o jogador está agora",
+    "competition": "Competição",
+    "season": "Época",
+    "club": "Clube",
+    "clubThatSeason": "Clube nessa época",
+    "notRecorded": "Não registado",
+    "minutes": "Minutos jogados"
+  },
   "tiles": {
     "bestRole": "Melhor função",
     "notAvailable": "Indisponível",
@@ -73,7 +85,7 @@
     "open": "Abrir pesquisa de semelhança",
     "player": "Jogador",
     "age": "Idade",
-    "club": "Clube",
+    "club": "Clube actual",
     "bestRole": "Melhor função",
     "similarity": "Semelhança",
     "indexNotPercent": "índice, não %",
