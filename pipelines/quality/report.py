@@ -36,6 +36,7 @@ from app.models import (
     FactPlayerSeasonStats,
     FactTransfer,
 )
+from pipelines.load.load_providers import supplies_performance
 from pipelines.quality.coverage import (
     absent_metrics,
     impact_of_absence,
@@ -168,10 +169,41 @@ def volume_checks(session: Session) -> list[Check]:
 
 
 def coverage_checks(session: Session, *, source: str | None = None) -> list[Check]:
-    """Which metrics exist, and what their absence costs."""
+    """Which metrics exist, and what their absence costs.
+
+    A SOURCE THAT CANNOT HAVE ANY
+
+    Transfermarkt supplies valuations and transfers and no performance data -
+    `build_loader` passes it `performance=None`. So this question, scoped to
+    it, has the correct answer `no rows`, which used to be reported as a
+    failure and failed the whole refresh.
+
+    It did that on 1 November, the first Transfermarkt run to reach this step
+    after the repository went public, and would have done it every Sunday
+    after. The failure also left candidate quality rows behind, which is what
+    then held `/health` at 503 for three days.
+
+    Reported as a pass, not a warning. The property is permanent and intended,
+    and a warning about something that will never change is an alarm nobody
+    can act on - which is the same mistake, one layer up.
+    """
+    if source is not None and not supplies_performance(source):
+        return [
+            Check(
+                "fact_player_season_stats",
+                "metric_coverage",
+                "pass",
+                0,
+                f"{source} supplies market data only; it has no player-seasons to measure",
+                Explain("source_has_no_performance_data", {"sources": source}),
+            )
+        ]
+
     coverage = metric_coverage(session, source=source)
     rows = coverage[0].rows if coverage else 0
     if rows == 0:
+        # Still a failure for any source that SHOULD have them, and for the
+        # unscoped report, where no rows at all means nothing is being served.
         return [
             Check(
                 "fact_player_season_stats",
