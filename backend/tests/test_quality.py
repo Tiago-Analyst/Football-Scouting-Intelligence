@@ -258,6 +258,44 @@ class TestReportAgainstTheDatabase:
         assert "minutes_coverage" in names
         assert "metrics_absent" in names
 
+    def test_a_market_only_source_is_not_failed_for_having_no_player_seasons(
+        self, db_session: Session
+    ) -> None:
+        """The weekly failure that only got one chance to happen.
+
+        Transfermarkt supplies valuations and transfers and no performance
+        data - `build_loader` passes it `performance=None`. Scoped to it, this
+        question has the correct answer `no rows`, which was reported as a
+        failure and failed the refresh.
+
+        It did that on 1 November, the first Transfermarkt run to reach the
+        step after the repository went public, and would have done it every
+        Sunday after. The failure also left candidate quality rows behind,
+        which then held `/health` at 503 for three days.
+        """
+        checks = coverage_checks(db_session, source="transfermarkt")
+        coverage = next(c for c in checks if c.name == "metric_coverage")
+        assert coverage.status == "pass"
+        assert coverage.explain is not None
+        assert coverage.explain.code == "source_has_no_performance_data"
+        assert coverage.explain.values == {"sources": "transfermarkt"}
+
+    def test_a_source_that_should_have_them_and_has_none_still_fails(
+        self, db_session: Session
+    ) -> None:
+        """The other half, and why this is a question about the source rather
+        than a softened threshold.
+
+        A FootyStats refresh that loaded nothing is a broken refresh, and an
+        unscoped report finding nothing means nothing is being served.
+        """
+        for scope in ("footystats-that-loaded-nothing", "demo-that-loaded-nothing"):
+            checks = coverage_checks(db_session, source=scope)
+            coverage = next(c for c in checks if c.name == "metric_coverage")
+            assert coverage.status == "fail", scope
+            assert coverage.explain is not None
+            assert coverage.explain.code == "no_rows", scope
+
     def test_integrity_checks_run(self, db_session: Session) -> None:
         names = {c.name for c in integrity_checks(db_session)}
         assert names == {

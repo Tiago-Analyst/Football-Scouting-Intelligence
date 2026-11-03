@@ -982,6 +982,25 @@ def _generation_to_load(expected_id: str | None):  # type: ignore[no-untyped-def
     return generation
 
 
+#: Sources that supply market data and no performance data at all.
+#:
+#: Stated once, here, beside the `build_loader` branch that passes
+#: `performance=None` for them, because anything else measuring a source's
+#: player-seasons needs the same fact and a second copy of it is how two
+#: places come to disagree.
+#:
+#: The quality report is the other reader. Scoped to `transfermarkt` it was
+#: asking what share of player-season metrics were populated, getting the
+#: correct answer `none`, and failing the refresh for it - every Sunday, by
+#: design, for a source that cannot have them.
+MARKET_ONLY_SOURCES = frozenset({"transfermarkt"})
+
+
+def supplies_performance(source: str) -> bool:
+    """Whether a load from `source` can write `fact_player_season_stats`."""
+    return source not in MARKET_ONLY_SOURCES
+
+
 def build_loader(
     session: Session,
     source: str,
