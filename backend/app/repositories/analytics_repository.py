@@ -127,22 +127,55 @@ class UniverseFingerprint:
     """
 
     player_seasons: int
-    last_loaded_at: datetime | None
+    #: The most recent check written about data that is actually SERVED.
+    #: Named for what it measures: a candidate's checks are excluded, so this
+    #: moves at promotion rather than at load.
+    last_served_check_at: datetime | None
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, UniverseFingerprint):
             return NotImplemented
         return (
             self.player_seasons == other.player_seasons
-            and self.last_loaded_at == other.last_loaded_at
+            and self.last_served_check_at == other.last_served_check_at
         )
 
 
 def fingerprint(session: Session) -> UniverseFingerprint:
-    """What is loaded right now, without reading any of it."""
+    """What is loaded right now, without reading any of it.
+
+    WHY CANDIDATE ROWS ARE EXCLUDED
+
+    This used to take the maximum `executed_at` over every quality check, and
+    a candidate load writes checks. So a FootyStats refresh landing in
+    `analytics_staging` - data nobody is served, which may never be promoted -
+    moved the fingerprint, the running view was declared stale, `/health`
+    answered 503, and the heartbeat failed every run until somebody restarted
+    an API that had nothing wrong with it. Measured on 3 November: the served
+    `player_seasons` had not changed at all, and the only difference was 18
+    candidate checks written two days earlier.
+
+    `fact_data_quality.context` already draws the line. `CANDIDATE` means
+    written against staging; `PUBLISHED` and `NULL` mean written about data
+    being served. The promotion flips a refresh's rows to `PUBLISHED` in the
+    same transaction as the schema swap, so the maximum below moves exactly
+    when the served universe does.
+
+    `fact_source_publication` is the more authoritative record of what reached
+    readers, and this deliberately does not use it: a demo or local database
+    never promotes anything, so its publication table is empty and staleness
+    would rest on the row count alone. The context filter is correct in both.
+    """
     return UniverseFingerprint(
         player_seasons=session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0,
-        last_loaded_at=session.scalar(select(func.max(FactDataQuality.executed_at))),
+        last_served_check_at=session.scalar(
+            select(func.max(FactDataQuality.executed_at)).where(
+                # `IS DISTINCT FROM` and not `!=`: context is nullable, and a
+                # NULL compared with `!=` is NULL, which filters out every row
+                # written before the staging schema existed.
+                FactDataQuality.context.is_distinct_from("CANDIDATE")
+            )
+        ),
     )
 
 
