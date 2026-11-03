@@ -190,7 +190,7 @@ test("a metric name is looked up in the right vocabulary, then the other", () =>
   // The two blocks are separate because a count and a rate are different
   // quantities; `penalties_taken` is defined in both, which is exactly why
   // the order has to be deliberate rather than incidental.
-  const src = readFileSync(new URL("../src/components/player/ApiMessage.tsx", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/i18n/apiMessage.ts", import.meta.url), "utf8");
   assert.match(src, /function metricName\(t: Dictionary, key: string\)/);
   const derived = src.indexOf("t.glossary.metrics as Record<string, string>)[key]");
   const canonical = src.indexOf("t.glossary.canonicalMetrics as Record<string, string>)[key]");
@@ -200,7 +200,7 @@ test("a metric name is looked up in the right vocabulary, then the other", () =>
 test("a share is rendered as a percentage, not as a count", () => {
   // `translateValue` turns any number into a grouped integer, so a 0-1 share
   // reaching that branch printed "0,999" where the page meant 99.9%.
-  const src = read("../src/components/player/ApiMessage.tsx");
+  const src = read("../src/i18n/apiMessage.ts");
   const shareBranch = src.indexOf('if (name === "share")');
   const countBranch = src.indexOf('name !== "value_eur") return f.count');
   assert.ok(shareBranch > 0, "the share branch is missing");

@@ -179,6 +179,15 @@ class ScoreEvidenceOut(BaseModel):
     events: int
     #: What to call them: "shots", "dribbles attempted".
     noun: str
+    #: The same thing as an identifier: "shots", "dribbles_attempted".
+    #:
+    #: `noun` above is prose and belongs to whoever reads English. This is the
+    #: key a translation looks the word up by, and it is sent rather than
+    #: derived because the one caller that derived it got it wrong: the
+    #: interface passed the prose form - with its space - into a lookup keyed
+    #: by the underscored form, missed, and printed "dribbles attempted"
+    #: inside a Portuguese sentence.
+    noun_key: str
     #: The configured floor below which this is not offered as a strength.
     threshold: int
     #: True when the count is under that floor.

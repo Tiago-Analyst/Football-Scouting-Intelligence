@@ -124,7 +124,7 @@ test("the two languages interpolate the same placeholders", () => {
 test("the identifiers a message carries are translated, not interpolated raw", () => {
   // A Portuguese sentence with an English noun phrase inside it looks like it
   // worked. Every placeholder naming an identifier has a case here.
-  const renderer = read("src/components/player/ApiMessage.tsx");
+  const renderer = read("src/i18n/apiMessage.ts");
   for (const name of ["role", "noun_key", "dimensions", "metrics", "score"]) {
     assert.match(
       renderer,
@@ -135,7 +135,7 @@ test("the identifiers a message carries are translated, not interpolated raw", (
 });
 
 test("a code with no copy is visible rather than blank", () => {
-  const renderer = read("src/components/player/ApiMessage.tsx");
+  const renderer = read("src/i18n/apiMessage.ts");
   assert.match(renderer, /if \(!template\) return message\.code;/);
 });
 
