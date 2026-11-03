@@ -190,6 +190,27 @@ a different one. Recovery is deliberate: dispatch the continuation manually, or
 abandon it with `python -m pipelines.footystats.generations --abandon <id>` and
 let a Monday start a new one, at the cost of every player already fetched.
 
+## Render's memory warning, and a wrong inference about it
+
+Render emailed that `fri-backend` had exceeded its memory limit. The obvious
+reading was that the served universe nearly tripled on 31 October and the
+analytical view is rebuilt in memory on every restart, so the view had outgrown
+the container. That reading was written down here and it was wrong.
+
+**A payment had failed, and the service had dropped to the free compute tier.**
+The limit moved; the view did not. The payment is settled and the service is
+back on its paid plan.
+
+Recorded rather than deleted, because the inference was plausible, was
+consistent with everything else this file knew, and was still not the cause.
+The 512 MB figure quoted in support of it was the free tier's, arrived at by
+assuming the conclusion.
+
+What is true, and was true before any of this: the view is held in memory for
+the life of the process and is rebuilt from the database on every restart, so
+its cost grows with the universe. That is a thing to watch, not a thing that
+has happened.
+
 ## The repository
 
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
@@ -223,7 +244,6 @@ test fixes this direction and explains it in place.
 | --- | --- |
 | A Transfermarkt refresh completing | **Unobserved since 27 August.** The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
 | The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
-| Render memory | Render emailed that `fri-backend` exceeded its memory limit. The view rebuilt cleanly three times this morning and nothing has been OOM-killed, but the served universe nearly tripled on 31 October and the view is rebuilt in a 512 MB container on every restart |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October and wants rotating |
 | 15 dead generation caches | 2.1 GB belonging to a published generation. They age out on their own |
