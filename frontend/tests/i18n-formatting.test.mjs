@@ -155,7 +155,7 @@ test("a number inside an API sentence is formatted, not stringified", () => {
   // "Established Sample - 2195 minutes played" reached the English profile,
   // because the interpolation did `String(value)` and 2,195 is not that. The
   // sentence is the reader's language; so is the number inside it.
-  const component = read("src/components/player/ApiMessage.tsx");
+  const component = read("src/i18n/apiMessage.ts");
   assert.match(component, /typeof value === "number".*return f\.count\(value\)/);
   // A euro amount and a date are numbers and strings this side formats
   // differently; both arrive raw, because a formatted one cannot be
@@ -172,7 +172,7 @@ test("a number inside an API sentence is formatted, not stringified", () => {
     const source = code(file);
     if (!source.includes("apiMessage(")) continue;
     const relative = file.slice(file.indexOf("src")).split(path.sep).join("/");
-    if (relative.endsWith("ApiMessage.tsx")) continue;
+    if (relative.endsWith("i18n/apiMessage.ts")) continue;
     // Counted rather than matched against a negative lookahead: `\s*` can
     // backtrack to nothing and make `(?!f)` true one character early, which
     // is a guard that passes on exactly the code it is meant to catch.

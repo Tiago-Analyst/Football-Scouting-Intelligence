@@ -359,9 +359,11 @@ def _score_evidence(
         return None
     low = count < definition.evidence.headline_threshold
     noun = _count_noun(definition.evidence.noun, count)
+    noun_key = _noun_key(definition.evidence.noun)
     return ScoreEvidenceOut(
         events=count,
         noun=definition.evidence.noun,
+        noun_key=noun_key,
         threshold=definition.evidence.headline_threshold,
         low=low,
         label=(f"Low evidence - {count:,} {noun}" if low else f"{count:,} {noun}"),
@@ -372,7 +374,7 @@ def _score_evidence(
             code="low_evidence_count" if low else "evidence_count",
             values={
                 "count": count,
-                "noun_key": _noun_key(definition.evidence.noun),
+                "noun_key": noun_key,
                 "threshold": definition.evidence.headline_threshold,
             },
         ),

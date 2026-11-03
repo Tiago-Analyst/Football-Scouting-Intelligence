@@ -215,8 +215,16 @@ export interface ApiMessage {
 
 export interface ScoreEvidence {
   events: number;
-  /** "shots", "dribbles attempted". */
+  /** "shots", "dribbles attempted". English prose. */
   noun: string;
+  /**
+   * The same thing as an identifier: "shots", "dribbles_attempted".
+   *
+   * This is what a message carries. `noun` above cannot be looked up in the
+   * glossary - its keys are underscored - and deriving one from the other
+   * here is what put English inside a Portuguese tooltip.
+   */
+  noun_key?: string;
   /** The configured floor below which this is not offered as a strength. */
   threshold: number;
   low: boolean;

@@ -296,12 +296,21 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             : "mt-1 block text-[10px] text-subtle"
                         }
                         title={
-                          score.evidence.low
+                          // The key is required by the schema and optional
+                          // here, because the two sides deploy separately: the
+                          // interface reaches the running API before the API
+                          // carrying this field does. No tooltip for that
+                          // window, rather than one reading "30 undefined".
+                          score.evidence.low && score.evidence.noun_key
                             ? (apiMessage(t, f, {
                                 code: "low_evidence_title",
                                 values: {
                                   threshold: score.evidence.threshold,
-                                  noun: score.evidence.noun,
+                                  // The key, never the prose. `noun` is the
+                                  // configured English plural and the glossary
+                                  // is keyed by the underscored form, so
+                                  // passing it reached the reader as English.
+                                  noun_key: score.evidence.noun_key,
                                 },
                               }) ?? undefined)
                             : undefined
