@@ -123,12 +123,57 @@ class TestFingerprint:
         db_session.flush()
         assert fingerprint(db_session) != before
 
+    def probe(self, context: str | None) -> FactDataQuality:
+        return FactDataQuality(
+            source="fingerprint-probe",
+            entity="e",
+            check_name="c",
+            status="pass",
+            record_count=0,
+            executed_at=datetime.now(UTC),
+            context=context,
+        )
+
+    def test_a_candidate_load_does_not_make_the_served_view_stale(
+        self, db_session: Session
+    ) -> None:
+        """The failure that took the health check down for three days.
+
+        A candidate refresh lands in `analytics_staging`. Nobody is served it,
+        it may never be promoted - and it writes quality checks. The
+        fingerprint took the maximum `executed_at` over every check, so those
+        rows moved it, the running view was declared stale, `/health` answered
+        503 and the heartbeat failed on every run. The served universe had not
+        changed by a single row.
+        """
+        before = fingerprint(db_session)
+        db_session.add(self.probe("CANDIDATE"))
+        db_session.flush()
+        assert fingerprint(db_session) == before
+
+    @pytest.mark.parametrize("context", ["PUBLISHED", None])
+    def test_a_check_about_served_data_still_does(
+        self, db_session: Session, context: str | None
+    ) -> None:
+        """The other half, and the reason this is a filter and not a deletion.
+
+        `PUBLISHED` is what a promotion flips a candidate's rows to, in the
+        same transaction as the schema swap - so this is how a real promotion
+        registers. `None` is every row written before the staging schema
+        existed, which described served data because there was nowhere else
+        for data to be.
+        """
+        before = fingerprint(db_session)
+        db_session.add(self.probe(context))
+        db_session.flush()
+        assert fingerprint(db_session) != before
+
     def test_identical_state_compares_equal(self, db_session: Session) -> None:
         assert fingerprint(db_session) == fingerprint(db_session)
 
     def test_a_fingerprint_of_nothing_is_not_equal_to_one_of_something(self) -> None:
-        empty = UniverseFingerprint(player_seasons=0, last_loaded_at=None)
-        loaded = UniverseFingerprint(player_seasons=1728, last_loaded_at=datetime.now(UTC))
+        empty = UniverseFingerprint(player_seasons=0, last_served_check_at=None)
+        loaded = UniverseFingerprint(player_seasons=1728, last_served_check_at=datetime.now(UTC))
         assert empty != loaded
 
 
