@@ -190,6 +190,25 @@ def universe() -> LoadedUniverse:
         return load_universe(session)
 
 
+def requires_real_data(universe: LoadedUniverse) -> None:
+    """Skip unless the attached database holds provider data.
+
+    The fabricated universe gives every player a current club in the
+    competition they played in, because the mock provider invents one club
+    per player and never moves anybody. That is correct demo data and it
+    makes the two measurements below meaningless: the note cannot fire, so
+    "it fires sometimes" fails and "it fires rarely" passes at nought.
+
+    CI loads `--source demo` only, which is deliberate - it proves migrations,
+    constraints and the quality checks without downloading a dataset - and it
+    is why these two are skipped there rather than asserted into always being
+    true. What the note does is pinned by `TestTheNote` above, which
+    constructs its records and runs everywhere.
+    """
+    if universe.sources <= {"demo"}:
+        pytest.skip("the loaded universe is fabricated; these measure real provider data")
+
+
 @pytest.mark.integration
 class TestAgainstWhatIsLoaded:
     """The assertions that need real rows rather than a constructed one.
@@ -217,6 +236,7 @@ class TestAgainstWhatIsLoaded:
         becoming ubiquitous again, not to pin a number that real transfer
         activity moves.
         """
+        requires_real_data(universe)
         total = len(universe.players)
         assert total, "no players loaded, so this proves nothing"
         notes = sum(1 for p in universe.players if self._differs(p))
@@ -224,6 +244,7 @@ class TestAgainstWhatIsLoaded:
 
     def test_the_note_fires_at_all(self, universe: LoadedUniverse) -> None:
         """A bound of 25% is also satisfied by never firing."""
+        requires_real_data(universe)
         assert any(self._differs(p) for p in universe.players)
 
     def test_the_two_contexts_do_not_share_a_field(self, universe: LoadedUniverse) -> None:
