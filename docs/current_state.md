@@ -1,6 +1,6 @@
 # Where this project actually stands
 
-**Snapshot taken 31 October 2026, 03:15 UTC.** Every number below was read from
+**Snapshot taken 3 November 2026, 11:10 UTC.** Every number below was read from
 a live source at that moment — the production health endpoint, the public
 data-quality endpoint, the GitHub Actions API, `git ls-remote` — and not from
 another document, this file's previous version included.
@@ -11,9 +11,7 @@ done. So the rule for this one: **it describes a moment, and it says what makes
 it wrong.** If you are reading it after the triggers in "What makes this file
 wrong", stop trusting it and re-read the sources named in each section.
 
-The previous snapshot was 27 October. Almost every section of it is now wrong,
-in the direction it predicted: the generation it described as half-fetched has
-completed and been published.
+The previous snapshot was 31 October. Three of its five triggers fired.
 
 ## What is serving right now
 
@@ -24,27 +22,17 @@ completed and been published.
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | 14,677 player-seasons across 43 competitions, built 03:14:31 UTC |
+| analytics | 14,677 player-seasons across 43 competitions, built 11:04:24 UTC |
 | excluded | 8,830 player-seasons, for having no position group |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
-The site at `football-scouting-intelligence.vercel.app` answers 200 in both
-locales.
+`is_stale` is false. The site answers 200 in both locales.
 
-**The served universe nearly tripled overnight**: 5,383 player-seasons on 27
-October, 14,677 now. That is one promotion, not a series of loads — see the
-next section.
+Unchanged from 31 October, and that is the point of the section below: nothing
+about the served universe moved this week. The view was rebuilt at 11:04
+because merging #68 redeployed the backend.
 
-`built at` is the moment the API process assembled its in-memory view, not a
-property of the data. It reads 03:14:31 because merging #64 redeployed the
-backend two minutes after a manual restart; both rebuilt the same published
-generation.
-
-### Why the published figures do not add up, and what closes them
-
-`/health` reports 14,677 served and 8,830 excluded — 23,507.
-`GET /api/v1/data-quality` reports **28,157** player-seasons in the database.
-The 4,650 difference is not an error in either:
+### The figures, reconciled
 
 ```
 14,677  served            one row per player, the one the site shows
@@ -56,132 +44,128 @@ The 4,650 difference is not an error in either:
 
 `superseded` is `build_view`'s own counter
 (`backend/app/services/analytics_service.py:302`) for player-seasons belonging
-to a player who has more than one. They are not discarded — every one still
-shapes the comparison populations — but only one row per player reaches the
-site, so they do not appear in the served count.
+to a player who has more than one. They still shape the comparison
+populations; only one row per player reaches the site.
 
-**That third figure is logged and never published.** It reaches the
-`player_seasons_superseded` log line at line 418 and no endpoint, so a reader
-with only `/health` and `/api/v1/data-quality` in front of them cannot make the
-arithmetic close. The subtraction above was done by reading the source for this
-snapshot, which is exactly the kind of thing this file should not have to do
-twice.
+**That third figure is logged and never published**, so a reader with only
+`/health` and `/api/v1/data-quality` cannot make the arithmetic close.
 
-## The generation completed and was published
+## Three days of a false alarm
 
-This is the headline, and it closes the item that dominated the last three
-snapshots.
+The most important thing that happened this week, and nothing was wrong with
+the system.
+
+**From 1 November to 3 November, `/health` answered 503 and the heartbeat
+failed on every run** — eight of the last ten, the last success being 1
+November 09:01. The served data was correct and unchanged throughout:
+`player_seasons` read 28,157 before and after, and the published generation
+never moved.
+
+`fingerprint()` is how a running view answers "has the pipeline loaded since I
+started". One of its two components was the maximum `executed_at` over **every**
+row of `fact_data_quality` — and a CANDIDATE load writes quality checks. So a
+refresh landing in `analytics_staging`, which nobody is served and which may
+never be promoted, moved the fingerprint and the view declared itself stale.
+
+The trigger was **18 candidate Transfermarkt checks written on 1 November at
+11:59**, which are still in the database and still visible under `candidate` in
+the data-quality response.
+
+Fixed in `377f294`: the fingerprint now excludes `CANDIDATE` rows, so it moves
+at promotion rather than at load.
+
+**The lesson is the alarm, not the bug.** It rang hourly for three days about a
+system that was serving correctly, and an alarm that rings without cause trains
+whoever receives it to ignore it. That is a worse state than silence.
+
+### The run that left those rows behind
+
+Run `41303978077`, 1 November 11:54, the Transfermarkt refresh. It failed at
+**Record the quality report**:
+
+```
+FAIL fact_player_season_stats.metric_coverage    0    no rows
+18 checks: 15 pass, 2 warn, 1 fail
+```
+
+Everything before it succeeded — the dataset was retrieved, profiled, loaded,
+verified, identities resolved, unreachable market history dropped. The failure
+is at the step that records the report, against staging.
+
+**Why a Transfermarkt load reports no player-season metric coverage is not
+explained here**, because nothing read for this snapshot establishes it. It is
+in "What is open".
+
+## The pipeline
+
+**Scheduled runs are arriving** and succeeding. Of the last twenty `Data
+pipeline` runs, two failed: the three-run height outage on 30 October, and the
+quality-report failure above. Every run since 1 November 14:30 has succeeded.
+
+### Generations
+
+| | Published | In flight |
+| --- | --- | --- |
+| id | `20261021T092049Z` | `20261102T122100Z` |
+| status | `PUBLISHED` | `IN_PROGRESS` |
+| created | 21 Oct 09:20 | 2 Nov 12:21 |
+| published | 31 Oct 02:48 | — |
+| players | 28,754 of 28,754 | 3,987 of 4,488 *so far* |
+| competitions | 45 of 45 | 8 of 9 *so far* |
+
+`refresh.state` is `Fetching`. The Monday cadence opened the new generation on
+schedule, which is the first time that has been observed rather than inferred.
+
+**Neither figure in the "in flight" column is a target.** `expected` counts
+players discovered as roster pages are read and climbs throughout; the previous
+generation's own `expected` read 11,439 on 22 October and settled at 28,754.
+The same applies to the competition count.
+
+### The two fixes this week came from one incident
 
 | | |
 | --- | --- |
-| generation | `20261021T092049Z` |
-| status | `PUBLISHED` |
-| created | 21 October 2026, 09:20:49 UTC |
-| published | **31 October 2026, 02:48:21 UTC** |
-| players | 28,754 of 28,754 — complete |
-| failed | 0 |
-| competitions | 45 of 45 |
-| last checkpoint | 24 (it was 11 on 27 October) |
+| `83c4448` | One height bound, instead of four copies of which two disagreed |
+| `17c9d64` | One refused row costs one row, not the whole load |
 
-Ten days from first fetch to publication, carried by the hourly continuation
-across thirteen further checkpoints. Nothing about it was manual after the 27
-October dispatch.
+The first stopped a provider value of 100cm ending three consecutive runs. The
+second stopped the *shape* of that: rows reach PostgreSQL in batches, a batch
+is one statement, and the load is one transaction — so each batch now runs in a
+SAVEPOINT, a refused batch is bisected, and only the offending row is set
+aside, reported as a `warn` naming the constraint.
 
-`refresh.state` is `Idle` and `refresh.current` is `null`: no generation is in
-flight. The next one opens on a Monday start.
+Nothing is enumerated against the schema's 96 check constraints, deliberately:
+a second copy of the schema is the defect `83c4448` removed.
 
-### What the published universe is, versus what is served
+## Actions caches
 
-| Source | Figure |
-| --- | --- |
-| Generation, players processed | 28,754 across 45 competitions |
-| Database, player-seasons | 28,157 |
-| Database, players / competitions / clubs | 58,966 / 110 / 1,744 |
-| Analytics view, served | 14,677 across 43 |
-
-These are four different questions and the numbers are not meant to match. The
-dimension tables hold every competition any source ever mentioned, which is why
-110 appears beside 43. Identity resolution has matched 13,936 of 58,966
-players — **23.6%** — the rest being Transfermarkt records with no FootyStats
-counterpart in a covered competition.
-
-## The pipeline, and the night it broke
-
-**Scheduled runs are arriving.** This was the open question of the last two
-snapshots and it is now answered by observation rather than inference: every
-`Data pipeline` run since at least 29 October carries `event=schedule`. The
-scheduler is delivering to this repository.
-
-**Three consecutive scheduled runs failed on 30 October** — 13:31, 18:49 and
-23:12 UTC — each losing the whole run:
-
-```
-(psycopg.errors.CheckViolation) new row for relation "dim_player"
-violates check constraint "ck_dim_player_height_plausible"
-```
-
-FootyStats reported a height of 100cm for one player. The bound was written out
-by hand in four places and two disagreed, so the value passed the reader and
-the schema and was refused by the database — and because players are inserted
-a thousand at a time, one impossible height ended the load.
-
-Fixed in `83c4448`: one pair of constants in `app.schemas.canonical`, which the
-constraint, both readers and the schema field are built from. **Proven by the
-02:42 UTC run on 31 October**, which succeeded and published the generation.
-
-### The migration that could not run, twice
-
-Migration `0015_quality_detail_message` is applied. Getting it there cost two
-failed attempts, and both causes are fixed:
-
-| Attempt | Failure | Fix |
-| --- | --- | --- |
-| In the `fri-backend` shell | `must be owner of table fact_data_quality` | `c5fae44` — the runbook now says who runs a migration, where it asks for one |
-| With the owner's string pasted in | `ModuleNotFoundError: No module named 'psycopg2'` | `49ba30b` — `MIGRATION_DATABASE_URL` now gets the driver normalisation `DATABASE_URL` always had |
-
-The first was documentation: `fri_app` deliberately cannot perform DDL, and the
-document said so 366 lines below the first place it told you to migrate. The
-second was code: one branch of `migration_url()` normalised the driver and the
-other, the one a person types by hand, did not.
-
-Neither was a database fault. Both are the kind that only appear under
-pressure, which is why they are written down here.
-
-## Actions caches: 2.1 GB of finished work
-
-Fifteen `footystats-gen-20261021T092049Z-*` caches survive, totalling
-**2.14 GB**, the newest accessed 31 October 02:42:53.
-
-The generation they belong to is published, so none of them is load-bearing any
-more. They will age out on their own at seven days without access, the last
-around 7 November. Worth knowing before the next generation needs room.
+Eighteen `footystats-gen-*` caches, **2.19 GB**, newest accessed 3 November
+03:49. Fifteen of them belong to the published generation and are dead weight;
+three belong to the one in flight and are load-bearing.
 
 **Check with:**
 `gh api repos/Tiago-Analyst/Football-Scouting-Intelligence/actions/caches`
 
-The eviction rule that made this urgent in October still holds and still
-belongs here as a rule rather than as an incident: a generation in flight is
-only as safe as its last cache access, a restore that *hits* counts as an
-access and resets the window, and a weekly cadence against a seven-day eviction
-leaves almost no margin on its own. The hourly continuation is what keeps the
-window open.
+The eviction rule still holds and still belongs here as a rule rather than an
+incident: a generation in flight is only as safe as its last cache access, a
+restore that *hits* counts as an access and resets the window, and a weekly
+cadence against a seven-day eviction leaves almost no margin on its own. The
+hourly continuation is what keeps the window open.
 
-If a cache is ever evicted mid-generation, the failure is not a fresh start.
+If a cache is evicted mid-generation the failure is not a fresh start.
 `fact_refresh_generation` still says `IN_PROGRESS`, the gate still emits
-`action=FETCH` for that generation, the restore misses, and the verify step is
-**fatal when the disk holds nothing** — by design, so a lost generation is never
-silently replaced by a different one. Recovery is deliberate: dispatch the
-continuation manually, or abandon it with
-`python -m pipelines.footystats.generations --abandon <id>` and let a Monday
-start a new one, at the cost of every player already fetched.
+`action=FETCH`, the restore misses, and the verify step is **fatal when the disk
+holds nothing** — by design, so a lost generation is never silently replaced by
+a different one. Recovery is deliberate: dispatch the continuation manually, or
+abandon it with `python -m pipelines.footystats.generations --abandon <id>` and
+let a Monday start a new one, at the cost of every player already fetched.
 
 ## The repository
 
-Public since 27 October 2026 — see `docs/publication_clearance.md` for the
-basis of that decision and what it is and is not.
+Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only (49ba30b)
+GitHub:     main only (377f294)
 Local:      main, in sync
 Worktrees:  1
 ```
@@ -194,44 +178,38 @@ Worktrees:  1
 41 * * * *         footystats      continue_only
 ```
 
-Unchanged, and read from the workflow for this snapshot rather than copied
-forward. The next Monday start is **2 November 2026, 04:17 UTC** — the first to
-run with no generation in flight since 21 October, so it will open a new one.
-
-Three times a day because schedules arrive about 22% of the time. Monday is a
-choice: Transfermarkt refreshes Sunday 05:23 and identity resolution matches
-FootyStats players against it, so Monday works with market data a day old
-instead of nearly a week. The test asserts that one-day relationship, not the
-literal `1`.
+Unchanged, and read from the workflow for this snapshot. It did what it says on
+2 November: a Monday start opened `20261102T122100Z`.
 
 **The cron trap, in its current direction.** Cron treats a restricted
 day-of-month and a restricted day-of-week as *alternatives, not a conjunction*.
-With a weekday cadence, the day-of-**month** field is the one that must stay
-`*`: `17 4 1,15 * 1` would fire on the 1st, the 15th **and** every Monday. A
-guard test fixes this direction and explains it in place.
+With a weekday cadence the day-of-**month** field must stay `*`:
+`17 4 1,15 * 1` would fire on the 1st, the 15th **and** every Monday. A guard
+test fixes this direction and explains it in place.
 
 ## What is open
 
 | Item | State |
 | --- | --- |
-| `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint. See "Why the published figures do not add up" |
-| README player-season counts | **Stale again.** Says 5,383 across 43; the endpoint says 14,677. Corrected on 29 October to the then-current figure, which a promotion invalidated two days later — the number should probably stop being written down at all |
-| A whole-batch insert failure | Still possible. `dim_player` also constrains `date_of_birth` and `current_market_value_eur`; the height fix closed one door, not the class |
-| Owner credential | `neondb_owner`'s password appeared in a screenshot during the migration and wants rotating |
-| Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose. Each source becomes translatable at its next load |
+| Transfermarkt's quality report | **Unexplained.** Run `41303978077` failed with `metric_coverage: no rows` against staging. It has not recurred, and the candidate rows it left are still in the database |
+| Render memory | Render emailed that `fri-backend` exceeded its memory limit. The view rebuilt cleanly at 11:04 and nothing has been OOM-killed, but the served universe nearly tripled on 31 October and the view is rebuilt in a 512 MB container on every restart |
+| `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
+| Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October and wants rotating |
+| 15 dead generation caches | 2.1 GB belonging to a published generation. They age out on their own |
+| Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
 | One residual player name in 144 commits | Accepted, not removed, deliberately and dated |
-| `docs/identity_resolution_footystats.csv` | 8,575 rows, on this disk, from 30 August. Untracked and ignored (`.gitignore:107`); never committed. Local residue of the file the history was rewritten to remove |
+| `docs/identity_resolution_footystats.csv` | 8,575 rows, on this disk, from 30 August. Untracked and ignored (`.gitignore:107`); never committed |
 
 ## What makes this file wrong
 
 Any of these, and it should be re-read against its sources rather than trusted:
 
-- **a new generation opens** — expected 2 November 2026, 04:17 UTC. Everything
-  in "The generation completed and was published" then describes the previous
-  one
-- the analytics figures in `/health` change, which happens on every promotion
-- a scheduled pipeline run fails again
+- **`20261102T122100Z` is published**, which replaces every figure in "What is
+  serving right now" at once
+- the heartbeat fails again, which after `377f294` would mean something new
+- a scheduled pipeline run fails
 - the three figures stop adding to the database's player-season count, which
   would mean a fourth exclusion nobody has written down
-- 7 November 2026 passes, after which the generation caches are gone
+- the Transfermarkt quality report fails a second time, which would make it a
+  defect rather than an episode
