@@ -245,7 +245,7 @@ test fixes this direction and explains it in place.
 | A Transfermarkt refresh completing | **Unobserved since 27 August.** The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
 | The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
-| Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October and wants rotating |
+| Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 15 dead generation caches | 2.1 GB belonging to a published generation. They age out on their own |
 | Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
