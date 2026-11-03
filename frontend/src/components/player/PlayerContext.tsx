@@ -51,10 +51,32 @@ export async function PlayerContext({ player }: { player: PlayerDetail }) {
             rows={[
               [copy.competition, player.competition],
               [copy.season, player.season],
-              // Absent far more often than not, and said rather than filled
-              // in from the market source - which is exactly what used to
-              // happen and what made the line above impossible to read.
-              [copy.clubThatSeason, player.performance_club ?? copy.notRecorded],
+              // The club that played the season, and ONLY when it is a
+              // different club from the one below.
+              //
+              // The two names come from different providers and two thirds of
+              // the pairs are one club spelled twice - "Once Caldas SA" and
+              // "Once Caldas", "Gangwon FC" and "Gangwon Football Club". Two
+              // labelled rows would read as a transfer that never happened,
+              // which is the defect this card exists to remove rather than
+              // one to reproduce inside it.
+              //
+              // `clubs_agree` is the API's answer, from the comparison
+              // identity resolution already uses. Only an explicit `false`
+              // shows the row: `null` means the names do not settle it, and
+              // claiming a difference on that is more than the data says.
+              //
+              // Where the season's club is not recorded at all, that is said
+              // rather than filled in from the market source - which is what
+              // used to happen.
+              [
+                copy.clubThatSeason,
+                player.performance_club == null
+                  ? copy.notRecorded
+                  : player.clubs_agree === false
+                    ? player.performance_club
+                    : null,
+              ],
               [copy.minutes, player.minutes !== null ? f.count(player.minutes) : null],
             ]}
           />

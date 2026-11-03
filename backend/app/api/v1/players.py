@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.analytics.clubs import same_club
 from app.analytics.contracts import expires_within
 from app.analytics.countries import in_the_same_country
 from app.analytics.coverage import (
@@ -279,6 +280,7 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
         competition=record.competition_name,
         current_competition=_readable_competition(record.current_competition_name),
         performance_club=record.performance_club_name,
+        clubs_agree=same_club(record.performance_club_name, record.current_club_name),
         season=record.comparable_season or None,
         context_note=_context_note(record),
         nationality=record.nationality,

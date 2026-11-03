@@ -21,14 +21,14 @@ import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
+from app.analytics.clubs import same_club
+from app.analytics.countries import in_the_same_country
 from app.core.config import get_settings
 from app.core.database import get_session_factory
 from app.core.logging import configure_logging, get_logger
 from app.models import (
     BridgePlayerSource,
+    DimClub,
     DimCompetition,
     DimPlayer,
     FactDataQuality,
@@ -36,6 +36,10 @@ from app.models import (
     FactPlayerSeasonStats,
     FactTransfer,
 )
+from app.services.analytics_service import reference_date
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from pipelines.load.load_providers import supplies_performance
 from pipelines.quality.coverage import (
     absent_metrics,
@@ -52,6 +56,15 @@ STALE_AFTER = timedelta(days=7)
 #: Below this share of players carrying minutes, per-90 figures describe so few
 #: people that rankings built on them mislead.
 MIN_MINUTES_COVERAGE = 0.80
+
+#: Above this share of player-seasons showing an expired contract, the market
+#: record is old enough to be worth saying so out loud.
+#:
+#: Loose, and a warning rather than a failure. Contracts do expire, players do
+#: leave, and the market source refreshes on its own cadence - a profile
+#: reading "Contract until Dec 2023" in 2026 is the source being honest about
+#: what it last saw. It becomes a problem when it is most of them.
+MAX_EXPIRED_CONTRACT_SHARE = 0.25
 
 
 @dataclass(frozen=True)
@@ -137,7 +150,9 @@ def freshness_checks(session: Session) -> list[Check]:
 def volume_checks(session: Session) -> list[Check]:
     """Enough rows, in enough places, to be worth serving."""
     players = session.scalar(select(func.count()).select_from(DimPlayer)) or 0
-    seasons = session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
+    seasons = (
+        session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
+    )
     competitions = session.scalar(select(func.count()).select_from(DimCompetition)) or 0
     valuations = session.scalar(select(func.count()).select_from(FactMarketValue)) or 0
 
@@ -238,10 +253,14 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
             # must be visible, because features are switched off because of it.
             _verdict(not absent, warn_only=True),
             len(absent),
-            ", ".join(sorted(m.value for m in absent)) if absent else "every metric populated",
+            ", ".join(sorted(m.value for m in absent))
+            if absent
+            else "every metric populated",
             # The metric KEYS, not the joined English: the interface already
             # has a name for each one in the reader's language.
-            Explain("metrics_absent", {"metrics": ",".join(sorted(m.value for m in absent))})
+            Explain(
+                "metrics_absent", {"metrics": ",".join(sorted(m.value for m in absent))}
+            )
             if absent
             else Explain("every_metric_populated"),
         )
@@ -306,7 +325,9 @@ def integrity_checks(session: Session) -> list[Check]:
     """Invariants that must hold whatever the source."""
     no_position = (
         session.scalar(
-            select(func.count()).select_from(DimPlayer).where(DimPlayer.position_group.is_(None))
+            select(func.count())
+            .select_from(DimPlayer)
+            .where(DimPlayer.position_group.is_(None))
         )
         or 0
     )
@@ -317,7 +338,9 @@ def integrity_checks(session: Session) -> list[Check]:
         session.scalar(
             select(func.count())
             .select_from(FactPlayerSeasonStats)
-            .outerjoin(DimPlayer, FactPlayerSeasonStats.player_id == DimPlayer.player_id)
+            .outerjoin(
+                DimPlayer, FactPlayerSeasonStats.player_id == DimPlayer.player_id
+            )
             .where(DimPlayer.player_id.is_(None))
         )
         or 0
@@ -335,7 +358,9 @@ def integrity_checks(session: Session) -> list[Check]:
     # Nothing about that output looks wrong. It is well-formed, plausibly
     # ordered, and confidently numbered, which is why this is a failure rather
     # than a warning.
-    sources = set(session.scalars(select(FactPlayerSeasonStats.source).distinct()).all())
+    sources = set(
+        session.scalars(select(FactPlayerSeasonStats.source).distinct()).all()
+    )
     real_sources = sorted(sources - {DEMO_SOURCE})
     mixed = DEMO_SOURCE in sources and bool(real_sources)
 
@@ -404,7 +429,9 @@ def ownership_checks(session: Session) -> list[Check]:
     #
     # A source with facts and no bridge rows is a purge that half-happened: the
     # players it knew about are gone and its market history is not.
-    live_sources = set(session.scalars(select(BridgePlayerSource.source).distinct()).all())
+    live_sources = set(
+        session.scalars(select(BridgePlayerSource.source).distinct()).all()
+    )
 
     for table, model in (
         ("fact_market_value", FactMarketValue),
@@ -427,7 +454,9 @@ def ownership_checks(session: Session) -> list[Check]:
                 ),
                 Explain("facts_from_a_dead_source", {"sources": ",".join(stranded)})
                 if stranded
-                else Explain("fact_sources", {"sources": ",".join(sorted(fact_sources))}),
+                else Explain(
+                    "fact_sources", {"sources": ",".join(sorted(fact_sources))}
+                ),
             )
         )
 
@@ -445,7 +474,9 @@ def ownership_checks(session: Session) -> list[Check]:
             )
             or 0
         )
-        checks.append(Check(table, "no_orphaned_player_ids", _verdict(orphans == 0), orphans))
+        checks.append(
+            Check(table, "no_orphaned_player_ids", _verdict(orphans == 0), orphans)
+        )
 
     # -- The same source claiming the same observation twice ------------------
     #
@@ -502,7 +533,9 @@ def ownership_checks(session: Session) -> list[Check]:
         )
         or 0
     )
-    total_rows = session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
+    total_rows = (
+        session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
+    )
     share = discrepant / total_rows if total_rows else 0.0
     checks.append(
         Check(
@@ -550,6 +583,7 @@ def run(session: Session, *, source: str | None = None) -> list[Check]:
         *coverage_checks(session, source=source),
         *integrity_checks(session),
         *ownership_checks(session),
+        *context_checks(session),
     ]
 
 
@@ -607,7 +641,9 @@ def persist(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report on the loaded data's quality.")
-    parser.add_argument("--source", default=None, help="Restrict coverage to one source.")
+    parser.add_argument(
+        "--source", default=None, help="Restrict coverage to one source."
+    )
     parser.add_argument(
         "--persist", action="store_true", help="Write the results to fact_data_quality."
     )
@@ -665,6 +701,168 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(warned)} warn, {len(failed)} fail"
     )
     return 1 if failed else 0
+
+
+def one_club_in_two_countries(
+    season_club: str | None,
+    current_club: str | None,
+    season_country: str | None,
+    current_country: str | None,
+) -> bool:
+    """One club reported as playing in two countries at once.
+
+    Both halves have to be positive for this to be true, which is what keeps
+    it quiet. The two names must be THE SAME CLUB - not merely similar, and
+    not "the comparison cannot tell" - and the two countries must be known
+    and different. Anything less is a transfer, or a gap in the market
+    record, or two clubs that happen to share a word, and none of those is a
+    contradiction.
+
+    What it catches is the reconciliation between the two providers coming
+    apart. Before the country spellings were aliased, a player at his own
+    club in Korea read as having moved abroad, because one provider writes
+    "South Korea" and the other "Korea, South". That was visible to a reader
+    as a nonsensical note and to nothing else at all.
+    """
+    if same_club(season_club, current_club) is not True:
+        return False
+    return in_the_same_country(season_country, current_country) is False
+
+
+def context_checks(session: Session) -> list[Check]:
+    """Whether a profile's two contexts can be read side by side.
+
+    A profile shows the club that played the season beside the club the
+    player is at now, and the competitions each belongs to. Those come from
+    two providers who share no vocabulary - not for clubs, not for
+    competitions - so the page can only be trusted to the extent that the
+    reconciliation between them holds. These measure whether it does.
+
+    None of them is about a player having moved. Transfers are ordinary and
+    the profile says so in its own words; what these look for is the page
+    saying two things that cannot both be true.
+    """
+    rows = session.execute(
+        select(
+            FactPlayerSeasonStats.club_id,
+            FactPlayerSeasonStats.competition_id,
+            DimPlayer.current_club_id,
+            DimPlayer.current_competition_id,
+            DimPlayer.contract_expires,
+        ).join(DimPlayer, FactPlayerSeasonStats.player_id == DimPlayer.player_id)
+    ).all()
+
+    club_names = {c.club_id: c.name for c in session.scalars(select(DimClub)).all()}
+    club_competitions = {
+        c.club_id: c.competition_id for c in session.scalars(select(DimClub)).all()
+    }
+    countries = {
+        c.competition_id: c.country
+        for c in session.scalars(select(DimCompetition)).all()
+    }
+
+    total = len(rows)
+
+    # 1. The same club, reported as being in two countries.
+    #
+    # This is a contradiction rather than a judgement. If the club that played
+    # the season and the club the player is at now are THE SAME CLUB, then the
+    # country of each one's competition has to be the same country - and when
+    # it is not, something in the reconciliation is wrong rather than
+    # surprising. It is the check that would have caught "South Korea" against
+    # "Korea, South", which showed a player at his own club as having moved
+    # abroad, and it is the one that will catch the fourth spelling nobody has
+    # met yet.
+    contradictions = sum(
+        1
+        for row in rows
+        if one_club_in_two_countries(
+            club_names.get(row.club_id) if row.club_id else None,
+            club_names.get(row.current_club_id) if row.current_club_id else None,
+            countries.get(row.competition_id),
+            countries.get(row.current_competition_id)
+            if row.current_competition_id
+            else None,
+        )
+    )
+
+    # 2. The club that played the season, in its own competition's country.
+    #
+    # Both sides of this come from the performance provider, so the ids are
+    # comparable and no vocabulary problem arises. A club plays more than one
+    # competition - a league and a cup - so the COMPETITIONS are not compared;
+    # their countries are, which is stable across both.
+    misplaced = 0
+    for row in rows:
+        if not row.club_id:
+            continue
+        club_competition = club_competitions.get(row.club_id)
+        if not club_competition:
+            continue
+        if (
+            in_the_same_country(
+                countries.get(club_competition), countries.get(row.competition_id)
+            )
+            is False
+        ):
+            misplaced += 1
+
+    # 3. Contracts that ran out before today.
+    #
+    # Not corrected and not hidden: the market source records what it recorded,
+    # and a contract that expired is a fact about the player rather than an
+    # error. It is counted because a profile headed "Contract until Dec 2023"
+    # read in 2026 looks like a site serving stale data, and whether it is
+    # depends on how many of them there are.
+    today = reference_date()
+    expired = sum(
+        1 for row in rows if row.contract_expires and row.contract_expires < today
+    )
+    expired_share = expired / total if total else 0.0
+
+    return [
+        Check(
+            "fact_player_season_stats",
+            "one_club_is_in_one_country",
+            _verdict(contradictions == 0),
+            contradictions,
+            (
+                f"{contradictions} player-seasons name one club as playing in two countries"
+                if contradictions
+                else None
+            ),
+            Explain("club_in_two_countries", {"rows": contradictions})
+            if contradictions
+            else None,
+        ),
+        Check(
+            "fact_player_season_stats",
+            "season_club_plays_in_its_competitions_country",
+            _verdict(misplaced == 0, warn_only=True),
+            misplaced,
+            (
+                f"{misplaced} player-seasons were played for a club the same provider "
+                "files under another country"
+                if misplaced
+                else None
+            ),
+            Explain("club_outside_its_competition", {"rows": misplaced})
+            if misplaced
+            else None,
+        ),
+        Check(
+            "dim_player",
+            "contracts_are_current",
+            _verdict(expired_share < MAX_EXPIRED_CONTRACT_SHARE, warn_only=True),
+            expired,
+            (
+                f"{expired_share:.1%} of player-seasons show a contract that has already expired"
+                if expired
+                else None
+            ),
+            Explain("contracts_expired", {"share": expired_share}) if expired else None,
+        ),
+    ]
 
 
 if __name__ == "__main__":

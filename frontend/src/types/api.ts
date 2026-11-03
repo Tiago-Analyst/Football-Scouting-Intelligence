@@ -411,8 +411,17 @@ export interface PlayerSummary {
   competition: string;
   /** The competition the current club plays in. Null off the market source. */
   current_competition?: string | null;
-  /** The club that played this season, where it is recorded. Usually null. */
+  /** The club that played this season, where it is recorded. */
   performance_club?: string | null;
+  /**
+   * Whether `performance_club` and `club` name the same club.
+   *
+   * `true` one club, `false` two, `null` the names do not settle it. The API
+   * answers this because the two names come from providers who spell clubs
+   * differently - two thirds of the pairs are one club written twice - and a
+   * string comparison here would report a transfer that never happened.
+   */
+  clubs_agree?: boolean | null;
   /** The season the performance belongs to, e.g. "2026". */
   season?: string | null;
   /** Why the two contexts name different places, when they do. */
