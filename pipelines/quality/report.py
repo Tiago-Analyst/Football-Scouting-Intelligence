@@ -21,6 +21,9 @@ import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from app.analytics.clubs import same_club
 from app.analytics.countries import in_the_same_country
 from app.core.config import get_settings
@@ -37,9 +40,6 @@ from app.models import (
     FactTransfer,
 )
 from app.services.analytics_service import reference_date
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
 from pipelines.load.load_providers import supplies_performance
 from pipelines.quality.coverage import (
     absent_metrics,
@@ -150,9 +150,7 @@ def freshness_checks(session: Session) -> list[Check]:
 def volume_checks(session: Session) -> list[Check]:
     """Enough rows, in enough places, to be worth serving."""
     players = session.scalar(select(func.count()).select_from(DimPlayer)) or 0
-    seasons = (
-        session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
-    )
+    seasons = session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
     competitions = session.scalar(select(func.count()).select_from(DimCompetition)) or 0
     valuations = session.scalar(select(func.count()).select_from(FactMarketValue)) or 0
 
@@ -253,14 +251,10 @@ def coverage_checks(session: Session, *, source: str | None = None) -> list[Chec
             # must be visible, because features are switched off because of it.
             _verdict(not absent, warn_only=True),
             len(absent),
-            ", ".join(sorted(m.value for m in absent))
-            if absent
-            else "every metric populated",
+            ", ".join(sorted(m.value for m in absent)) if absent else "every metric populated",
             # The metric KEYS, not the joined English: the interface already
             # has a name for each one in the reader's language.
-            Explain(
-                "metrics_absent", {"metrics": ",".join(sorted(m.value for m in absent))}
-            )
+            Explain("metrics_absent", {"metrics": ",".join(sorted(m.value for m in absent))})
             if absent
             else Explain("every_metric_populated"),
         )
@@ -325,9 +319,7 @@ def integrity_checks(session: Session) -> list[Check]:
     """Invariants that must hold whatever the source."""
     no_position = (
         session.scalar(
-            select(func.count())
-            .select_from(DimPlayer)
-            .where(DimPlayer.position_group.is_(None))
+            select(func.count()).select_from(DimPlayer).where(DimPlayer.position_group.is_(None))
         )
         or 0
     )
@@ -338,9 +330,7 @@ def integrity_checks(session: Session) -> list[Check]:
         session.scalar(
             select(func.count())
             .select_from(FactPlayerSeasonStats)
-            .outerjoin(
-                DimPlayer, FactPlayerSeasonStats.player_id == DimPlayer.player_id
-            )
+            .outerjoin(DimPlayer, FactPlayerSeasonStats.player_id == DimPlayer.player_id)
             .where(DimPlayer.player_id.is_(None))
         )
         or 0
@@ -358,9 +348,7 @@ def integrity_checks(session: Session) -> list[Check]:
     # Nothing about that output looks wrong. It is well-formed, plausibly
     # ordered, and confidently numbered, which is why this is a failure rather
     # than a warning.
-    sources = set(
-        session.scalars(select(FactPlayerSeasonStats.source).distinct()).all()
-    )
+    sources = set(session.scalars(select(FactPlayerSeasonStats.source).distinct()).all())
     real_sources = sorted(sources - {DEMO_SOURCE})
     mixed = DEMO_SOURCE in sources and bool(real_sources)
 
@@ -429,9 +417,7 @@ def ownership_checks(session: Session) -> list[Check]:
     #
     # A source with facts and no bridge rows is a purge that half-happened: the
     # players it knew about are gone and its market history is not.
-    live_sources = set(
-        session.scalars(select(BridgePlayerSource.source).distinct()).all()
-    )
+    live_sources = set(session.scalars(select(BridgePlayerSource.source).distinct()).all())
 
     for table, model in (
         ("fact_market_value", FactMarketValue),
@@ -454,9 +440,7 @@ def ownership_checks(session: Session) -> list[Check]:
                 ),
                 Explain("facts_from_a_dead_source", {"sources": ",".join(stranded)})
                 if stranded
-                else Explain(
-                    "fact_sources", {"sources": ",".join(sorted(fact_sources))}
-                ),
+                else Explain("fact_sources", {"sources": ",".join(sorted(fact_sources))}),
             )
         )
 
@@ -474,9 +458,7 @@ def ownership_checks(session: Session) -> list[Check]:
             )
             or 0
         )
-        checks.append(
-            Check(table, "no_orphaned_player_ids", _verdict(orphans == 0), orphans)
-        )
+        checks.append(Check(table, "no_orphaned_player_ids", _verdict(orphans == 0), orphans))
 
     # -- The same source claiming the same observation twice ------------------
     #
@@ -533,9 +515,7 @@ def ownership_checks(session: Session) -> list[Check]:
         )
         or 0
     )
-    total_rows = (
-        session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
-    )
+    total_rows = session.scalar(select(func.count()).select_from(FactPlayerSeasonStats)) or 0
     share = discrepant / total_rows if total_rows else 0.0
     checks.append(
         Check(
@@ -641,9 +621,7 @@ def persist(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report on the loaded data's quality.")
-    parser.add_argument(
-        "--source", default=None, help="Restrict coverage to one source."
-    )
+    parser.add_argument("--source", default=None, help="Restrict coverage to one source.")
     parser.add_argument(
         "--persist", action="store_true", help="Write the results to fact_data_quality."
     )
@@ -756,10 +734,7 @@ def context_checks(session: Session) -> list[Check]:
     club_competitions = {
         c.club_id: c.competition_id for c in session.scalars(select(DimClub)).all()
     }
-    countries = {
-        c.competition_id: c.country
-        for c in session.scalars(select(DimCompetition)).all()
-    }
+    countries = {c.competition_id: c.country for c in session.scalars(select(DimCompetition)).all()}
 
     total = len(rows)
 
@@ -780,9 +755,7 @@ def context_checks(session: Session) -> list[Check]:
             club_names.get(row.club_id) if row.club_id else None,
             club_names.get(row.current_club_id) if row.current_club_id else None,
             countries.get(row.competition_id),
-            countries.get(row.current_competition_id)
-            if row.current_competition_id
-            else None,
+            countries.get(row.current_competition_id) if row.current_competition_id else None,
         )
     )
 
@@ -800,9 +773,7 @@ def context_checks(session: Session) -> list[Check]:
         if not club_competition:
             continue
         if (
-            in_the_same_country(
-                countries.get(club_competition), countries.get(row.competition_id)
-            )
+            in_the_same_country(countries.get(club_competition), countries.get(row.competition_id))
             is False
         ):
             misplaced += 1
@@ -815,9 +786,7 @@ def context_checks(session: Session) -> list[Check]:
     # read in 2026 looks like a site serving stale data, and whether it is
     # depends on how many of them there are.
     today = reference_date()
-    expired = sum(
-        1 for row in rows if row.contract_expires and row.contract_expires < today
-    )
+    expired = sum(1 for row in rows if row.contract_expires and row.contract_expires < today)
     expired_share = expired / total if total else 0.0
 
     return [
@@ -831,9 +800,7 @@ def context_checks(session: Session) -> list[Check]:
                 if contradictions
                 else None
             ),
-            Explain("club_in_two_countries", {"rows": contradictions})
-            if contradictions
-            else None,
+            Explain("club_in_two_countries", {"rows": contradictions}) if contradictions else None,
         ),
         Check(
             "fact_player_season_stats",
@@ -846,9 +813,7 @@ def context_checks(session: Session) -> list[Check]:
                 if misplaced
                 else None
             ),
-            Explain("club_outside_its_competition", {"rows": misplaced})
-            if misplaced
-            else None,
+            Explain("club_outside_its_competition", {"rows": misplaced}) if misplaced else None,
         ),
         Check(
             "dim_player",
