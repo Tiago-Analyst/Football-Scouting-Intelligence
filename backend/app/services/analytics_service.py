@@ -24,6 +24,7 @@ site.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from functools import lru_cache
@@ -222,12 +223,22 @@ class AnalyticsView:
         return self.percentiles.rank_all(record, metrics, scope=scope)
 
     def scores(
-        self, player_key: str, *, scope: PercentileScope = PercentileScope.COMPETITION
+        self,
+        player_key: str,
+        *,
+        scope: PercentileScope = PercentileScope.COMPETITION,
+        keys: Iterable[str] | None = None,
     ) -> dict[str, IntelligenceScore]:
+        """Intelligence scores for one player; `keys` narrows which are computed.
+
+        Narrowing is for a caller that ranks a whole population against a few
+        of the eight - see `IntelligenceScoreEngine.score_all`. It changes no
+        score's value, only whether the ones nobody reads are computed.
+        """
         record = self.player_metrics(player_key)
         if record is None or self.intelligence is None:
             return {}
-        return self.intelligence.score_all(record, scope=scope)
+        return self.intelligence.score_all(record, scope=scope, keys=keys)
 
     def role_fit(
         self, player_key: str, *, scope: PercentileScope = PercentileScope.COMPETITION

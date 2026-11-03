@@ -22,6 +22,7 @@ can interrogate is not usable by a recruitment department.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -321,9 +322,30 @@ class IntelligenceScoreEngine:
         *,
         scope: PercentileScope = PercentileScope.COMPETITION,
         competition_ids: frozenset[str] | None = None,
+        keys: Iterable[str] | None = None,
     ) -> dict[str, IntelligenceScore]:
-        """Compute every configured score for one player."""
+        """Compute every configured score for one player, or the ones asked for.
+
+        `keys` narrows WHICH scores are computed and changes none of them. A
+        score is a function of one player, one scope and one definition, so the
+        value for a given key does not depend on whether its neighbours were
+        computed beside it.
+
+        It exists because a recruitment search weights three or five of the
+        eight and reads only those. Computing all eight ranked some 20 metrics
+        per player that nothing would ever look at - about three fifths of the
+        percentile work in the request, discarded.
+
+        Order follows `self.definitions` rather than the caller's `keys`, so a
+        narrowed result is the full one with entries removed: a caller reading
+        "the first score" gets the same score either way.
+        """
+        chosen = set(self.definitions) if keys is None else set(keys)
+        unknown = chosen - set(self.definitions)
+        if unknown:
+            raise ScoreConfigError(f"Unknown intelligence score(s): {', '.join(sorted(unknown))}")
         return {
             key: self.score(player, key, scope=scope, competition_ids=competition_ids)
             for key in self.definitions
+            if key in chosen
         }

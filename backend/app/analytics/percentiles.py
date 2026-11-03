@@ -307,6 +307,24 @@ class PercentileEngine:
         #: past the thirty the frontend waits, so every brief that matched
         #: anybody failed in production. See `test_percentile_performance.py`.
         self._maturity_cache: dict[tuple, _Maturity] = {}
+        #: Assembled comparison contexts, memoised on the same grounds again -
+        #: and this is the same defect a second time, found by profiling the
+        #: endpoint the first fix was meant to save.
+        #:
+        #: `_context` walks the population too: the competitions it covers are
+        #: collected into a set and sorted, once per metric per player. A
+        #: recruitment search over 7,190 candidates called it 230,080 times
+        #: and spent 4.9 of its 7.8 seconds there - 62% of the request, for an
+        #: answer that is the same for every player in a population.
+        #:
+        #: The key below names every input the context has: `competition_ids`
+        #: fixes the covered list, the maturity figures come from the same
+        #: three fields through `_maturity`, `minimum_minutes` is the engine's
+        #: own, and `population_size` is passed in. Nothing else reaches it, so
+        #: a hit cannot answer a different question from a miss. The value is a
+        #: frozen dataclass, so handing the same instance to several results is
+        #: safe.
+        self._context_cache: dict[tuple, ComparisonContext] = {}
 
     @property
     def eligible_count(self) -> int:
@@ -364,6 +382,25 @@ class PercentileEngine:
         competition_ids: frozenset[str] | None,
         population_size: int,
     ) -> ComparisonContext:
+        key = (scope, position_group, season_id, competition_ids, population_size)
+        memoised = self._context_cache.get(key)
+        if memoised is not None:
+            return memoised
+        built = self._build_context(
+            scope, position_group, season_id, competition_ids, population_size
+        )
+        self._context_cache[key] = built
+        return built
+
+    def _build_context(
+        self,
+        scope: PercentileScope,
+        position_group: PositionGroup,
+        season_id: str,
+        competition_ids: frozenset[str] | None,
+        population_size: int,
+    ) -> ComparisonContext:
+        """The assembly itself, separated so the memo above has one job."""
         if competition_ids is None:
             covered = sorted(
                 {r.competition_id for r in self._by_group.get((position_group, season_id), [])}

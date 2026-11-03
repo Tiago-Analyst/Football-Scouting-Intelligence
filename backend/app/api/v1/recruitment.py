@@ -268,7 +268,11 @@ def recruitment_search(request: RecruitmentRequest) -> RecruitmentResponse:
         if not _passes_filters(record, request.filters):
             continue
         considered += 1
-        scores = view.scores(record.player_key, scope=scope)
+        # Only the weighted scores. The loop below reads `weights` keys and
+        # nothing else, and computing the other three or five ranked some
+        # twenty metrics per candidate for an answer nobody looks at. Which
+        # scores are computed; not how any of them is computed.
+        scores = view.scores(record.player_key, scope=scope, keys=weights)
         for key in weights:
             found = scores.get(key)
             if found is not None and found.score is not None:
