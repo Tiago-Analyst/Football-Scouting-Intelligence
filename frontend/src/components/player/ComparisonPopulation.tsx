@@ -29,7 +29,21 @@ export async function ComparisonPopulation({ context }: { context: ComparisonCon
     <div className="space-y-1 text-xs">
       <p className="text-subtle">{t.components.comparison.comparedWith}</p>
       <p className="text-text">
-        <span className="font-medium">{context.position_label || context.position_group}</span>
+        <span className="font-medium">
+          {/* A comparison population is PLURAL - "among Attacking
+              Midfielders" - and the glossary's `positions` is singular,
+              naming one player's position. So the English plural the API
+              sends was printed as it arrived, and a Portuguese profile said
+              it was comparing against "Attacking Midfielders".
+              
+              Its own block rather than a suffix rule: Portuguese pluralises
+              "Defesa-central" as "Defesas-centrais", moving the s to the
+              head of a compound, and a rule that appends one would produce
+              "Defesa-centrals". */}
+          {t.glossary.positionsPlural[
+            context.position_group as keyof typeof t.glossary.positionsPlural
+          ] ?? context.position_label ?? context.position_group}
+        </span>
         {" · "}
         {where}
         {" · "}

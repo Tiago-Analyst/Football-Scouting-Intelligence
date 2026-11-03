@@ -15,17 +15,24 @@
  * similarity, recruitment, replacement, rankings or search because of them.
  */
 
+/**
+ * THERE ARE NO LABELS IN THIS FILE.
+ *
+ * There were two maps here - `SAMPLE_LABEL` and `COVERAGE_LABEL` - holding
+ * English words for the bands below, while `glossary.sampleBands` and
+ * `glossary.coverageBands` held the same words in both languages. One of
+ * them was reachable from a Portuguese page and the other was not, so a
+ * pt-PT profile read "Established Sample". A key-parity test could not see
+ * it: the translation existed and was simply never asked for.
+ *
+ * A band is a key. The words belong to whoever is reading, which means they
+ * belong in the dictionaries and nowhere else.
+ */
+
 export type SampleBand = "very_low" | "low" | "developing" | "established";
 
 /** Coverage of the detailed statistics, banded by the same server. */
 export type CoverageBand = "excellent" | "good" | "partial" | "limited";
-
-export const SAMPLE_LABEL: Record<SampleBand, string> = {
-  established: "Established Sample",
-  developing: "Developing Sample",
-  low: "Low Sample",
-  very_low: "Very Low Sample",
-};
 
 /**
  * How loudly to say it.
@@ -39,13 +46,6 @@ export const SAMPLE_TONE: Record<SampleBand, "neutral" | "warning"> = {
   developing: "neutral",
   low: "warning",
   very_low: "warning",
-};
-
-export const COVERAGE_LABEL: Record<CoverageBand, string> = {
-  excellent: "Excellent coverage",
-  good: "Good coverage",
-  partial: "Partial coverage",
-  limited: "Limited coverage",
 };
 
 export const COVERAGE_TONE: Record<CoverageBand, "neutral" | "warning"> = {

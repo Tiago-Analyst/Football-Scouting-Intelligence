@@ -3,7 +3,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { COVERAGE_TONE, SAMPLE_LABEL, SAMPLE_TONE } from "@/lib/sample";
+import { COVERAGE_TONE, SAMPLE_TONE } from "@/lib/sample";
 import type { Sample } from "@/types/api";
 
 /**
@@ -74,7 +74,19 @@ export async function DataConfidence({ sample }: { sample: Sample }) {
               term={t.components.dataConfidence.sample}
               value={
                 <Badge tone={SAMPLE_TONE[sample.band] === "warning" ? "warning" : "neutral"}>
-                  {sample.band_label || SAMPLE_LABEL[sample.band]}
+                  {/* The glossary first, the API's prose second.
+                      
+                      This read `band_label || SAMPLE_LABEL[band]`, and both
+                      of those are English: the backend's finished sentence,
+                      or a hardcoded map in `lib/sample.ts`. So a Portuguese
+                      profile said "Established Sample", which the production
+                      audit found and which no key-parity test could - the
+                      Portuguese translation existed and was never asked for.
+                      
+                      The band is a key; the words belong to the reader. */}
+                  {t.glossary.sampleBands[
+                    sample.band as keyof typeof t.glossary.sampleBands
+                  ] ?? sample.band_label}
                 </Badge>
               }
             />
@@ -86,7 +98,10 @@ export async function DataConfidence({ sample }: { sample: Sample }) {
             <Row
               term={
                 <span className="flex items-center gap-1.5">
-                  Recorded minutes
+                  {/* Hardcoded here while `components.dataConfidence
+                      .recordedMinutes` sat translated in both dictionaries,
+                      unused. */}
+                  {t.components.dataConfidence.recordedMinutes}
                   {sample.coverage_explanation ? (
                     <Tooltip label={t.components.dataConfidence.recordedTooltipLabel}>
                       {sample.coverage_explanation}
