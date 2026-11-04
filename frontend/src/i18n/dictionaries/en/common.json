@@ -54,8 +54,7 @@
     "updated": "{source} updated"
   },
   "meta": {
-    "title": "Football Recruitment Intelligence",
-    "titleTemplate": "%s · Football Recruitment Intelligence",
+    "titleTemplate": "%s · {product}",
     "description": "Recruitment intelligence for football: contextual percentiles, player roles, statistical similarity and market analysis.",
     "ogLocale": "en_GB"
   },

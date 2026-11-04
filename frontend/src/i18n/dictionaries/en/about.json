@@ -25,7 +25,7 @@
   },
   "author": {
     "title": "About the author",
-    "introBefore": "Football Scouting Intelligence was built by ",
+    "introBefore": "{product} was built by ",
     "name": "Tiago Marques",
     "introAfter": ", a data engineer based in Porto, Portugal.",
     "work": "He works with data daily — SQL, Python, ETL and data pipelines, Azure and BI — building the models, the ingestion and the quality checks that decide whether what comes out of them can be trusted.",

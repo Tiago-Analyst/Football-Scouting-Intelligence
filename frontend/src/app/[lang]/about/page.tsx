@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { MetricCensusSentence } from "@/components/quality/MetricCensus";
 import { Callout } from "@/components/ui/States";
 import { getDictionary } from "@/i18n/dictionaries";
+import { withProduct } from "@/lib/product";
 import { getMeta } from "@/lib/system";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -55,7 +56,7 @@ export default async function AboutPage() {
         <CardHeader title={t.about.author.title} />
         <CardBody className="space-y-3 text-sm leading-relaxed text-muted">
           <p>
-            {t.about.author.introBefore}
+            {withProduct(t, t.about.author.introBefore)}
             <strong>{t.about.author.name}</strong>
             {t.about.author.introAfter}
           </p>
