@@ -12,6 +12,7 @@ import { ENABLED_LOCALES, LOCALE_TAG } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { IS_PUBLIC_ORIGIN, SITE_URL } from "@/lib/site";
+import { withProduct } from "@/lib/product";
 import { getMeta } from "@/lib/system";
 import "../globals.css";
 
@@ -35,6 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = await getDictionary();
   const meta = t.common.meta;
+  // The product's name, from the one place it is written. `title` is the
+  // name itself; `titleTemplate` is Next's `%s` suffix with the name in it.
+  const product = t.common.productName;
 
   const languages: Record<string, string> = {};
   for (const other of ENABLED_LOCALES) {
@@ -48,11 +52,11 @@ export async function generateMetadata(): Promise<Metadata> {
     // chat client can follow.
     metadataBase: new URL(SITE_URL),
     title: {
-      default: meta.title,
-      template: meta.titleTemplate,
+      default: product,
+      template: withProduct(t, meta.titleTemplate),
     },
     description: meta.description,
-    applicationName: meta.title,
+    applicationName: product,
     alternates: {
       canonical: `${SITE_URL}/${locale}`,
       languages,
@@ -62,15 +66,15 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: IS_PUBLIC_ORIGIN ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
       type: "website",
-      siteName: meta.title,
-      title: meta.title,
+      siteName: product,
+      title: product,
       description: meta.description,
       url: `${SITE_URL}/${locale}`,
       locale: meta.ogLocale,
     },
     twitter: {
       card: "summary_large_image",
-      title: meta.title,
+      title: product,
       description: meta.description,
     },
     // The palette defines both themes; telling the browser lets it match form

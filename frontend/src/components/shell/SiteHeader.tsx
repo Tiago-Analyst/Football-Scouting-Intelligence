@@ -10,6 +10,7 @@ import { AccountMenu } from "./AccountMenu";
 import { Logo } from "./Logo";
 import { DesktopNav, MobileNav } from "./SiteNav";
 import { ThemeToggle } from "./ThemeToggle";
+import { withProduct } from "@/lib/product";
 
 /**
  * The site header, identical for every reader.
@@ -28,8 +29,8 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur">
       <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
         <Link href={localePath(locale, "/")} className="shrink-0">
-          <Logo className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
-          <span className="sr-only">{t.navigation.home}</span>
+          <Logo name={t.common.productName} className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
+          <span className="sr-only">{withProduct(t, t.navigation.home)}</span>
         </Link>
 
         <div className="flex-1" />

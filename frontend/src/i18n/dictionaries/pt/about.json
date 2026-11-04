@@ -25,7 +25,7 @@
   },
   "author": {
     "title": "Sobre o autor",
-    "introBefore": "O Football Scouting Intelligence foi construído por ",
+    "introBefore": "O {product} foi construído por ",
     "name": "Tiago Marques",
     "introAfter": ", engenheiro de dados no Porto, Portugal.",
     "work": "Trabalha com dados diariamente — SQL, Python, ETL e pipelines de dados, Azure e BI — construindo os modelos, a ingestão e as verificações de qualidade que decidem se aquilo que deles sai é de confiança.",
