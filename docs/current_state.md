@@ -344,10 +344,17 @@ to watch, not a thing that has happened.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only (3a9bc9c)
-Local:      main, in sync
+GitHub:     main only, at 7750f3c when this was read
+Local:      main, in sync, working tree clean
 Worktrees:  1
 ```
+
+**That sha is the tip this snapshot was read at, and not the current one.** The
+commit that files any correction to this file moves `main` past it, so the
+field can only ever name the moment of reading — the previous version of this
+section claimed `3a9bc9c` *was* `main`, and the merge that published it made
+that false the same minute. A reader who needs the tip runs
+`git ls-remote origin refs/heads/main`.
 
 ## The cadence, as it stands in `pipeline.yml`
 
