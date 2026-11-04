@@ -100,6 +100,78 @@ function nullIfMissing(error: unknown): null {
 }
 
 /**
+ * A read that was attempted and failed, carried as a value.
+ *
+ * WHY THIS EXISTS BESIDE `nullIfMissing` RATHER THAN INSTEAD OF IT
+ *
+ * `nullIfMissing` is right, and the comment above it says why: a failure
+ * turned into `null` once told visitors that real footballers were not in the
+ * database whenever the backend was slow. Nothing here walks that back. There
+ * are now three answers rather than two - found, absent, and tried-and-failed
+ * - and the third used to be indistinguishable from a crash.
+ *
+ * WHAT THE READER SAW
+ *
+ * A search page is a form and a result. When the result's fetch threw, the
+ * whole Server Component threw with it, so the form went too. Measured
+ * against a dead backend, `/en/recruitment` answered **HTTP 200** with the
+ * header, the navigation and the footer, and nothing at all in between - no
+ * builder, no weights, no message. The error boundary is a Client Component,
+ * so the sentence explaining it only appears once JavaScript has loaded and
+ * hydrated, and never in the served HTML.
+ *
+ * A reader who had filled in eight weights and five filters lost all of it to
+ * a slow backend, and was not told why.
+ *
+ * WHICH READS GET THIS, AND WHICH DO NOT
+ *
+ * Only the three searches. A search page has something to show when the
+ * search fails - the form that produced it - so the failure belongs in the
+ * results section, next to everything that still works.
+ *
+ * A profile page has nothing to show without its profile. There, a failure is
+ * the page failing, and it should keep throwing: a shell with an apology in
+ * it is not better than an error page, and pretending otherwise would make
+ * the site look healthy while serving nothing.
+ */
+export interface SearchFailure {
+  readonly failed: true;
+  /**
+   * Why, as a key rather than a sentence. The backend's own message is
+   * English; interpolating it into a Portuguese page is the failure the
+   * structured-message mechanism exists to avoid.
+   */
+  readonly reason: "timeout" | "unreachable" | "rejected" | "server";
+  /** The HTTP status, or 0 where nothing answered. Shown as a handle. */
+  readonly status: number;
+}
+
+export function isSearchFailure(value: unknown): value is SearchFailure {
+  return typeof value === "object" && value !== null && (value as SearchFailure).failed === true;
+}
+
+/**
+ * `null` for absent, a `SearchFailure` for anything else, and still a throw
+ * for what is not an API error at all.
+ *
+ * A non-`ApiError` reaching here is a bug in this process rather than a
+ * failure of the one upstream, and swallowing it would hide it.
+ */
+function failureOrMissing(error: unknown): null | SearchFailure {
+  if (!(error instanceof ApiError)) throw error;
+  if (error.status === 404) return null;
+  const reason: SearchFailure["reason"] =
+    error.code === "timeout"
+      ? "timeout"
+      : error.status === 0
+        ? "unreachable"
+        : error.status >= 500
+          ? "server"
+          : "rejected";
+  return { failed: true, reason, status: error.status };
+}
+
+/**
  * `buildAccess` is passed by the callers that static generation runs - listing
  * every player id, and rendering each profile. It is inert at runtime: see
  * `buildTokenHeader` in `build-access.ts`.
@@ -293,7 +365,7 @@ export async function getRecruitmentScores(): Promise<ScoreAvailability[]> {
 
 export async function getOpportunities(
   params: PlayerSearchParams = {},
-): Promise<Opportunities | null> {
+): Promise<Opportunities | SearchFailure | null> {
   try {
     return await apiFetch<Opportunities>(
       `/api/v1/opportunities${query(params)}`,
@@ -303,32 +375,32 @@ export async function getOpportunities(
       },
     );
   } catch (error) {
-    return nullIfMissing(error);
+    return failureOrMissing(error);
   }
 }
 
 export async function runRecruitmentSearch(
   body: unknown,
-): Promise<RecruitmentResults | null> {
+): Promise<RecruitmentResults | SearchFailure | null> {
   try {
     return await apiFetch<RecruitmentResults>("/api/v1/recruitment/search", {
       method: "POST",
       body,
     });
   } catch (error) {
-    return nullIfMissing(error);
+    return failureOrMissing(error);
   }
 }
 
 export async function runReplacementSearch(
   body: unknown,
-): Promise<ReplacementResults | null> {
+): Promise<ReplacementResults | SearchFailure | null> {
   try {
     return await apiFetch<ReplacementResults>("/api/v1/replacement/search", {
       method: "POST",
       body,
     });
   } catch (error) {
-    return nullIfMissing(error);
+    return failureOrMissing(error);
   }
 }

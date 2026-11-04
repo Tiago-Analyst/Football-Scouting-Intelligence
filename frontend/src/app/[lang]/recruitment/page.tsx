@@ -16,12 +16,14 @@ import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
+import { SearchFailed } from "@/components/ui/SearchFailed";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { describeProfile } from "@/lib/profile-summary";
 import {
   getCompetitions,
+  isSearchFailure,
   getRecruitmentPresets,
   getRecruitmentScores,
   runRecruitmentSearch,
@@ -390,6 +392,11 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                 }
               />
             )
+          ) : isSearchFailure(results) ? (
+            // The builder above this is untouched: every weight and filter
+            // the reader typed is still on the page. Only the section that
+            // could not be filled says so.
+            <SearchFailed failure={results} copy={t.common.searchFailed} />
           ) : results === null ? (
             <ErrorState
               title={t.recruitment.states.errorTitle}

@@ -69,5 +69,13 @@
   "competitionCoverage": {
     "note": "This list is the competitions currently loaded, not every league. A league that is absent was not searched rather than searched and empty, and cross-league figures are computed across whatever is here.",
     "link": "Which competitions are covered"
+  },
+  "searchFailed": {
+    "title": "The search did not finish",
+    "timeout": "It ran for longer than the page waits and was stopped. A narrower search — a position, a minutes floor — usually finishes.",
+    "unreachable": "The analysis service could not be reached. Nothing on this page will produce a result until it is back; the form below is intact.",
+    "rejected": "The analysis service refused the request. Something in the form below is not a question it can answer.",
+    "server": "The analysis service answered with an error. This is a fault on our side, not something the form below can be adjusted around.",
+    "status": "HTTP status {status}."
   }
 }

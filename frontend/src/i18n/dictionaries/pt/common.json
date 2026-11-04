@@ -69,5 +69,13 @@
   "competitionCoverage": {
     "note": "Esta lista são as competições actualmente carregadas, não todas as ligas. Uma liga ausente não foi pesquisada, em vez de pesquisada e vazia, e os valores entre ligas são calculados sobre o que está aqui.",
     "link": "Que competições estão cobertas"
+  },
+  "searchFailed": {
+    "title": "A pesquisa não terminou",
+    "timeout": "Demorou mais do que a página espera e foi interrompida. Uma pesquisa mais estreita — uma posição, um mínimo de minutos — costuma terminar.",
+    "unreachable": "Não foi possível contactar o serviço de análise. Nada nesta página vai produzir resultados até ele voltar; o formulário abaixo está intacto.",
+    "rejected": "O serviço de análise recusou o pedido. Algo no formulário abaixo não é uma pergunta a que ele consiga responder.",
+    "server": "O serviço de análise respondeu com um erro. A falha é do nosso lado, não é algo que o formulário abaixo consiga contornar.",
+    "status": "Estado HTTP {status}."
   }
 }
