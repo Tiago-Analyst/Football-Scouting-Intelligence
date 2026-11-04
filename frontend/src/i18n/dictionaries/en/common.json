@@ -51,7 +51,7 @@
     "footystats": "Performance data",
     "transfermarkt": "Market data",
     "demo": "Demo data",
-    "updated": "{source} updated"
+    "updated": "{source} published"
   },
   "meta": {
     "titleTemplate": "%s · {product}",
@@ -65,5 +65,9 @@
     "lineUnreachable": "Metric counts unavailable: the API could not be reached",
     "lineNotVerified": "Provider mapping not yet verified",
     "line": "{usable} of {total} usable · {native} supplied · {derived} derived · {unavailable} unavailable"
+  },
+  "competitionCoverage": {
+    "note": "This list is the competitions currently loaded, not every league. A league that is absent was not searched rather than searched and empty, and cross-league figures are computed across whatever is here.",
+    "link": "Which competitions are covered"
   }
 }

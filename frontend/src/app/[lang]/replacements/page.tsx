@@ -17,6 +17,7 @@ import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
+import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -67,6 +68,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 </option>
               ))}
             </Select>
+            <CompetitionCoverageNote copy={t.common.competitionCoverage} />
           </Field>
           <button
             type="submit"
@@ -206,6 +208,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 </option>
               ))}
             </Select>
+            <CompetitionCoverageNote copy={t.common.competitionCoverage} />
           </Field>
 
           <Field label={t.replacements.constraints.contractWithin} htmlFor="contract_within">
