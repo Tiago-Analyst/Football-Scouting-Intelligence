@@ -50,6 +50,45 @@ const SCORES = [
   { key: "finishing", label: "Finishing", preset: 0 },
 ];
 
+/**
+ * The weight a score carries when the reader has not set one.
+ *
+ * WHAT THIS FIXES
+ *
+ * The authored profile puts 30 on Ball Progression and 15 on Duel Dominance.
+ * Neither can be produced from the loaded data - the provider does not supply
+ * Progressive passes /90 or Aerial duel win % - and a profile that weights a
+ * score nobody has matches nobody, however wide the filters are.
+ *
+ * So 45 of the default 100 points sat on scores that could not be computed,
+ * and a visitor who opened this page and pressed the button got no results.
+ * Measured in production, both languages: 0 candidates and "No player could
+ * be ranked", where the same profile with those two at zero returns 40.
+ *
+ * The page did explain itself, and offered a Reset - which linked back here,
+ * to the profile that caused it. An explanation the reader cannot act on, and
+ * a remedy that restores the problem.
+ *
+ * WHAT THIS DOES NOT DO
+ *
+ * It does not change the authored numbers, and it does not stop anyone
+ * weighting an unavailable score: a weight in the URL is still honoured, and
+ * still earns the explanation. Only the default stands down - the profile
+ * nobody chose should not be one that cannot answer.
+ *
+ * It also does not reapportion the 45 points onto the remaining scores.
+ * Weights are normalised server-side, so a profile adding to 55 shifts
+ * emphasis rather than shrinking anybody's score, and silently moving a
+ * reader's emphasis somewhere they did not put it would be a worse answer
+ * than a smaller total.
+ */
+function defaultWeight(
+  score: { key: string; preset: number },
+  unavailableKeys: ReadonlySet<string>,
+): number {
+  return unavailableKeys.has(score.key) ? 0 : score.preset;
+}
+
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
   return raw && raw.length > 0 ? raw : undefined;
@@ -61,10 +100,25 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
   const params = await props.searchParams;
   const submitted = first(params.submitted) === "1";
 
+  // WHAT THE BUILDER CAN ACTUALLY SCORE, BEFORE IT CHOOSES ITS DEFAULTS.
+  //
+  // These three used to be fetched alongside the search below. They cannot
+  // be: the default profile depends on which scores this load can produce,
+  // so the answer has to be in hand before the weights are decided.
+  const [competitions, presets, scores] = await Promise.all([
+    getCompetitions(),
+    getRecruitmentPresets(),
+    getRecruitmentScores(),
+  ]);
+
+  const unavailableKeys = new Set(
+    scores.filter((score) => !score.available).map((score) => score.key),
+  );
+
   const weights: Record<string, number> = {};
   for (const score of SCORES) {
     const raw = first(params[score.key]);
-    const value = raw !== undefined ? Number(raw) : score.preset;
+    const value = raw !== undefined ? Number(raw) : defaultWeight(score, unavailableKeys);
     if (Number.isFinite(value) && value > 0) weights[score.key] = value;
   }
 
@@ -83,14 +137,13 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
       : null,
   };
 
-  const [competitions, presets, scores, results] = await Promise.all([
-    getCompetitions(),
-    getRecruitmentPresets(),
-    getRecruitmentScores(),
+  // The search follows the three reads above rather than joining them: it is
+  // the only one of the four whose arguments depend on an answer, since the
+  // weights now stand down for a score this load cannot produce.
+  const results =
     submitted && Object.keys(weights).length > 0
-      ? runRecruitmentSearch({ weights, filters, limit: 20 })
-      : Promise.resolve(null),
-  ]);
+      ? await runRecruitmentSearch({ weights, filters, limit: 20 })
+      : null;
 
   // The weights in the URL are the authority once a preset has been picked;
   // this only names where they came from, and says what the role could not
@@ -209,7 +262,14 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   // exactly, and a total a reader typed is not always
                   // divisible by five.
                   step={1}
-                  defaultValue={first(params[score.key]) ?? String(score.preset)}
+                  // The same default the search used. Reading `score.preset`
+                  // here instead would show 30 in a box the search treated
+                  // as 0, which is the kind of disagreement a reader has no
+                  // way to see.
+                  defaultValue={
+                    first(params[score.key]) ??
+                    String(defaultWeight(score, unavailableKeys))
+                  }
                   className="tabular h-8 w-16 rounded-md border border-border bg-surface px-2 text-right text-sm"
                 />
                 <span className="w-3 text-xs text-subtle">%</span>

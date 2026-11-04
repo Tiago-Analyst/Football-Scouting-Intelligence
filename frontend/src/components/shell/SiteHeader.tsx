@@ -29,7 +29,11 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur">
       <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
         <Link href={localePath(locale, "/")} className="shrink-0">
-          <Logo name={t.common.productName} className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
+          {/* When the wordmark is shown is the Logo's own business now; it
+              used to be written here as an arbitrary variant reaching into
+              the component's last child, which meant the rule and the reason
+              for it lived in different files. */}
+          <Logo name={t.common.productName} />
           <span className="sr-only">{withProduct(t, t.navigation.home)}</span>
         </Link>
 
