@@ -138,7 +138,16 @@ export async function apiFetchWithHeaders<T>(
     });
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : "unknown error";
-    throw new ApiError(`Could not reach the API at ${url}: ${reason}`, 0, "network_error");
+    // A timeout and an unreachable host both end up here and are different
+    // things to tell a reader: one means the answer was too slow, the other
+    // that nothing answered at all. They were collapsed into one code, so a
+    // page could only say "the API did not respond" for both.
+    const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+    throw new ApiError(
+      `Could not reach the API at ${url}: ${reason}`,
+      0,
+      timedOut ? "timeout" : "network_error",
+    );
   }
 
   const text = await response.text();

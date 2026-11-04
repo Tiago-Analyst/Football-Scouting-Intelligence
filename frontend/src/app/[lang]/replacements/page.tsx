@@ -16,7 +16,8 @@ import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { getCompetitions, runReplacementSearch, searchPlayers } from "@/lib/players";
+import { SearchFailed } from "@/components/ui/SearchFailed";
+import { getCompetitions, isSearchFailure, runReplacementSearch, searchPlayers } from "@/lib/players";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -122,6 +123,21 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
     runReplacementSearch({ player_id: playerId, filters, limit: 20 }),
     getCompetitions(),
   ]);
+
+  // A failed search is not a missing player. Telling someone their player
+  // does not exist because the backend timed out is the exact mistake
+  // `nullIfMissing` was written to stop, reappearing one level up.
+  if (isSearchFailure(results)) {
+    return (
+      <div className="space-y-6">
+        <PageHeader eyebrow={t.replacements.eyebrow} title={t.replacements.meta.title} />
+        <SearchFailed failure={results} copy={t.common.searchFailed} />
+        <ButtonLink href="/replacements" variant="secondary" size="sm">
+          {t.replacements.picker.startOver}
+        </ButtonLink>
+      </div>
+    );
+  }
 
   if (!results) {
     return (

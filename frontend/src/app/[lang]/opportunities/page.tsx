@@ -14,7 +14,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
-import { getOpportunities } from "@/lib/players";
+import { SearchFailed } from "@/components/ui/SearchFailed";
+import { getOpportunities, isSearchFailure } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -40,7 +41,15 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
     limit: 30,
   };
 
-  const results = await getOpportunities(criteria);
+  const answer = await getOpportunities(criteria);
+  // The criteria form is built from the URL, not from the answer, so it
+  // survives a failure. Splitting the two here is what lets the page keep it:
+  // the screen that could not be run says so in its own column, beside the
+  // filters the reader set.
+  // Both through the type guard, so the compiler narrows each on its own:
+  // deriving the second from the first leaves it a union TS cannot follow.
+  const failure = isSearchFailure(answer) ? answer : null;
+  const results = isSearchFailure(answer) ? null : answer;
 
   return (
     <div className="space-y-8">
@@ -50,13 +59,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
         description={t.opportunities.description}
       />
 
-      {results === null ? (
-        <ErrorState
-          title={t.opportunities.error.title}
-          description={t.opportunities.error.description}
-        />
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <form
             method="get"
             className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
@@ -151,6 +154,15 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
           content's minimum, so one wide row pushes the whole
           document sideways instead of scrolling inside itself. */}
           <section className="min-w-0 space-y-4">
+            {failure ? (
+              <SearchFailed failure={failure} copy={t.common.searchFailed} />
+            ) : results === null ? (
+              <ErrorState
+                title={t.opportunities.error.title}
+                description={t.opportunities.error.description}
+              />
+            ) : (
+              <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
                 {t.opportunities.results.meeting.replace(
@@ -343,9 +355,10 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                 ))}
               </ul>
             )}
+              </>
+            )}
           </section>
         </div>
-      )}
     </div>
   );
 }
