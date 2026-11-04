@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
@@ -245,6 +246,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                   </option>
                 ))}
               </Select>
+              <CompetitionCoverageNote copy={t.common.competitionCoverage} />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">

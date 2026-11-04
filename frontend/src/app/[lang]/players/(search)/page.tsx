@@ -15,6 +15,7 @@ import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
+import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -276,6 +277,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   </option>
                 ))}
               </Select>
+              <CompetitionCoverageNote copy={t.common.competitionCoverage} />
             </Field>
 
             <Field label={t.players.filters.bestRole} htmlFor="role">

@@ -255,8 +255,14 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                              whichever one the reader expects. This is the raw
                              role fit for the player's best role, on the 0-100
                              scale the rest of the product reserves for it. */
-                          <span className="flex flex-col items-end">
-                          <span className="flex items-baseline gap-2">
+                          <span className="flex flex-col items-start sm:items-end">
+                          {/* Wraps. This is a sentence, not a figure: the
+                              label, the score, the scale and the percentile
+                              together are wider than a phone, and the card
+                              clips rather than scrolls - so without this the
+                              percentile simply ends mid-word at the right
+                              edge. */}
+                          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <span className="text-[10px] tracking-wide text-subtle uppercase">{t.opportunities.results.rawRoleFit}</span>
                             <span className="tabular text-lg font-semibold text-accent">
                               {entry.best_role_score !== null

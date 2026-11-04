@@ -51,7 +51,7 @@
     "footystats": "Dados de desempenho",
     "transfermarkt": "Dados de mercado",
     "demo": "Dados de demonstração",
-    "updated": "{source} actualizados em"
+    "updated": "{source} publicados em"
   },
   "meta": {
     "titleTemplate": "%s · {product}",
@@ -65,5 +65,9 @@
     "lineUnreachable": "Contagens de métricas indisponíveis: não foi possível contactar a API",
     "lineNotVerified": "Mapeamento do fornecedor ainda não verificado",
     "line": "{usable} de {total} utilizáveis · {native} fornecidas · {derived} derivadas · {unavailable} indisponíveis"
+  },
+  "competitionCoverage": {
+    "note": "Esta lista são as competições actualmente carregadas, não todas as ligas. Uma liga ausente não foi pesquisada, em vez de pesquisada e vazia, e os valores entre ligas são calculados sobre o que está aqui.",
+    "link": "Que competições estão cobertas"
   }
 }
