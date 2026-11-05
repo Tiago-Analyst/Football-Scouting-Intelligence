@@ -34,6 +34,7 @@ from app.analytics.interpretation import (
 )
 from app.analytics.metrics import LOWER_IS_BETTER, METRIC_FAMILIES, DerivedMetric
 from app.analytics.percentiles import ComparisonContext, PercentileResult, PercentileScope
+from app.analytics.reliability import RankingAdjustment, rank_by_evidence
 from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
 from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
@@ -786,10 +787,47 @@ def list_players(
             return (-best,)
         return (-(record.minutes or 0),)
 
-    found.sort(key=sort_key)
+    # EVIDENCE-AWARE ORDER, WHEN THE READER ASKS FOR IT.
+    #
+    # Ordered here rather than in `sort_key` because the adjustment is not a
+    # property of one record: it needs the whole filtered population, since a
+    # thin figure is pulled toward what an ordinary player in THAT population
+    # looks like. The mean is the default one - the candidates are everybody
+    # matching the filters, which is the case `rank_by_evidence` was written
+    # for, and not the pre-screened elite that Opportunities has to correct.
+    #
+    # `rank_by_evidence` is used unchanged. Nothing here computes a new
+    # ordering formula, and no displayed score is rewritten.
+    adjustments: dict[str, RankingAdjustment] = {}
+    if sort == "role_score_ranked":
+        fits = [view.best_roles.get(r.player_key) for r in found]
+        values = [(f.best.score if f and f.best else 0.0) or 0.0 for f in fits]
+        ranked = rank_by_evidence(values, [r.minutes for r in found])
+        adjustments = {r.player_key: a for r, a in zip(found, ranked, strict=True)}
+        found.sort(key=lambda r: -adjustments[r.player_key].ranked)
+    else:
+        found.sort(key=sort_key)
+
     page = found[offset : offset + limit]
+
+    def summarise(record: PlayerRecord) -> PlayerSummary:
+        summary = to_summary(record, view)
+        adjustment = adjustments.get(record.player_key)
+        if adjustment is not None:
+            summary.ranking_score = round(adjustment.ranked, 1)
+            summary.ranking_note_message = _ranking_message(
+                adjustment,
+                minutes=record.minutes,
+                # The key names what was RANKED, not the unit it was measured
+                # in. "minutes" produced "this minutes carries 71% of a full
+                # season's evidence". `role_fit` is the same quantity
+                # Opportunities ranks, so the two pages say the same word.
+                noun_key="role_fit",
+            )
+        return summary
+
     return PlayerListResponse(
-        items=[to_summary(r, view) for r in page],
+        items=[summarise(r) for r in page],
         total=len(found),
         offset=offset,
         limit=limit,

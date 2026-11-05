@@ -40,7 +40,8 @@
     "sortBy": "Sort by",
     "sorts": {
       "minutes": "Minutes played",
-      "role_score": "Role fit",
+      "role_score": "Role fit (raw)",
+      "role_score_ranked": "Role fit, weighted by evidence",
       "market_value": "Market value",
       "age": "Age",
       "name": "Name"
@@ -64,7 +65,8 @@
     "minutes": "Minutes",
     "value": "Value",
     "contract": "Contract",
-    "percentileSuffix": "pct"
+    "percentileSuffix": "pct",
+    "ranked": "Ranked"
   },
   "pagination": {
     "label": "Pagination",
