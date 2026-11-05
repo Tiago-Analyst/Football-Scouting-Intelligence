@@ -75,6 +75,9 @@
     "selected": "A {competition} está no início da época: o jogador com mais minutos tem {minutes}, pelo que um filtro de minutos mais alto não devolve ninguém aqui.",
     "selectedEmpty": "A {competition} ainda não tem minutos carregados, pelo que um filtro de minutos não devolve ninguém aqui."
   },
+  "seasonContext": {
+    "thatSeason": "{club}, nessa época"
+  },
   "searchFailed": {
     "title": "A pesquisa não terminou",
     "timeout": "Demorou mais do que a página espera e foi interrompida. Uma pesquisa mais estreita — uma posição, um mínimo de minutos — costuma terminar.",

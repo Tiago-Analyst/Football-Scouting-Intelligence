@@ -75,6 +75,9 @@
     "selected": "{competition} is early in its season: its most-played player has {minutes} minutes, so a higher minutes filter returns nobody here.",
     "selectedEmpty": "{competition} has no minutes loaded yet, so a minutes filter returns nobody here."
   },
+  "seasonContext": {
+    "thatSeason": "{club}, that season"
+  },
   "searchFailed": {
     "title": "The search did not finish",
     "timeout": "It ran for longer than the page waits and was stopped. A narrower search — a position, a minutes floor — usually finishes.",

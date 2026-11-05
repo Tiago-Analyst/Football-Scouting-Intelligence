@@ -43,6 +43,11 @@ function bodyOrder() {
     else if (/entry\.ranking_similarity/.test(text)) cells.push("ranked");
     else if (/entry\.similarity/.test(text)) cells.push("similarity");
     else if (/entry\.player\.club/.test(text)) cells.push("club");
+    // The competition cell renders through a component now, so that it can
+    // name the club that played the season when it is not the current one -
+    // the row used to pair "Tottenham Hotspur" with "England Championship".
+    // Matched on the component, which no other cell uses.
+    else if (/<SeasonCompetition\b/.test(text)) cells.push("competition");
     else if (/entry\.player\.competition/.test(text)) cells.push("competition");
     else if (/best_role_key/.test(text)) cells.push("bestRole");
     else if (/entry\.player\.age/.test(text)) cells.push("age");
