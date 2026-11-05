@@ -15,7 +15,9 @@ import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
+import { apiMessage } from "@/components/player/ApiMessage";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
+import type { PlayerSummary } from "@/types/api";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 import {
   SeasonMaturityNote,
@@ -31,7 +33,14 @@ const POSITION_GROUPS = ["GK", "CB", "FB_WB", "DM", "CM", "AM", "WINGER", "FORWA
 const PAGE_SIZE = 25;
 
 /** Sort values, in display order. The words live in the dictionary. */
-const SORTS = ["minutes", "role_score", "market_value", "age", "name"] as const;
+const SORTS = [
+  "minutes",
+  "role_score",
+  "role_score_ranked",
+  "market_value",
+  "age",
+  "name",
+] as const;
 
 /** Contract windows offered, in months. */
 const CONTRACT_WINDOWS = [6, 12, 18, 24] as const;
@@ -177,6 +186,28 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
         </>
       ),
     },
+    // Only when the reader asked for it. An empty column on every other sort
+    // would be worse than no column: it reads as a missing value.
+    ...(filters.sort === "role_score_ranked"
+      ? [
+          {
+            key: "ranked",
+            head: t.players.table.ranked,
+            numeric: true,
+            className: "font-medium",
+            cell: (p: PlayerSummary) => (
+              <>
+                {p.ranking_score != null ? Math.round(p.ranking_score) : "–"}
+                {p.ranking_note_message ? (
+                  <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                    {apiMessage(t, f, p.ranking_note_message)}
+                  </span>
+                ) : null}
+              </>
+            ),
+          } satisfies Column,
+        ]
+      : []),
     {
       key: "minutes",
       head: t.players.table.minutes,
@@ -202,6 +233,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
   const SORTED_COLUMN: Record<string, string> = {
     minutes: "minutes",
     role_score: "rawFit",
+    role_score_ranked: "ranked",
     market_value: "value",
     age: "age",
     name: "player",

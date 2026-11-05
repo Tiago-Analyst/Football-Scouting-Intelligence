@@ -40,7 +40,8 @@
     "sortBy": "Ordenar por",
     "sorts": {
       "minutes": "Minutos jogados",
-      "role_score": "Adequação à função",
+      "role_score": "Adequação à função (bruta)",
+      "role_score_ranked": "Adequação à função, ponderada pela evidência",
       "market_value": "Valor de mercado",
       "age": "Idade",
       "name": "Nome"
@@ -64,7 +65,8 @@
     "minutes": "Minutos",
     "value": "Valor",
     "contract": "Contrato",
-    "percentileSuffix": "pct"
+    "percentileSuffix": "pct",
+    "ranked": "Ordenado"
   },
   "pagination": {
     "label": "Paginação",

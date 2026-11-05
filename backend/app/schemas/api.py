@@ -496,6 +496,28 @@ class PlayerSummary(BaseModel):
     #: Where that raw score stands among players evaluated for the same role.
     #: The comparable figure, and the one the best role was chosen by.
     best_role_percentile: float | None = None
+    #: What the list was ordered by, when the caller asked for an
+    #: evidence-aware order. Null for every other sort, and null on a detail.
+    #:
+    #: WHY A SEARCH NEEDS THIS AT ALL
+    #:
+    #: Sorting player search by role fit orders on the raw score, which is the
+    #: honest value and the wrong order. Measured on live production, the
+    #: Premier League sorted by role fit gave a top ten whose minutes ran
+    #: 12, 620, 92, 126, 494, 117, 396, 97, 630, 93 - the first row a 96 at
+    #: the 100th percentile from twelve minutes of football.
+    #:
+    #: Nothing was mislabelled: the column says "Raw fit", the minutes are a
+    #: column of their own and the sample badge is in the row. But the most
+    #: obvious action on the page produced a shortlist led by noise, and
+    #: recruitment, replacement and opportunities had all had the answer for
+    #: weeks - `rank_by_evidence`, the same function, unchanged.
+    #:
+    #: `best_role_score` stays exactly as it was. This orders; it does not
+    #: rewrite.
+    ranking_score: float | None = None
+    #: The same ordering, as a sentence the interface can say itself.
+    ranking_note_message: Message | None = None
 
 
 class PlayerDetail(PlayerSummary):

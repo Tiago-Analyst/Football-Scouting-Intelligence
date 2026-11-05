@@ -444,6 +444,9 @@ export interface PlayerSummary {
   best_role_score: number | null;
   /** Its standing among players evaluated for that same role. */
   best_role_percentile?: number | null;
+  /** What the list was ordered by, when an evidence-aware sort was asked for. */
+  ranking_score?: number | null;
+  ranking_note_message?: ApiMessage | null;
 }
 
 export interface PlayerDetail extends PlayerSummary {
