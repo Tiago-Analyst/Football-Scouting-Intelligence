@@ -8,9 +8,9 @@ import type { PlayerSummary } from "@/types/api";
  * Two columns of a results table, side by side, with nothing saying they
  * describe different moments:
  *
- *     Will Lankshear   Tottenham Hotspur     England Championship
- *     Cyle Larin       Feyenoord Rotterdam   England Championship
- *     Guy Mbenza       Royal Antwerp FC      China Chinese Super League
+ *     a forward        Tottenham Hotspur     England Championship
+ *     a forward        Feyenoord Rotterdam   England Championship
+ *     a forward        Royal Antwerp FC      China Chinese Super League
  *
  * Every one of those rows states something impossible. Tottenham do not play
  * in the Championship and Feyenoord do not play in England.
