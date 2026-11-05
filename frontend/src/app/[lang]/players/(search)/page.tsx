@@ -12,12 +12,13 @@ import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Tabl
 import { Tooltip } from "@/components/ui/Tooltip";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
-import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
+import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { ContractDate } from "@/components/player/ContractDate";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
+import { Pagination } from "@/components/ui/Pagination";
 import type { PlayerSummary } from "@/types/api";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 import {
@@ -536,7 +537,14 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   </Table>
                 </TableWrap>
 
-                <Pagination total={results.total} offset={offset} params={params} t={t} />
+                <Pagination
+                  total={results.total}
+                  offset={offset}
+                  pageSize={PAGE_SIZE}
+                  params={params}
+                  route="/players"
+                  copy={t.common.pagination}
+                />
               </>
             )}
 
@@ -558,67 +566,6 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
   );
 }
 
-/**
- * The page counter and its two buttons.
- *
- * `t` is a prop rather than an `await getDictionary()` inside this function so
- * the component stays synchronous and the caller's dictionary is the only one
- * in play. Every string here used to be an English literal while
- * `players.pagination` sat fully translated in both dictionaries - the keys
- * existed, so key-parity tests passed, and a Portuguese reader still got
- * "Page 1 of 216" and "Next". `frontend/tests/i18n-no-hardcoded-copy.test.mjs`
- * now reads this file for exactly that.
- */
-function Pagination({
-  total,
-  offset,
-  params,
-  t,
-}: {
-  total: number;
-  offset: number;
-  params: Record<string, string | string[] | undefined>;
-  t: Dictionary;
-}) {
-  if (total <= PAGE_SIZE) return null;
-
-  const build = (nextOffset: number) => {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-      const raw = Array.isArray(value) ? value[0] : value;
-      if (key !== "offset" && raw) search.set(key, raw);
-    }
-    if (nextOffset > 0) search.set("offset", String(nextOffset));
-    return `/players?${search.toString()}`;
-  };
-
-  const page = Math.floor(offset / PAGE_SIZE) + 1;
-  const pages = Math.ceil(total / PAGE_SIZE);
-
-  return (
-    <nav className="flex items-center justify-between" aria-label={t.players.pagination.label}>
-      {offset > 0 ? (
-        <ButtonLink href={build(Math.max(0, offset - PAGE_SIZE))} variant="secondary" size="sm">
-          {t.players.pagination.previous}
-        </ButtonLink>
-      ) : (
-        <span />
-      )}
-      <span className="tabular text-xs text-muted">
-        {t.players.pagination.page
-          .replace("{page}", String(page))
-          .replace("{pages}", String(pages))}
-      </span>
-      {offset + PAGE_SIZE < total ? (
-        <ButtonLink href={build(offset + PAGE_SIZE)} variant="secondary" size="sm">
-          {t.players.pagination.next}
-        </ButtonLink>
-      ) : (
-        <span />
-      )}
-    </nav>
-  );
-}
 
 /**
  * A paragraph whose `<strong>` spans survive translation.

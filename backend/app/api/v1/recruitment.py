@@ -629,6 +629,7 @@ def market_opportunities(
     max_market_value_eur: int = Query(default=5_000_000, ge=0),
     contract_within_months: int | None = Query(default=18, ge=0, le=120),
     limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ) -> OpportunitiesResponse:
     """Players matching a screen over age, role fit, playing time and market.
 
@@ -792,8 +793,9 @@ def market_opportunities(
 
     found.sort(key=lambda o: o.ranking_score, reverse=True)
     return OpportunitiesResponse(
-        items=found[:limit],
+        items=found[offset : offset + limit],
         total=len(found),
+        offset=offset,
         criteria=criteria,
         disclaimer=OPPORTUNITY_DISCLAIMER,
         disclaimer_message=Message(code="opportunity_disclaimer"),

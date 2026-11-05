@@ -14,6 +14,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
+import { Pagination } from "@/components/ui/Pagination";
 import { SeasonMaturityNote } from "@/components/ui/SeasonMaturityNote";
 import { SearchFailed } from "@/components/ui/SearchFailed";
 import { getCompetitions, getOpportunities, isSearchFailure } from "@/lib/players";
@@ -22,6 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
   return { title: t.opportunities.meta.title, description: t.opportunities.meta.description };
 }
+
+/** Ten cards is about two phone screens; thirty was fourteen and a half. */
+const PAGE_SIZE = 10;
 
 function first(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -32,6 +36,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
   const t = await getDictionary();
   const f = await formatters();
   const params = await props.searchParams;
+  const offset = Math.max(0, Number(first(params.offset) ?? 0) || 0);
   const criteria = {
     max_age: first(params.max_age) ?? "23",
     min_role_score: first(params.min_role_score) ?? "80",
@@ -39,7 +44,15 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
     min_minutes: first(params.min_minutes) ?? "0",
     max_market_value_eur: first(params.max_market_value_eur) ?? "5000000",
     contract_within_months: first(params.contract_within_months) ?? "18",
-    limit: 30,
+    // TEN PER PAGE, NOT THIRTY ON ONE.
+    //
+    // Thirty cards at about 360px made this page 12,403px tall at 390px -
+    // fourteen and a half phone screens - and the ranking that explains the
+    // order sits at the top, so a reader on a phone scrolled past most of the
+    // list to reach the end of an answer they could no longer see the reason
+    // for.
+    limit: PAGE_SIZE,
+    offset,
   };
 
   // Fetched beside the search rather than after it: the list is cached hard
@@ -366,6 +379,25 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                 ))}
               </ul>
             )}
+
+            {/* SHOWN ONLY WHEN THE SERVER CONFIRMS THE SLICE.
+                `offset` is new, and the frontend deploys minutes before
+                the backend. An older backend ignores an unknown query
+                parameter and serves the first page, so links labelled
+                "page 2" would quietly repeat page 1 - worse than no
+                pagination. The response echoes the offset it applied; if
+                it does not match what was asked, there is no pagination
+                to offer and the page says nothing. */}
+            {results.offset === offset ? (
+              <Pagination
+                total={results.total}
+                offset={offset}
+                pageSize={PAGE_SIZE}
+                params={params}
+                route="/opportunities"
+                copy={t.common.pagination}
+              />
+            ) : null}
               </>
             )}
           </section>

@@ -243,15 +243,26 @@ test("nor a short label it already provides, between its tags", () => {
 });
 
 test("the pagination that started this reads from the dictionary", () => {
-  const page = readFileSync(
-    new URL("../src/app/[lang]/players/(search)/page.tsx", import.meta.url),
+  // It moved out of the search page when market opportunities needed it too:
+  // copying the function into a second page is how two paginations come to
+  // disagree about what a page is. The guarantee is unchanged and now covers
+  // both callers at once - every string comes from the dictionary, and the
+  // component is the only place that could hardcode one.
+  const component = readFileSync(
+    new URL("../src/components/ui/Pagination.tsx", import.meta.url),
     "utf8",
   );
   for (const key of ["label", "previous", "next", "page"]) {
-    assert.match(page, new RegExp(`t\.players\.pagination\.${key}`));
+    assert.match(component, new RegExp(`copy\.${key}`), `${key} is not read from the copy prop`);
   }
-  assert.equal(/>\s*(?:Previous|Next)\s*</.test(page), false);
-  assert.equal(/aria-label="Pagination"/.test(page), false);
+  assert.equal(/>\s*(?:Previous|Next)\s*</.test(component), false);
+  assert.equal(/aria-label="Pagination"/.test(component), false);
+
+  // And both pages hand it the shared block rather than a literal.
+  for (const route of ["app/[lang]/players/(search)/page.tsx", "app/[lang]/opportunities/page.tsx"]) {
+    const page = readFileSync(new URL(`../src/${route}`, import.meta.url), "utf8");
+    assert.match(page, /copy=\{t\.common\.pagination\}/, `${route} passes its own strings`);
+  }
 });
 
 test("and so does the column that explains the similarity ordering", () => {
