@@ -78,6 +78,9 @@
   "seasonContext": {
     "thatSeason": "{club}, nessa época"
   },
+  "contract": {
+    "ranOut": "já terminado"
+  },
   "searchFailed": {
     "title": "A pesquisa não terminou",
     "timeout": "Demorou mais do que a página espera e foi interrompida. Uma pesquisa mais estreita — uma posição, um mínimo de minutos — costuma terminar.",

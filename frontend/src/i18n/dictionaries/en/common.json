@@ -78,6 +78,9 @@
   "seasonContext": {
     "thatSeason": "{club}, that season"
   },
+  "contract": {
+    "ranOut": "ran out"
+  },
   "searchFailed": {
     "title": "The search did not finish",
     "timeout": "It ran for longer than the page waits and was stopped. A narrower search — a position, a minutes floor — usually finishes.",

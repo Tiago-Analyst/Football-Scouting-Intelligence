@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContractDate } from "@/components/player/ContractDate";
 
 import { apiMessage } from "@/components/player/ApiMessage";
 import { PlayerLine } from "@/components/player/PlayerLine";
@@ -380,10 +381,12 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
-                        <TD numeric className="whitespace-nowrap text-muted">
-                          {entry.player.contract_expires
-                            ? f.date(entry.player.contract_expires)
-                            : "–"}
+                        <TD numeric className="text-muted">
+                          <ContractDate
+                            date={entry.player.contract_expires}
+                            copy={t.common.contract}
+                            f={f}
+                          />
                         </TD>
                       </TR>
                     ))}

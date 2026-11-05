@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContractDate } from "@/components/player/ContractDate";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
 
 import { apiMessage } from "@/components/player/ApiMessage";
@@ -399,10 +400,12 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
-                        <TD numeric className="whitespace-nowrap text-muted">
-                          {entry.player.contract_expires
-                            ? f.date(entry.player.contract_expires)
-                            : "–"}
+                        <TD numeric className="text-muted">
+                          <ContractDate
+                            date={entry.player.contract_expires}
+                            copy={t.common.contract}
+                            f={f}
+                          />
                         </TD>
                       </TR>
                     ))}
