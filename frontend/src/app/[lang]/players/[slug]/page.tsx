@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { ContractDate } from "@/components/player/ContractDate";
 
 import type { Metadata } from "next";
 import { AppLink as Link } from "@/components/ui/AppLink";
@@ -225,7 +226,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
         />
         <StatTile
           label={t.profile.tiles.contractUntil}
-          value={player.contract_expires ? f.date(player.contract_expires) : "–"}
+          value={<ContractDate date={player.contract_expires} copy={t.common.contract} f={f} />}
         />
       </div>
 

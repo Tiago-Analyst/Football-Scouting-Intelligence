@@ -16,6 +16,7 @@ import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 import { apiMessage } from "@/components/player/ApiMessage";
+import { ContractDate } from "@/components/player/ContractDate";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
 import type { PlayerSummary } from "@/types/api";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
@@ -225,7 +226,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
       head: t.players.table.contract,
       numeric: true,
       className: "whitespace-nowrap text-muted",
-      cell: (p) => (p.contract_expires ? f.date(p.contract_expires) : "–"),
+      cell: (p) => <ContractDate date={p.contract_expires} copy={t.common.contract} f={f} />,
     },
   ];
 
