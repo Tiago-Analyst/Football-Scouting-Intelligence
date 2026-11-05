@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SeasonCompetition } from "@/components/player/SeasonCompetition";
 
 import { apiMessage } from "@/components/player/ApiMessage";
 import { PlayerLine } from "@/components/player/PlayerLine";
@@ -363,7 +364,9 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                           ) : null}
                         </TD>
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
-                        <TD className="whitespace-nowrap text-muted">{entry.player.competition}</TD>
+                        <TD className="text-muted">
+                          <SeasonCompetition player={entry.player} copy={t.common.seasonContext} />
+                        </TD>
                         <TD className="whitespace-nowrap">
                           {entry.player.best_role_key ? (
                             <RoleName role={entry.player.best_role_key} />

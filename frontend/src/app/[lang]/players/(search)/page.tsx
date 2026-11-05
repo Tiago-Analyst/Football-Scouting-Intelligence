@@ -15,6 +15,7 @@ import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
+import { SeasonCompetition } from "@/components/player/SeasonCompetition";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 import {
   SeasonMaturityNote,
@@ -143,8 +144,10 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     {
       key: "competition",
       head: t.players.table.competition,
-      className: "whitespace-nowrap text-muted",
-      cell: (p) => p.competition,
+      // No longer `whitespace-nowrap`: the cell may carry a second line
+      // naming the club that played the season.
+      className: "text-muted",
+      cell: (p) => <SeasonCompetition player={p} copy={t.common.seasonContext} />,
     },
     {
       key: "bestRole",
