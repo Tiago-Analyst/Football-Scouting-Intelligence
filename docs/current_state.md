@@ -1,10 +1,10 @@
 # Where this project actually stands
 
-**Snapshot taken 4 November 2026, 16:10 UTC.** Every number below was read from
+**Snapshot taken 5 November 2026, 10:13 UTC.** Every number below was read from
 a live source at that moment — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
-`git ls-remote`, the test suite — and not from another document, this file's
-previous version included.
+`git ls-remote`, the test suite, and a browser pointed at the deployed site —
+and not from another document, this file's previous version included.
 
 This file exists because two documents in `docs/` went stale this month, and
 each one went stale by claiming something was *still to do* after it had been
@@ -12,15 +12,24 @@ done. So the rule for this one: **it describes a moment, and it says what makes
 it wrong.** If you are reading it after the triggers in "What makes this file
 wrong", stop trusting it and re-read the sources named in each section.
 
-The previous snapshot was 3 November. **None of its five triggers fired** — the
-generation is unpublished, the heartbeat recovered, every pipeline run since
-has succeeded, the three figures still add to 28,157, and 8 November has not
-arrived. The file still went out of date, because the work moved to what a
-visitor actually sees and every trigger was watching the pipeline. Nine commits
-of a pre-release correction pass landed, three of them on defects that had
-reached production, and nothing in this document would have asked about them.
-That is a defect in the triggers, and the last one in the final section is the
-fix for it.
+The previous snapshot was 4 November. **None of its seven triggers fired**, and
+the file went out of date again within a day — this time for a reason worth
+writing down rather than patching over.
+
+The snapshot before that failed because every trigger watched the pipeline
+while the work had moved to the site. A trigger for the site was added. Then
+somebody opened the deployed site in a browser and found **three defects that
+had been live the whole time**: a header that did not fit, a search builder
+whose untouched default matched nobody, and six Portuguese sentences that
+disagreed in gender. The new trigger would not have fired for any of them, and
+neither would a better-written one, because **every trigger in this document
+asks what changed, and nothing about these three ever changed.** They were
+wrong on the first day and wrong on the ninetieth.
+
+So the list at the end now carries one entry that is not a change at all: a
+date by which the deployed site should have been looked at again. Tests that
+pass and a green CI are evidence about what was asked, not about what is
+there.
 
 ## What is serving right now
 
@@ -191,6 +200,95 @@ The full report, including what it could not verify, is
 `docs/release_verification_2026-11-04.md`. `docs/ux_decisions.md` records the
 five interface decisions and `docs/naming.md` the naming rule.
 
+## Three defects the pass did not find, because nobody looked
+
+Found on 4 November by opening the deployed site in a browser at four widths
+and running a real search, after the correction pass had been called finished.
+All three predate it. All three were live in both languages. **408 tests
+passed throughout, and CI was green on all nine pull requests.**
+
+Fixed and deployed on 5 November, in `79f51a1`.
+
+### The header did not fit, so every page scrolled sideways
+
+Measured in production at a 1024px viewport — on every page, because it is the
+header:
+
+| | bar content | box | page scrolled |
+| --- | --- | --- | --- |
+| Portuguese | 1130px | 1024px | **106px** |
+| English | 1091px | 1024px | **67px** |
+
+Clean at 375, 768 and 1280. The damage sat between 1024 and about 1130, which
+is laptops and upright tablets. The desktop nav switches on at `lg` (1024) and
+needs roughly 1139px of bar beside it, and nothing in the bar could shrink.
+
+The wordmark is what stands down, not the nav: hiding six links would leave a
+reader no sign they exist, while the glyph remains the home link and
+`SiteHeader` keeps the full name in an `sr-only` span. Shown `sm` to `lg`,
+hidden across the band the nav needs, back at `xl`.
+
+Measured in production after the deploy: **74px of slack in Portuguese, 112px
+in English, and the page will not scroll sideways even when told to.**
+
+### The recruitment builder's default profile matched nobody
+
+The authored default puts 30 on Ball Progression and 15 on Duel Dominance.
+Neither can be produced from the loaded data — the provider supplies neither
+Progressive passes /90 nor Aerial duel win % — and a profile weighting a score
+nobody has matches nobody, however wide the filters are.
+
+So **45 of the default 100 points sat on scores that could not be computed**,
+and a visitor who opened the flagship page and pressed the button got nothing.
+The page explained itself and offered a Reset, which linked back to
+`/recruitment` — the profile that caused it. An explanation the reader could
+not act on, and a remedy that restored the problem.
+
+A default weight now stands down for a score the load cannot produce. The
+authored numbers are untouched, a weight the reader sets is still honoured and
+still earns the explanation, and the 45 points are **not** reapportioned:
+weights are normalised server-side, so a smaller total shifts emphasis rather
+than shrinking anyone's score. Production after the deploy: **0 result cards
+became 40.**
+
+This is also why the recruitment timings in this file are worth reading twice.
+The filtered brief answering in 0.19–0.27s was measured by hand with explicit
+weights. It was never the path a visitor took.
+
+### Six Portuguese sentences disagreed in gender
+
+A feminine noun with a masculine article or participle, in `messages`,
+`quality`, `methodology` and `glossary`. Two of them are in the sentence shown
+when no role could be measured — which, until the fix above, was the sentence
+the builder showed by default.
+
+Four were spotted by reading; sweeping for the shape rather than the instance
+found two more. Two further matches were read and left alone, because the
+participle belongs to a different subject; they are listed in the guard with
+the reason, so an exemption cannot quietly become a way to silence it.
+
+### What they have in common
+
+Not the shape of the correction pass. None of these is one fact written in two
+places. **All three are a single fact nobody read**: the header always
+overflowed, the default profile always matched nobody, the sentences were
+always wrong. There was nothing to drift, and so nothing a regression test
+could have caught — the tests agreed with the code, and both were wrong about
+the same thing.
+
+What found them was a browser, four viewport widths, and a search run the way
+a visitor runs one. That is now a dated item at the end of this file rather
+than a thing that happens when somebody thinks of it.
+
+Each fix carries a guard, and each guard was run against its own defect put
+back — six negative controls, six failures. The header guard is a width budget
+rather than a rendering, since there is no browser in the test suite; what
+earns it a place is that it reproduces the measurement it was calibrated
+against, predicting 74px of slack at 1024 where the browser measured 74. The
+Portuguese guard matches a grammatical relation rather than a list of words.
+
+The suite is now **428 tests across 42 files**, up from 408 across 39.
+
 ## A false alarm that rang for nearly two days
 
 Last week, and nothing was wrong with the system.
@@ -212,9 +310,9 @@ The trigger was **18 candidate Transfermarkt checks written on 1 November at
 the data-quality response.
 
 Fixed in `377f294`: the fingerprint now excludes `CANDIDATE` rows, so it moves
-at promotion rather than at load. **The heartbeat has not failed since** — four
-consecutive successes, 3 Nov 17:33 through 4 Nov 09:55. That is the
-confirmation the previous snapshot was waiting for, and four runs is how much
+at promotion rather than at load. **The heartbeat has not failed since** —
+seven consecutive successes, 3 Nov 17:33 through 5 Nov 03:32. That is the
+confirmation the previous snapshot was waiting for, and seven runs is how much
 of it there is.
 
 **The lesson is the alarm, not the bug.** It rang for 42 hours about a
@@ -253,7 +351,7 @@ The check reports a pass with its own sentence; `no rows` is still a failure
 for a source that should have them, and for the unscoped report.
 
 **Still unobserved:** no Transfermarkt refresh has completed since 27 August.
-Sunday 8 November is the first opportunity, four days from this snapshot, and
+Sunday 8 November is the first opportunity, three days from this snapshot, and
 until it arrives this is established by reading the code rather than by
 watching it work.
 
@@ -272,31 +370,41 @@ flight while this was read (`41860877227`, 15:44, `in_progress`).
 | status | `PUBLISHED` | `IN_PROGRESS` |
 | created | 21 Oct 09:20 | 2 Nov 12:21 |
 | published | 31 Oct 02:48 | — |
-| players | 28,754 of 28,754 | 9,686 of 9,686 *so far* |
-| competitions | 45 of 45 | 17 of 17 *so far* |
+| players | 28,754 of 28,754 | 12,852 of 13,660 *so far* |
+| competitions | 45 of 45 | 18 of 19 *so far* |
 
-`refresh.state` is `Fetching`, and a continuation run was in flight while this
-was read — so the in-flight column is a moment inside a run, not a result.
+`refresh.state` is `Fetching`, last updated 5 Nov 03:30 — so the in-flight
+column is a moment inside a run, not a result.
 
-**The in-flight generation reports `complete: true` and is not complete.**
-Both of its counters read equal because `expected` is discovered as roster
-pages are read, and at this instant everything discovered has been fetched.
-Yesterday the same two fields read 3,753 of 4,490 and 8 of 9; the previous
+**`expected` is discovered as roster pages are read, so neither in-flight
+figure is a target.** Three readings of the same two fields make the point
+better than the warning does:
+
+```
+3 Nov 11:25    3,753 of  4,490     8 of  9     complete: false
+4 Nov 16:10    9,686 of  9,686    17 of 17     complete: TRUE
+5 Nov 10:13   12,852 of 13,660    18 of 19     complete: false
+```
+
+Yesterday it reported `complete: true` and was not complete: both counters
+read equal because everything discovered so far had been fetched. Today the
+flag is false again and the denominator has grown by 3,974. The previous
 generation's own `expected` read 11,439 on 22 October and settled at 28,754.
-**Neither figure is a target, and `complete` is arithmetic over a moment rather
-than a verdict** — the status is `IN_PROGRESS` and that is the field to read.
+**`complete` is arithmetic over a moment rather than a verdict** — the status
+is `IN_PROGRESS` and that is the field to read.
 
 ## Actions caches
 
-Twenty-two `footystats-gen-*` caches, **2.19 GB**:
+Twenty-one `footystats-gen-*` caches, **2.04 GB**:
 
 | generation | caches | size | newest access |
 | --- | --- | --- | --- |
-| `20261021T092049Z`, published | 15 | 1.99 GB | 31 Oct 02:42 |
-| `20261102T122100Z`, in flight | 7 | 0.20 GB | 4 Nov 15:45 |
+| `20261021T092049Z`, published | 11 | 1.61 GB | 31 Oct 02:42 |
+| `20261102T122100Z`, in flight | 10 | 0.43 GB | 5 Nov 03:30 |
 
-The fifteen are dead weight and age out on their own; the seven are
-load-bearing.
+The eleven are dead weight and are ageing out on their own, which is now
+observed rather than asserted: they were fifteen and 1.99 GB yesterday. The
+ten are load-bearing, and there are three more of them than there were.
 
 **Check with:**
 `gh api repos/Tiago-Analyst/Football-Scouting-Intelligence/actions/caches`
@@ -344,7 +452,7 @@ to watch, not a thing that has happened.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at 7750f3c when this was read
+GitHub:     main only, at 79f51a1 when this was read
 Local:      main, in sync, working tree clean
 Worktrees:  1
 ```
@@ -377,13 +485,15 @@ test fixes this direction and explains it in place.
 
 | Item | State |
 | --- | --- |
-| A Transfermarkt refresh completing | **Unobserved since 27 August**, 69 days. The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
+| A Transfermarkt refresh completing | **Unobserved since 27 August**, 69 days by the endpoint's own count. The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
 | A search filter that is silently ignored | `RecruitmentRequest` accepts unknown top-level fields and answers 200, so `position_group` instead of `filters.position_groups` returns an unfiltered search with no warning. It cost a wrong measurement in this file; it would cost an integrator more. Not fixed |
 | The failure path is unverified in production | The before/after figures for `3a9bc9c` were measured against a local proxy. With the backend healthy there is no way to provoke the failure in production, and no synthetic route exists to do it |
 | The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
-| 15 dead generation caches | 1.99 GB belonging to a published generation. They age out on their own |
+| 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
+| No one had opened the deployed site | Three defects were live in both languages from the first day until 5 November — a header that overflowed every page between 1024 and 1130px, a search builder whose untouched default matched nobody, six Portuguese sentences disagreeing in gender. Fixed in `79f51a1`. What is open is the habit: 408 tests and a green CI said nothing about any of them, and only a browser did. Now a dated trigger |
+| The builder's authored profile still weights two scores that cannot be computed | 45 of its 100 points, on Ball Progression and Duel Dominance. The default now stands those two down, so the page answers; the authored numbers are deliberately untouched, so they come back the moment the provider supplies the metrics. If it never does, the profile is worth rewriting rather than patching at the edges |
 | Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
 | One residual player name in 144 commits | Accepted, not removed, deliberately and dated |
@@ -408,3 +518,13 @@ Any of these, and it should be re-read against its sources rather than trusted:
 - anything is added to the site that names the product, or lays out a card
   header, or reads the API, without going through `product.ts`, `CardHeader` or
   a failure branch — the three places this week's defects came from
+- a seventh item joins the header nav, or a third language arrives, or a nav
+  label is renamed to a longer word — `header-fits` is a width budget and will
+  say so, but the budget is the thing to re-measure in a browser
+- **Sunday 22 November passes without the deployed site having been opened in
+  a browser.** This is the only entry here that is not a change, and it is the
+  one the other entries cannot replace. The three defects found on 4 November were
+  live from the first day, so nothing ever changed about them and no trigger
+  of the usual kind could fire. Four widths, both languages, and one search
+  run the way a visitor runs one — tests that pass are evidence about what was
+  asked, not about what is there
