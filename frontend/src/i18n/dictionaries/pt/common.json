@@ -71,7 +71,7 @@
     "link": "Que competições estão cobertas"
   },
   "seasonMaturity": {
-    "mixed": "Só {established} de {total} competições carregadas jogaram já época suficiente para um registo de época completa ser possível. Um filtro de minutos ou de amostra retira assim ligas inteiras, não jogadores fracos.",
+    "mixed": "{early} de {total} competições carregadas estão no início da época: ninguém nelas chegou ainda aos minutos de uma época completa. Um filtro de minutos ou de amostra retira essas ligas por inteiro, em vez dos jogadores mais fracos dentro delas.",
     "selected": "A {competition} está no início da época: o jogador com mais minutos tem {minutes}, pelo que um filtro de minutos mais alto não devolve ninguém aqui.",
     "selectedEmpty": "A {competition} ainda não tem minutos carregados, pelo que um filtro de minutos não devolve ninguém aqui."
   },

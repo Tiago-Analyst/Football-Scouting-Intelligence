@@ -104,7 +104,7 @@ test("the sentence disappears on its own once the seasons catch up", () => {
   // which is how the two stale documents in docs/ went stale.
   assert.match(
     read(NOTE),
-    /if \(total <= 1 \|\| established === total\) return null;/,
+    /if \(total <= 1 \|\| early === 0\) return null;/,
     "the note no longer stands down once every competition is established",
   );
 });
@@ -138,7 +138,7 @@ test("the per-competition line uses the reader's number formatting", () => {
   // A Portuguese page with English thousands separators is the symptom the
   // formatters exist to prevent.
   const source = read(NOTE);
-  assert.match(source, /f\.count\(competition\.best_minutes\)/);
+  assert.match(source, /f\.count\(best\)/);
   assert.ok(
     !/toLocaleString\(\)/.test(source),
     "the note formats a number without a locale again",
@@ -151,6 +151,52 @@ test("the competition type carries what the note reads", () => {
     types.indexOf("export interface Competition {"),
     types.indexOf("export interface Role {"),
   );
-  assert.match(block, /best_minutes: number;/);
-  assert.match(block, /season_established: boolean;/);
+  // Optional on purpose: the frontend deploys before the backend, so an
+  // older server legitimately omits both. The type says so, which forces the
+  // component to handle it.
+  assert.match(block, /best_minutes\?: number;/);
+  assert.match(block, /season_established\?: boolean;/);
+});
+
+test("an unanswered server produces silence, not a claim of zero", () => {
+  /**
+   * The defect this file was written for, and then shipped anyway.
+   *
+   * The frontend deploys in seconds and the backend in minutes. For a few
+   * minutes `season_established` was absent from every row, and counting
+   * truthy values turned "I was not told" into "none of them". Production
+   * served "Only 0 of 43 loaded competitions have played enough of their
+   * season" while every one of them had, and held it for an hour, because
+   * the competition list is cached for an hour.
+   */
+  const source = read(NOTE);
+  assert.match(
+    source,
+    /typeof c\.season_established === "boolean"/,
+    "the note counts an absent field as false again",
+  );
+  assert.match(
+    source,
+    /if \(answered\.length === 0\) return null;/,
+    "the note no longer falls silent when the server has not answered",
+  );
+  assert.match(
+    source,
+    /typeof competition\.season_established !== "boolean"/,
+    "the per-competition line calls an unanswered league early",
+  );
+});
+
+test("the sentence counts the competitions that are behind", () => {
+  // It used to count the established ones and prefix them with "Only", which
+  // reads as alarming when the number is a majority: production has 28 of 43
+  // established, and "Only 28 of 43" undersells nothing and overstates
+  // everything. The informative number is how many are NOT ready.
+  const source = read(NOTE);
+  assert.match(source, /const early = answered\.filter\(\(c\) => !c\.season_established\)\.length;/);
+  for (const locale of ["en", "pt"]) {
+    const mixed = dict(locale).mixed;
+    assert.ok(mixed.includes("{early}"), `${locale} no longer reports the count that matters`);
+    assert.ok(!/^Only |^Só /.test(mixed), `${locale} prefixes a majority with "only"`);
+  }
 });

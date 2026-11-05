@@ -603,7 +603,7 @@ export interface Competition {
   name: string;
   player_count: number;
   /** The highest minutes any player in this competition has reached. */
-  best_minutes: number;
+  best_minutes?: number;
   /**
    * Whether a full season's figure is possible in this competition yet.
    *
@@ -611,7 +611,7 @@ export interface Competition {
    * so the sentence under a minutes filter cannot disagree with the filter.
    * See `SeasonMaturityNote`.
    */
-  season_established: boolean;
+  season_established?: boolean;
 }
 
 export interface Role {

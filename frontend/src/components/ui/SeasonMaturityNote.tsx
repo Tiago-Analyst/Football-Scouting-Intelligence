@@ -58,17 +58,33 @@ export function SeasonMaturityNote({
   className?: string;
 }) {
   const total = competitions.length;
-  const established = competitions.filter((c) => c.season_established).length;
 
-  // Nothing to say once every competition has played enough of its season,
+  // SILENCE WHEN THE SERVER HAS NOT ANSWERED, NOT A CLAIM OF ZERO.
+  //
+  // This shipped without the check and said something false in production for
+  // the length of a cache. The frontend deploys in seconds and the backend in
+  // minutes, so for a few minutes `season_established` was absent from every
+  // row - and `filter(c => c.season_established)` counts an absent field as
+  // false, which rendered "Only 0 of 43 competitions have played enough of
+  // their season". Every one of them had. The page then held that sentence
+  // for an hour, because the competition list is cached for an hour.
+  //
+  // A page that cannot reach the fact must say nothing. It must never
+  // downgrade "I was not told" into "the answer is none".
+  const answered = competitions.filter((c) => typeof c.season_established === "boolean");
+  if (answered.length === 0) return null;
+
+  const early = answered.filter((c) => !c.season_established).length;
+
+  // Nothing to say when every competition has played enough of its season,
   // and nothing to say about a set of one.
-  if (total <= 1 || established === total) return null;
+  if (total <= 1 || early === 0) return null;
 
   return (
     <p className={className ?? "mt-1.5 text-[11px] leading-relaxed text-subtle"}>
       {copy.mixed
-        .replaceAll("{established}", String(established))
-        .replaceAll("{total}", String(total))}
+        .replaceAll("{early}", String(early))
+        .replaceAll("{total}", String(answered.length))}
     </p>
   );
 }
@@ -93,14 +109,17 @@ export function SelectedCompetitionMaturity({
   f: Formatters;
   className?: string;
 }) {
-  if (!competition || competition.season_established) return null;
+  // The same rule as above: an absent answer is not "this league is early".
+  if (!competition || typeof competition.season_established !== "boolean") return null;
+  if (competition.season_established) return null;
 
-  const template = competition.best_minutes > 0 ? copy.selected : copy.selectedEmpty;
+  const best = competition.best_minutes ?? 0;
+  const template = best > 0 ? copy.selected : copy.selectedEmpty;
   return (
     <p className={className ?? "mt-1.5 text-[11px] leading-relaxed text-warning"}>
       {template
         .replaceAll("{competition}", competition.name)
-        .replaceAll("{minutes}", f.count(competition.best_minutes))}
+        .replaceAll("{minutes}", f.count(best))}
     </p>
   );
 }
