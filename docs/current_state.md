@@ -177,6 +177,22 @@ rendered "player not found" on a failure, so a timeout told a reader their
 player did not exist — the exact mistake `nullIfMissing` exists to prevent,
 reappearing one level up.
 
+**Re-verified on 5 November, because that measurement had expired.** It
+covered one of the three pages, and the recruitment page was restructured in
+`79f51a1` afterwards. All three pages were re-run against the proxy in four
+modes — hang, 500, 422, and a connection cut mid-request, which had never been
+tried. Twelve of twelve: the form survives, the sentence matches the reason,
+and nothing quotes an HTTP status where nothing answered.
+
+**One reason is now verified in production rather than against a proxy.**
+`/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse for real
+— JavaScript writes 1e+21 and above in exponential notation, which the field's
+`int` rejects — and the deployed site serves "the analysis service refused the
+request… HTTP status 422" with the form intact, in both languages. A 404 still
+reads "player not found" there, which is the distinction this fix exists to
+keep. The other three reasons stay proxy-only: provoking them in production
+means breaking production.
+
 ### What they have in common
 
 The same shape as the pipeline fixes of the week before: **a fact written down
@@ -496,7 +512,7 @@ test fixes this direction and explains it in place.
 | Item | State |
 | --- | --- |
 | A Transfermarkt refresh completing | **Unobserved since 27 August**, 69 days by the endpoint's own count. The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
-| The failure path is unverified in production | The before/after figures for `3a9bc9c` were measured against a local proxy. With the backend healthy there is no way to provoke the failure in production, and no synthetic route exists to do it |
+| Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
 | The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
