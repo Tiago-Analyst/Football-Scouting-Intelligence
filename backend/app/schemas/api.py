@@ -9,9 +9,9 @@ explainable — but the definition that produced it stays server-side.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Message(BaseModel):
@@ -802,7 +802,67 @@ class RolePresetOut(BaseModel):
     unavailable_scores: list[UnavailableScoreOut] = Field(default_factory=list)
 
 
-class RecruitmentWeights(BaseModel):
+class SearchRequest(BaseModel):
+    """Base for the two search bodies: it refuses what it cannot apply.
+
+    WHAT IT USED TO DO
+
+    Both bodies accepted any extra top-level key, ignored it, and answered
+    200. So a search sent with `position_group` and `min_minutes` at the top
+    level - instead of under `filters`, as `position_groups` and
+    `min_minutes` - came back as an unfiltered search over the whole
+    population, with nothing to say it had dropped both constraints.
+
+    That is not a hypothetical. It was sent by someone measuring this very
+    endpoint, with its source open beside them: the filtered brief appeared to
+    have regressed from 0.2s to 4.5s, because both requests were the same
+    unfiltered search. An integrator does not get the source, or the suspicion.
+
+    A silently ignored filter is worse than a rejected one in the way that
+    matters here. A recruitment shortlist narrowed to an under-21 budget
+    signing, served back as the whole population ranked by the same weights,
+    is a plausible answer to a question nobody asked.
+
+    WHY NOT JUST `extra="forbid"`
+
+    It is `extra="forbid"`, and on its own it answers "Extra inputs are not
+    permitted" - true, and no help at all to someone who put a real filter in
+    a nearly-right place. So a misplaced filter is named before that, with
+    where it belongs. The names come from `RecruitmentFilters.model_fields`,
+    not from a list kept here, so a filter added or renamed there cannot drift
+    away from the sentence that points at it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _name_a_misplaced_filter(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        known = set(RecruitmentFilters.model_fields)
+        misplaced: list[str] = []
+        for key in data:
+            if key in cls.model_fields or not isinstance(key, str):
+                continue
+            # The exact name, and the singular or plural of it: the two that
+            # bit were `position_group` for `position_groups` and a
+            # `min_minutes` that was in the right spelling and the wrong place.
+            for candidate in (key, f"{key}s", key[:-1] if key.endswith("s") else key):
+                if candidate in known:
+                    misplaced.append(f"{key} -> filters.{candidate}")
+                    break
+
+        if misplaced:
+            raise ValueError(
+                "These belong under `filters`, and were ignored until now: "
+                + "; ".join(sorted(misplaced))
+            )
+        return data
+
+
+class RecruitmentWeights(SearchRequest):
     """User-defined emphasis across intelligence scores.
 
     Weights are normalised server-side, so a profile adding to 99 shifts
@@ -815,6 +875,11 @@ class RecruitmentWeights(BaseModel):
 
 
 class RecruitmentFilters(BaseModel):
+    # Extras are refused here too. A filter this object does not know is a
+    # constraint the caller believes is being applied and which is not - the
+    # same defect as the one `SearchRequest` describes, one level down.
+    model_config = ConfigDict(extra="forbid")
+
     position_groups: list[str] | None = None
     min_age: int | None = None
     max_age: int | None = None
@@ -888,7 +953,7 @@ class RecruitmentResponse(BaseModel):
     is_mock: bool = False
 
 
-class ReplacementRequest(BaseModel):
+class ReplacementRequest(SearchRequest):
     player_id: str
     filters: RecruitmentFilters = Field(default_factory=RecruitmentFilters)
     limit: int = Field(default=25, ge=1, le=100)

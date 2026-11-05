@@ -118,9 +118,19 @@ search read 4.5 s — no better than unfiltered — and the apparent regression 
 my own request: `position_group` and `min_minutes` were sent at the top level,
 where `RecruitmentRequest` has no such fields, so both requests were the same
 unfiltered search. Pydantic ignored them and answered 200. The endpoint takes
-them under `filters`, as `position_groups` (plural, a list). **An API that
-accepts a filter it does not apply, with a 200 and no warning, will mislead
-whoever measures it next** — which is an open item below, not a fixed one.
+them under `filters`, as `position_groups` (plural, a list).
+
+**That was fixed rather than written down as a caution.** Both search bodies
+now refuse a key they cannot apply, and name where a misplaced filter belongs
+— `position_group -> filters.position_groups` — with the names read from
+`RecruitmentFilters.model_fields` rather than from a list kept beside them.
+The two bodies the site sends are asserted to still validate, because a schema
+that refuses its own frontend has traded a silent defect for a loud one.
+
+The reason it was worth fixing is not that a key was wrong. It is that the
+answer was plausible: a shortlist narrowed to an under-21 budget signing,
+returned as the whole population ranked by the same weights, looks exactly
+like a shortlist, and nobody checks the length of a list that came back full.
 
 ### Every card header gave its title no width
 
@@ -486,7 +496,6 @@ test fixes this direction and explains it in place.
 | Item | State |
 | --- | --- |
 | A Transfermarkt refresh completing | **Unobserved since 27 August**, 69 days by the endpoint's own count. The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
-| A search filter that is silently ignored | `RecruitmentRequest` accepts unknown top-level fields and answers 200, so `position_group` instead of `filters.position_groups` returns an unfiltered search with no warning. It cost a wrong measurement in this file; it would cost an integrator more. Not fixed |
 | The failure path is unverified in production | The before/after figures for `3a9bc9c` were measured against a local proxy. With the backend healthy there is no way to provoke the failure in production, and no synthetic route exists to do it |
 | The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
