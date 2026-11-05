@@ -1097,6 +1097,21 @@ class ScreenStepOut(BaseModel):
 class OpportunitiesResponse(BaseModel):
     items: list[OpportunityOut]
     total: int
+    #: The slice this response actually is, echoed back.
+    #:
+    #: WHY THE RESPONSE REPORTS ITS OWN OFFSET
+    #:
+    #: The page needs to paginate, and `offset` is new. The frontend deploys
+    #: in seconds and the backend in minutes, so there is a window where a
+    #: page asks for rows 30-59 and an older backend, which ignores unknown
+    #: query parameters, serves rows 0-29. Pagination that silently repeats
+    #: the first page while labelling it the second is worse than none.
+    #:
+    #: Echoing it lets the caller check what it got against what it asked
+    #: for, and stand down when they disagree. On 5 November this exact gap
+    #: put a false sentence on every search page for an hour; this is that
+    #: lesson applied before the fact rather than after it.
+    offset: int = 0
     criteria: list[str]
     #: Section 16 forbids calling a player undervalued without a validated
     #: valuation model. This states what the list does claim.

@@ -776,6 +776,16 @@ export interface ScreenStep {
 export interface Opportunities {
   items: Opportunity[];
   total: number;
+  /**
+   * The slice this response actually is, echoed back by the API.
+   *
+   * Optional because an older backend does not send it: the frontend deploys
+   * minutes before the backend, and a page that assumed its own offset had
+   * been applied would label a repeat of page one as page two. The page
+   * compares this with what it asked for and offers no pagination when they
+   * disagree.
+   */
+  offset?: number;
   criteria: string[];
   /** States what the list claims — and, crucially, what it does not. */
   disclaimer: string;

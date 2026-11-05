@@ -33,9 +33,11 @@
     "showLess": "Show less"
   },
   "pagination": {
+    "label": "Pagination",
     "previous": "Previous",
     "next": "Next",
-    "showing": "Showing {from}–{to} of {total}"
+    "showing": "Showing {from}–{to} of {total}",
+    "page": "Page {page} of {pages}"
   },
   "states": {
     "loading": "Loading",
