@@ -1,7 +1,9 @@
 # Where this project actually stands
 
-**Snapshot taken 5 November 2026, 14:31 UTC.** Every number below was read from
-a live source at that moment — the production health endpoint, the public
+**Snapshot taken 5 November 2026, 14:31 UTC**, and extended at 18:38 with the
+audit's remaining findings, two of which were re-checked against production at
+that later time and say so in their rows. Every number below was read from
+a live source at one of those two moments — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
 and not from another document, this file's previous version included.
@@ -649,6 +651,14 @@ test fixes this direction and explains it in place.
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
 | Nobody opens the deployed site unless told to | Six defects have now been found only by using it - three on 4 November, three in the audit of the same day. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
 | The builder's authored profile still weights two scores that cannot be computed | 45 of its 100 points, on Ball Progression and Duel Dominance. The default now stands those two down, so the page answers; the authored numbers are deliberately untouched, so they come back the moment the provider supplies the metrics. If it never does, the profile is worth rewriting rather than patching at the edges |
+| The 404 route does not apply the stored theme | Every other route carries the theme bootstrap as a real `<script>` in its served `<head>`; the 404 has only the copy inside the RSC payload. Re-checked on production 5 Nov 18:38: present on `/pt/about`, absent on a missing route. A reader who chose dark and mistypes a URL gets a white page |
+| The data-quality page repeats one check with two scopes | `position_group_mapped` appears three times, reading 14.4% and 1.1%, disambiguated only by the source column. `players_present` reads 58,966 under one source and 58,975 under the other - nine players, unexplained. Re-checked on production 5 Nov. This is the page an analyst opens to RESOLVE a doubt, so two numbers for one sentence create one |
+| An expired contract is shown as current | A contract reading `Jun 2024` was served in November 2026 with no marker, in a results table. Found 4 Nov |
+| Opportunities is 12,907px tall at 390px | 15.3 phone screens, with the ordering signal far above most of it. No pagination on that page. Measured 4 Nov |
+| One league named two ways on one profile | Performance "USA MLS" against current "Major League Soccer"; "South Korea K League 1" against "K League 1"; one competition rendered lowercase, `eredivisie`. Provider strings surfacing unnormalised. Cosmetic, and it reads as carelessness on a page whose whole argument is care |
+| Player search has no entry point that is not an empty form | No league, club or featured player to start from. Not a defect; the reason a casual visitor leaves |
+| Every authenticated flow is UNVERIFIED | Sign-in, registration, add-to-shortlist, shortlist creation, notes, assessment status, comparison, player removal, CSV export. No test account is provisioned and none was created for the audit. **Unverified, not working** - they have never been exercised by anything but their own tests |
+| `docs/release_verification_2026-11-04.md` says the correction pass was verified | It was, against what it set out to check. The audit of the next day found three P1s it had not looked for. The report is not wrong and is not the whole story, and nothing in it says so |
 | Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
 | Three player names in the history of `23b37f8` | Written into two doc comments and a commit message, removed from the tree by `e86a6be` but still in the history. I cleaned the working tree and then ran `git reset --soft`, which keeps the index from the commit being undone, so the dirty versions were committed; I checked the message and the tree, found both clean, and said so. `git show <sha>:<path>` is the only check that catches this. Removing them from history would mean rewriting a public repository, which is not mine to decide |
