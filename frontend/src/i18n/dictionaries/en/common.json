@@ -71,7 +71,7 @@
     "link": "Which competitions are covered"
   },
   "seasonMaturity": {
-    "mixed": "Only {established} of {total} loaded competitions have played enough of their season for a full-season figure to be possible yet. A minutes or sample filter therefore removes whole leagues, not weak players.",
+    "mixed": "{early} of {total} loaded competitions are early in their season: nobody in them has reached a full season's minutes yet. A minutes or sample filter removes those leagues entirely, rather than the weaker players in them.",
     "selected": "{competition} is early in its season: its most-played player has {minutes} minutes, so a higher minutes filter returns nobody here.",
     "selectedEmpty": "{competition} has no minutes loaded yet, so a minutes filter returns nobody here."
   },
