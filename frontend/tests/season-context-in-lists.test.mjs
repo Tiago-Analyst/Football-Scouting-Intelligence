@@ -6,9 +6,9 @@
  * Two columns of the similarity table, side by side, with nothing saying they
  * describe different moments. Live production, 5 November 2026:
  *
- *     Will Lankshear   Tottenham Hotspur     England Championship
- *     Cyle Larin       Feyenoord Rotterdam   England Championship
- *     Guy Mbenza       Royal Antwerp FC      China Chinese Super League
+ *     a forward        Tottenham Hotspur     England Championship
+ *     a forward        Feyenoord Rotterdam   England Championship
+ *     a forward        Royal Antwerp FC      China Chinese Super League
  *
  * Tottenham do not play in the Championship and Feyenoord do not play in
  * England. Every one of those rows read as a factual error.
@@ -24,7 +24,7 @@
  *
  * AFTER
  *
- *     Will Lankshear   Tottenham Hotspur     England Championship
+ *     a forward        Tottenham Hotspur     England Championship
  *                                            Middlesbrough FC, that season
  *
  * WHAT THESE ASSERT
