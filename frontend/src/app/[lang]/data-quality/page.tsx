@@ -591,7 +591,21 @@ function CheckRow({ t, f, check }: { t: Dictionary; f: Formatters; check: Qualit
         <span className="mt-0.5 block text-xs text-subtle">{check.entity}</span>
         {detail ? <p className="mt-1 max-w-lg text-xs text-muted">{detail}</p> : null}
       </TD>
-      <TD className="text-xs text-muted">{check.source}</TD>
+      {/* THE DATE, BECAUSE A CHECK IS A MEASUREMENT AND NOT A STANDING FACT.
+          Each source contributes its newest non-candidate run, and those runs
+          are not contemporaneous: on 5 November the FootyStats checks were
+          five days old and the Transfermarkt ones sixty-nine. Two rows then
+          read "14.4% of players have no position group" and "1.1% of players
+          have no position group" side by side, over the same global table,
+          and the only thing separating them was a source column that does not
+          scope the number. It is not a contradiction - it is August next to
+          November, and the page never said so. */}
+      <TD className="text-xs text-muted">
+        {check.source}
+        <span className="mt-0.5 block text-[11px] text-subtle">
+          {t.quality.checksTable.measured.replace("{date}", f.date(check.executed_at))}
+        </span>
+      </TD>
       <TD numeric>{f.count(check.record_count)}</TD>
       <TD>
         <Badge tone={TONE[check.status]}>{t.quality.status[check.status]}</Badge>

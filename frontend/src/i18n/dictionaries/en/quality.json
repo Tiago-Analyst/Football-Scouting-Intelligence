@@ -138,7 +138,8 @@
     "check": "Check",
     "source": "Source",
     "count": "Count",
-    "status": "Status"
+    "status": "Status",
+    "measured": "measured {date}"
   },
   "refresh": {
     "title": "FootyStats refresh",
