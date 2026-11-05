@@ -1,6 +1,6 @@
 # Where this project actually stands
 
-**Snapshot taken 5 November 2026, 10:13 UTC.** Every number below was read from
+**Snapshot taken 5 November 2026, 14:31 UTC.** Every number below was read from
 a live source at that moment — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
@@ -12,24 +12,26 @@ done. So the rule for this one: **it describes a moment, and it says what makes
 it wrong.** If you are reading it after the triggers in "What makes this file
 wrong", stop trusting it and re-read the sources named in each section.
 
-The previous snapshot was 4 November. **None of its seven triggers fired**, and
-the file went out of date again within a day — this time for a reason worth
-writing down rather than patching over.
+The previous snapshot was earlier today. Its last trigger — "the deployed site
+should have been opened in a browser" — **is the one that fired**, four hours
+after it was written, because somebody did open it. It found three defects
+that had been live the whole time, and all three are now fixed and deployed.
 
-The snapshot before that failed because every trigger watched the pipeline
-while the work had moved to the site. A trigger for the site was added. Then
-somebody opened the deployed site in a browser and found **three defects that
-had been live the whole time**: a header that did not fit, a search builder
-whose untouched default matched nobody, and six Portuguese sentences that
-disagreed in gender. The new trigger would not have fired for any of them, and
-neither would a better-written one, because **every trigger in this document
-asks what changed, and nothing about these three ever changed.** They were
-wrong on the first day and wrong on the ninetieth.
+That is the first time a trigger in this file has done the job the file exists
+for. It is also the only trigger here that is not a change, which is why it
+worked: the other seven ask what moved, and nothing about those defects had
+ever moved.
 
-So the list at the end now carries one entry that is not a change at all: a
-date by which the deployed site should have been looked at again. Tests that
-pass and a green CI are evidence about what was asked, not about what is
-there.
+The history took three snapshots to learn. The first failed because every
+trigger watched the pipeline while the work had moved to the site. A trigger
+for the site was added, and three defects were found that it would not have
+caught either — a header that did not fit, a builder whose untouched default
+matched nobody, six Portuguese sentences disagreeing in gender — because they
+had never changed. Only then was a trigger written that asks for a browser
+rather than for a difference. Today it fired and found three more.
+
+**Tests that pass and a green CI are evidence about what was asked, not about
+what is there.**
 
 ## What is serving right now
 
@@ -40,15 +42,15 @@ there.
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | 14,677 player-seasons across 43 competitions, built 3 Nov 20:53:25 UTC |
+| analytics | 14,677 player-seasons across 43 competitions, built 5 Nov 14:28:22 UTC |
 | excluded | 8,830 player-seasons, for having no position group |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
 
 The served universe has not moved since 31 October. The build timestamp is the
-backend's last restart, not a new load: this week's deploys were the frontend's,
-and the view is rebuilt from the same rows on every restart.
+backend's last restart, not a new load - today it restarted twice, for the two
+backend deploys below - and the view is rebuilt from the same rows each time.
 
 ### The figures, reconciled
 
@@ -313,7 +315,134 @@ earns it a place is that it reproduces the measurement it was calibrated
 against, predicting 74px of slack at 1024 where the browser measured 74. The
 Portuguese guard matches a grammatical relation rather than a list of words.
 
-The suite is now **428 tests across 42 files**, up from 408 across 39.
+The suite is now **451 frontend tests across 45 files**, up from 408 across 39,
+and 92 backend test modules.
+
+## The audit, and the three things it found
+
+On 4 November the deployed site was used as three people would use it - a
+recruitment analyst, a football data analyst, and somebody who just likes
+football - rather than read as code. Nothing was changed during it. The
+report and its 22 production screenshots are in a gitignored folder; the
+findings are here because the findings are what outlives them.
+
+**No P0.** Looked for specifically: rendered template placeholders, none;
+identity or context presented wrongly as fact, none that survived checking;
+misleading scoring semantics, the opposite; a feature fundamentally broken,
+none - the one that looked broken was my own tooling.
+
+Three P1s, all now fixed and deployed.
+
+### The sample filter removed leagues, not weak players
+
+Filtering to "Established sample (900+)" - the band the site's own copy
+points a careful reader towards - on live production:
+
+```
+England Premier League    0 of 333 players past 900 minutes
+France Ligue 1            0 of 353
+Germany Bundesliga        0 of 367
+Italy Serie A             0 of 497
+Portugal Liga NOS         0 of 334
+Spain La Liga            15 of 435
+USA MLS                 416 of 802
+Brazil Serie A          210 of 465
+```
+
+The European leagues are eight matchdays into 2026/27; the calendar-year
+leagues have finished theirs. A scout either concluded the tool had no
+European coverage, or did not notice and took an Americas-only shortlist as
+an answer about Europe. The page warned which competitions were *loaded*; it
+never said they were at different points of their seasons.
+
+`8a1a8fc` reports `best_minutes` and `season_established` per competition,
+decided against the same threshold the sample bands use and measured on the
+same `minutes` the filter reads, and says so under the filter on the three
+pages that offer one. **Today it reads 15 of 43 behind, out of 28 established.**
+Premier League 720 minutes, Italy 810, Spain 900, MLS 2,880.
+
+**It then said something false in production, and that is the more useful
+half of the story.** The frontend deploys in seconds and the backend in
+minutes; in between, `season_established` was absent from every row, and
+counting truthy values turned "I was not told" into "none of them". The page
+served "Only 0 of 43 competitions have played enough of their season" while
+every one of them had, and held it for an hour, because the list is cached
+for an hour. `c3941ec` makes both lines require an actual boolean and fall
+silent otherwise. It is the same mistake `nullIfMissing` and the
+search-failure work exist to prevent - an absence reported as a finding -
+committed one level up, on the day this file was describing it.
+
+The sentence also counted the wrong thing. "Only 28 of 43 are ready" reads as
+alarm when 28 is a majority; the informative number is the 15 that are not.
+
+### Rows paired a current club with another season's league
+
+```
+Tottenham Hotspur     England Championship
+Feyenoord Rotterdam   England Championship
+Royal Antwerp FC      China Chinese Super League
+```
+
+Every one impossible as stated. `club` is where the player is now, from the
+market source; `competition` is where the season was played, from the
+performance source. **The profile has split the two and named them for
+weeks** - `PlayerContext` exists for exactly this - and the tables printed
+them as one fact.
+
+`23b37f8` names the club that played the season beside the competition, on
+the two tables that pair the two contexts. Driven by the API's three-valued
+`clubs_agree`, not by comparing provider spellings: most pairs are one club
+spelled twice, and a string comparison would print a transfer that never
+happened on most rows. 6 of 20 similarity rows marked, 10 in a Premier League
+search.
+
+### Sorting by role fit was led by the thinnest samples
+
+The Premier League sorted by role fit, top ten minutes:
+
+```
+before   12, 620, 92, 126, 494, 117, 396, 97, 630, 93
+after   620, 630, 611, 630, 494, 592, 583, 601, 630, 630
+```
+
+The first row was a 96 at the 100th percentile from twelve minutes. Nothing
+was mislabelled - the column says "Raw fit", the minutes are a column, the
+sample badge is in the row - but the most obvious action on the page produced
+a shortlist led by noise, while three other pages had used evidence-aware
+ordering for weeks.
+
+`965131a` offers a second sort using `rank_by_evidence` **unchanged**. No
+formula moved: measured in production across both orders, 20 players in
+common and **0 with a different raw score**, and **333 in both totals** -
+nobody is excluded for having played little. The raw sort stays, relabelled
+"Role fit (raw)", because "who scores highest, whatever the sample" is a
+question this product answers honestly elsewhere.
+
+### What the audit also established, and should not be changed
+
+The separation of raw and ranked into two columns with the reason in the
+cell. The profile's two context blocks and the sentence that connects them.
+Refusing a profile that weights an unavailable dimension rather than scoring
+around it. The tiny-sample copy. Known limitations on the landing page, above
+the fold. And the pt-PT localisation, which needs nothing: one deliberate
+English word, "Shortlists", and zero unresolved placeholders on any page.
+
+### Four of my own measurements were wrong first
+
+Recorded because none was caught by a test, and each was caught by one number
+disagreeing with another.
+
+- The whole i18n dictionary ships inside the RSC payload, so grepping served
+  HTML matches every page whether or not it renders. This nearly produced two
+  invented defects.
+- Table rows beyond the first two arrive as streaming placeholders, so
+  parsing fetched HTML shows rows with no player name.
+- The browser pane does not finish React's streaming swap on these routes, so
+  controls read as un-hydrated there. "Adapt weights to available data" looked
+  dead twice before a real headless Chrome showed it works exactly as
+  designed.
+- The season-maturity sentence was verified against a local database carrying
+  demo rows, which flattered it. Production disagreed and was right.
 
 ## A false alarm that rang for nearly two days
 
@@ -337,8 +466,8 @@ the data-quality response.
 
 Fixed in `377f294`: the fingerprint now excludes `CANDIDATE` rows, so it moves
 at promotion rather than at load. **The heartbeat has not failed since** —
-seven consecutive successes, 3 Nov 17:33 through 5 Nov 03:32. That is the
-confirmation the previous snapshot was waiting for, and seven runs is how much
+eight consecutive successes, 3 Nov 17:33 through 5 Nov 11:30. That is the
+confirmation the previous snapshot was waiting for, and eight runs is how much
 of it there is.
 
 **The lesson is the alarm, not the bug.** It rang for 42 hours about a
@@ -396,8 +525,8 @@ flight while this was read (`41860877227`, 15:44, `in_progress`).
 | status | `PUBLISHED` | `IN_PROGRESS` |
 | created | 21 Oct 09:20 | 2 Nov 12:21 |
 | published | 31 Oct 02:48 | — |
-| players | 28,754 of 28,754 | 12,852 of 13,660 *so far* |
-| competitions | 45 of 45 | 18 of 19 *so far* |
+| players | 28,754 of 28,754 | 14,117 of 14,531 *so far* |
+| competitions | 45 of 45 | 20 of 21 *so far* |
 
 `refresh.state` is `Fetching`, last updated 5 Nov 03:30 — so the in-flight
 column is a moment inside a run, not a result.
@@ -410,27 +539,28 @@ better than the warning does:
 3 Nov 11:25    3,753 of  4,490     8 of  9     complete: false
 4 Nov 16:10    9,686 of  9,686    17 of 17     complete: TRUE
 5 Nov 10:13   12,852 of 13,660    18 of 19     complete: false
+5 Nov 14:31   14,117 of 14,531    20 of 21     complete: false
 ```
 
 Yesterday it reported `complete: true` and was not complete: both counters
-read equal because everything discovered so far had been fetched. Today the
-flag is false again and the denominator has grown by 3,974. The previous
+read equal because everything discovered so far had been fetched. Since then
+the denominator has grown by 4,845 and the flag has stayed false. The previous
 generation's own `expected` read 11,439 on 22 October and settled at 28,754.
 **`complete` is arithmetic over a moment rather than a verdict** — the status
 is `IN_PROGRESS` and that is the field to read.
 
 ## Actions caches
 
-Twenty-one `footystats-gen-*` caches, **2.04 GB**:
+Twenty-two `footystats-gen-*` caches, **2.13 GB**:
 
 | generation | caches | size | newest access |
 | --- | --- | --- | --- |
 | `20261021T092049Z`, published | 11 | 1.61 GB | 31 Oct 02:42 |
-| `20261102T122100Z`, in flight | 10 | 0.43 GB | 5 Nov 03:30 |
+| `20261102T122100Z`, in flight | 11 | 0.52 GB | 5 Nov 12:14 |
 
 The eleven are dead weight and are ageing out on their own, which is now
 observed rather than asserted: they were fifteen and 1.99 GB yesterday. The
-ten are load-bearing, and there are three more of them than there were.
+eleven are load-bearing, and there are four more of them than there were.
 
 **Check with:**
 `gh api repos/Tiago-Analyst/Football-Scouting-Intelligence/actions/caches`
@@ -478,7 +608,7 @@ to watch, not a thing that has happened.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at 79f51a1 when this was read
+GitHub:     main only, at 965131a when this was read
 Local:      main, in sync, working tree clean
 Worktrees:  1
 ```
@@ -517,10 +647,12 @@ test fixes this direction and explains it in place.
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
-| No one had opened the deployed site | Three defects were live in both languages from the first day until 5 November — a header that overflowed every page between 1024 and 1130px, a search builder whose untouched default matched nobody, six Portuguese sentences disagreeing in gender. Fixed in `79f51a1`. What is open is the habit: 408 tests and a green CI said nothing about any of them, and only a browser did. Now a dated trigger |
+| Nobody opens the deployed site unless told to | Six defects have now been found only by using it - three on 4 November, three in the audit of the same day. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
 | The builder's authored profile still weights two scores that cannot be computed | 45 of its 100 points, on Ball Progression and Duel Dominance. The default now stands those two down, so the page answers; the authored numbers are deliberately untouched, so they come back the moment the provider supplies the metrics. If it never does, the profile is worth rewriting rather than patching at the edges |
 | Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
+| Three player names in the history of `23b37f8` | Written into two doc comments and a commit message, removed from the tree by `e86a6be` but still in the history. I cleaned the working tree and then ran `git reset --soft`, which keeps the index from the commit being undone, so the dirty versions were committed; I checked the message and the tree, found both clean, and said so. `git show <sha>:<path>` is the only check that catches this. Removing them from history would mean rewriting a public repository, which is not mine to decide |
+| A branch left on the remote carrying those names | `fix/lists-stop-stating-impossible-rows`, superseded and never merged. Deleting it is a one-line call that belongs to whoever owns the repository |
 | One residual player name in 144 commits | Accepted, not removed, deliberately and dated |
 | `docs/identity_resolution_footystats.csv` | 8,575 rows, on this disk, from 30 August. Untracked and ignored (`.gitignore:107`); never committed |
 
@@ -546,10 +678,14 @@ Any of these, and it should be re-read against its sources rather than trusted:
 - a seventh item joins the header nav, or a third language arrives, or a nav
   label is renamed to a longer word — `header-fits` is a width budget and will
   say so, but the budget is the thing to re-measure in a browser
+- a frontend change is deployed that reads a field the backend does not send
+  yet — the two deploy minutes apart, and on 5 November that gap put a false
+  sentence on every search page for an hour. A page that cannot reach a fact
+  must fall silent, never report "none"
 - **Sunday 22 November passes without the deployed site having been opened in
   a browser.** This is the only entry here that is not a change, and it is the
-  one the other entries cannot replace. The three defects found on 4 November were
-  live from the first day, so nothing ever changed about them and no trigger
-  of the usual kind could fire. Four widths, both languages, and one search
-  run the way a visitor runs one — tests that pass are evidence about what was
-  asked, not about what is there
+  one the other entries cannot replace. It has fired once, on 5 November, and
+  found three P1s in an afternoon. Both languages, four widths, a profile, and
+  one search run the way a visitor runs one: build a longlist and ask whether
+  you would act on it. Six defects have now been found this way and none by a
+  test
