@@ -20,6 +20,7 @@ import { SearchFailed } from "@/components/ui/SearchFailed";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
+import { SeasonMaturityNote } from "@/components/ui/SeasonMaturityNote";
 import { describeProfile } from "@/lib/profile-summary";
 import {
   getCompetitions,
@@ -363,6 +364,10 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                 step={90}
                 className="tabular"
                 defaultValue={first(params.min_minutes) ?? ""}
+              />
+              <SeasonMaturityNote
+                competitions={competitions}
+                copy={t.common.seasonMaturity}
               />
             </Field>
           </fieldset>

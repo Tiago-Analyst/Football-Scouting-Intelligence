@@ -70,6 +70,11 @@
     "note": "Esta lista são as competições actualmente carregadas, não todas as ligas. Uma liga ausente não foi pesquisada, em vez de pesquisada e vazia, e os valores entre ligas são calculados sobre o que está aqui.",
     "link": "Que competições estão cobertas"
   },
+  "seasonMaturity": {
+    "mixed": "Só {established} de {total} competições carregadas jogaram já época suficiente para um registo de época completa ser possível. Um filtro de minutos ou de amostra retira assim ligas inteiras, não jogadores fracos.",
+    "selected": "A {competition} está no início da época: o jogador com mais minutos tem {minutes}, pelo que um filtro de minutos mais alto não devolve ninguém aqui.",
+    "selectedEmpty": "A {competition} ainda não tem minutos carregados, pelo que um filtro de minutos não devolve ninguém aqui."
+  },
   "searchFailed": {
     "title": "A pesquisa não terminou",
     "timeout": "Demorou mais do que a página espera e foi interrompida. Uma pesquisa mais estreita — uma posição, um mínimo de minutos — costuma terminar.",
