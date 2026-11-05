@@ -70,6 +70,11 @@
     "note": "This list is the competitions currently loaded, not every league. A league that is absent was not searched rather than searched and empty, and cross-league figures are computed across whatever is here.",
     "link": "Which competitions are covered"
   },
+  "seasonMaturity": {
+    "mixed": "Only {established} of {total} loaded competitions have played enough of their season for a full-season figure to be possible yet. A minutes or sample filter therefore removes whole leagues, not weak players.",
+    "selected": "{competition} is early in its season: its most-played player has {minutes} minutes, so a higher minutes filter returns nobody here.",
+    "selectedEmpty": "{competition} has no minutes loaded yet, so a minutes filter returns nobody here."
+  },
   "searchFailed": {
     "title": "The search did not finish",
     "timeout": "It ran for longer than the page waits and was stopped. A narrower search — a position, a minutes floor — usually finishes.",

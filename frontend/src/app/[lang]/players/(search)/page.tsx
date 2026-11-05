@@ -16,6 +16,10 @@ import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
+import {
+  SeasonMaturityNote,
+  SelectedCompetitionMaturity,
+} from "@/components/ui/SeasonMaturityNote";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -278,6 +282,16 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                 ))}
               </Select>
               <CompetitionCoverageNote copy={t.common.competitionCoverage} />
+              {/* Sharper than the overall sentence once a league is chosen:
+                  it names the most-played player's minutes in THAT league, so
+                  a reader about to type 900 can see it will return nobody. */}
+              <SelectedCompetitionMaturity
+                competition={competitions.find(
+                  (competition) => competition.competition_id === filters.competition,
+                )}
+                copy={t.common.seasonMaturity}
+                f={f}
+              />
             </Field>
 
             <Field label={t.players.filters.bestRole} htmlFor="role">
@@ -365,6 +379,15 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   </option>
                 ))}
               </Select>
+              {/* Under the two filters it explains, rather than at the top of
+                  the form. A reader meets it while choosing a minutes floor,
+                  which is the moment it changes what they do - a banner above
+                  the form is read before the question it answers has been
+                  asked. */}
+              <SeasonMaturityNote
+                competitions={competitions}
+                copy={t.common.seasonMaturity}
+              />
             </Field>
 
             <Field label={t.players.filters.maxMarketValue} htmlFor="market_value_max">

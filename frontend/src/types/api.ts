@@ -602,6 +602,16 @@ export interface Competition {
   competition_id: string;
   name: string;
   player_count: number;
+  /** The highest minutes any player in this competition has reached. */
+  best_minutes: number;
+  /**
+   * Whether a full season's figure is possible in this competition yet.
+   *
+   * The server decides this, against the same threshold the sample bands use,
+   * so the sentence under a minutes filter cannot disagree with the filter.
+   * See `SeasonMaturityNote`.
+   */
+  season_established: boolean;
 }
 
 export interface Role {

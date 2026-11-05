@@ -14,8 +14,9 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
+import { SeasonMaturityNote } from "@/components/ui/SeasonMaturityNote";
 import { SearchFailed } from "@/components/ui/SearchFailed";
-import { getOpportunities, isSearchFailure } from "@/lib/players";
+import { getCompetitions, getOpportunities, isSearchFailure } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -41,7 +42,13 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
     limit: 30,
   };
 
-  const answer = await getOpportunities(criteria);
+  // Fetched beside the search rather than after it: the list is cached hard
+  // and the sentence under the minutes filter needs it whether or not the
+  // search returns anything, including when it fails.
+  const [answer, competitions] = await Promise.all([
+    getOpportunities(criteria),
+    getCompetitions(),
+  ]);
   // The criteria form is built from the URL, not from the answer, so it
   // survives a failure. Splitting the two here is what lets the page keep it:
   // the screen that could not be run says so in its own column, beside the
@@ -114,6 +121,10 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                 step={90}
                 className="tabular"
                 defaultValue={criteria.min_minutes}
+              />
+              <SeasonMaturityNote
+                competitions={competitions}
+                copy={t.common.seasonMaturity}
               />
             </Field>
 

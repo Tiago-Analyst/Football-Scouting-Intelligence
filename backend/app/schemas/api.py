@@ -705,6 +705,28 @@ class CompetitionOut(BaseModel):
     competition_id: str
     name: str
     player_count: int
+    #: The highest minutes any player in this competition has reached.
+    #:
+    #: WHY A COMPETITION CARRIES THIS AT ALL
+    #:
+    #: The loaded competitions are not at the same point in their seasons. In
+    #: November the European leagues are eight matchdays into 2026/27 while
+    #: the calendar-year leagues have finished, so a sample filter does not
+    #: separate well-evidenced players from thin ones - it removes whole
+    #: leagues. Measured on production on 5 November: England 0 of 333
+    #: players past 900 minutes, France 0 of 353, Germany 0 of 367, Italy 0 of
+    #: 497, Portugal 0 of 334, against 416 of 802 in MLS.
+    #:
+    #: A reader filtering on minutes cannot see that, and nothing on the page
+    #: said it. This is the fact the sentence is built from, reported rather
+    #: than written down in the interface, so the two cannot drift apart.
+    best_minutes: int = 0
+    #: Whether a full season's figure is possible here yet - the same test
+    #: `PercentileEngine._measure_maturity` applies when it decides whether a
+    #: comparison population is early-season, against the same threshold the
+    #: sample bands use. One rule, so the sentence under the filter and the
+    #: note on a player's percentile cannot disagree.
+    season_established: bool = False
 
 
 class RoleOut(BaseModel):

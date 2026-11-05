@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.analytics.roles import get_roles
+from app.analytics.sample import ESTABLISHED_SAMPLE_MINUTES
 from app.models.shortlists import STATUS_DESCRIPTIONS, STATUS_LABELS, ShortlistStatus
 from app.schemas.api import CompetitionOut, RoleOut, ShortlistStatusOut
 from app.services.analytics_service import get_analytics_view
@@ -21,10 +22,25 @@ router = APIRouter(prefix="/api/v1", tags=["reference"])
 def list_competitions() -> list[CompetitionOut]:
     view = get_analytics_view()
     counts: dict[str, int] = {}
+    best: dict[str, int] = {}
     for record in view.players.values():
         counts[record.competition_id] = counts.get(record.competition_id, 0) + 1
+        # `minutes`, not `rateable_minutes`, deliberately: this figure exists to
+        # explain the minutes filter and the sample bands on the search page,
+        # and both of those read `minutes`. Measuring the sentence against a
+        # different denominator than the filter it describes is how a caveat
+        # ends up contradicting the thing it is caveating.
+        played = record.minutes or 0
+        if played > best.get(record.competition_id, 0):
+            best[record.competition_id] = played
     return [
-        CompetitionOut(competition_id=cid, name=name, player_count=counts.get(cid, 0))
+        CompetitionOut(
+            competition_id=cid,
+            name=name,
+            player_count=counts.get(cid, 0),
+            best_minutes=best.get(cid, 0),
+            season_established=best.get(cid, 0) >= ESTABLISHED_SAMPLE_MINUTES,
+        )
         for cid, name in sorted(view.competitions.items(), key=lambda kv: kv[1])
     ]
 
