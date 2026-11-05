@@ -82,7 +82,7 @@
   "limits": {
     "heading": "O que estes resultados não significam",
     "notQualityTitle": "As pontuações não são qualidade do jogador",
-    "notQuality": "A pontuação de uma função mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 num função e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
+    "notQuality": "A pontuação de uma função mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 numa função e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
     "notProbabilityTitle": "A semelhança não é uma probabilidade",
     "notProbability": "O Índice de Semelhança exprime a proximidade entre dois perfis estatísticos. Não é a probabilidade de um jogador reproduzir o rendimento de outro.",
     "finishingTitle": "As métricas de finalização são ruidosas",

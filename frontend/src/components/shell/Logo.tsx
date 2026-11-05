@@ -24,7 +24,32 @@ export function Logo({ name, className }: { name: string; className?: string }) 
         <line x1="12" y1="4" x2="12" y2="20" />
         <circle cx="12" cy="12" r="3.2" />
       </svg>
-      <span className="text-sm font-semibold tracking-tight">{name}</span>
+      {/*
+       * WHEN THE WORDMARK IS SHOWN, AND WHY IT DISAPPEARS AGAIN AT lg.
+       *
+       * Measured in production, Portuguese, at a 1024px viewport: the header
+       * bar needed 1130px of content and had 1024px of box, so every page in
+       * the site scrolled sideways by 106px - the glyph left the screen on
+       * one side and the theme control on the other. English needed 1091.
+       *
+       * The arithmetic: wordmark 240 + nav 600 + actions 219 + three 16px
+       * gaps + 48 of padding. The desktop nav switches on at lg (1024), which
+       * is the width where it does not yet fit, and nothing in the bar was
+       * allowed to shrink.
+       *
+       * Hiding the nav instead would cost a reader six links and give them no
+       * sign that they existed. The wordmark is the part that can go: the
+       * glyph stays, it is still the link to the home page, and the name is
+       * still read out, because `SiteHeader` keeps it in an `sr-only` span.
+       * So the name is shown where it fits - sm to lg, and again from xl -
+       * and stands down across the band where the nav needs the room.
+       *
+       * This is a width, not a count: it is wrong if the nav grows an item or
+       * a longer language is added. `header-fits.test.mjs` is what notices.
+       */}
+      <span className="hidden text-sm font-semibold tracking-tight sm:inline lg:hidden xl:inline">
+        {name}
+      </span>
     </span>
   );
 }
