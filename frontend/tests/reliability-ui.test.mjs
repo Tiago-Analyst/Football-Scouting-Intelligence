@@ -86,7 +86,18 @@ test("a preset says how much of itself is measurable before it is run", () => {
   // This asserted the literal "% measurable" was IN the component, which is
   // how that word stayed English on the Portuguese builder. The claim worth
   // pinning is that the figure is shown and that both languages can say it.
-  assert.match(presets, /measurable_pct/);
+  //
+  // The field itself moved behind `presetCoverage` on 6 November, when the
+  // percentage was added to the preset LIST as well as to the chosen-preset
+  // panel: two roundings of one number is how a page comes to show 44% in a
+  // list and 45% in the panel it leads to. `preset-measurability` holds the
+  // derivation; this still holds that the figure reaches the reader.
+  assert.match(presets, /presetCoverage\(preset\)/);
+  assert.match(
+    readFileSync(new URL("../src/lib/presetCoverage.ts", import.meta.url), "utf8"),
+    /measurable_pct/,
+    "the coverage is no longer derived from the server's field",
+  );
   assert.match(flat(presets), /t\.components\.presets\.measurable/);
   assert.match(presets, /coverage_note/);
   for (const lang of ["en", "pt"]) {

@@ -49,7 +49,8 @@
     "competition": "Competição",
     "players": "Jogadores medidos",
     "matched": "Reconciliados",
-    "share": "Proporção"
+    "share": "Proporção",
+    "thinnest": "{count} competições · a mais fina: {competition} com {pct}%"
   },
   "coverage": {
     "title": "Cobertura de estatísticas detalhadas",
@@ -132,7 +133,8 @@
     "idle": "Parado — não há nenhuma actualização candidata à espera.",
     "noChecksTitle": "Verificações automáticas",
     "noChecksDescription": "Nada registou ainda uma verificação.",
-    "noChecksEmpty": "Nenhuma verificação registada"
+    "noChecksEmpty": "Nenhuma verificação registada",
+    "checksHeading": "Verificações"
   },
   "checksTable": {
     "check": "Verificação",

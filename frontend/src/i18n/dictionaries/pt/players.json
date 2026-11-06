@@ -38,6 +38,9 @@
     "contractWithin": "Contrato termina dentro de",
     "months": "{count} meses",
     "sortBy": "Ordenar por",
+    "sortTooltipLabel": "Como funciona a ponderação pela evidência",
+    "sortTooltip": "A opção «Adequação à função, ponderada pela evidência» aproxima cada valor da média dos jogadores que estão a ser ordenados, na proporção do pouco tempo de jogo que o sustenta. A partir de 900 minutos o valor tem peso total e é devolvido exactamente como está, pelo que só se movem os valores abaixo desse limiar e uma amostra estabelecida nunca é reduzida. Numa lista em que todos já estão estabelecidos, esta ordenação e a bruta dão a mesma ordem.",
+    "evidenceInert": "Todos os jogadores desta página já têm peso total de evidência, pelo que nenhum valor foi ajustado e a coluna ordenada repete «{raw}». O ajuste aplica-se abaixo dos 900 minutos.",
     "sorts": {
       "minutes": "Minutos jogados",
       "role_score": "Adequação à função (bruta)",

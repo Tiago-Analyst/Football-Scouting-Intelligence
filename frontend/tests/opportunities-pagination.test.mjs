@@ -51,9 +51,18 @@ test("the page asks for a page, not the whole list", () => {
 });
 
 test("an offset in the URL is read, and a bad one cannot break the request", () => {
-  assert.match(
-    PAGE,
-    /Math\.max\(0, Number\(first\(params\.offset\) \?\? 0\) \|\| 0\)/,
+  // The hand-rolled `Math.max(0, Number(...) || 0)` moved into
+  // `lib/pagination` on 6 November, when player search was found rendering
+  // "14,677 players match" beside "No players match these filters" at
+  // `?offset=999999`. That guard kept a bad offset out of the request but had
+  // nothing to say about a good one past the end of the list, which is the
+  // half this page would have rendered too. `pagination-offset` holds the
+  // arithmetic; this still holds that the page does not parse it itself.
+  assert.match(PAGE, /parseOffset\(params\.offset\)/, "the offset is read raw again");
+  assert.match(PAGE, /canonicalOffset\(/, "nothing normalises a page past the end");
+  const code = PAGE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  assert.ok(
+    !/Number\(first\(params\.offset\)/.test(code),
     "offset=abc or offset=-5 now reaches the API",
   );
 });
@@ -104,7 +113,13 @@ test("the route is a prop, which is all that ever differed", () => {
 test("page one's URL stays the one a reader can recognise", () => {
   // `?offset=0` on every first page makes a shared link look like a deep link
   // into a list, and makes two URLs for one page.
-  assert.match(COMPONENT, /if \(nextOffset > 0\) search\.set\("offset"/);
+  //
+  // The URL builder moved to `lib/pagination` so that the link a reader
+  // clicks and the redirect that normalises a stale `?offset=999999` are
+  // built by the same code.
+  const LIB = read("lib/pagination.ts");
+  assert.match(LIB, /if \(offset > 0\) search\.set\(OFFSET_PARAM/);
+  assert.match(COMPONENT, /pageHref\(route, params, nextOffset\)/);
 });
 
 test("both languages carry every pagination word", () => {

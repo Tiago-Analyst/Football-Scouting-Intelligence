@@ -145,10 +145,20 @@ test("the form survives the failure on every page that has one", () => {
     /const failure = isSearchFailure\(answer\) \? answer : null;/,
     "the answer is no longer split before the JSX",
   );
+  // `let` since 6 November, because a slice past the end of the list is
+  // re-fetched at the page that exists before the URL is normalised. What
+  // this pins is unchanged: each of the two goes through the type guard on
+  // its own, rather than one being derived from the other, which TypeScript
+  // cannot narrow.
   assert.match(
     source,
-    /const results = isSearchFailure\(answer\) \? null : answer;/,
+    /let results = isSearchFailure\(answer\) \? null : answer;/,
     "results is derived from failure again, which TypeScript cannot narrow",
+  );
+  assert.match(
+    source,
+    /results = isSearchFailure\(again\) \? null : again;/,
+    "the re-fetched slice skips the failure guard",
   );
   // The grid, and therefore the form, is no longer inside the error ternary.
   assert.equal(

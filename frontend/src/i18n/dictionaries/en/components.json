@@ -50,7 +50,7 @@
   "marketChart": {
     "title": "Market value over time",
     "description": "How the estimate has moved, oldest first.",
-    "empty": "No valuation history for this player. The market source does not cover everybody, which is an ordinary gap rather than a fault.",
+    "empty": "Historical valuation data is not available for this player. The market source does not cover everybody, which is an ordinary gap rather than a fault.",
     "singlePoint": "One valuation only, {value} on {date}. A single point shows no movement.",
     "disclaimer": "A crowd-sourced estimate from the Transfermarkt dataset. It is not a transfer fee, an asking price, or a valuation anybody has agreed to.",
     "latest": "Latest",
@@ -61,7 +61,7 @@
   "transfers": {
     "title": "Transfer history",
     "description": "Newest first.",
-    "empty": "No transfers recorded for this player. The market source does not cover everybody, and a player who has not moved has nothing to show either.",
+    "empty": "Transfer history data is not available for this player. The market source does not cover everybody, and a player who has not moved has nothing to show either.",
     "date": "Date",
     "from": "From",
     "to": "To",
@@ -91,6 +91,8 @@
       "FORWARD": "Forward"
     },
     "measurable": "{pct}% measurable",
+    "measurableAdapt": "{pct}% measurable · adaptation required",
+    "measurableLegend": "The percentage is how much of each role's configured weight this dataset can measure. Choosing a role never changes its definition.",
     "partialOne": "{pct}% of this role is covered by the weights below. {scores} is part of the role but not of any score the builder weights, so it cannot be carried across.",
     "partialMany": "{pct}% of this role is covered by the weights below. {scores} are part of the role but not of any score the builder weights, so they cannot be carried across.",
     "coverageNote": "{pct}% of this preset's configured weight is measurable with the current provider data. Setting the unavailable weights to zero leaves a search that no longer covers everything {role} is named for."

@@ -38,6 +38,9 @@
     "contractWithin": "Contract expires within",
     "months": "{count} months",
     "sortBy": "Sort by",
+    "sortTooltipLabel": "How the evidence weighting works",
+    "sortTooltip": "“Role fit, weighted by evidence” pulls each figure toward the average of the players being ranked, in proportion to how little playing time stands behind it. At 900 minutes a figure carries full weight and is returned exactly as it is, so only figures below that threshold move and an established sample is never reduced. On a list where everyone is already established, this sort and the raw one give the same order.",
+    "evidenceInert": "Every player on this page already carries full evidence weight, so no figure was adjusted and the ranked column repeats “{raw}”. The adjustment applies below 900 minutes.",
     "sorts": {
       "minutes": "Minutes played",
       "role_score": "Role fit (raw)",

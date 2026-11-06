@@ -1,10 +1,13 @@
 import { Tooltip } from "@/components/ui/Tooltip";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { apiMessage } from "@/components/player/ApiMessage";
 import { PlayerLine } from "@/components/player/PlayerLine";
-import { getDictionary } from "@/i18n/dictionaries";
+import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
+import { localePath } from "@/i18n/routing";
+import { canonicalOffset, pageHref, parseOffset } from "@/lib/pagination";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -36,7 +39,11 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
   const t = await getDictionary();
   const f = await formatters();
   const params = await props.searchParams;
-  const offset = Math.max(0, Number(first(params.offset) ?? 0) || 0);
+  /* `Math.max(0, Number(...) || 0)` kept a bad offset out of the request but
+     had nothing to say about a good one past the end of the list. Player
+     search rendered the result of that gap - a count, an empty state and no
+     pagination, all at once - and this page would have rendered it too. */
+  const requested = parseOffset(params.offset);
   const criteria = {
     max_age: first(params.max_age) ?? "23",
     min_role_score: first(params.min_role_score) ?? "80",
@@ -52,7 +59,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
     // list to reach the end of an answer they could no longer see the reason
     // for.
     limit: PAGE_SIZE,
-    offset,
+    offset: requested.offset,
   };
 
   // Fetched beside the search rather than after it: the list is cached hard
@@ -69,7 +76,38 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
   // Both through the type guard, so the compiler narrows each on its own:
   // deriving the second from the first leaves it a union TS cannot follow.
   const failure = isSearchFailure(answer) ? answer : null;
-  const results = isSearchFailure(answer) ? null : answer;
+  let results = isSearchFailure(answer) ? null : answer;
+
+  /**
+   * The URL is made to say which page it is showing.
+   *
+   * Normalised only once the count is back, because "past the last page" is
+   * not knowable before it, and only when the server confirms it applied the
+   * offset it was given. An older backend ignores the parameter and serves
+   * page one; the canonical URL for page one is the one without an offset, so
+   * that case drops it rather than redirecting to a page the server would not
+   * serve either.
+   */
+  const served = results?.offset ?? 0;
+  const target =
+    results === null
+      ? requested.offset
+      : served === requested.offset
+        ? canonicalOffset(requested.offset, results.total, PAGE_SIZE)
+        : 0;
+
+  /* Re-fetched rather than only redirected, because this `redirect` cannot be
+     an HTTP 307: the count it depends on arrives after the response has begun
+     streaming, so a browser follows it and `curl` is handed the body. The
+     body must not be the contradiction. */
+  if (results !== null && target !== requested.offset) {
+    const again = await getOpportunities({ ...criteria, offset: target });
+    results = isSearchFailure(again) ? null : again;
+  }
+  if (results !== null && (target !== requested.offset || requested.nonCanonical)) {
+    redirect(localePath(await getLocale(), pageHref("/opportunities", params, target)));
+  }
+  const offset = target;
 
   return (
     <div className="space-y-8">

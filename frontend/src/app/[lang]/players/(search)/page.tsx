@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppLink as Link } from "@/components/ui/AppLink";
 
@@ -12,8 +13,11 @@ import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Tabl
 import { Tooltip } from "@/components/ui/Tooltip";
 import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
-import { getDictionary } from "@/i18n/dictionaries";
+import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
+import { localePath } from "@/i18n/routing";
+import { rankingIsInert } from "@/lib/evidenceSort";
+import { canonicalOffset, pageHref, parseOffset } from "@/lib/pagination";
 import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { ContractDate } from "@/components/player/ContractDate";
@@ -76,15 +80,49 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     contract_within_months: first(params.contract_within_months),
     sort: first(params.sort) ?? "minutes",
   };
-  const offset = Number(first(params.offset) ?? 0);
+  /**
+   * A URL cannot ask for a page that is not there.
+   *
+   * This was `Number(first(params.offset) ?? 0)`, which sent `NaN` to the API
+   * for `?offset=abc` and sent 999999 happily - producing "14,677 players
+   * match" beside "No players match these filters" with no pagination to
+   * escape by. The offset is normalised to a page this product serves, and a
+   * URL that asked for anything else is replaced by the one that says what is
+   * on screen.
+   */
+  const requested = parseOffset(params.offset);
 
   const t = await getDictionary();
   const f = await formatters();
-  const [results, competitions, roles] = await Promise.all([
-    searchPlayers({ ...filters, offset, limit: PAGE_SIZE }),
+  const [firstSlice, competitions, roles] = await Promise.all([
+    searchPlayers({ ...filters, offset: requested.offset, limit: PAGE_SIZE }),
     getCompetitions(),
     getRoles(),
   ]);
+  let results = firstSlice;
+
+  /* After the count is known, because "beyond the last page" is not knowable
+     before it. Only this path pays for the extra round trips.
+
+     A failed search normalises nothing: with no total, the last page is not a
+     fact this request has, and bouncing a reader to page one would blame
+     their URL for an API that is down. */
+  const offset =
+    results === null ? requested.offset : canonicalOffset(requested.offset, results.total, PAGE_SIZE);
+
+  /* THE PAGE IS MADE COHERENT BEFORE THE URL IS.
+     `redirect` here cannot be an HTTP 307: the count it depends on arrives
+     after the response has begun streaming, so Next serialises the redirect
+     into the stream. A browser follows it - measured, `?offset=999999`
+     settles on `?offset=14675` - but `curl` and a crawler are handed the
+     body, and the body is the contradiction. So the slice is re-fetched at
+     the page that exists, and the redirect only tidies the address bar. */
+  if (results !== null && offset !== requested.offset) {
+    results = await searchPlayers({ ...filters, offset, limit: PAGE_SIZE });
+  }
+  if (results !== null && (offset !== requested.offset || requested.nonCanonical)) {
+    redirect(localePath(await getLocale(), pageHref("/players", params, offset)));
+  }
 
   /**
    * The table, as one ordered list rather than two.
@@ -454,7 +492,22 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </Select>
             </Field>
 
-            <Field label={t.players.filters.sortBy} htmlFor="sort">
+            {/* The tooltip is on the sort itself, not on the evidence option
+                alone: an analyst choosing between the two sorts needs to know
+                what the weighting does BEFORE picking one, and a `<option>`
+                cannot carry a tooltip. It states where the threshold is and
+                what happens at it, which is the question the sort raises. */}
+            <Field
+              label={
+                <>
+                  {t.players.filters.sortBy}{" "}
+                  <Tooltip label={t.players.filters.sortTooltipLabel}>
+                    {t.players.filters.sortTooltip}
+                  </Tooltip>
+                </>
+              }
+              htmlFor="sort"
+            >
               <Select id="sort" name="sort" defaultValue={filters.sort}>
                 {SORTS.map((value) => (
                   <option key={value} value={value}>
@@ -495,6 +548,25 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </p>
               {results.is_mock ? <Badge tone="warning">{t.players.results.demoData}</Badge> : null}
             </div>
+
+            {/* THE SORT THAT CORRECTLY DID NOTHING.
+                Filter to the established band, choose the evidence-weighted
+                sort, and the list comes back in exactly the raw order with
+                the Ranked column repeating Raw fit figure for figure. That is
+                right - the weight is 1 at 900 minutes, so there is nothing to
+                shrink - and it is the single thing here an analyst is most
+                likely to read as broken, having chosen a sort and seen
+                nothing move. Said only when it is true of the page in front
+                of them, and derived from the two figures the server sent
+                rather than from a copy of the threshold. */}
+            {filters.sort === "role_score_ranked" && rankingIsInert(results.items) ? (
+              <p className="text-[11px] leading-relaxed text-subtle">
+                {t.players.filters.evidenceInert.replace(
+                  "{raw}",
+                  t.players.filters.sorts.role_score,
+                )}
+              </p>
+            ) : null}
 
             {results.items.length === 0 ? (
               <EmptyState
