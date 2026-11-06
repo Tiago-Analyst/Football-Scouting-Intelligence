@@ -5,6 +5,7 @@ import type React from "react";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TBody, TD, TH, THead, TR, TableWrap } from "@/components/ui/Table";
@@ -150,33 +151,51 @@ async function Report({
             title={q.identityByCompetition.title}
             description={q.identityByCompetition.description}
           />
-          <CardBody className="p-0">
-            <TableWrap className="rounded-none border-0">
-              <Table>
-                <THead>
-                  <TR>
-                    {/* Share second, not last. The table is wider than a
-                        phone and scrolls inside its card like the others here,
-                        so the final column is the one that goes off-screen -
-                        and the share is the whole point of the table. */}
-                    <TH>{q.identityByCompetition.competition}</TH>
-                    <TH numeric>{q.identityByCompetition.share}</TH>
-                    <TH numeric>{q.identityByCompetition.matched}</TH>
-                    <TH numeric>{q.identityByCompetition.players}</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {(report.identity_by_competition ?? []).map((row) => (
-                    <TR key={row.competition_id}>
-                      <TD>{row.name}</TD>
-                      <TD numeric>{Math.round(row.matched_share * 100)}%</TD>
-                      <TD numeric>{f.count(row.matched)}</TD>
-                      <TD numeric>{f.count(row.players)}</TD>
+          {/* FORTY-THREE ROWS, BEHIND THE ONE THAT MATTERS.
+              This table and the two provider check tables made the page
+              14,593px at 390px - 17.3 phone screens, the longest in the
+              product. The summary keeps what a reader would have scrolled to
+              find: how many competitions, and the thinnest one, which the API
+              sorts first. */}
+          <CardBody>
+            {/* The summary IS the finding, not the card's title repeated: the
+                title is three lines above it in the header, and a disclosure
+                that echoes it spends a line saying nothing. */}
+            <Disclosure
+              summary={
+                thinnestNote(t, f, report.identity_by_competition ?? []) ??
+                q.identityByCompetition.title
+              }
+              show={t.common.actions.showMore}
+              hide={t.common.actions.showLess}
+            >
+              <TableWrap>
+                <Table>
+                  <THead>
+                    <TR>
+                      {/* Share second, not last. The table is wider than a
+                          phone and scrolls inside its card like the others here,
+                          so the final column is the one that goes off-screen -
+                          and the share is the whole point of the table. */}
+                      <TH>{q.identityByCompetition.competition}</TH>
+                      <TH numeric>{q.identityByCompetition.share}</TH>
+                      <TH numeric>{q.identityByCompetition.matched}</TH>
+                      <TH numeric>{q.identityByCompetition.players}</TH>
                     </TR>
-                  ))}
-                </TBody>
-              </Table>
-            </TableWrap>
+                  </THead>
+                  <TBody>
+                    {(report.identity_by_competition ?? []).map((row) => (
+                      <TR key={row.competition_id}>
+                        <TD>{row.name}</TD>
+                        <TD numeric>{Math.round(row.matched_share * 100)}%</TD>
+                        <TD numeric>{f.count(row.matched)}</TD>
+                        <TD numeric>{f.count(row.players)}</TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </TableWrap>
+            </Disclosure>
           </CardBody>
         </Card>
       ) : null}
@@ -421,6 +440,29 @@ function SourceRow({ t, f, source }: { t: Dictionary; f: Formatters; source: Sou
   );
 }
 
+/**
+ * The thinnest competition, which is what the collapsed table would have said.
+ *
+ * The API sorts this table thinnest first - "Thinnest first" is in its own
+ * description - so the first row is the finding. Said in the summary line so
+ * that collapsing forty-three rows conceals the detail and not the point.
+ *
+ * Returns undefined rather than a sentence when there is nothing to name: a
+ * summary that says "0 competitions" on an empty table is noise.
+ */
+function thinnestNote(
+  t: Dictionary,
+  f: Formatters,
+  rows: { name: string; matched_share: number }[],
+): string | undefined {
+  const thinnest = rows[0];
+  if (!thinnest) return undefined;
+  return t.quality.identityByCompetition.thinnest
+    .replace("{count}", f.count(rows.length))
+    .replace("{competition}", thinnest.name)
+    .replace("{pct}", String(Math.round(thinnest.matched_share * 100)));
+}
+
 function summarise(t: Dictionary, checks: QualityCheck[]): string {
   const failing = checks.filter((c) => c.status === "fail").length;
   const warning = checks.filter((c) => c.status === "warn").length;
@@ -456,6 +498,11 @@ function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provid
           </h3>
           {published ? (
             <>
+              {/* The `Quality` field that used to sit here said exactly what
+                  the disclosure summary below now says - "15 passing, 6
+                  warning, 0 failing" appeared twice on one card, which is the
+                  defect shape this page exists to report. The verdict belongs
+                  on the thing it is a verdict about. */}
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label={q.providers.lastPublished}>
                   {published.published_at ? (
@@ -481,12 +528,21 @@ function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provid
                     <span className="font-mono text-xs">{published.generation_id}</span>
                   </Field>
                 ) : null}
-                <Field label={q.providers.quality}>{summarise(t, published.checks)}</Field>
               </dl>
               {published.checks.length > 0 ? (
-                <TableWrap>
-                  <ChecksTable t={t} f={f} checks={published.checks} />
-                </TableWrap>
+                /* The verdict is already in the `Quality` field above and is
+                   repeated in the summary, so what this conceals is the
+                   row-by-row detail and never whether anything failed. */
+                <Disclosure
+                  summary={q.providers.checksHeading}
+                  detail={summarise(t, published.checks)}
+                  show={t.common.actions.showMore}
+                  hide={t.common.actions.showLess}
+                >
+                  <TableWrap>
+                    <ChecksTable t={t} f={f} checks={published.checks} />
+                  </TableWrap>
+                </Disclosure>
               ) : (
                 <p className="text-sm text-muted">{q.providers.noAttributableChecks}</p>
               )}
@@ -518,12 +574,18 @@ function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provid
                 <Field label={q.providers.lastValidation}>
                   {f.date(candidate.executed_at)}
                 </Field>
-                <Field label={q.providers.quality}>{summarise(t, candidate.checks)}</Field>
               </dl>
               <p className="text-xs text-muted">{q.providers.candidateNote}</p>
-              <TableWrap>
-                <ChecksTable t={t} f={f} checks={candidate.checks} />
-              </TableWrap>
+              <Disclosure
+                summary={q.providers.checksHeading}
+                detail={summarise(t, candidate.checks)}
+                show={t.common.actions.showMore}
+                hide={t.common.actions.showLess}
+              >
+                <TableWrap>
+                  <ChecksTable t={t} f={f} checks={candidate.checks} />
+                </TableWrap>
+              </Disclosure>
             </>
           ) : (
             <p className="text-sm text-muted">{q.providers.idle}</p>

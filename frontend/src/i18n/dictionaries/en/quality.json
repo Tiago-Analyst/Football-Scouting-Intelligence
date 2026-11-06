@@ -49,7 +49,8 @@
     "competition": "Competition",
     "players": "Players measured",
     "matched": "Reconciled",
-    "share": "Share"
+    "share": "Share",
+    "thinnest": "{count} competitions · thinnest: {competition} at {pct}%"
   },
   "coverage": {
     "title": "Detailed statistics coverage",
@@ -132,7 +133,8 @@
     "idle": "Idle — no candidate refresh is waiting.",
     "noChecksTitle": "Automated checks",
     "noChecksDescription": "Nothing has recorded a check yet.",
-    "noChecksEmpty": "No checks recorded"
+    "noChecksEmpty": "No checks recorded",
+    "checksHeading": "Checks"
   },
   "checksTable": {
     "check": "Check",

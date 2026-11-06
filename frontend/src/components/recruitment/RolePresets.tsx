@@ -4,6 +4,7 @@ import { AppLink as Link } from "@/components/ui/AppLink";
 import { getDictionary } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { componentName } from "@/i18n/metricNames";
+import { presetCoverage } from "@/lib/presetCoverage";
 
 import type { RolePreset } from "@/types/api";
 
@@ -89,6 +90,12 @@ export async function RolePresets({
       <p className="mt-2 text-[11px] leading-relaxed text-subtle">
         {t.components.presets.fills}
       </p>
+      {/* One sentence for what the percentages beside the roles mean. Without
+          it the numbers are cryptic; with more than a sentence the disclosure
+          becomes a lecture above the weights it exists to fill in. */}
+      <p className="mt-1 text-[11px] leading-relaxed text-subtle">
+        {t.components.presets.measurableLegend}
+      </p>
 
       <div className="mt-3 space-y-3">
         {groups.map(({ group, roles }) => (
@@ -101,21 +108,49 @@ export async function RolePresets({
                 group as keyof typeof t.components.presets.positions
               ] ?? group}
             </h2>
-            <ul className="space-y-0.5">
-              {roles.map((preset) => (
-                <li key={preset.key}>
-                  <Link
-                    href={presetHref(preset, scoreKeys)}
-                    className={
-                      preset.key === activeKey
-                        ? "text-xs font-medium text-accent"
-                        : "text-xs text-muted transition-colors hover:text-accent"
-                    }
-                  >
-                    {roleLabel(t, preset.key)}
-                  </Link>
-                </li>
-              ))}
+            <ul className="space-y-1.5">
+              {roles.map((preset) => {
+                /* The measurable share, said here rather than one click
+                   later. Thirteen of the fourteen roles need the weights
+                   adapted before they rank anybody, and a reader choosing
+                   between them should know which before spending the click.
+                   Informational only: nothing is hidden, nothing is adapted,
+                   and the role's own definition is untouched. */
+                const coverage = presetCoverage(preset);
+                return (
+                  /* Stacked, not side by side. The builder's panel is about
+                     230px wide at 1440px, so a badge beside the name pushed
+                     "Ball-Playing Centre-Back" onto two lines and made a list
+                     of fourteen roles harder to scan than it was before the
+                     number was added. The number is secondary to the name. */
+                  <li key={preset.key} className="leading-tight">
+                    <Link
+                      href={presetHref(preset, scoreKeys)}
+                      className={
+                        preset.key === activeKey
+                          ? "text-xs font-medium text-accent"
+                          : "text-xs text-muted transition-colors hover:text-accent"
+                      }
+                    >
+                      {roleLabel(t, preset.key)}
+                    </Link>
+                    {coverage ? (
+                      <span
+                        className={
+                          coverage.tone === "minimal"
+                            ? "tabular mt-0.5 block text-[10px] text-warning"
+                            : "tabular mt-0.5 block text-[10px] text-subtle"
+                        }
+                      >
+                        {(coverage.needsAdaptation
+                          ? t.components.presets.measurableAdapt
+                          : t.components.presets.measurable
+                        ).replace("{pct}", String(coverage.pct))}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}
@@ -136,23 +171,25 @@ export async function RolePresets({
 export async function ActivePreset({ preset }: { preset: RolePreset }) {
   const t = await getDictionary();
   const f = await formatters();
+  /* The same derivation the list above uses, so the badge a reader saw before
+     the click and the badge they see after it cannot disagree. This panel used
+     to round and threshold the number itself; two copies of that arithmetic is
+     how one page comes to state two percentages for one preset. */
+  const coverage = presetCoverage(preset);
   return (
     <div className="rounded-md border border-border bg-surface-2 px-3 py-2.5">
       <p className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
         <span>{t.components.presets.startingFrom}<span className="text-accent">{roleLabel(t, preset.key)}</span>
         </span>
-        {preset.measurable_pct != null && preset.measurable_pct < 100 ? (
+        {coverage?.needsAdaptation ? (
           <span
             className={
-              preset.coverage_status === "minimal"
+              coverage.tone === "minimal"
                 ? "rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning"
                 : "rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-medium text-subtle"
             }
           >
-            {t.components.presets.measurable.replace(
-              "{pct}",
-              String(Math.round(preset.measurable_pct)),
-            )}
+            {t.components.presets.measurableAdapt.replace("{pct}", String(coverage.pct))}
           </span>
         ) : null}
       </p>
@@ -195,7 +232,7 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
                   than printing its sentence: the note names the role, and the
                   role's name is translated. */}
               {t.components.presets.coverageNote
-                .replace("{pct}", String(Math.round(preset.measurable_pct ?? 0)))
+                .replace("{pct}", String(coverage?.pct ?? 0))
                 .replace("{role}", roleLabel(t, preset.key))}
             </p>
           ) : (

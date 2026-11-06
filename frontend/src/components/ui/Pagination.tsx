@@ -1,4 +1,5 @@
 import { ButtonLink } from "@/components/ui/ButtonLink";
+import { pageHref } from "@/lib/pagination";
 
 /**
  * Previous, page N of M, next - for any list that pages.
@@ -43,18 +44,11 @@ export function Pagination({
 }) {
   if (total <= pageSize) return null;
 
-  const build = (nextOffset: number) => {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-      const raw = Array.isArray(value) ? value[0] : value;
-      if (key !== "offset" && raw) search.set(key, raw);
-    }
-    // Offset 0 is the absence of an offset, not a value worth carrying: it
-    // keeps the first page's URL the one a reader can share and recognise.
-    if (nextOffset > 0) search.set("offset", String(nextOffset));
-    const query = search.toString();
-    return query ? `${route}?${query}` : route;
-  };
+  /* The URL builder moved to `lib/pagination`, where the normalisation that
+     rescues a stale `?offset=999999` also lives. A reader's Next link and the
+     redirect that fixes their URL have to agree about what a page's address
+     is, and two builders is how one page comes to have two. */
+  const build = (nextOffset: number) => pageHref(route, params, nextOffset);
 
   const page = Math.floor(offset / pageSize) + 1;
   const pages = Math.ceil(total / pageSize);
