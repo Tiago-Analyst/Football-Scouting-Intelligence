@@ -6,6 +6,7 @@ import { DemoDataBanner } from "@/components/shell/DemoDataBanner";
 import { SiteFooter } from "@/components/shell/SiteFooter";
 import { SessionScript } from "@/components/shell/SessionScript";
 import { SessionSync } from "@/components/shell/SessionSync";
+import { ThemeSync } from "@/components/shell/ThemeSync";
 import { SiteHeader } from "@/components/shell/SiteHeader";
 import { ThemeScript } from "@/components/shell/ThemeScript";
 import { ENABLED_LOCALES, LOCALE_TAG } from "@/i18n/config";
@@ -114,6 +115,9 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         </a>
 
         <SessionSync />
+        {/* Applies the stored theme on a document whose <head> never ran the
+            blocking script - every 404 in the site. No-op everywhere else. */}
+        <ThemeSync />
         {meta?.demo_data_notice ? (
           <DemoDataBanner
             label={t.common.states.demoDataLabel}
