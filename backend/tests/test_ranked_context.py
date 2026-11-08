@@ -55,7 +55,9 @@ def _context(population: int) -> ComparisonContext:
     )
 
 
-def _result(metric: DerivedMetric, *, percentile: float | None, population: int) -> PercentileResult:
+def _result(
+    metric: DerivedMetric, *, percentile: float | None, population: int
+) -> PercentileResult:
     return PercentileResult(
         metric=metric,
         value=1.0 if percentile is not None else None,

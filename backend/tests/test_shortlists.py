@@ -665,12 +665,10 @@ class TestTheComparisonNamesTheRightPopulation:
     def test_it_matches_the_profile_for_the_same_player(self, signed_in: TestClient) -> None:
         player = a_player(signed_in)
         player_id = player["player_id"]
-        shortlist_id = signed_in.post(
-            "/api/v1/shortlists", json={"name": "Population"}
-        ).json()["shortlist_id"]
-        signed_in.post(
-            f"/api/v1/shortlists/{shortlist_id}/entries", json={"player_id": player_id}
-        )
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Population"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(f"/api/v1/shortlists/{shortlist_id}/entries", json={"player_id": player_id})
 
         profile = signed_in.get(f"/api/v1/players/{player_id}/profile").json()
         comparison = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()
@@ -692,9 +690,9 @@ class TestTheComparisonNamesTheRightPopulation:
         nought is stating two things that cannot both be true.
         """
         player = a_player(signed_in)
-        shortlist_id = signed_in.post(
-            "/api/v1/shortlists", json={"name": "Not nobody"}
-        ).json()["shortlist_id"]
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Not nobody"}).json()[
+            "shortlist_id"
+        ]
         signed_in.post(
             f"/api/v1/shortlists/{shortlist_id}/entries",
             json={"player_id": player["player_id"]},
@@ -857,8 +855,9 @@ class TestExport:
         rows = list(
             csv.reader(
                 io.StringIO(
-                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv")
-                    .content.decode("utf-8-sig")
+                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").content.decode(
+                        "utf-8-sig"
+                    )
                 )
             )
         )
@@ -895,8 +894,9 @@ class TestExport:
         rows = list(
             csv.reader(
                 io.StringIO(
-                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv")
-                    .content.decode("utf-8-sig")
+                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").content.decode(
+                        "utf-8-sig"
+                    )
                 )
             )
         )
