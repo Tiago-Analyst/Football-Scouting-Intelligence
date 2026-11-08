@@ -694,8 +694,19 @@ first request the API served the old build and answered 503.
 **Re-read at 18:28, three hours later:** `/health` still `ok`, still serving
 14,680, and the build timestamp is still `15:11:28`. The rebuild happened once
 and has held; nothing has gone stale since. **And still no heartbeat has run** —
-the last was the 14:25 failure, and the cadence is roughly six-hourly, so the
-next is due around 20:25.
+the last was the 14:25 failure.
+
+**And the reason is not a cadence.** Going to read the cron rather than infer
+one from the history found `*/15 * * * *`: it asks for a beat every fifteen
+minutes. Measured over the last 100 runs, a 480-hour window, GitHub delivered
+**100 of 1,920 — 5.2%**, the shortest observed gap 113 minutes and the longest
+614. The workflow's own comments already said short schedules get dropped;
+what nobody had checked is how far the delivered rate had drifted from the
+requested one. Lowered to hourly in `#106`, which does not buy more runs but
+stops the file claiming ninety-six a day when it receives five.
+
+So the heartbeat is a **sampling** monitor, not a continuous one. It will
+notice an API that stays unwell and miss one that is unwell for an hour.
 
 So the window was at most three hours and a request closes it. What remains
 unknown is whether it would close without one, and whether the next heartbeat
@@ -936,12 +947,14 @@ Any of these, and it should be re-read against its sources rather than trusted:
 
 - **`20261102T122100Z` is published**, which replaces every figure in "What is
   serving right now" at once
-- **the next heartbeat runs, due around 20:25 today.** One failed at 14:25,
-  truthfully, because a promotion had happened and the API was still serving
-  the old build; by 15:11 it was serving the new one, and at 18:28 it still
-  was. Nothing has run in the four hours since the failure, so whether the
-  alarm clears on its own is still unknown — **the single most useful unknown
-  in this file, and the cheapest to resolve: one run answers it**
+- **the next heartbeat runs.** One failed at 14:25, truthfully, because a
+  promotion had happened and the API was still serving the old build; by 15:11
+  it was serving the new one, and at 18:28 it still was. Running the
+  heartbeat's own check by hand at 18:38 returned `HTTP 200`, status `ok`, all
+  three dependencies `ok` — **so the alarm condition has cleared and only a
+  scheduled run has yet to observe it.** Nothing had run in the four hours
+  since the failure, which is the delivery rate rather than a cadence; the
+  schedule is hourly from `#106`
 - **a promotion lands and `/health` is still `degraded` an hour later.** Today
   the window was under three hours and closed on the first request. A longer
   one, or one that needs a deploy to close, is a different system from the one

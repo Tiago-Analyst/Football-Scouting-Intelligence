@@ -30,6 +30,31 @@
 # for an instance that never sleeps, and it is the same argument against
 # trying to keep the Neon compute up from here.
 #
+# WHY THE SCHEDULE NOW ASKS FOR AN HOUR RATHER THAN A QUARTER OF ONE
+#
+# Re-measured on 8 November over the last 100 runs, a 480-hour window, while
+# the cron above asked for one every fifteen minutes:
+#
+#     asked for     1,920
+#     delivered       100          5.2%
+#     shortest gap    113 minutes  - never once the fifteen requested
+#     longest gap     614 minutes
+#
+# Nothing here was broken; GitHub was doing what the paragraph above says it
+# does. The problem was what the file claimed about itself. A schedule reading
+# `*/15` says "this API is watched every fifteen minutes" to anyone who opens
+# it, and the observed answer was five hours with ten-hour holes.
+#
+# Hourly is still more than will be delivered, and it is deliberately not
+# tuned to the measured 4.8-hour average: the request is what we want, the
+# delivery is what we get, and pretending the two are the same is the thing
+# being fixed. But asking for 24 a day rather than 96 makes the gap a
+# shortfall rather than a fiction.
+#
+# **This is a sampling monitor, not a continuous one.** It will notice an API
+# that stays unwell. It will miss one that is unwell for an hour. Anything
+# that needs to be caught inside an hour does not belong here.
+#
 # What it does do is notice when the API is unwell, which is worth having on
 # its own. The site's own defence against the suspending is elsewhere - the
 # frontend serves stored answers immediately and refreshes them behind the
@@ -39,16 +64,21 @@
 # without a commit to the repository. If this stops firing entirely, that is
 # the first thing to check.
 #
-# Free and unmetered only because this repository is public. On a private one
-# this cadence would cost roughly 4,300 Actions minutes a month against a
-# 2,000-minute allowance - more than paying for a backend that never sleeps.
+# Free and unmetered only because this repository is public. The old
+# quarter-hourly cron would have cost roughly 4,300 Actions minutes a month on
+# a private repository, against a 2,000-minute allowance - more than paying
+# for a backend that never sleeps. Hourly asks for 720 runs a month, which
+# would fit inside that allowance. The cadence is no longer the reason this
+# has to be public.
 
 name: Heartbeat
 
 on:
   schedule:
-    # Asking for more than this is asking for runs that get dropped.
-    - cron: "*/15 * * * *"
+    # Hourly. Asking for more does not produce more - see the measurement
+    # above - it only makes this line lie about how closely the API is
+    # watched.
+    - cron: "0 * * * *"
   # So a person can ask the question immediately rather than waiting for the
   # next tick.
   workflow_dispatch:
