@@ -10,7 +10,7 @@ import { positionName } from "@/components/player/PositionName";
 import { RoleName, roleLabel } from "@/components/player/RoleName";
 import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
-import { metricNames } from "@/i18n/metricNames";
+import { componentName, metricNames } from "@/i18n/metricNames";
 
 import { AllLeaguesHeading } from "@/components/player/AllLeaguesLabel";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
@@ -463,9 +463,30 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         <span className="text-subtle">
                           {t.profile.roles.drivenBy.replace(
                             "{component}",
-                            t.glossary.metrics[
-                              role.dominant_component as keyof typeof t.glossary.metrics
-                            ] ?? role.dominant_component,
+                            /* THE KEY, NOT THE LABEL.
+                               This looked the glossary up by
+                               `dominant_component`, which is composed English
+                               prose - "Save %", "Completed passes /90" - and
+                               the glossary is keyed by metric, so the lookup
+                               could never match. `metricNames` carries the
+                               same story in its own comment: the defect was
+                               found and fixed for metric LISTS, and this was
+                               the one place left out, because it had no key
+                               to pair with. The backend sends one now.
+
+                               `componentName` asks both glossaries and falls
+                               back to the label, which is what an older
+                               server still sends on its own - the frontend
+                               deploys minutes before the backend, and that
+                               gap degrades to the old English rather than to
+                               a blank. */
+                            role.dominant_component_key
+                              ? componentName(
+                                  t,
+                                  role.dominant_component_key,
+                                  role.dominant_component,
+                                )
+                              : role.dominant_component,
                           )}
                           {role.dominant_share != null
                             ? ` (${t.profile.roles.drivenByShare.replace(

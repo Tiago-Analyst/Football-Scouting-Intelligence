@@ -47,7 +47,7 @@ def score_with(components: list[tuple[str, float, float | None]]) -> RoleScore:
 class TestNamingIt:
     def test_an_evenly_spread_score_names_nothing(self) -> None:
         even = score_with([(f"m{i}", 25.0, 60.0) for i in range(4)])
-        assert _dominant(even) == (None, None)
+        assert _dominant(even) == (None, None, None)
 
     def test_a_score_carried_by_one_metric_names_it(self) -> None:
         lopsided = score_with(
@@ -58,9 +58,13 @@ class TestNamingIt:
                 ("npxg_per90", 20.0, 10.0),
             ]
         )
-        label, share = _dominant(lopsided)
+        key, label, share = _dominant(lopsided)
         assert label is not None
         assert "xA" in label
+        # The key travels beside the label from 8 November, so a reader's
+        # language can name the metric. A label is not something a glossary
+        # keyed by metric can ever be looked up by.
+        assert key == "xa_per90"
         assert share is not None and share >= DOMINANT_CONTRIBUTION
 
     def test_it_reads_realised_contribution_not_configured_weight(self) -> None:
@@ -72,20 +76,22 @@ class TestNamingIt:
         weights_say_one_thing = score_with(
             [("heavy_but_low", 70.0, 5.0), ("light_but_high", 30.0, 99.0)]
         )
-        label, _ = _dominant(weights_say_one_thing)
+        key, label, _ = _dominant(weights_say_one_thing)
         assert label is not None
         assert "light" in label.lower() or "Light" in label
+        assert key == "light_but_high"
 
     def test_an_absent_component_contributes_nothing_and_is_not_counted(self) -> None:
         """Missing stays missing here too - never a zero contribution."""
         with_gap = score_with([("present", 50.0, 80.0), ("absent", 50.0, None)])
-        label, share = _dominant(with_gap)
+        key, label, share = _dominant(with_gap)
         assert label is not None, "the one component that ran carries the whole score"
+        assert key == "present"
         assert share == pytest.approx(100.0)
 
     def test_a_score_with_nothing_available_names_nothing(self) -> None:
         empty = score_with([("a", 50.0, None), ("b", 50.0, None)])
-        assert _dominant(empty) == (None, None)
+        assert _dominant(empty) == (None, None, None)
 
 
 class TestItChangesNothingElse:

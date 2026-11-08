@@ -345,23 +345,38 @@ def to_summary(record: PlayerRecord, view: AnalyticsView) -> PlayerSummary:
 DOMINANT_CONTRIBUTION = 40.0
 
 
-def _dominant(score: IntelligenceScore | RoleScore) -> tuple[str | None, float | None]:
+def _dominant(
+    score: IntelligenceScore | RoleScore,
+) -> tuple[str | None, str | None, float | None]:
     """The component carrying an outsized share of what the score came out as.
 
     Realised contribution, not configured weight. The two diverge: a 30%
     component on a percentile of 95 contributes more than a 40% one on a
     percentile of 20, and it is the first that a reader is unknowingly ranking
     by.
+
+    THE KEY TRAVELS BESIDE THE LABEL, AS IT DOES EVERYWHERE ELSE HERE
+
+    This used to return only `metric_label(metric)` - a composed English
+    string - and the Portuguese profile therefore read "fortemente determinado
+    por Save %" while the same metric appeared two panels down as "Defesas %".
+    Every profile in Portuguese named its deciding metric in English, on a
+    page that translated the rest.
+
+    The frontend was not at fault and could not have been: a label is not
+    something it can look anything up by. `missing_keys` and `available_keys`
+    already sit beside their labels in this very serialiser for exactly this
+    reason; the dominant component was the one place that sent prose alone.
     """
     contributions = {m: c for m, c in score.contributions() if c is not None}
     total = sum(contributions.values())
     if not contributions or total <= 0:
-        return None, None
+        return None, None, None
     metric = max(contributions, key=lambda m: contributions[m])
     share = contributions[metric] / total * 100.0
     if share < DOMINANT_CONTRIBUTION:
-        return None, None
-    return metric_label(metric), share
+        return None, None, None
+    return str(metric), metric_label(metric), share
 
 
 def to_score(
@@ -405,8 +420,9 @@ def to_score(
         ],
         role_fit_percentile_reason=getattr(score, "role_fit_percentile_reason", None),
         role_fit_percentile_reason_message=_withheld_percentile_message(score),
-        dominant_component=dominant[0],
-        dominant_share=dominant[1],
+        dominant_component_key=dominant[0],
+        dominant_component=dominant[1],
+        dominant_share=dominant[2],
         evidence=_score_evidence(score.key, stats, definitions),
         caveat=score.caveat,
         # Roles only; intelligence scores carry neither. `getattr` keeps one
