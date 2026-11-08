@@ -126,7 +126,7 @@ export function EntryRow({
       </TD>
 
       <TD className="whitespace-nowrap">
-        <StatusBadge status={entry.status} label={entry.status_label} />
+        <StatusBadge status={entry.status} statuses={statuses} fallback={entry.status_label} />
         <div className="mt-1 text-[11px] text-subtle">
           {entry.last_reviewed_at ? (
             copy.reviewed.replace("{when}", f.dateTime(entry.last_reviewed_at))
@@ -201,9 +201,17 @@ function AssessmentEditor({
   if (!open) {
     const written = entry.note || entry.pros || entry.concerns;
     return (
+      /* The note is the button's whole content, so a screen reader announced
+         the note itself as the control's name - "QA smoke-test note, remove
+         after verification, button" - with nothing saying what pressing it
+         does. The visible text stays exactly as it is; the label is what is
+         announced instead, and the note is still read as the button's
+         content. A row with nothing written already says "Add an
+         assessment", which needs no second name. */
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-label={written ? copy.editAssessment : undefined}
         className="max-w-xs space-y-0.5 text-left text-xs text-muted transition-colors hover:text-text"
       >
         {written ? (

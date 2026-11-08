@@ -111,6 +111,7 @@ export default async function ShortlistPage({
           t={t}
           f={f}
           comparison={comparison}
+          statuses={localisedStatuses(t, statuses)}
           scope={scope}
           shortlistId={shortlistId}
           compared={requested}

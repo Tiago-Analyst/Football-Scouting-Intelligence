@@ -11,7 +11,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { leadingValues } from "@/lib/comparison";
 import type { Dictionary } from "@/i18n/dictionaries";
 import type { Formatters } from "@/i18n/format";
-import type { ComparedPlayer, ComparisonResponse } from "@/types/api";
+import type { ComparedPlayer, ComparisonResponse, ShortlistStatus } from "@/types/api";
 
 /**
  * Players side by side.
@@ -183,6 +183,7 @@ export function ComparisonTable({
   t,
   f,
   comparison,
+  statuses,
   scope,
   shortlistId,
   compared,
@@ -191,6 +192,8 @@ export function ComparisonTable({
   /** Resolved by the page, like the dictionary beside it. */
   f: Formatters;
   comparison: ComparisonResponse;
+  /** The localised status vocabulary, resolved by the page. */
+  statuses: ShortlistStatus[];
   /** Which population the percentiles were measured against. */
   scope: "competition" | "global";
   shortlistId: number;
@@ -449,11 +452,8 @@ export function ComparisonTable({
                 <TD key={column.player.player_id} numeric>
                   <StatusBadge
                     status={column.status}
-                    label={
-                      t.shortlists.statuses[
-                        column.status as keyof typeof t.shortlists.statuses
-                      ] ?? column.status_label
-                    }
+                    statuses={statuses}
+                    fallback={column.status_label}
                   />
                 </TD>
               ))}

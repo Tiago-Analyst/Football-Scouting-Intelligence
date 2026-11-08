@@ -7,6 +7,7 @@ import { EntryRow } from "@/components/shortlists/EntryRow";
 import { Button } from "@/components/ui/Button";
 import type { SampleCopy } from "@/components/ui/SampleSizeBadgeView";
 import { Table, TBody, TH, THead, TR, TableWrap } from "@/components/ui/Table";
+import { useLocalePath } from "@/i18n/useLocalePath";
 import { MAX_COMPARE } from "@/lib/limits";
 import type { LocaleTag } from "@/lib/format";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
@@ -50,6 +51,7 @@ export function EntriesTable({
   tag: LocaleTag;
 }) {
   const router = useRouter();
+  const localised = useLocalePath();
   const params = useSearchParams();
   const applied = (params.get("compare") ?? "").split(",").filter(Boolean);
   const [selected, setSelected] = useState<string[]>(applied);
@@ -81,14 +83,14 @@ export function EntriesTable({
     } else {
       next.delete("compare");
     }
-    router.push(`/shortlists/${shortlistId}?${next.toString()}`, { scroll: false });
+    router.push(localised(`/shortlists/${shortlistId}?${next.toString()}`), { scroll: false });
   }
 
   function clear() {
     setSelected([]);
     const next = new URLSearchParams(params.toString());
     next.delete("compare");
-    router.push(`/shortlists/${shortlistId}?${next.toString()}`, { scroll: false });
+    router.push(localised(`/shortlists/${shortlistId}?${next.toString()}`), { scroll: false });
   }
 
   return (

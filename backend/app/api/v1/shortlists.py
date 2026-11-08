@@ -30,8 +30,8 @@ from app.api.deps import SessionDep
 from app.api.v1.auth import CurrentUser
 from app.api.v1.players import (
     PROFILE_METRICS,
+    ranked_context,
     read_profile,
-    to_context,
     to_metric,
     to_sample,
     to_score,
@@ -375,10 +375,13 @@ def compare(
         metrics = [to_metric(ranked[m]) for m in PROFILE_METRICS if m in ranked]
         metrics = [m for m in metrics if m.value is not None]
         if context is None:
-            context = next(
-                (to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked),
-                None,
-            )
+            # The population of a metric that was actually ranked, not of
+            # whichever metric comes first in the list. The profile learned
+            # this and this endpoint did not: on 6 November 2026 production
+            # showed one goalkeeper against "Population: 53" on his profile
+            # and "Population: 0" here, with identical percentiles either
+            # side. One rule, one place.
+            context = ranked_context(ranked, view)
 
         fit = view.role_fit(key)
         definitions = view.intelligence.definitions if view.intelligence else None
@@ -550,8 +553,19 @@ def export_csv(shortlist_id: int, user: CurrentUser, db: SessionDep) -> Response
         )
 
     filename = _safe_filename(shortlist.name)
+    # A BYTE ORDER MARK, FOR THE PROGRAM THIS FILE IS ACTUALLY OPENED IN.
+    #
+    # The bytes were already correct UTF-8 and the header already said so.
+    # Excel on Windows ignores both for a .csv opened by double-click: with no
+    # BOM it falls back to the system code page, so "Fernández" arrives as
+    # "FernÃ¡ndez". Measured on the live export, 6 November 2026 - every
+    # accented surname in a Colombian, Argentine or Portuguese shortlist,
+    # which is most of them.
+    #
+    # The BOM is what tells Excel to read UTF-8. `utf-8-sig` encodes it, and
+    # csv, pandas and R all strip it on the way in, so nothing else changes.
     return Response(
-        content=buffer.getvalue(),
+        content=buffer.getvalue().encode("utf-8-sig"),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
