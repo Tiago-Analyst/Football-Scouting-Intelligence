@@ -1,7 +1,9 @@
 # Where this project actually stands
 
-**Snapshot taken 8 November 2026, 15:11 UTC.** Every number below was read from
-a live source at that moment — the production health endpoint, the public
+**Snapshot taken 8 November 2026, 15:11 UTC, and extended at 18:28** with a
+release-candidate QA pass and the one fix it produced. Rows re-read at the
+later time say so. Every number below was read from a live source at one of
+those two moments — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
 and not from another document, this file's previous version included. Sections
@@ -549,6 +551,94 @@ written into the file so nobody mistakes them for the guard.
 `--source demo --replace`.** A data-dependent assertion is worth only as much
 as the data it runs against.
 
+## The release-candidate QA, and the fix it found in my own work
+
+A full QA pass over production on 8 November, 15:00-17:30: the automated
+suites, twenty search scenarios, eighteen profiles, four analytical surfaces,
+the authenticated shortlist workflow end to end, pt-PT, 390px, dark mode,
+pragmatic accessibility, abuse cases, and a cross-check of the four pages that
+quote the same facts.
+
+**No P0 and no P1.** Three P2s and two P3s. The full report is in
+`qa_final_2026-11-08.zip`.
+
+### The one that mattered, because it was mine
+
+`#102` made the backend emit a UTF-8 BOM so Excel on Windows would stop
+mangling accented surnames. Measured on production **two hours after it
+shipped**, a downloaded shortlist still began `22 70 6C` - `"pl`, no BOM.
+
+The backend was emitting it. The Next relay at
+`app/[lang]/shortlists/[id]/export/route.ts` did
+`new Response(await upstream.text(), ...)`, and the fetch specification has
+`text()` strip a leading byte order mark. The route re-encoded without one.
+
+The other explanation was ruled out before anything changed: the comparison
+population fix shipped in the same commit and is live, reading 53 where it
+read 0, so the backend is deployed. The mark was being eaten in transit.
+
+**Nothing failed, and that is the point.** The backend's test asserts the
+backend's bytes, which were correct. There was no test of the relay at all.
+A fix that does not reach the reader is worse than an unshipped one, because
+the suite now claims it works. Fixed in `#104`, one expression, with a test
+that demonstrates the mechanism on the platform's own `Response` and was
+verified by reverting the fix.
+
+### The other four
+
+| | |
+| --- | --- |
+| Methodology is stale (P2) | "nine of 44 competitions contained a player who had reached a full season's minutes". Data Quality and Status both say 43, and 28 are established. It hedges with "on the snapshot this was last measured on" and names neither the snapshot nor its date |
+| A metric named in English inside Portuguese (P2) | The API sends `dominant_component` as a composed label rather than a key, so "determinado por **Save %**" sits beside "Passes completos /90" translated on the same page. Every profile in one of two languages |
+| A 422 takes the search page down (P2) | `?age_min=200` replaces the page with the route error boundary and loses the filter form, which the page's own designed failure path keeps. Reachable only by editing a URL: the field is bounded 14-50 in the browser, and only scientific notation defeats the other two |
+| Saving only from a profile (P3) | Unchanged, and still a scope decision rather than a defect |
+
+### What the pass confirmed rather than found
+
+Eighteen profiles across every position group and both ends of the sample
+scale, zero problems, populations 20 to 134 and never nought. The adaptation
+flow in all eleven of its steps, including a redistribution that is
+proportional, deterministic, totals exactly 100 and submits nothing by itself.
+The five-player comparison limit, stated and enforced, dropping nobody.
+Duplicate adds idempotent and non-destructive. Notes with commas, quotes and
+newlines surviving the CSV round trip. 401 on every anonymous authenticated
+endpoint. No document-level horizontal overflow at 390px on any page.
+
+Timings, from the browser's own navigation entries: TTFB 31-35ms; response
+261ms to 1,654ms, the slowest being a weighted recruitment search over 14,680
+players.
+
+### Five measurement traps, four of which caught me
+
+Recorded because they will catch the next person, and because four of these
+produced findings I nearly reported:
+
+1. The i18n dictionary ships in the RSC payload, so grepping served HTML
+   matches every phrase in the product - and `document.body.textContent`
+   includes inline `<script>` contents, which has the same effect
+2. `documentElement.scrollWidth` reports an overflowing child inside a scroll
+   container. Only `body.scrollWidth`, and whether the page can actually be
+   scrolled right, settle it. **A `true` needs a second question; a `false` is
+   conclusive**
+3. `innerText` is empty for content inside a closed `<details>`, which made
+   fourteen preset links look like unnamed buttons
+4. Colours can be `oklab(...)`. A luminance check that assumes `rgb()` reads
+   the digits as channels and calls a dark header pale
+5. Text colour must be compared with its own element's background, not the
+   page's, or every accent button reads as unreadable contrast
+
+### And one about football, not about code
+
+A player appeared at Celtic with a season at West Ham United in the England
+Championship, which looked like an identity error because West Ham are a
+Premier League club. Tested against the data rather than against memory:
+**eighteen West Ham players in the Championship** and eight more in the League
+Cup - the squad. They were relegated in the 2026 season. A scan of 4,000
+players found four clubs under two competitions, all legitimate.
+
+The product was right and the knowledge brought to it was out of date. Worth
+keeping in a file about what is actually true.
+
 ## The Sunday the refresh landed
 
 The last snapshot said: "Sunday 8 November is the first run that can confirm
@@ -599,11 +689,17 @@ evidence that this one can.
 What it exposes is not a defect but an unanswered question. By 15:11 `/health`
 read `ok` with the new figures and a build timestamp equal to the second the
 request arrived — so the view rebuilt on being asked. Between 12:06 and that
-first request the API served the old build and answered 503. Nothing observed
-here says how long that window normally is, whether anything shortens it
-without a visitor, or whether the next heartbeat would have cleared it on its
-own: **no heartbeat has run since the failure.** That is the thing to watch,
-and it is in the triggers.
+first request the API served the old build and answered 503.
+
+**Re-read at 18:28, three hours later:** `/health` still `ok`, still serving
+14,680, and the build timestamp is still `15:11:28`. The rebuild happened once
+and has held; nothing has gone stale since. **And still no heartbeat has run** —
+the last was the 14:25 failure, and the cadence is roughly six-hourly, so the
+next is due around 20:25.
+
+So the window was at most three hours and a request closes it. What remains
+unknown is whether it would close without one, and whether the next heartbeat
+reports green. That is the thing to watch, and it is in the triggers.
 
 ## A false alarm that rang for nearly two days
 
@@ -806,11 +902,16 @@ test fixes this direction and explains it in place.
 | Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
 | ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
-| The backend serves a stale build after a promotion | Observed 8 November: the refresh published at 12:06, the API answered 503 `degraded` at 14:25 still serving the 5 November build, and had rebuilt by 15:11 - on the second this snapshot's first request arrived. Nothing observed says how long that window normally is, or whether anything closes it without a visitor. **No heartbeat has run since the failure**, so there is no evidence either way |
+| The backend serves a stale build after a promotion | Observed 8 November: published 12:06, `503 degraded` at 14:25 on the 5 November build, rebuilt by 15:11 on the first request. **Re-read at 18:28: still `ok`, still 14,680, build timestamp unchanged at 15:11:28** — the rebuild held for three hours. So the window was at most three hours and a request closes it. Whether it closes without one, and whether the heartbeat clears on its own, is still unknown: none has run since the failure |
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
 | Players cannot be saved from Search, Similarity or Opportunities | The player profile is the only surface with the control, which the empty state says plainly. A scout scanning a 25-row result has to open each profile. Judged a feature rather than a defect, and left out of the smoke test's narrow scope - recorded so the next reader finds a decision |
 | One provider's value and its own history disagree | A profile can show EUR 200.0m beside "Historical valuation data is not available for this player", both from Transfermarkt. Coverage is genuinely partial - 8 of 20 profiles carry history - and `#101` reworded both empty states to describe availability rather than assert absence. What the copy still does not say is that the two come from the same source. Both panels name Transfermarkt, so a reader can see it; judged not worth a further clause |
 | The QA account password is in a conversation transcript | Provisioned by the owner for the 8 November smoke test and pasted into the chat that ran it. Not rotated. It owns nothing but its own shortlists, and all QA data was deleted; recorded so a later reader finds a decision rather than an oversight |
+| The relay ate a fix for two hours, and nothing failed | `#102` shipped a UTF-8 BOM from the backend; `new Response(await upstream.text())` in the Next relay stripped it before any reader saw it. Fixed in `#104`. **Closed as a defect, kept as an open item about testing:** the backend test asserted the backend's bytes and passed, and there was no test of the relay at all. Any fix whose value depends on a second hop needs a test at the hop |
+| The CSV BOM is not confirmed end to end | `#104` is merged and the frontend is deployed, but the download is behind authentication, so the bytes have not been read on production. The mechanism, the route and the backend are each verified separately. One signed-in export closes it |
+| Methodology quotes a measurement it does not date | "nine of 44 competitions"; the live figures are 43 and 28 established. P2 from the 8 November QA, not fixed |
+| A metric name reaches Portuguese in English | `dominant_component` arrives from the API as a composed label rather than a key, so the role sentence names its deciding metric in English on every Portuguese profile while the same metric is translated elsewhere on the page. P2, not fixed |
+| A 422 replaces the search page instead of its failure state | `?age_min=200`. The page has a designed path that keeps the form and does not use it for this class of error. Reachable only by editing a URL. P2, not fixed |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
 | Nobody opens the deployed site unless told to | **Nine defects** have now been found only by using it - three on 4 November, three in the audit of the 5th, three more across the second audit and the smoke test. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
@@ -835,11 +936,12 @@ Any of these, and it should be re-read against its sources rather than trusted:
 
 - **`20261102T122100Z` is published**, which replaces every figure in "What is
   serving right now" at once
-- **the next heartbeat runs.** One failed at 14:25 today, truthfully, because
-  a promotion had happened and the API was still serving the old build. By
-  15:11 it was serving the new one. Nothing has run since, so whether the
-  alarm clears on its own is unknown - and that is the single most useful
-  unknown in this file
+- **the next heartbeat runs, due around 20:25 today.** One failed at 14:25,
+  truthfully, because a promotion had happened and the API was still serving
+  the old build; by 15:11 it was serving the new one, and at 18:28 it still
+  was. Nothing has run in the four hours since the failure, so whether the
+  alarm clears on its own is still unknown — **the single most useful unknown
+  in this file, and the cheapest to resolve: one run answers it**
 - **a promotion lands and `/health` is still `degraded` an hour later.** Today
   the window was under three hours and closed on the first request. A longer
   one, or one that needs a deploy to close, is a different system from the one
@@ -862,16 +964,26 @@ Any of these, and it should be re-read against its sources rather than trusted:
   yet — the two deploy minutes apart, and on 5 November that gap put a false
   sentence on every search page for an hour. A page that cannot reach a fact
   must fall silent, never report "none"
+- **a fix is shipped whose value depends on a second hop.** The CSV BOM was
+  emitted correctly by the backend, asserted by the backend's own test, and
+  eaten by the Next relay before any reader saw it. A test at the origin of a
+  value proves nothing about where it arrives. Test the hop
 - **a data-dependent assertion is added to the backend suite.** CI loads
   `--source demo --replace`, and three times now a check has passed against a
   fabricated universe while the real one failed. If a new test's verdict
   depends on what the provider supplies, say in the test what it cannot catch
 - **Sunday 22 November passes without the deployed site having been opened in
   a browser.** This is the only entry here that is not a change, and it is the
-  one the other entries cannot replace. It has fired three times now - 5, 6
-  and 8 November - and found something every time. Both languages, four
+  one the other entries cannot replace. It has fired four times now — 5, 6 and
+  twice on 8 November — and found something every time. Both languages, four
   widths, a profile, and one search run the way a visitor runs one: build a
-  longlist and ask whether you would act on it. **Nine defects have been found
-  this way and none by a test.** The authenticated flows are no longer the
-  gap; the next pass should look where no pass has looked yet rather than
-  repeating this one
+  longlist and ask whether you would act on it. **Thirteen defects have been
+  found this way and none by a test.**
+
+  But the returns are falling, and that is worth writing down rather than
+  discovering again: the first pass found three P1s, the last found three P2s
+  and one P3, and the P3 was mine. The authenticated flows are no longer the
+  gap. **The recommendation of the 8 November QA is to stop internal passes
+  here and wait for a real scout's evidence.** If this trigger fires on
+  22 November and nobody has used the product for a real decision in between,
+  the useful move is to find a user, not to run a fifth pass
