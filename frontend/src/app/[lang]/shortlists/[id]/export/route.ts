@@ -31,8 +31,8 @@ export async function GET(
   }
 
   try {
-    // The endpoint returns CSV, not JSON, so it is fetched as text rather than
-    // through the JSON-parsing helper's normal path.
+    // The endpoint returns CSV, not JSON, so it is fetched directly rather
+    // than through the JSON-parsing helper's normal path.
     const upstream = await fetch(
       `${baseUrl()}/api/v1/shortlists/${shortlistId}/export.csv`,
       {
@@ -48,7 +48,23 @@ export async function GET(
       });
     }
 
-    return new Response(await upstream.text(), {
+    // THE BYTES, NOT THE TEXT.
+    //
+    // This was `await upstream.text()`, which decodes to a string and - by
+    // the fetch specification - STRIPS A LEADING BYTE ORDER MARK. Re-encoding
+    // that string then produced a file without one.
+    //
+    // The backend started emitting a BOM on 8 November so that Excel on
+    // Windows would stop falling back to the system code page and mangling
+    // accented surnames. Measured on production two hours after that shipped,
+    // the downloaded file still began `22 70 6C` - `"pl` - because this line
+    // ate the mark on the way through. The backend's own test asserted the
+    // backend's bytes and passed, so nothing failed; the fix simply did not
+    // reach anybody.
+    //
+    // A relay has no business decoding what it relays. `arrayBuffer` hands
+    // the bytes over untouched, whatever the backend decides they should be.
+    return new Response(await upstream.arrayBuffer(), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition":
