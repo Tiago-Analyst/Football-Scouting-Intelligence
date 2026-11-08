@@ -208,6 +208,46 @@ def to_context(
     )
 
 
+def ranked_context(
+    ranked: dict[DerivedMetric, PercentileResult], view: AnalyticsView | None = None
+) -> ComparisonContextOut | None:
+    """The population a reader is actually being shown, named once.
+
+    WHAT A READER GOT
+    -----------------
+
+    Population size is PER METRIC: it counts the players carrying a value for
+    that metric, in that competition, in that season. Taking the first entry of
+    `PROFILE_METRICS` unconditionally therefore reports the comparison group of
+    whichever metric happens to come first - including one the provider does
+    not supply for anybody here, whose population is a truthful nought.
+
+    On a goalkeeper's profile that printed sixteen percentiles above the line
+    "Population: 0". The profile was fixed; the shortlist comparison was not,
+    and on 6 November 2026 production showed, for one goalkeeper:
+
+        profile      Goalkeepers - Colombia Categoria Primera A - 2026    53
+        comparison   Goalkeepers - Colombia Categoria Primera A - 2026     0
+
+    Same words, same player, same season, two numbers. The percentiles either
+    side were identical and correct; only the population they claimed to be
+    measured against was false.
+
+    So it lives here now, once, and both callers ask for it rather than
+    deriving it. The fallback keeps a context for a player who ranked on
+    nothing: a named population of nought is honest when nothing was ranked,
+    and dishonest the moment something was.
+    """
+    return next(
+        (
+            to_context(ranked[m].context, view)
+            for m in PROFILE_METRICS
+            if ranked.get(m) is not None and ranked[m].percentile is not None
+        ),
+        None,
+    ) or next((to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked), None)
+
+
 def _readable_competition(name: str | None) -> str | None:
     """A competition name a reader can read, when the provider sent a slug.
 
@@ -877,20 +917,7 @@ def get_player_stats(
     # a row of blanks for every goalkeeping stat on an outfield profile is noise.
     metrics = [m for m in metrics if m.value is not None]
 
-    # The context of a metric that was actually ranked, not simply the first in
-    # the list. Population size is per metric - it counts the players carrying a
-    # value for it - so taking the first unconditionally reported the comparison
-    # group of a metric the provider does not supply, and a profile showing
-    # sixteen percentiles announced that they were measured against nobody.
-    # Every metric absent is a truthful zero; sixteen present is not.
-    context = next(
-        (
-            to_context(ranked[m].context, view)
-            for m in PROFILE_METRICS
-            if ranked.get(m) is not None and ranked[m].percentile is not None
-        ),
-        None,
-    ) or next((to_context(ranked[m].context, view) for m in PROFILE_METRICS if m in ranked), None)
+    context = ranked_context(ranked, view)
     global_context = next(
         (
             to_context(wider[m].context, view)

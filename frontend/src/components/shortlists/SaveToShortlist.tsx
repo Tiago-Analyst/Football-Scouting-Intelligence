@@ -51,7 +51,7 @@ export function SaveToShortlist({
 
   function begin() {
     if (readIdentity() === null) {
-      router.push(`/sign-in?next=${encodeURIComponent(`/players/${playerId}`)}`);
+      router.push(localePath(locale, `/sign-in?next=${encodeURIComponent(`/players/${playerId}`)}`));
       return;
     }
     setOpen(true);

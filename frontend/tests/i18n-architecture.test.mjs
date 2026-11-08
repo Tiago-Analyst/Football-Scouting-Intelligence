@@ -377,6 +377,53 @@ test("the plain button stays free of server-only imports", () => {
   assert.equal(/root-params|i18n\/dictionaries/.test(button), false);
 });
 
+test("no programmatic navigation leaves the locale behind", () => {
+  // THE HOLE THE REDIRECT GUARD ABOVE DID NOT COVER.
+  //
+  // Measured on live production, 6 November 2026: on `/en/shortlists/2`,
+  // pressing Compare landed on `/pt/shortlists/2?compare=685662,201393`. An
+  // English page, an English button, and the language changes under the
+  // reader mid-task.
+  //
+  // `router.push("/shortlists/2?...")` is the same defect as a bare href and
+  // a bare redirect, through the third door. The rule was already written
+  // twice; this is the way of navigating nobody had thought to forbid. Three
+  // calls existed - two in `EntriesTable`, one in `SaveToShortlist`, in a
+  // file that already imported `localePath` for its one `<Link>`.
+  //
+  // A Client Component cannot read a root parameter, so it reads the pathname
+  // it is on: `useLocalePath`. Staying on the page the reader is on is also
+  // the right answer here, which a cookie is not.
+  const bare = /router\.(push|replace)\(\s*[`"']\//;
+  for (const file of sources()) {
+    const relative = file.slice(file.indexOf("src"));
+    const source = readFileSync(file, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    assert.equal(
+      bare.test(source),
+      false,
+      `${relative} pushes a route with no locale in it`,
+    );
+  }
+});
+
+test("the one hook that localises a push reads the page it is on", () => {
+  const hook = readFileSync(
+    new URL("../src/i18n/useLocalePath.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(hook, /export function useLocalePath\(\)/);
+  assert.match(hook, /const pathname = usePathname\(\);/);
+  assert.match(hook, /localeFromPathname\(pathname\)/);
+  // Not the cookie. The cookie is the stored preference, which is exactly
+  // what moved the reader off the page they were reading.
+  assert.ok(
+    !/cookies\(\)|document\.cookie/.test(hook),
+    "the client locale now comes from a cookie",
+  );
+});
+
 test("no redirect leaves the locale behind", () => {
   // `redirect("/sign-in")` from a page under `[lang]` sends a Portuguese
   // reader to a path with no locale in it. The proxy then picks one from the

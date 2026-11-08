@@ -629,6 +629,87 @@ class TestCompare:
         assert MIXED_COMPETITION_CAVEAT not in (response["caveat"] or "")
 
 
+class TestTheComparisonNamesTheRightPopulation:
+    """The symptom, as an invariant between the two pages that show it.
+
+    Production, 6 November 2026: one goalkeeper, described in the same words
+    on his profile and in a shortlist comparison, against "Population: 53" on
+    one and "Population: 0" on the other. The percentiles either side were
+    identical and correct. `population_size` is per metric, and both pages
+    picked their header context by taking the first entry of PROFILE_METRICS
+    present - including a metric the provider supplies for nobody in that
+    league, whose population is a truthful nought.
+
+    The profile had been fixed for exactly this. The comparison had not,
+    because the rule was an inline expression rather than a function.
+
+    THESE TWO DO NOT CATCH THE REGRESSION, AND SAYING SO IS THE POINT
+
+    Checked by reverting the fix and running them: both still passed. The
+    first entry of PROFILE_METRICS is `progressive_passes_per90`, which the
+    live provider supplies for nobody - that is why production showed
+    "Population: 0" on every comparison, not only a goalkeeper's - while the
+    demo fixture ranks it for all sixty players. The condition cannot be
+    reproduced through the API on a fabricated universe.
+
+    What does catch it is in `test_ranked_context.py`: the unit tests feed the
+    rule an unranked first metric directly, and two structural tests fail the
+    moment an endpoint walks PROFILE_METRICS itself again. Both were verified
+    against the reverted code.
+
+    These stay because the invariant is the one a reader cares about, and
+    because the day the demo data grows a player with a thin first metric they
+    will start earning their place.
+    """
+
+    def test_it_matches_the_profile_for_the_same_player(self, signed_in: TestClient) -> None:
+        player = a_player(signed_in)
+        player_id = player["player_id"]
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Population"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(f"/api/v1/shortlists/{shortlist_id}/entries", json={"player_id": player_id})
+
+        profile = signed_in.get(f"/api/v1/players/{player_id}/profile").json()
+        comparison = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()
+
+        expected = profile["stats"]["context"]
+        actual = comparison["context"]
+        assert actual is not None
+        # Same words on both pages, so the same number behind them.
+        assert actual["position_label"] == expected["position_label"]
+        assert actual["competition_names"] == expected["competition_names"]
+        assert actual["population_size"] == expected["population_size"]
+
+    def test_a_comparison_showing_percentiles_is_not_measured_against_nobody(
+        self, signed_in: TestClient
+    ) -> None:
+        """The reader-facing form of it, which needs no second page to see.
+
+        A panel that prints ranks and then says the population behind them is
+        nought is stating two things that cannot both be true.
+        """
+        player = a_player(signed_in)
+        shortlist_id = signed_in.post("/api/v1/shortlists", json={"name": "Not nobody"}).json()[
+            "shortlist_id"
+        ]
+        signed_in.post(
+            f"/api/v1/shortlists/{shortlist_id}/entries",
+            json={"player_id": player["player_id"]},
+        )
+
+        body = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/compare").json()
+        ranked = [
+            m
+            for column in body["players"]
+            for m in column["metrics"]
+            if m["percentile"] is not None
+        ]
+        if not ranked:
+            pytest.skip("this player ranked on nothing, so nought is the honest answer")
+        assert body["context"]["population_size"] > 0
+
+
 class TestWhatAComparisonCarries:
     def test_each_column_carries_the_owners_assessment(self, signed_in: TestClient) -> None:
         """A comparison is read to make a decision. Three of the five columns
@@ -691,6 +772,18 @@ class TestWhatAComparisonCarries:
         assert column["pros"] is None
 
 
+def _csv_rows(response) -> list[list[str]]:
+    """The export as a reader's tool sees it.
+
+    The file carries a UTF-8 BOM so that Excel on Windows does not fall back
+    to the system code page and render accented surnames mangled. `csv`, pandas and R all strip it; `response.text` does
+    not, because httpx decodes by the charset in the header and the BOM is
+    content as far as that is concerned. Decoding with `utf-8-sig` here is
+    what every one of those readers does.
+    """
+    return list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"))))
+
+
 class TestExport:
     def _shortlist_with_a_player(self, api: TestClient, note: str | None = None) -> tuple[int, str]:
         player = a_player(api)
@@ -709,9 +802,32 @@ class TestExport:
 
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/csv")
-        rows = list(csv.reader(io.StringIO(response.text)))
+        rows = _csv_rows(response)
         assert rows[0] == EXPORT_COLUMNS
         assert rows[1][0] == name
+
+    def test_the_file_opens_with_its_accents_intact(self, signed_in: TestClient) -> None:
+        """A BOM, for the program this file is actually opened in.
+
+        The bytes were already correct UTF-8 and the header already said so.
+        Excel on Windows ignores both for a .csv opened by double-click: with
+        no BOM it falls back to the system code page and an accented surname
+        arrives mangled. Most of this product's players are Colombian,
+        Argentine or Portuguese, so that is most of the file.
+
+        The BOM is what tells Excel to read UTF-8, and every other reader
+        strips it.
+        """
+        shortlist_id, _ = self._shortlist_with_a_player(signed_in)
+        response = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv")
+
+        assert response.content.startswith(b"\xef\xbb\xbf"), "the BOM is gone"
+        # And it is a BOM, not a stray character inside the data: stripping it
+        # leaves a header whose first column is exactly the first column.
+        rows = _csv_rows(response)
+        assert rows[0] == EXPORT_COLUMNS
+        # The payload is still UTF-8 after the mark, not re-encoded.
+        assert response.content[3:].decode("utf-8")
 
     def test_the_csv_carries_no_underlying_statistics(self, signed_in: TestClient) -> None:
         """It records one person's selection, not an extract of the data."""
@@ -738,7 +854,11 @@ class TestExport:
 
         rows = list(
             csv.reader(
-                io.StringIO(signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").text)
+                io.StringIO(
+                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").content.decode(
+                        "utf-8-sig"
+                    )
+                )
             )
         )
         assert len(rows[1]) == len(EXPORT_COLUMNS)
@@ -773,7 +893,11 @@ class TestExport:
 
         rows = list(
             csv.reader(
-                io.StringIO(signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").text)
+                io.StringIO(
+                    signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").content.decode(
+                        "utf-8-sig"
+                    )
+                )
             )
         )
         assert len(rows) == 2
@@ -792,7 +916,7 @@ class TestExport:
         shortlist_id, _ = self._shortlist_with_a_player(signed_in, note=awkward)
 
         response = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv")
-        rows = list(csv.reader(io.StringIO(response.text)))
+        rows = _csv_rows(response)
         assert len(rows) == 2
         assert len(rows[1]) == len(EXPORT_COLUMNS)
         assert rows[1][EXPORT_COLUMNS.index("note")] == awkward
@@ -819,7 +943,7 @@ class TestExport:
             "shortlist_id"
         ]
         response = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv")
-        rows = list(csv.reader(io.StringIO(response.text)))
+        rows = _csv_rows(response)
         assert rows == [EXPORT_COLUMNS]
 
 
