@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
+import { SearchFailed } from "@/components/ui/SearchFailed";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -18,7 +19,7 @@ import { formatters } from "@/i18n/format";
 import { localePath } from "@/i18n/routing";
 import { rankingIsInert } from "@/lib/evidenceSort";
 import { canonicalOffset, pageHref, parseOffset } from "@/lib/pagination";
-import { getCompetitions, getRoles, searchPlayers } from "@/lib/players";
+import { getCompetitions, getRoles, isSearchFailure, runPlayerSearch } from "@/lib/players";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { ContractDate } from "@/components/player/ContractDate";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
@@ -94,12 +95,18 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
 
   const t = await getDictionary();
   const f = await formatters();
-  const [firstSlice, competitions, roles] = await Promise.all([
-    searchPlayers({ ...filters, offset: requested.offset, limit: PAGE_SIZE }),
+  const [answer, competitions, roles] = await Promise.all([
+    runPlayerSearch({ ...filters, offset: requested.offset, limit: PAGE_SIZE }),
     getCompetitions(),
     getRoles(),
   ]);
-  let results = firstSlice;
+  /* A read that was attempted and failed is not the same as an empty one, and
+     the filters are built from the URL rather than from the answer - so the
+     form survives either. Both go through the type guard on their own, as on
+     the other three search pages: deriving one from the other leaves a union
+     TypeScript cannot narrow. */
+  const failure = isSearchFailure(answer) ? answer : null;
+  let results = isSearchFailure(answer) ? null : answer;
 
   /* After the count is known, because "beyond the last page" is not knowable
      before it. Only this path pays for the extra round trips.
@@ -118,7 +125,8 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
      body, and the body is the contradiction. So the slice is re-fetched at
      the page that exists, and the redirect only tidies the address bar. */
   if (results !== null && offset !== requested.offset) {
-    results = await searchPlayers({ ...filters, offset, limit: PAGE_SIZE });
+    const again = await runPlayerSearch({ ...filters, offset, limit: PAGE_SIZE });
+    results = isSearchFailure(again) ? null : again;
   }
   if (results !== null && (offset !== requested.offset || requested.nonCanonical)) {
     redirect(localePath(await getLocale(), pageHref("/players", params, offset)));
@@ -297,13 +305,13 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
         description={t.players.description}
       />
 
-      {results === null ? (
-        <ErrorState
-          title={t.players.error.title}
-          description={t.players.error.description}
-        />
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      {/* THE FORM IS NOT INSIDE THE FAILURE BRANCH.
+          `?age_min=200` is an age the API refuses with a 422, and the whole
+          page used to go with it - the route error boundary replaced twelve
+          filter inputs with an apology. The filters are built from the URL,
+          not from the answer, so there was never a reason to throw them away.
+          The same split the other three searches already had. */}
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           {/* A plain GET form: filters live in the URL, so a search is
               shareable and the back button behaves as people expect. */}
           <form
@@ -532,6 +540,15 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               table is already inside `overflow-x-auto`; this is what lets that
               container do its job instead of being widened around it. */}
           <section className="min-w-0 space-y-3">
+            {failure ? (
+              <SearchFailed failure={failure} copy={t.common.searchFailed} />
+            ) : results === null ? (
+              <ErrorState
+                title={t.players.error.title}
+                description={t.players.error.description}
+              />
+            ) : (
+              <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted">
                 <span className="tabular font-medium text-text">{f.count(results.total)}</span>{" "}
@@ -620,6 +637,9 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </>
             )}
 
+              </>
+            )}
+
             {/*
              * Three paragraphs with inline <strong>, so the translation keeps
              * the emphasis where the sentence needs it rather than losing it
@@ -632,8 +652,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               <Emphasised className="mt-2" text={t.players.rawFitNote.third} />
             </Callout>
           </section>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

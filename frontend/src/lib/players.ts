@@ -379,6 +379,41 @@ export async function getOpportunities(
   }
 }
 
+/**
+ * The player search, with a failure the page can show.
+ *
+ * WHY THIS EXISTS BESIDE `searchPlayers` RATHER THAN REPLACING IT
+ *
+ * `searchPlayers` has five callers and only one of them is a page's primary
+ * search. The other three use it as a lookup - the name picker on Similarity
+ * and Replacements, and the page a profile belongs to - where `null` means
+ * "nothing matched" and the reader has a form in front of them either way.
+ *
+ * The search page is the one that has a form to lose. Measured on production,
+ * 8 November: `/en/players?age_min=200` sends an age the API refuses with a
+ * 422, `nullIfMissing` rethrows anything that is not a 404, and the whole
+ * Server Component went with it - the route error boundary replaced the page
+ * and the twelve filter inputs went with it.
+ *
+ * That is the exact failure `failureOrMissing` and `SearchFailed` were built
+ * for on the other three searches, and player search was the one that never
+ * got them. The 422 is correct: the age is out of range and the browser
+ * normally prevents it, so this is a hand-edited or stale URL. It should
+ * still land on a page that keeps the filters and says what happened.
+ */
+export async function runPlayerSearch(
+  params: PlayerSearchParams,
+): Promise<PlayerList | SearchFailure | null> {
+  try {
+    return await apiFetch<PlayerList>(`/api/v1/players${query(params)}`, {
+      revalidate: ANALYSIS_TTL,
+      tags: [ANALYTICS_TAG],
+    });
+  } catch (error) {
+    return failureOrMissing(error);
+  }
+}
+
 export async function runRecruitmentSearch(
   body: unknown,
 ): Promise<RecruitmentResults | SearchFailure | null> {
