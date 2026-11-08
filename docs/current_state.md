@@ -1,12 +1,12 @@
 # Where this project actually stands
 
-**Snapshot taken 5 November 2026, 14:31 UTC**, and extended at 18:38 with the
-audit's remaining findings, two of which were re-checked against production at
-that later time and say so in their rows. Every number below was read from
-a live source at one of those two moments — the production health endpoint, the public
+**Snapshot taken 8 November 2026, 15:11 UTC.** Every number below was read from
+a live source at that moment — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
-and not from another document, this file's previous version included.
+and not from another document, this file's previous version included. Sections
+describing earlier days carry their own dates; where a figure was last read on
+5 or 6 November rather than today, the text that reports it says so.
 
 This file exists because two documents in `docs/` went stale this month, and
 each one went stale by claiming something was *still to do* after it had been
@@ -14,15 +14,24 @@ done. So the rule for this one: **it describes a moment, and it says what makes
 it wrong.** If you are reading it after the triggers in "What makes this file
 wrong", stop trusting it and re-read the sources named in each section.
 
-The previous snapshot was earlier today. Its last trigger — "the deployed site
-should have been opened in a browser" — **is the one that fired**, four hours
-after it was written, because somebody did open it. It found three defects
-that had been live the whole time, and all three are now fixed and deployed.
+**Two triggers from the last snapshot fired, and both did their job.**
 
-That is the first time a trigger in this file has done the job the file exists
-for. It is also the only trigger here that is not a change, which is why it
-worked: the other seven ask what moved, and nothing about those defects had
-ever moved.
+"Sunday 8 November passes" fired this morning: the Transfermarkt refresh
+completed at 12:06 UTC, the first since 27 August, and `f89e77b` is confirmed
+by watching it rather than by reading it. The heartbeat then failed at 14:25,
+which the same list said "would mean something new" — and it did, truthfully
+this time. Both are in "The Sunday the refresh landed" below.
+
+"The deployed site should have been opened in a browser" fired twice more: a
+second full audit on 6 November, and an authenticated smoke test on the 8th
+that covered the one surface every previous pass had left untouched. **Neither
+found a P0 or a P1.** Between them: six P2s, all fixed, and four P3s, two
+fixed and two left on purpose.
+
+That makes three snapshots in a row where the trigger asking for a browser
+found things the triggers asking what moved could not. **Nine defects have now
+been found by using the product and none by a test**, and the suite was green
+for every one of them.
 
 The history took three snapshots to learn. The first failed because every
 trigger watched the pipeline while the work had moved to the site. A trigger
@@ -30,7 +39,8 @@ for the site was added, and three defects were found that it would not have
 caught either — a header that did not fit, a builder whose untouched default
 matched nobody, six Portuguese sentences disagreeing in gender — because they
 had never changed. Only then was a trigger written that asks for a browser
-rather than for a difference. Today it fired and found three more.
+rather than for a difference. It has fired on every snapshot since: three
+defects on 5 November, three on the 6th, three on the 8th.
 
 **Tests that pass and a green CI are evidence about what was asked, not about
 what is there.**
@@ -44,21 +54,27 @@ what is there.**
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | 14,677 player-seasons across 43 competitions, built 5 Nov 14:28:22 UTC |
-| excluded | 8,830 player-seasons, for having no position group |
+| analytics | 14,680 player-seasons across 43 competitions, built 8 Nov 15:11:28 UTC |
+| excluded | 8,827 player-seasons, for having no position group |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
 
-The served universe has not moved since 31 October. The build timestamp is the
-backend's last restart, not a new load - today it restarted twice, for the two
-backend deploys below - and the view is rebuilt from the same rows each time.
+**The served universe moved today, for the first time since 31 October**, and
+by three players: 14,677 to 14,680, with the excluded count falling 8,830 to
+8,827 by the same three. Those three gained a position group from this
+morning's Transfermarkt refresh. It is a small number and it is the whole
+observable consequence of the refresh on the served data.
+
+The build timestamp is 15:11:28, which is the second this snapshot's first
+request arrived. The view had been reporting itself stale since the promotion
+at 12:06 and rebuilt on being asked — see "The Sunday the refresh landed".
 
 ### The figures, reconciled
 
 ```
-14,677  served            one row per player, the one the site shows
- 8,830  no position group  cannot be ranked against anybody
+14,680  served            one row per player, the one the site shows
+ 8,827  no position group  cannot be ranked against anybody
  4,650  superseded         a player's other seasons
 ------
 28,157  player-seasons in the database
@@ -446,6 +462,149 @@ disagreeing with another.
 - The season-maturity sentence was verified against a local database carrying
   demo rows, which flattered it. Production disagreed and was right.
 
+## What the second audit and the smoke test found, 6-8 November
+
+Three passes over the deployed site since the last snapshot, ending in PRs
+`#101` and `#102`. **No P0 and no P1 in any of them.** The numbered findings
+below are the ones that led to a change.
+
+### The defect shape this project keeps producing
+
+Five of the six P2s are the same mistake: **one fact in two places.** Listed
+together because the pattern is more useful than the instances.
+
+| Where | What a reader got |
+| --- | --- |
+| Recruitment preset list | Thirteen of fourteen presets weight dimensions the data cannot produce - `target_forward` 40% measurable, `poacher` 100% - and the list said none of it. `measurable_pct` was already in the response that drew it, one click late |
+| `?offset=999999` on player search | "14,677 players match" beside "No players match these filters", with no pagination to escape by |
+| Data quality at 390px | 14,593px, 17.3 phone screens. The previous audit measured Opportunities, fixed it, and never asked whether it was the worst page. It was not |
+| Shortlist row badges, in Portuguese | Chips read "Prioridade", rows read "Priority". The Portuguese existed; one of the two call sites used it |
+| Shortlist comparison | "Population: 0" under percentiles that were correct. The profile had been fixed for exactly this and the comparison had not |
+
+The sixth was different in kind: pressing **Compare** on an English page landed
+on the Portuguese one, because `router.push` carried a path with no locale and
+the proxy chose from the cookie.
+
+### What was done about the pattern, rather than about the instances
+
+Each fix removed the second place rather than correcting it:
+
+- `presetCoverage` and `ranked_context` are single functions both callers ask,
+  where each caller used to derive its own answer
+- `StatusBadge` no longer accepts a label, only the localised vocabulary, so a
+  caller cannot supply an English one
+- `pageHref` builds every paginated URL, so the link a reader clicks and the
+  redirect that normalises a stale one agree by construction
+- `useLocalePath` reads the pathname, and the i18n guard now forbids
+  `router.push` with a bare path - the rule had been written twice already,
+  for hrefs and for `redirect()`, and this was the third door
+
+### Two measurement errors of mine, recorded because they will recur
+
+**The evidence-sort note never fired.** I compared `ranking_score` to
+`best_role_score` with an epsilon for float dust. The API rounds the first to
+one decimal and not the second — `95.5` against `95.48158409387221` — so every
+untouched figure read as an adjustment. Compared at the published precision now.
+
+**A horizontal overflow that was not there.** `documentElement.scrollWidth`
+read 521 against a 376px viewport on the shortlist at 390px, which looks
+exactly like the defect this product has fixed before. `body.scrollWidth` was
+376 and the page could not be scrolled right at all: the table scrolls inside
+its own container, which is the intended behaviour. **A `true` from that check
+needs a second question; a `false` is conclusive.**
+
+### What the smoke test could not do, and did not pretend to
+
+The authenticated flows had been **UNVERIFIED** in every previous snapshot.
+They are verified now, on production, with a QA account the owner provisioned
+and signed in themselves: creation, five players across five positions,
+idempotent duplicate adds that do not wipe an existing note, notes carrying
+commas, quotes and newlines through a CSV round trip, assessments, the
+explicit five-player comparison limit, removal, persistence across a new
+authenticated session, and access control after sign-out — 401 on every
+anonymous call, no leak of name, note, player or status. All QA data was
+deleted afterwards.
+
+Two things about how it was run are worth keeping. **No password was typed by
+the agent**: the owner signed in, and everything after that was driven on
+their session. And the persistence check was made from a second origin
+(`localhost:3000` against the production API), which is a stronger test than a
+refresh — different cookie, no shared client cache, and the data came back.
+
+### A regression test that did not catch its own regression
+
+The population fix shipped with two API-level tests. **Reverting the fix left
+both passing.** The first entry of `PROFILE_METRICS` is
+`progressive_passes_per90`, which the live provider supplies for nobody — that
+is why production showed "Population: 0" on *every* comparison and not only a
+goalkeeper's — while the demo fixture ranks it for all sixty players. The
+condition cannot be reproduced on a fabricated universe.
+
+What catches it is a unit test on the rule and two structural tests that fail
+the moment an endpoint walks `PROFILE_METRICS` itself again; both were checked
+against the reverted code. The API tests were kept, with that limitation
+written into the file so nobody mistakes them for the guard.
+
+**This is the third time this project has been caught by CI loading
+`--source demo --replace`.** A data-dependent assertion is worth only as much
+as the data it runs against.
+
+## The Sunday the refresh landed
+
+The last snapshot said: "Sunday 8 November is the first run that can confirm
+it." It ran, and it confirms it.
+
+**Transfermarkt published at 12:06:02 UTC today**, read from
+`/api/v1/data-quality`:
+
+| | before (5 Nov) | now |
+| --- | --- | --- |
+| last published | 27 August | **8 November 12:06:02** |
+| published checks | 8 | **21** |
+| newest check | 69 days old | **today** |
+| failures | 1 (`metric_coverage`) | **0** |
+| warnings | — | 3 |
+| candidate waiting | 18 checks | **none** |
+
+`f89e77b` taught `coverage_checks` that a market-only source has no
+performance metrics to cover, so `no rows` is a pass for Transfermarkt and
+still a failure for a source that should have them. The run reached **Record
+the quality report** — the step that had failed on 1 November and would have
+failed every Sunday after — and passed it. That was established by reading the
+code; it is now established by watching it work.
+
+The 18 candidate rows from 1 November are gone, promoted rather than deleted.
+That closes two open items at once.
+
+### The heartbeat failed at 14:25, and this time it was telling the truth
+
+```
+HTTP 503  status=degraded
+analytics: Serving 14677 player-seasons built at 2026-11-05T22:57:51+00:00.
+           The database has been loaded since; restart the API to serve the
+           new data.
+```
+
+Read beside the section below, this is the pair worth keeping. On 1 November
+the heartbeat rang for 42 hours about a system that was serving correctly,
+because a candidate load moved the fingerprint. `377f294` made the fingerprint
+move at **promotion** instead. Today a promotion happened, the fingerprint
+moved, and the alarm rang — about an API that really was serving a three-day-old
+build of data that really had been replaced.
+
+**The same alarm, the same mechanism, and the opposite verdict.** An alarm is
+only worth having if it can be wrong in both directions, and this is the first
+evidence that this one can.
+
+What it exposes is not a defect but an unanswered question. By 15:11 `/health`
+read `ok` with the new figures and a build timestamp equal to the second the
+request arrived — so the view rebuilt on being asked. Between 12:06 and that
+first request the API served the old build and answered 503. Nothing observed
+here says how long that window normally is, whether anything shortens it
+without a visitor, or whether the next heartbeat would have cleared it on its
+own: **no heartbeat has run since the failure.** That is the thing to watch,
+and it is in the triggers.
+
 ## A false alarm that rang for nearly two days
 
 Last week, and nothing was wrong with the system.
@@ -643,21 +802,26 @@ test fixes this direction and explains it in place.
 
 | Item | State |
 | --- | --- |
-| A Transfermarkt refresh completing | **Unobserved since 27 August**, 69 days by the endpoint's own count. The failure is explained and fixed in `f89e77b`, but by reading the code; Sunday 8 November is the first run that can confirm it |
+| ~~A Transfermarkt refresh completing~~ | **Closed 8 November.** Published 12:06:02 UTC, 21 checks dated today, zero failures. `f89e77b` confirmed by watching it rather than by reading it |
 | Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
-| The 18 candidate rows from 1 November | Still in the database, still visible under `candidate`. Harmless now that the fingerprint ignores them, and left alone rather than deleted: they are the record of a refresh that was attempted |
+| ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
+| The backend serves a stale build after a promotion | Observed 8 November: the refresh published at 12:06, the API answered 503 `degraded` at 14:25 still serving the 5 November build, and had rebuilt by 15:11 - on the second this snapshot's first request arrived. Nothing observed says how long that window normally is, or whether anything closes it without a visitor. **No heartbeat has run since the failure**, so there is no evidence either way |
+| The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
+| Players cannot be saved from Search, Similarity or Opportunities | The player profile is the only surface with the control, which the empty state says plainly. A scout scanning a 25-row result has to open each profile. Judged a feature rather than a defect, and left out of the smoke test's narrow scope - recorded so the next reader finds a decision |
+| One provider's value and its own history disagree | A profile can show EUR 200.0m beside "Historical valuation data is not available for this player", both from Transfermarkt. Coverage is genuinely partial - 8 of 20 profiles carry history - and `#101` reworded both empty states to describe availability rather than assert absence. What the copy still does not say is that the two come from the same source. Both panels name Transfermarkt, so a reader can see it; judged not worth a further clause |
+| The QA account password is in a conversation transcript | Provisioned by the owner for the 8 November smoke test and pasted into the chat that ran it. Not rotated. It owns nothing but its own shortlists, and all QA data was deleted; recorded so a later reader finds a decision rather than an oversight |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
-| Nobody opens the deployed site unless told to | Six defects have now been found only by using it - three on 4 November, three in the audit of the same day. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
+| Nobody opens the deployed site unless told to | **Nine defects** have now been found only by using it - three on 4 November, three in the audit of the 5th, three more across the second audit and the smoke test. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
 | The builder's authored profile still weights two scores that cannot be computed | 45 of its 100 points, on Ball Progression and Duel Dominance. The default now stands those two down, so the page answers; the authored numbers are deliberately untouched, so they come back the moment the provider supplies the metrics. If it never does, the profile is worth rewriting rather than patching at the edges |
-| The 404 route does not apply the stored theme | Every other route carries the theme bootstrap as a real `<script>` in its served `<head>`; the 404 has only the copy inside the RSC payload. Re-checked on production 5 Nov 18:38: present on `/pt/about`, absent on a missing route. A reader who chose dark and mistypes a URL gets a white page |
-| The data-quality page repeats one check with two scopes | `position_group_mapped` appears three times, reading 14.4% and 1.1%, disambiguated only by the source column. `players_present` reads 58,966 under one source and 58,975 under the other - nine players, unexplained. Re-checked on production 5 Nov. This is the page an analyst opens to RESOLVE a doubt, so two numbers for one sentence create one |
-| An expired contract is shown as current | A contract reading `Jun 2024` was served in November 2026 with no marker, in a results table. Found 4 Nov |
-| Opportunities is 12,907px tall at 390px | 15.3 phone screens, with the ordering signal far above most of it. No pagination on that page. Measured 4 Nov |
+| ~~The 404 route does not apply the stored theme~~ | **Closed 5 November** in `#100`, and confirmed on 6 November in the very capture that had exposed it: a Portuguese 404 in dark mode, background `rgb(8, 11, 14)` |
+| The data-quality page repeats one check with two scopes | **Half closed.** `#98` gave every row the date it was measured, which is what reconciled 14.4% against 1.1%: August beside November. Today both sources are dated within eight days of each other, so the gap that made it unreadable has closed on its own as well. The unexplained nine players in `players_present` is still unexplained |
+| ~~An expired contract is shown as current~~ | **Closed** in `#97`. Re-checked 6 November: the marker fires on exactly the two profiles whose dates have passed, and nowhere else |
+| ~~Opportunities is 12,907px tall at 390px~~ | **Closed** in `#99`: 5,214px, 6.2 screens, ten cards to a page. But see the row below - fixing the page that had been measured was not the same as fixing the longest one |
 | One league named two ways on one profile | Performance "USA MLS" against current "Major League Soccer"; "South Korea K League 1" against "K League 1"; one competition rendered lowercase, `eredivisie`. Provider strings surfacing unnormalised. Cosmetic, and it reads as carelessness on a page whose whole argument is care |
 | Player search has no entry point that is not an empty form | No league, club or featured player to start from. Not a defect; the reason a casual visitor leaves |
-| Every authenticated flow is UNVERIFIED | Sign-in, registration, add-to-shortlist, shortlist creation, notes, assessment status, comparison, player removal, CSV export. No test account is provisioned and none was created for the audit. **Unverified, not working** - they have never been exercised by anything but their own tests |
+| ~~Every authenticated flow is UNVERIFIED~~ | **Closed 8 November.** Exercised end to end on production with an owner-provisioned QA account, the owner signing in themselves. Sign-in and its `next` redirect, creation, add, duplicate add, notes, assessments, comparison and its limit, removal, CSV, persistence across a new session, and access control after sign-out. No P0, no P1 |
 | `docs/release_verification_2026-11-04.md` says the correction pass was verified | It was, against what it set out to check. The audit of the next day found three P1s it had not looked for. The report is not wrong and is not the whole story, and nothing in it says so |
 | Quality checks recorded before 0015 | Keep English `detail` and no code. Not back-filled, by design: recovering the values would mean parsing the stored prose |
 | History-wide sweep for image blobs | Never completed — see `publication_clearance.md` |
@@ -671,10 +835,17 @@ Any of these, and it should be re-read against its sources rather than trusted:
 
 - **`20261102T122100Z` is published**, which replaces every figure in "What is
   serving right now" at once
-- **Sunday 8 November passes.** Either a Transfermarkt refresh completed, which
-  is the first since 27 August and the confirmation `f89e77b` is still waiting
-  for, or it did not, which is a new problem
-- the heartbeat fails again, which after `377f294` would mean something new
+- **the next heartbeat runs.** One failed at 14:25 today, truthfully, because
+  a promotion had happened and the API was still serving the old build. By
+  15:11 it was serving the new one. Nothing has run since, so whether the
+  alarm clears on its own is unknown - and that is the single most useful
+  unknown in this file
+- **a promotion lands and `/health` is still `degraded` an hour later.** Today
+  the window was under three hours and closed on the first request. A longer
+  one, or one that needs a deploy to close, is a different system from the one
+  described here
+- the heartbeat fails for any reason other than a fresh promotion, which after
+  `377f294` and today's observation would mean something new again
 - a scheduled pipeline run fails
 - the three figures stop adding to the database's player-season count, which
   would mean a fourth exclusion nobody has written down
@@ -691,10 +862,16 @@ Any of these, and it should be re-read against its sources rather than trusted:
   yet — the two deploy minutes apart, and on 5 November that gap put a false
   sentence on every search page for an hour. A page that cannot reach a fact
   must fall silent, never report "none"
+- **a data-dependent assertion is added to the backend suite.** CI loads
+  `--source demo --replace`, and three times now a check has passed against a
+  fabricated universe while the real one failed. If a new test's verdict
+  depends on what the provider supplies, say in the test what it cannot catch
 - **Sunday 22 November passes without the deployed site having been opened in
   a browser.** This is the only entry here that is not a change, and it is the
-  one the other entries cannot replace. It has fired once, on 5 November, and
-  found three P1s in an afternoon. Both languages, four widths, a profile, and
-  one search run the way a visitor runs one: build a longlist and ask whether
-  you would act on it. Six defects have now been found this way and none by a
-  test
+  one the other entries cannot replace. It has fired three times now - 5, 6
+  and 8 November - and found something every time. Both languages, four
+  widths, a profile, and one search run the way a visitor runs one: build a
+  longlist and ask whether you would act on it. **Nine defects have been found
+  this way and none by a test.** The authenticated flows are no longer the
+  gap; the next pass should look where no pass has looked yet rather than
+  repeating this one
