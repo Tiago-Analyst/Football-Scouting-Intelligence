@@ -258,6 +258,14 @@ class ScoreOut(BaseModel):
     #: one metric. Explanatory, not punitive: nothing is reweighted and the
     #: score is unchanged.
     dominant_component: str | None = None
+    #: The same metric as a key, so a reader's language can name it.
+    #:
+    #: The label above is composed English. A Portuguese profile read
+    #: "determinado por Save %" beside "Defesas %" two panels down, because a
+    #: label is not something the frontend can look a translation up by.
+    #: `missing_keys` and `available_keys` already travel beside their labels
+    #: here for the same reason.
+    dominant_component_key: str | None = None
     #: Its share of the realised total, 0-100.
     dominant_share: float | None = None
     #: The countable events behind this score, for the scores whose components

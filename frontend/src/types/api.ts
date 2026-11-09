@@ -272,6 +272,13 @@ export interface Score {
    * contributions say what it ended up measuring for this player.
    */
   dominant_component?: string | null;
+  /**
+   * The same metric as a key, so the reader's language can name it.
+   *
+   * Optional because the frontend deploys minutes before the backend: an
+   * older server sends the label alone, and the page falls back to it.
+   */
+  dominant_component_key?: string | null;
   /** Its share of the realised total, 0-100. */
   dominant_share?: number | null;
   components: ScoreComponent[];
