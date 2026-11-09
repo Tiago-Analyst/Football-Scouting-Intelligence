@@ -159,6 +159,8 @@ function samples(locale) {
     players: 15021,
     competitions: 44,
     excluded: 9432,
+    superseded: 4751,
+    player_seasons: 29204,
     derived_count: 12,
     role_count: 18,
     score_count: 9,

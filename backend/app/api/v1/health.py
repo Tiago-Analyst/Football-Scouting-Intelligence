@@ -222,11 +222,16 @@ def _analytics_status() -> DependencyStatus:
     # database had held exactly 29,204 of them since the night before. The
     # arithmetic is in `docs/current_state.md`.
     #
-    # So the unit is said out loud in both sentences below, and the excluded
-    # clause names its own.
+    # So the unit is said out loud in both sentences below, the excluded clause
+    # names its own, and the third term is published beside them with the total
+    # it completes. A reader no longer has to know that the sum is short, or
+    # fetch a second endpoint to find out by how much.
+    loaded = len(view.players) + view.players_without_position + view.superseded_player_seasons
     excluded = (
-        f" {view.players_without_position} player-seasons excluded for having no position group."
-        if view.players_without_position
+        f" {view.players_without_position} player-seasons excluded for having no"
+        f" position group and {view.superseded_player_seasons} superseded, so the"
+        f" database holds {loaded}."
+        if view.players_without_position or view.superseded_player_seasons
         else ""
     )
 
@@ -263,7 +268,7 @@ def _analytics_status() -> DependencyStatus:
         detail_message=Message(
             code=(
                 "health_analytics_ok_excluded"
-                if view.players_without_position
+                if view.players_without_position or view.superseded_player_seasons
                 else "health_analytics_ok"
             ),
             values={
@@ -271,6 +276,8 @@ def _analytics_status() -> DependencyStatus:
                 "competitions": len(view.competitions),
                 "built": view.built_at.isoformat(timespec="seconds"),
                 "excluded": view.players_without_position,
+                "superseded": view.superseded_player_seasons,
+                "player_seasons": loaded,
             },
         ),
     )

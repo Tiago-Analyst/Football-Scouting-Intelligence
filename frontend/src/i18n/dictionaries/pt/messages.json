@@ -71,7 +71,7 @@
   "health_analytics_empty": "Não há dados de jogadores carregados. Corra o pipeline de ingestão; até lá, a pesquisa, os perfis e as ordenações não têm nada para servir.",
   "health_analytics_stale": "A servir {players} jogadores, vista construída em {built}. A base de dados foi carregada desde então; reinicie a API para servir os novos dados.",
   "health_analytics_ok": "{players} jogadores em {competitions} competições, vista construída em {built}.",
-  "health_analytics_ok_excluded": "{players} jogadores em {competitions} competições, vista construída em {built}. {excluded} épocas de jogador excluídas por não terem grupo posicional.",
+  "health_analytics_ok_excluded": "{players} jogadores em {competitions} competições, vista construída em {built}. {excluded} épocas de jogador excluídas por não terem grupo posicional e {superseded} substituídas, pelo que a base de dados tem {player_seasons}.",
   "opportunity_role_fit": "adequação de {fit}/100 para {role}",
   "opportunity_age": "{age} anos",
   "opportunity_minutes": "{minutes} minutos jogados",

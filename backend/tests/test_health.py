@@ -92,22 +92,56 @@ class TestReadiness:
         arrived from a promotion that published none. The database total had
         not moved at all.
 
-        The missing term is `superseded`, which reaches a log line and no
-        endpoint, so a reader cannot see that the sum is short. Until it is
-        published, the least this can do is say which unit each figure is in.
+        The missing term was `superseded`, which reached a log line and no
+        endpoint, so a reader could not see that the sum was short. It is
+        published here now, with the total it completes.
         """
         monkeypatch.setattr("app.api.v1.health.check_database_connection", lambda: (True, None))
         monkeypatch.setattr("app.api.v1.health.get_schema_revision", lambda: "0001_baseline")
         view = get_analytics_view()
         monkeypatch.setattr(view, "players_without_position", 9432)
+        monkeypatch.setattr(view, "superseded_player_seasons", 4751)
+        total = len(view.players) + 9432 + 4751
+
+        body = client.get("/health").json()
+        analytics = next(d for d in body["dependencies"] if d["name"] == "analytics")
+        values = analytics["detail_message"]["values"]
+
+        assert f"{len(view.players)} players across" in analytics["detail"]
+        assert "9432 player-seasons excluded" in analytics["detail"]
+        assert "4751 superseded" in analytics["detail"]
+        assert f"the database holds {total}" in analytics["detail"]
+        assert values["players"] == len(view.players)
+        assert values["excluded"] == 9432
+        assert values["superseded"] == 4751
+        # The point of publishing the third term: the arithmetic closes from
+        # this payload alone, with no second endpoint and no subtraction.
+        assert (
+            values["players"] + values["excluded"] + values["superseded"]
+            == (values["player_seasons"])
+        )
+
+    def test_a_view_with_nothing_held_back_says_only_what_it_serves(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No clause rather than "0 excluded and 0 superseded".
+
+        Both counters are zero only before a real load - the demo universe has
+        neither - and a sentence reciting two zeroes and restating its own
+        first figure as a total reads as a fault where there is none.
+        """
+        monkeypatch.setattr("app.api.v1.health.check_database_connection", lambda: (True, None))
+        monkeypatch.setattr("app.api.v1.health.get_schema_revision", lambda: "0001_baseline")
+        view = get_analytics_view()
+        monkeypatch.setattr(view, "players_without_position", 0)
+        monkeypatch.setattr(view, "superseded_player_seasons", 0)
 
         body = client.get("/health").json()
         analytics = next(d for d in body["dependencies"] if d["name"] == "analytics")
 
-        assert f"{len(view.players)} players across" in analytics["detail"]
-        assert "9432 player-seasons excluded" in analytics["detail"]
-        assert analytics["detail_message"]["values"]["players"] == len(view.players)
-        assert analytics["detail_message"]["values"]["excluded"] == 9432
+        assert "excluded" not in analytics["detail"]
+        assert "superseded" not in analytics["detail"]
+        assert analytics["detail_message"]["code"] == "health_analytics_ok"
 
     def test_footystats_absent_key_is_not_configured_not_failed(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch

@@ -131,6 +131,16 @@ class AnalyticsView:
     #: Loaded player-seasons left out because they carry no position group, and
     #: so cannot be ranked against a comparison population.
     players_without_position: int = 0
+    #: Player-seasons belonging to a player who has more than one, less the one
+    #: the site shows. The third term of
+    #:
+    #:     len(players) + players_without_position + superseded_player_seasons
+    #:
+    #: which is every player-season the pipeline loaded. It reached a log line
+    #: and nothing else, so a reader of `/health` saw the first two, added
+    #: them, and got a universe short by this - see `backend/app/api/v1/
+    #: health.py` for the day that cost.
+    superseded_player_seasons: int = 0
     #: When this view was assembled, and what the database held at the time.
     built_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     fingerprint: UniverseFingerprint | None = None
@@ -445,6 +455,7 @@ def build_view(settings: Settings) -> AnalyticsView:
             nationality=record.nationality,
         )
 
+    view.superseded_player_seasons = superseded
     if superseded:
         log.info(
             "player_seasons_superseded",

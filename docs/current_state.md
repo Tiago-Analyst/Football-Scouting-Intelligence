@@ -77,6 +77,7 @@ time.
 | PostgreSQL | `ok` |
 | analytics | **15,021** players across **44** competitions, built 9 Nov **17:40:07** UTC |
 | excluded | 9,432 player-seasons, for having no position group |
+| superseded | 4,751 player-seasons — derived here, and published by the endpoint itself from the next deploy |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
@@ -199,16 +200,24 @@ player's seasons; the rest are `superseded`.
 player-seasons belonging to a player who has more than one. They still shape
 the comparison populations; only one row per player reaches the site.
 
-**It is the one term with no endpoint, and it is still derivable**: the total
-minus the served players minus the excluded player-seasons is 4,751, which is
-exactly what the 16:59 and 17:39 pipeline runs logged. So a reader with
-`/health` and `/api/v1/data-quality` *can* close the arithmetic — the previous
-version of this block said they could not, and left two figures at their 8
-November values as un-refreshable. Both were re-readable, and being a day out
-of step with the other two is what produced the 610 above.
+**It had no endpoint, and now it has one.** `/health` publishes all three
+terms and the total they make, so the arithmetic closes from one payload with
+no subtraction and no second request:
 
-Publishing the counter would still be better than requiring the subtraction,
-and is not done.
+> 15,021 players across 44 competitions, built at … . 9,432 player-seasons
+> excluded for having no position group and 4,751 superseded, so the database
+> holds 29,204.
+
+Before that it was only derivable — total minus served minus excluded, which
+gives the 4,751 the 16:59 and 17:39 runs logged. Requiring the subtraction is
+what let these figures drift a day apart: the previous version of this block
+called two of them un-refreshable and left them at their 8 November values,
+and the 610 above is what came of differencing across the gap. Both were
+re-readable the whole time.
+
+**The sentence above is the code's, not production's.** The deployed service
+says it from the next backend deploy; until then `/health` still reports the
+first two figures only.
 
 ## The pre-release correction pass
 
@@ -1304,7 +1313,7 @@ test fixes this direction and explains it in place.
 | ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
 | **Nothing watches production closely enough to see an outage** | `heartbeat.yml` delivered 3 of 24 requested beats in 24.4 hours and ran during neither of the two outages on 9 November. Lowering its cron to hourly in `#106` raised the delivery *rate* from 5.2% to 12.3% and lowered the *count* from about five beats a day to three — the change was argued from a rate as though it were a count. No cron value fixes this; GitHub queues scheduled runs on public repositories at low priority. `docs/monitoring.md` specifies the replacement: an external HTTP check on `/health/live`, which performs no I/O and so costs nothing against Neon's 100 CU-hours a month, plus an optional 30-minute check on `/health` — not shorter, because 5-minute `/health` polling would hold the compute awake for ~730 hours against a 400-hour allowance. **Specified and deliberately not created, decided 9 November by the owner.** Both of that day's outages recovered on their own, the site answered 200 throughout, there are no readers yet, and the failure that would matter — one that does not recover — is already caught by the heartbeat and reaches the owner by email, confirmed. What stays unwatched is a self-resolving outage between ten minutes and eight hours, which costs nothing today. **Revisit the first time somebody is told to go and look at the site.** Recorded so a later reader finds a decision rather than an oversight |
 | ~~**610 player-seasons arrived and nothing names their source**~~ | **Closed 9 November.** Nothing arrived: the database has held 29,204 player-seasons since 8 November 22:00, logged by three separate pipeline view builds and printed by the promotion itself. The 610 came from differencing a 9 November served count against an 8 November excluded count, across that night's FootyStats promotion, which really did add 1,047. The two Transfermarkt promotions moved +5 players served, −6 player-seasons excluded, +1 superseded. `/health` calling players "player-seasons" is what made the two readings look comparable, and is fixed |
-| `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint. It is derivable — `volumes.player_seasons` − `analytics.players` − `/health`'s excluded = 4,751, matching the logged counter — so the arithmetic closes; requiring a subtraction to close it is what let the figures drift a day apart |
+| ~~`superseded` is not published~~ | **Closed 9 November.** `/health` now reports the served players, the excluded and superseded player-seasons and the total they sum to, so the arithmetic closes from one payload. It was derivable before, by subtraction across two endpoints, and needing that subtraction is what let the four figures drift a day apart |
 | ~~**The loaded data does not reach the running API**~~ | **Closed 9 November, 17:40 UTC, and not by the three settings this file promised.** Those were set at 16:30; the first call the loop ever made took the API down twice, for three minutes and then ten. The endpoint held two analytical views at once, which `#111` fixed. Demonstrated afterwards rather than inferred: `{"changed":true,"players":15021,"competitions":44,"build_seconds":26.3}`, the run `success`, and the process alive after it. See *The reload that killed what it was meant to refresh*. The history below is kept because the diagnosis was right and the estimate of the remedy was wrong: The pipeline promotes, the API keeps serving the view it built when it last started, and `/health` says so. Measured 8-9 November: promoted 8 Nov 22:01 with 29,204 player-seasons in the database; the heartbeat failed four times over the next thirteen hours; at 9 Nov 15:40 the API was still serving the build from 8 Nov 15:11 with 14,680. A backend deploy at 15:41 restarted the process and it jumped to 15,016. **Cause found: the loop exists and is unplugged at both ends** - see the section below. Fixing it is three settings and no code |
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
 | Players cannot be saved from Search, Similarity or Opportunities | The player profile is the only surface with the control, which the empty state says plainly. A scout scanning a 25-row result has to open each profile. Judged a feature rather than a defect, and left out of the smoke test's narrow scope - recorded so the next reader finds a decision |
