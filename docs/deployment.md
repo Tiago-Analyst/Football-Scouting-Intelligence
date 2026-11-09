@@ -650,12 +650,14 @@ render each one through Next to FastAPI, and 5,462 requests would meet the
   written before any of that and this list was not re-read when it happened.
 - No backup or restore procedure. A managed database usually provides one;
   it has not been chosen, configured or tested.
-- **No error tracking. Uptime monitoring is specified but not yet created** —
-  see `docs/monitoring.md`. `heartbeat.yml` samples `/health` a few times a
-  day and is not an alarm: measured on 9 November, it delivered 3 of 24
-  requested beats and ran during neither of that day's two outages. The
-  external check that fixes this needs an account, which has to be made by
-  the owner.
+- **No error tracking. Uptime monitoring is specified and deliberately not
+  created** — see `docs/monitoring.md`, which carries the decision and its
+  trigger. `heartbeat.yml` samples `/health` a few times a day and is not an
+  alarm: measured on 9 November, it delivered 3 of 24 requested beats and ran
+  during neither of that day's two outages. What it does catch is an API that
+  *stays* unwell, and its failures reach the owner by email — which is why a
+  third-party monitor was judged not to be earning its keep until the site has
+  readers.
 - No Content-Security-Policy on the frontend. A CSP worth having needs nonces
   threaded through Next's inline scripts; a looser one is reassurance rather
   than protection.
