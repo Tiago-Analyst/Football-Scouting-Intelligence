@@ -3,6 +3,40 @@
 **Written 9 November 2026**, the day two ten-minute outages went entirely
 unnoticed by the thing whose only job was to notice them.
 
+## The decision: specified, and deliberately not created
+
+**Decided 9 November 2026, by the owner, and the reasoning matters more than
+the outcome.**
+
+Everything below is a specification that stands. What it was missing is the
+question of whether *seeing* a brief outage changes anything, and today it
+does not:
+
+- **The outages recovered without anyone acting.** Render restarts the process
+  on its own; that is how both of 9 November's ended, in three and ten
+  minutes. An alert at minute five would have told somebody to wait for the
+  same restart.
+- **The site stayed up throughout.** The frontend serves stored pages and
+  refreshes behind the reader, so both outages were invisible to it — by
+  design, and measured: `/pt` answered 200 while the API was 502.
+- **There are no readers to harm yet.** "Nobody opens the deployed site unless
+  told to" is an open item in `current_state.md`, not a figure of speech.
+- **The alarm that matters already exists and is confirmed working.** The
+  failure that hurts is the one that does *not* recover, and `heartbeat.yml`
+  catches that even at three beats a day — it caught the stale-view problem
+  across four failures on 8–9 November. The owner confirms those failures
+  arrive by email. GitHub's workflow-failure notification is therefore the
+  sustained-outage alarm, and it is already wired to a human.
+
+What remains genuinely unwatched is an outage between about ten minutes and
+eight hours that resolves itself. That is the category nothing is losing
+anything to right now.
+
+**When to revisit:** the first time somebody is told to go and look at the
+site. An outage with witnesses is a different thing from an outage without
+them, and that is the moment the five minutes of setup below start earning
+their keep.
+
 ## Why this document exists
 
 `heartbeat.yml` asks GitHub Actions for a check every hour. Measured over the
@@ -56,9 +90,10 @@ the clock and exhaust the plan — the same conclusion `warm.yml` reached for it
 own reasons, written down there as spending compute hours to save a second and
 a half.
 
-## What to set up
+## What to set up, when the time comes
 
-The account has to be created by the owner; this cannot be done from here.
+The account has to be created by the owner; this cannot be done from here. Not
+created as of 9 November — see the decision above.
 
 ### Monitor A — the outage alarm
 
@@ -126,6 +161,12 @@ here.
 
 ## What makes this document wrong
 
+- **Somebody is told to go and look at the site.** That is the trigger in the
+  decision above, and it turns "not needed yet" into "not done".
+- The heartbeat's failures stop reaching an inbox. The whole decision not to
+  create an external monitor rests on that one notification path working, and
+  it was confirmed by the owner rather than by anything in this repository —
+  so nothing here would notice if it broke.
 - A monitor exists but its alert address is nobody's inbox. Configuring the
   check is the easy half.
 - Neon's free allowance changes, or the project moves off it. Every cadence
