@@ -1,10 +1,12 @@
 # Where this project actually stands
 
 **Snapshot taken 8 November 2026, 15:11 UTC, extended at 18:28** with a
-release-candidate QA pass, **and again on 9 November at 15:45** with the three
-P2 fixes and one finding that outranks all of them. Rows re-read at the
+release-candidate QA pass, **again on 9 November at 15:45** with the three
+P2 fixes and one finding that outranks all of them, **and a third time at
+17:45** when acting on that finding took production down twice and turned up
+the defect underneath it. Rows re-read at a
 later time say so. Every number below was read from a live source at one of
-those two moments — the production health endpoint, the public
+those moments — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
 and not from another document, this file's previous version included. Sections
@@ -722,6 +724,14 @@ Three settings, no code:
 | GitHub repository secrets | `INTERNAL_TOKEN` | the same value |
 | GitHub repository secrets | `API_ORIGIN` | `https://fri-backend.onrender.com` |
 
+**"No code" was wrong, and was wrong for a reason worth keeping.** The owner
+set all three settings within the hour. The endpoint they unblocked had then
+never been called once by anything, in any environment, against a real
+universe — and the first call took the API down. The claim was not careless
+about the settings; it was confident about an endpoint whose only evidence was
+that its tests passed. An integration never exercised is not configuration
+away from working, and this file said it was.
+
 ### Why it matters more after launch than before
 
 **Deploys have been hiding it.** Twenty-six pull requests merged in four days,
@@ -740,6 +750,121 @@ has been loaded, and `/health` has been saying so for seventeen hours.
 
 **This is the one open item that should be closed before the product is
 shown to anybody.** It is also the cheapest: three settings.
+
+## The reload that killed what it was meant to refresh
+
+**Snapshot extended 9 November, 17:45 UTC.** The section above is now closed,
+by a route it did not anticipate. The settings were half of it. The other half
+was a defect in the endpoint those settings unblocked, which had never been
+called by anything.
+
+### The timeline
+
+| Time (UTC) | What happened |
+| --- | --- |
+| 16:29–16:30 | Owner sets `INTERNAL_TOKEN`, `API_ORIGIN`, `SITE_ORIGIN`. Render and Vercel confirmed by a wrong token moving 404 → 401 |
+| 16:40 | Pipeline dispatched by hand, `source=transfermarkt` |
+| 16:47:48 | Promote succeeded. `Reloading the analytical view...` printed — the warning about unset secrets was gone, so the loop was live |
+| 16:47:56 | 502. Again at 16:48:16 and 16:49:09. The step failed; the run failed |
+| 16:50:09 | API back, after a 27-second cold start. `/health` `ok`, **44 competitions and 15,021 player-seasons** — the promoted data was being served |
+| 16:59 | Failed job re-run, this time with the service pinged every 30 seconds |
+| 17:00:02 | 502 again, 6.6 seconds in. API down until **17:10:29**, ten minutes |
+
+`demo` was never a candidate: it would have replaced production with a
+fabricated universe. `footystats` was not either — the hourly cron is a
+*continuation*, a full refresh is roughly 28,460 requests across some 21 runs,
+and a dispatch would have opened a long generation rather than promoted
+anything. `transfermarkt` completes in one run, which is why it was the only
+source that could exercise the reload at all.
+
+### What the two attempts each ruled out
+
+The first could be read as a cold start, and was. **The second cannot:** the
+instance was being kept awake throughout and the failure arrived 6.6 seconds
+after the request. A 502 from Render's proxy rather than a 500 from the
+application also says the process was gone rather than erroring — FastAPI
+would have answered an exception.
+
+### The mechanism
+
+The handler read `before = get_analytics_view()` so that it could compare one
+fingerprint after the rebuild. That local kept the outgoing view — every
+percentile table, similarity matrix and `best_roles` ranking — alive while its
+replacement was built. Peak memory was two complete views, on a Render
+`starter` instance running one uvicorn process with 15,021 player-seasons
+resident.
+
+**There is no worker timeout to blame.** `backend/Dockerfile` runs `uvicorn`
+with no master process and no `--timeout`, so no mechanism in the service ends
+a slow request. Nothing but the kernel ends that process.
+
+### What is not established
+
+Render's logs were never read: there is no deploy hook and no API key in this
+repository, so there is no path from here to them. The memory reading is
+circumstantial — strong, because the only competing explanation is
+structurally impossible and the code doubles the peak by construction, but it
+is an inference and should be read as one.
+
+Nor was the instance's exact ceiling read from Render's dashboard. **What is
+established is relative, and is enough:** one view fits, two do not. Treat any
+absolute figure in this file with the suspicion the section above earns it.
+
+### Why four days of QA did not find it
+
+**Because the damage repaired itself.** A restart rebuilds the view from the
+database, so the promoted data reached readers anyway — exactly the fallback
+the step's own warning text described. The outcome happened; only the mechanism
+was wrong. The symptom was downtime with no obvious owner, and at 16:50 the
+site was serving the new data, which is what anyone checking would have
+checked.
+
+### The fix, and one thing written and then unwritten
+
+`#111`: read the fingerprint without binding the view. `refresh_analytics_view`
+already clears the cache before it builds, so with no other reference the old
+generation is freed first and the peak is one view. One line.
+
+A `gc.collect()` between the clear and the build was written first, with a
+comment arguing it was load-bearing against reference cycles among the engines.
+**Measured, it changed nothing** — the view is freed by reference counting
+alone — and it would have hidden from the new integration test the one thing
+that test exists to catch. Removed, with the measurement recorded in the
+docstring so it is not re-added on a hunch.
+
+The test measures the mistake rather than an amount of memory, which would be
+a different number on every machine and would not fail on this defect at all:
+a weak reference to the outgoing view, read from inside the construction of its
+replacement. **Verified to fail on the previous handler.** A second test asks
+the same question of a real view, because a stub can prove the handler lets go
+but not that a graph of engines holding one another is collectable.
+
+### The proof, which is the part that was missing all along
+
+Render deployed at 17:32:53. The pipeline was dispatched again at 17:33:
+
+```
+Reloading the analytical view...
+{"changed":true,"players":15021,"competitions":44,"build_seconds":26.3,"is_stale":false}
+Revalidating the site...
+{"revalidated":"analytics","note":"Tagged entries are marked stale. ..."}
+```
+
+26.3 seconds, where it had died at 6.6. The run finished `success` — the first
+to do so since 8 November. `/health` immediately afterwards answered in 0.16s
+with the view **built at 17:40**: no cold start, so the same process that
+served the rebuild had survived it.
+
+**That is the loop closed, demonstrated rather than configured.** Every
+previous claim about it rested on settings being present.
+
+### What is still true and not fixed
+
+A request arriving mid-rebuild holds its own reference and can double the peak
+again. Nothing in the handler can prevent that; `#111` only stops the handler
+being the cause. It has not been observed, the reload is called once per
+promoting run, and the honest statement is that the margin is thinner than one
+view.
 
 ## The Sunday the refresh landed
 
@@ -971,15 +1096,22 @@ What is true, and was true before any of this: the view is held in memory for
 the life of the process and is rebuilt from the database on every restart, so
 its cost grows with the universe. **The percentile context cache added in
 `0f1f5ca` is held per process alongside it**, bounded by the number of distinct
-comparison populations rather than by the number of searches. That is a thing
-to watch, not a thing that has happened.
+comparison populations rather than by the number of searches.
+
+**It has now happened**, on 9 November, and not where this paragraph was
+watching. The cost of one resident view was never the problem: the reload
+endpoint held two. See *The reload that killed what it was meant to refresh*.
+The dismissal of the 512 MB figure above still stands on its own terms — it
+was quoted from the free tier to support a conclusion already assumed — but
+the reader should not take from it that memory was a false alarm. The ceiling
+was real; the arithmetic that first reached for it was not.
 
 ## The repository
 
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at 965131a when this was read
+GitHub:     main only, at ba39866 when this was read
 Local:      main, in sync, working tree clean
 Worktrees:  1
 ```
@@ -1016,16 +1148,16 @@ test fixes this direction and explains it in place.
 | Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
 | ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
-| **The loaded data does not reach the running API** | The pipeline promotes, the API keeps serving the view it built when it last started, and `/health` says so. Measured 8-9 November: promoted 8 Nov 22:01 with 29,204 player-seasons in the database; the heartbeat failed four times over the next thirteen hours; at 9 Nov 15:40 the API was still serving the build from 8 Nov 15:11 with 14,680. A backend deploy at 15:41 restarted the process and it jumped to 15,016. **Cause found: the loop exists and is unplugged at both ends** - see the section below. Fixing it is three settings and no code |
+| ~~**The loaded data does not reach the running API**~~ | **Closed 9 November, 17:40 UTC, and not by the three settings this file promised.** Those were set at 16:30; the first call the loop ever made took the API down twice, for three minutes and then ten. The endpoint held two analytical views at once, which `#111` fixed. Demonstrated afterwards rather than inferred: `{"changed":true,"players":15021,"competitions":44,"build_seconds":26.3}`, the run `success`, and the process alive after it. See *The reload that killed what it was meant to refresh*. The history below is kept because the diagnosis was right and the estimate of the remedy was wrong: The pipeline promotes, the API keeps serving the view it built when it last started, and `/health` says so. Measured 8-9 November: promoted 8 Nov 22:01 with 29,204 player-seasons in the database; the heartbeat failed four times over the next thirteen hours; at 9 Nov 15:40 the API was still serving the build from 8 Nov 15:11 with 14,680. A backend deploy at 15:41 restarted the process and it jumped to 15,016. **Cause found: the loop exists and is unplugged at both ends** - see the section below. Fixing it is three settings and no code |
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
 | Players cannot be saved from Search, Similarity or Opportunities | The player profile is the only surface with the control, which the empty state says plainly. A scout scanning a 25-row result has to open each profile. Judged a feature rather than a defect, and left out of the smoke test's narrow scope - recorded so the next reader finds a decision |
 | One provider's value and its own history disagree | A profile can show EUR 200.0m beside "Historical valuation data is not available for this player", both from Transfermarkt. Coverage is genuinely partial - 8 of 20 profiles carry history - and `#101` reworded both empty states to describe availability rather than assert absence. What the copy still does not say is that the two come from the same source. Both panels name Transfermarkt, so a reader can see it; judged not worth a further clause |
 | The QA account password is in a conversation transcript | Provisioned by the owner for the 8 November smoke test and pasted into the chat that ran it. Not rotated. It owns nothing but its own shortlists, and all QA data was deleted; recorded so a later reader finds a decision rather than an oversight |
 | The relay ate a fix for two hours, and nothing failed | `#102` shipped a UTF-8 BOM from the backend; `new Response(await upstream.text())` in the Next relay stripped it before any reader saw it. Fixed in `#104`. **Closed as a defect, kept as an open item about testing:** the backend test asserted the backend's bytes and passed, and there was no test of the relay at all. Any fix whose value depends on a second hop needs a test at the hop |
 | The CSV BOM is not confirmed end to end | `#104` is merged and the frontend is deployed, but the download is behind authentication, so the bytes have not been read on production. The mechanism, the route and the backend are each verified separately. One signed-in export closes it |
-| Methodology quotes a measurement it does not date | "nine of 44 competitions"; the live figures are 43 and 28 established. P2 from the 8 November QA, not fixed |
-| A metric name reaches Portuguese in English | `dominant_component` arrives from the API as a composed label rather than a key, so the role sentence names its deciding metric in English on every Portuguese profile while the same metric is translated elsewhere on the page. P2, not fixed |
-| A 422 replaces the search page instead of its failure state | `?age_min=200`. The page has a designed path that keeps the form and does not use it for this class of error. Reachable only by editing a URL. P2, not fixed |
+| ~~Methodology quotes a measurement it does not date~~ | **Closed 9 November** in `#108`. The paragraph now reads `getCompetitions()` — the same endpoint the maturity note on every search page reads, so the two cannot disagree — and the share goes through the reader's formatter, which is what made it print `33,4%` in Portuguese rather than `33.4%`. The paragraph beside it, 17.4% against 2.1%, is a property of the method rather than of a load and was deliberately left written down |
+| ~~A metric name reaches Portuguese in English~~ | **Closed 9 November** in `#109`. The frontend was already looking the label up in `glossary.metrics`, which is keyed by metric, so the lookup could never match: the backend now sends `dominant_component_key` beside the label. The page falls back to the label when the key is absent, deliberately, because the frontend deploys minutes before the backend and a blank sentence is worse than an English one. Not reproducible against demo data — no fixture profile has a role whose dominant component clears the threshold, forty were checked |
+| ~~A 422 replaces the search page instead of its failure state~~ | **Closed 9 November** in `#107`. Player search was the one of four searches still using `searchPlayers`, whose `nullIfMissing` rethrows anything that is not a 404, so the Server Component threw and took twelve filter inputs with it. It now uses `runPlayerSearch` and `failureOrMissing`, like the other three. `searchPlayers` stays for its three lookup callers, where `null` genuinely means nothing matched |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
 | Nobody opens the deployed site unless told to | **Nine defects** have now been found only by using it - three on 4 November, three in the audit of the 5th, three more across the second audit and the smoke test. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
@@ -1052,18 +1184,33 @@ Any of these, and it should be re-read against its sources rather than trusted:
   serving right now" at once
 - **the heartbeat fails and no backend deploy has happened since.** It failed
   four times between 8 Nov 22:41 and 9 Nov 11:02, truthfully each time, and
-  the cause is in "The loop that was never plugged in". Until those three
-  settings exist, this alarm is a staleness clock rather than an outage
-  alarm, and reading it as an outage would be the second mistake in a row
-  about it
-- **a promotion happens and `/health` is still degraded an hour later.** With
-  the loop closed this should never be seen again; seeing it means the reload
-  call is failing rather than being skipped, which is a different problem and
-  will be in the pipeline log
-- **a promotion lands and `/health` is still `degraded` an hour later.** Today
-  the window was under three hours and closed on the first request. A longer
-  one, or one that needs a deploy to close, is a different system from the one
-  described here
+  the cause was the unplugged loop. **The loop is closed and demonstrated as
+  of 9 Nov 17:40**, so this alarm is an outage alarm again rather than a
+  staleness clock — which is what the previous version of this bullet said it
+  was not
+- ~~**a promotion happens and `/health` is still degraded an hour later.**~~
+  **This trigger fired, within two hours of being written, and was right in
+  every particular.** It said that seeing it would mean "the reload call is
+  failing rather than being skipped, which is a different problem and will be
+  in the pipeline log". It was failing, it was a different problem, and it was
+  in the pipeline log. Kept as written, because a trigger that earns its place
+  is worth more than a tidy list
+- **an integration is called for the first time in production.** The reload
+  endpoint had passing tests, a careful docstring and a designed failure mode,
+  and took the service down on its first real call. Tests had never built two
+  universes in one process, which is the only thing that would have shown it.
+  Treat *first call in production* as an untested state regardless of
+  coverage, and watch it rather than read the exit code afterwards
+- ~~**a promotion lands and `/health` is still `degraded` an hour later.**~~
+  Superseded by the bullet above, which is the same trigger written a day
+  later and already fired. This earlier wording rested on an inference that
+  twenty hours of requests then disproved — that a request closes the window —
+  and is struck rather than deleted so the reasoning stays visible
+- **a promoting run reports `success` and the reload is not in its log.** The
+  loop now has three ways to be broken that look identical from outside: the
+  secrets unset (a warning, exit 0), the call failing (a failure, as on
+  9 November), and the step skipped because the run promoted nothing. Only the
+  second one fails the run. Read the step, not the badge
 - the heartbeat fails for any reason other than a fresh promotion, which after
   `377f294` and today's observation would mean something new again
 - a scheduled pipeline run fails
