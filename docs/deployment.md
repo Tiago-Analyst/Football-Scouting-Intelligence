@@ -644,15 +644,24 @@ render each one through Next to FastAPI, and 5,462 requests would meet the
 
 ## What is not done
 
-- Nothing is deployed. No platform account, no domain, no TLS certificate, and
-  no git remote to deploy from.
+- ~~Nothing is deployed.~~ **Stale since October.** The frontend is on Vercel,
+  the backend on Render and the database on Neon; the repository has been
+  public since 27 October 2026. The three bullets this one sat above were
+  written before any of that and this list was not re-read when it happened.
 - No backup or restore procedure. A managed database usually provides one;
   it has not been chosen, configured or tested.
-- No error tracking or uptime monitoring. `/health` is the only signal, and
-  nothing is watching it.
+- **No error tracking. Uptime monitoring is specified but not yet created** —
+  see `docs/monitoring.md`. `heartbeat.yml` samples `/health` a few times a
+  day and is not an alarm: measured on 9 November, it delivered 3 of 24
+  requested beats and ran during neither of that day's two outages. The
+  external check that fixes this needs an account, which has to be made by
+  the owner.
 - No Content-Security-Policy on the frontend. A CSP worth having needs nonces
   threaded through Next's inline scripts; a looser one is reassurance rather
   than protection.
-- The analytical view is built once per process, so a load during a deployment
-  window is not picked up until a restart. `/health` reports the staleness
-  rather than hiding it.
+- ~~The analytical view is built once per process, so a load during a
+  deployment window is not picked up until a restart.~~ **Closed 9 November.**
+  The pipeline calls `/api/v1/internal/reload-analytics` after a verified
+  load, and that call was demonstrated end to end at 17:40 — 26.3s, the
+  process surviving it. `/health` still reports staleness rather than hiding
+  it, which is now the alarm rather than the normal condition.

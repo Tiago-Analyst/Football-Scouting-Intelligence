@@ -935,6 +935,24 @@ stops the file claiming ninety-six a day when it receives five.
 So the heartbeat is a **sampling** monitor, not a continuous one. It will
 notice an API that stays unwell and miss one that is unwell for an hour.
 
+**Re-measured 9 November at 19:07, and the change made it worse.** Over the
+24.4 hours since the hourly cron took effect: 3 beats delivered of 24 asked,
+12.3%, with gaps of 3.9, 3.8 and 8.6 hours and an eighth hour still open when
+measured. The rate more than doubled; **the count fell from about five a day
+to three.** The argument for lowering it reasoned from 5.2% as though that
+were a count, and it was a rate. Asking for less did not make GitHub deliver
+more faithfully — it delivered a similar handful of a smaller request.
+
+The consequence, the same afternoon: the API was down 16:47–16:50 and again
+17:00–17:10, and **no beat ran in either window.** The last was 11:02 and the
+next had not arrived eight hours later. The paragraph above is right about
+what this workflow is; what was wrong was continuing to rely on it as though
+it were an alarm. `docs/monitoring.md` now specifies the external check that
+is one — on `/health/live`, which performs no I/O and so costs none of Neon's
+100 CU-hours a month, which is the constraint that rules out pointing a
+frequent check at `/health`. **Specified, not yet created:** it needs an
+account, which is the owner's to make.
+
 At the time I concluded from this that a request closes the window. **That was
 wrong, and the next day disproved it** - see "The loop that was never plugged
 in" below. One observation of a rebuild that coincided with a deploy is not
@@ -1147,6 +1165,7 @@ test fixes this direction and explains it in place.
 | ~~A Transfermarkt refresh completing~~ | **Closed 8 November.** Published 12:06:02 UTC, 21 checks dated today, zero failures. `f89e77b` confirmed by watching it rather than by reading it |
 | Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
 | ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
+| **Nothing watches production closely enough to see an outage** | `heartbeat.yml` delivered 3 of 24 requested beats in 24.4 hours and ran during neither of the two outages on 9 November. Lowering its cron to hourly in `#106` raised the delivery *rate* from 5.2% to 12.3% and lowered the *count* from about five beats a day to three — the change was argued from a rate as though it were a count. No cron value fixes this; GitHub queues scheduled runs on public repositories at low priority. `docs/monitoring.md` specifies the replacement: an external HTTP check on `/health/live`, which performs no I/O and so costs nothing against Neon's 100 CU-hours a month, plus an optional 30-minute check on `/health` — not shorter, because 5-minute `/health` polling would hold the compute awake for ~730 hours against a 400-hour allowance. **Specified and not created:** it needs a third-party account, which is the owner's to make |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | ~~**The loaded data does not reach the running API**~~ | **Closed 9 November, 17:40 UTC, and not by the three settings this file promised.** Those were set at 16:30; the first call the loop ever made took the API down twice, for three minutes and then ten. The endpoint held two analytical views at once, which `#111` fixed. Demonstrated afterwards rather than inferred: `{"changed":true,"players":15021,"competitions":44,"build_seconds":26.3}`, the run `success`, and the process alive after it. See *The reload that killed what it was meant to refresh*. The history below is kept because the diagnosis was right and the estimate of the remedy was wrong: The pipeline promotes, the API keeps serving the view it built when it last started, and `/health` says so. Measured 8-9 November: promoted 8 Nov 22:01 with 29,204 player-seasons in the database; the heartbeat failed four times over the next thirteen hours; at 9 Nov 15:40 the API was still serving the build from 8 Nov 15:11 with 14,680. A backend deploy at 15:41 restarted the process and it jumped to 15,016. **Cause found: the loop exists and is unplugged at both ends** - see the section below. Fixing it is three settings and no code |
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |

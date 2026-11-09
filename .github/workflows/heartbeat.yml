@@ -51,6 +51,31 @@
 # being fixed. But asking for 24 a day rather than 96 makes the gap a
 # shortfall rather than a fiction.
 #
+# WHAT THE CHANGE ACTUALLY PRODUCED, MEASURED A DAY LATER
+#
+# Over the 24.4 hours after the hourly cron took effect:
+#
+#     asked for       24
+#     delivered        3          12.3%
+#     gaps             3.9 h, 3.8 h, 8.6 h, and 8.1 h still open
+#
+# The rate more than doubled. **The number of beats fell, from about five a
+# day to three.** Asking less often did not make GitHub deliver more
+# faithfully; it delivered a similar handful out of a smaller request. The
+# paragraph above reasoned from 5.2% as if it were a count, and it was a rate.
+#
+# The honest consequence arrived the same day. The API was down 16:47-16:50
+# and again 17:00-17:10 on 9 November, and NO BEAT RAN IN EITHER WINDOW - the
+# last was 11:02 and the next had not come eight hours later. The section
+# below is therefore right about what this is, and it was still being relied
+# on as though it were an alarm.
+#
+# `docs/monitoring.md` is where that was dealt with: an external check on
+# `/health/live`, which costs no database compute and so can run at the
+# interval an outage actually needs. This file is the sampler it says it is.
+# Do not re-tune this cron in the belief that a different number helps. Two
+# measurements now say it does not.
+#
 # **This is a sampling monitor, not a continuous one.** It will notice an API
 # that stays unwell. It will miss one that is unwell for an hour. Anything
 # that needs to be caught inside an hour does not belong here.
