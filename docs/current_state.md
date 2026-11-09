@@ -2,11 +2,12 @@
 
 **Snapshot taken 8 November 2026, 15:11 UTC, extended at 18:28** with a
 release-candidate QA pass, **again on 9 November at 15:45** with the three
-P2 fixes and one finding that outranks all of them, **and a third time at
-17:45** when acting on that finding took production down twice and turned up
-the defect underneath it. Rows re-read at a
-later time say so. Every number below was read from a live source at one of
-those moments — the production health endpoint, the public
+P2 fixes and one finding that outranks all of them, **a third time at 17:45**
+when acting on that finding took production down twice and turned up the
+defect underneath it, **and a fourth at 19:30**, after which the live figures
+in the next section are the pipeline's own rather than a restart's. Rows
+re-read at a later time say so. Every number below was read from a live source
+at one of those moments — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
 and not from another document, this file's previous version included. Sections
@@ -50,6 +51,21 @@ defects on 5 November, three on the 6th, three on the 8th.
 **Tests that pass and a green CI are evidence about what was asked, not about
 what is there.**
 
+**9 November added a tenth, and from a different habit.** The reload endpoint
+was not found by opening the site — the site was fine, and stayed fine
+throughout both outages. It was found by *running the pipeline by hand*, which
+nobody had ever done. The endpoint had passing tests, a careful docstring and
+a designed failure mode, and took the API down on its first real call, because
+no test had ever built two analytical universes in one process. The browser
+trigger generalises further than it was written: **every integration this
+project has, somebody should operate once, on purpose, while watching.**
+
+The day's work, for a reader who wants the ledger rather than the story:
+`#111` fixed the reload, `#112` and `#113` brought this file and the
+monitoring story up to date, `#114` recorded a decision not to build a monitor
+that would not have helped. The data loop is proven end to end for the first
+time.
+
 ## What is serving right now
 
 `GET https://fri-backend.onrender.com/health`:
@@ -59,31 +75,87 @@ what is there.**
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | **15,016** player-seasons, built 9 Nov 15:41:17 UTC — see "The loop that was never plugged in": this figure moves when the backend restarts, not when the pipeline loads |
-| excluded | 8,827 player-seasons, for having no position group |
+| analytics | **15,021** player-seasons across **44** competitions, built 9 Nov **17:40:07** UTC |
+| excluded | 9,432 player-seasons, for having no position group |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
 
-**The served universe moved today, for the first time since 31 October**, and
-by three players: 14,677 to 14,680, with the excluded count falling 8,830 to
-8,827 by the same three. Those three gained a position group from this
-morning's Transfermarkt refresh. It is a small number and it is the whole
-observable consequence of the refresh on the served data.
+**That build timestamp is the first one in this project's history that a
+pipeline put there.** Every previous figure in this section moved when the
+backend restarted; 17:40:07 is the second the reload call completed, 26.3
+seconds after the pipeline made it. The sentence this table used to carry —
+"this figure moves when the backend restarts, not when the pipeline loads" —
+is no longer true, and the two sections about why are below.
 
-The build timestamp is 15:11:28, which is the second this snapshot's first
-request arrived. The view had been reporting itself stale since the promotion
-at 12:06 and rebuilt on being asked — see "The Sunday the refresh landed".
+The universe grew over the three readings of 9 November, which is what a day
+with three promotions looks like:
+
+```
+15:41   15,016 served   8,827 excluded    restart after #102's deploy
+17:10   15,021 served   9,432 excluded    restart after the reload killed the process
+17:40   15,021 served   9,432 excluded    the reload, same process
+```
+
+**The served count moved by five and the excluded count by 605**, so 610
+player-seasons arrived between 15:41 and 17:10 and 605 of them have no
+position group. That part is just arithmetic and it closes.
+
+What is *not* established from here is where 610 player-seasons came from. Both
+promotions were Transfermarkt, and the quality report says in as many words
+that Transfermarkt "supplies market data only; it has no player-seasons to
+measure". The in-flight FootyStats generation is not promoted and cannot be
+the source. So either the promotion moves rows this file does not know it
+moves, or the count is sensitive to something other than arrivals.
+
+**Recorded as a question rather than answered**, because answering it means
+reading a promotion's own output against `build_view`'s position-group filter,
+and guessing from two readings is how the memory inference three sections down
+went wrong.
+
+### The generation state, read at 19:21
+
+| | Published | In flight |
+| --- | --- | --- |
+| id | `20261102T122100Z` | `20261109T124935Z` |
+| status | `PUBLISHED` | `IN_PROGRESS` |
+| created | 2 Nov 12:21 | 9 Nov 12:49 |
+| published | 8 Nov 22:01 | — |
+| players | 30,424 of 30,424 | 1,661 of 1,661 *so far* |
+| competitions | 45 of 45 | 4 of 4 *so far* |
+| failed | 0 | 0 |
+
+A continuation was running while this was read — `42680600472`, started 19:09,
+inside "Retrieve FootyStats data" — and the in-flight generation's
+`last_updated_at` of 19:20:55 is that run working. The `complete: true` on
+four competitions is the trap the Generations section below spends four
+readings explaining: it is arithmetic over a moment, not a verdict.
+
+**And the published generation dates the cost of it.** Created 2 November,
+published 8 November at 22:01: **six days** for a refresh the workflow's own
+comments describe as roughly sixteen hours of fetching across some 21 runs.
+The difference is not fetching, it is waiting for GitHub to deliver the
+continuations — the pipeline's `41 * * * *` was delivered at 01:12, 08:39,
+12:49 and 19:09 on 9 November, four times out of twenty-four asked. The
+heartbeat measurement is not a fact about the heartbeat. **It is a fact about
+scheduled runs on this repository, and the data refresh pays it too.**
 
 ### The figures, reconciled
 
 ```
-14,680  served            one row per player, the one the site shows
- 8,827  no position group  cannot be ranked against anybody
- 4,650  superseded         a player's other seasons
+15,021  served            one row per player, the one the site shows   read 19:21, 9 Nov
+ 9,432  no position group  cannot be ranked against anybody            read 19:21, 9 Nov
+ 4,650  superseded         a player's other seasons                    8 Nov, NOT re-readable
 ------
-28,157  player-seasons in the database
+28,157  player-seasons in the database                                 8 Nov, NOT re-readable
 ```
+
+**The top two are live and the bottom two are a day old, and they therefore do
+not add up.** Not an error in the arithmetic: `superseded` reaches a log line
+and no endpoint, so the only way to refresh it is to read a pipeline run's
+output. The two figures are left at their 8 November values and labelled
+rather than quietly recomputed from the difference, which would be inventing a
+measurement.
 
 `superseded` is `build_view`'s own counter
 (`backend/app/services/analytics_service.py:323`, reported at 448) for
@@ -1026,24 +1098,36 @@ watching it work.
 
 ## The pipeline
 
-**Scheduled runs are arriving** and succeeding. Of the last twenty `Data
-pipeline` runs, one failed: the quality-report failure above. The three-run
-height outage of 30 October has aged out of the window. A continuation was in
-flight while this was read (`41860877227`, 15:44, `in_progress`).
+**Scheduled runs are arriving** and succeeding, at the rate the section above
+measures rather than the rate the crons ask for. Of the last eight runs, one
+failed: `42657227192`, the 16:40 manual dispatch whose reload call killed the
+API. The run after it, `42665766306`, is the first `success` since 8 November
+and the one that proved the loop.
+
+**Two of those eight were dispatched by hand**, and both are in this file for
+the same reason: the pipeline had never been run manually before, and the
+first time it was, it found a defect four days of QA had not. Nobody runs the
+pipeline by hand either — that is the habit this is a second instance of, and
+the first is "Nobody opens the deployed site unless told to" in the open
+items.
 
 ### Generations
 
-| | Published | In flight |
+The live table has moved to "What is serving right now" above, where it is
+read at the same moment as everything else. What belongs here is the reading
+that explains the field, which has not changed:
+
+| | Published, as read 5 Nov | In flight, as read 5 Nov |
 | --- | --- | --- |
 | id | `20261021T092049Z` | `20261102T122100Z` |
 | status | `PUBLISHED` | `IN_PROGRESS` |
 | created | 21 Oct 09:20 | 2 Nov 12:21 |
-| published | 31 Oct 02:48 | — |
 | players | 28,754 of 28,754 | 14,117 of 14,531 *so far* |
 | competitions | 45 of 45 | 20 of 21 *so far* |
 
-`refresh.state` is `Fetching`, last updated 5 Nov 03:30 — so the in-flight
-column is a moment inside a run, not a result.
+That in-flight generation went on to publish on **8 November at 22:01 with
+30,424 players across 45 competitions** — six days after it was created, and
+the arithmetic on why is above.
 
 **`expected` is discovered as roster pages are read, so neither in-flight
 figure is a target.** Three readings of the same two fields make the point
@@ -1129,10 +1213,19 @@ was real; the arithmetic that first reached for it was not.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at ba39866 when this was read
-Local:      main, in sync, working tree clean
+GitHub:     main only, at 4ebec15 when this was read
+Local:      main, in sync
 Worktrees:  1
+Untracked:  4 audit artefacts in the repository root
 ```
+
+**"Working tree clean" is what this block said, and it was not.** Sitting in
+the root, untracked and un-ignored: `auditoria_producao_2026-11-08{,.zip}` and
+`qa_final_2026-11-08{,.zip}` — the audit bundles and their screenshots,
+produced on 8 November and never tidied. They are untracked, so nothing can
+have committed them by accident, and `.gitignore` does not mention them, so
+nothing stops the next `git add -A` either. Worth a decision: ignore them, or
+move them out of the repository.
 
 **That sha is the tip this snapshot was read at, and not the current one.** The
 commit that files any correction to this file moves `main` past it, so the
@@ -1166,6 +1259,7 @@ test fixes this direction and explains it in place.
 | Three of the four failure reasons are unverified in production | `rejected` now is: `/pt/recruitment?submitted=1&max_value=1e22` makes the backend refuse legitimately, and production serves the sentence with the form intact, in both languages. `timeout`, `unreachable` and `server` are still proxy-only, because provoking them in production means breaking it. All four are verified for all three pages against a proxy — twelve combinations, re-run on 5 November because the recruitment page was restructured in `79f51a1` after `3a9bc9c` verified it |
 | ~~The 18 candidate rows from 1 November~~ | **Closed 8 November.** Promoted by this morning's refresh rather than deleted. No candidate is waiting |
 | **Nothing watches production closely enough to see an outage** | `heartbeat.yml` delivered 3 of 24 requested beats in 24.4 hours and ran during neither of the two outages on 9 November. Lowering its cron to hourly in `#106` raised the delivery *rate* from 5.2% to 12.3% and lowered the *count* from about five beats a day to three — the change was argued from a rate as though it were a count. No cron value fixes this; GitHub queues scheduled runs on public repositories at low priority. `docs/monitoring.md` specifies the replacement: an external HTTP check on `/health/live`, which performs no I/O and so costs nothing against Neon's 100 CU-hours a month, plus an optional 30-minute check on `/health` — not shorter, because 5-minute `/health` polling would hold the compute awake for ~730 hours against a 400-hour allowance. **Specified and deliberately not created, decided 9 November by the owner.** Both of that day's outages recovered on their own, the site answered 200 throughout, there are no readers yet, and the failure that would matter — one that does not recover — is already caught by the heartbeat and reaches the owner by email, confirmed. What stays unwatched is a self-resolving outage between ten minutes and eight hours, which costs nothing today. **Revisit the first time somebody is told to go and look at the site.** Recorded so a later reader finds a decision rather than an oversight |
+| **610 player-seasons arrived and nothing names their source** | Between the 15:41 and 17:10 readings of 9 November the served count rose by 5 and the excluded count by 605. The arithmetic closes; the provenance does not. The day's two promotions were both Transfermarkt, which the quality report says supplies market data and no player-seasons, and the in-flight FootyStats generation is unpublished. Answering it means reading a promotion's output against `build_view`'s position-group filter. Opened as a question, deliberately not guessed at |
 | `superseded` is not published | The counter that makes the player-season figures add up reaches a log line and no endpoint |
 | ~~**The loaded data does not reach the running API**~~ | **Closed 9 November, 17:40 UTC, and not by the three settings this file promised.** Those were set at 16:30; the first call the loop ever made took the API down twice, for three minutes and then ten. The endpoint held two analytical views at once, which `#111` fixed. Demonstrated afterwards rather than inferred: `{"changed":true,"players":15021,"competitions":44,"build_seconds":26.3}`, the run `success`, and the process alive after it. See *The reload that killed what it was meant to refresh*. The history below is kept because the diagnosis was right and the estimate of the remedy was wrong: The pipeline promotes, the API keeps serving the view it built when it last started, and `/health` says so. Measured 8-9 November: promoted 8 Nov 22:01 with 29,204 player-seasons in the database; the heartbeat failed four times over the next thirteen hours; at 9 Nov 15:40 the API was still serving the build from 8 Nov 15:11 with 14,680. A backend deploy at 15:41 restarted the process and it jumped to 15,016. **Cause found: the loop exists and is unplugged at both ends** - see the section below. Fixing it is three settings and no code |
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
@@ -1179,6 +1273,7 @@ test fixes this direction and explains it in place.
 | ~~A 422 replaces the search page instead of its failure state~~ | **Closed 9 November** in `#107`. Player search was the one of four searches still using `searchPlayers`, whose `nullIfMissing` rethrows anything that is not a 404, so the Server Component threw and took twelve filter inputs with it. It now uses `runPlayerSearch` and `failureOrMissing`, like the other three. `searchPlayers` stays for its three lookup callers, where `null` genuinely means nothing matched |
 | Owner credential | `neondb_owner`'s password appeared in a screenshot on 30 October. **Not rotated, deliberately, decided 3 November.** It is the database owner's, so it can perform DDL on production — which is why migrations use it and the web service does not. Rotating it breaks nothing: no service holds it, `DATABASE_URL` is `fri_app`. Recorded so that a later reader finds a decision rather than an oversight |
 | 11 dead generation caches | 1.61 GB belonging to a published generation. Ageing out as expected: fifteen and 1.99 GB a day earlier |
+| **Nobody operates this product's integrations unless told to** | Broadened on 9 November, because the browser trigger turned out to be a special case. The reload endpoint was found by *running the pipeline by hand*, which had never been done: passing tests, a careful docstring, a designed failure mode, and it killed the API on its first real call. No test had ever built two analytical universes in one process. **Every integration should be operated once, on purpose, while somebody watches** — the row below is the same lesson about the browser |
 | Nobody opens the deployed site unless told to | **Nine defects** have now been found only by using it - three on 4 November, three in the audit of the 5th, three more across the second audit and the smoke test. None was caught by a test, and the suite was green for all of them. The habit is the open item; the trigger at the end of this file is the whole of the fix so far |
 | The builder's authored profile still weights two scores that cannot be computed | 45 of its 100 points, on Ball Progression and Duel Dominance. The default now stands those two down, so the page answers; the authored numbers are deliberately untouched, so they come back the moment the provider supplies the metrics. If it never does, the profile is worth rewriting rather than patching at the edges |
 | ~~The 404 route does not apply the stored theme~~ | **Closed 5 November** in `#100`, and confirmed on 6 November in the very capture that had exposed it: a Portuguese 404 in dark mode, background `rgb(8, 11, 14)` |
@@ -1199,8 +1294,13 @@ test fixes this direction and explains it in place.
 
 Any of these, and it should be re-read against its sources rather than trusted:
 
-- **`20261102T122100Z` is published**, which replaces every figure in "What is
-  serving right now" at once
+- ~~**`20261102T122100Z` is published**, which replaces every figure in "What
+  is serving right now" at once~~ — **fired. It published 8 November at 22:01**
+  with 30,424 players across 45 competitions, and the figures were replaced on
+  9 November at 19:21. The generation to watch now is **`20261109T124935Z`**,
+  opened 9 Nov 12:49 and in flight, which does the same thing again
+- **the audit artefacts in the repository root are committed by anybody.**
+  Four untracked, un-ignored bundles; see "The repository"
 - **the heartbeat fails and no backend deploy has happened since.** It failed
   four times between 8 Nov 22:41 and 9 Nov 11:02, truthfully each time, and
   the cause was the unplugged loop. **The loop is closed and demonstrated as
