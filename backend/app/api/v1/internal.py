@@ -91,8 +91,24 @@ def reload_analytics(request: Request, settings: SettingsDep) -> ReloadAnalytics
     """
     require_internal(request, settings)
 
-    before = get_analytics_view()
-    previous = before.fingerprint
+    # The fingerprint, and deliberately not the view it was read from.
+    #
+    # This line used to bind the view to a local, which kept every percentile
+    # table, similarity matrix and best-role ranking alive for the whole
+    # rebuild - so peak memory was two complete views. On the 512 MB starter
+    # instance the process was killed partway through, Render's proxy answered
+    # 502, and the service restarted: measured twice on 9 November, 6.6s and
+    # 8.3s in, costing three and ten minutes of downtime. The pipeline's own
+    # fallback hid the damage, because a restart rebuilds the view anyway.
+    #
+    # `refresh_analytics_view` clears the cache before it builds, so with no
+    # other reference the old generation is freed first and the peak is one
+    # view. Keeping a reference here was the only thing stopping that.
+    #
+    # A request arriving mid-rebuild holds its own reference and can still
+    # double the peak. Nothing in this handler can prevent that; what it can do
+    # is not be the cause.
+    previous = get_analytics_view().fingerprint
 
     started = time.perf_counter()
     view = refresh_analytics_view()

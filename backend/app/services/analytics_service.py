@@ -502,6 +502,20 @@ def refresh_analytics_view() -> AnalyticsView:
     timer - which would make the site briefly disagree with itself for reasons
     nobody could see - staleness is *reported* by `is_stale`, and this is the
     explicit way to act on it.
+
+    The order of these two lines is load-bearing, and the reason is memory
+    rather than correctness. Clearing the cache first drops the last reference
+    to the outgoing view, so it is freed before the incoming one is allocated
+    and the process never holds two. Building first and assigning afterwards
+    would need room for both, which on the 512 MB production instance is not
+    there - that is what killed the service on 9 November, from a caller that
+    kept its own reference across this call.
+
+    No explicit collection here. A `gc.collect()` was tried and removed: the
+    view is freed by reference counting alone, measured, so a collection
+    changed nothing except to hide from
+    `test_a_real_view_is_freed_before_the_next_one_is_allocated` the one thing
+    that test exists to catch - a future cycle among the engines.
     """
     get_analytics_view.cache_clear()
     return get_analytics_view()
