@@ -204,8 +204,28 @@ def _analytics_status() -> DependencyStatus:
             detail_message=_coded("health_analytics_empty"),
         )
 
+    # TWO COUNTERS, TWO UNITS, AND THE PHANTOM THEY PRODUCED
+    #
+    # `len(view.players)` is one row per PLAYER - the season `build_view` chose
+    # to show - and `players_without_position` counts PLAYER-SEASONS. This
+    # endpoint called both "player-seasons" for as long as it had existed, so
+    # the two looked addable, and the whole universe looked like their sum.
+    #
+    # It is not. The database total is
+    #
+    #     players served + player-seasons excluded + player-seasons superseded
+    #
+    # and the third term is `build_view`'s own counter, which only reaches a
+    # log line. Differencing two readings of the first two therefore attributes
+    # every move of the third to arrivals that never happened: on 9 November it
+    # produced 610 player-seasons that no promotion could be found for, and the
+    # database had held exactly 29,204 of them since the night before. The
+    # arithmetic is in `docs/current_state.md`.
+    #
+    # So the unit is said out loud in both sentences below, and the excluded
+    # clause names its own.
     excluded = (
-        f" {view.players_without_position} excluded for having no position group."
+        f" {view.players_without_position} player-seasons excluded for having no position group."
         if view.players_without_position
         else ""
     )
@@ -220,14 +240,14 @@ def _analytics_status() -> DependencyStatus:
             name="analytics",
             status="degraded",
             detail=(
-                f"Serving {len(view.players)} player-seasons built at "
+                f"Serving {len(view.players)} players built at "
                 f"{view.built_at.isoformat(timespec='seconds')}. The database has been "
                 "loaded since; restart the API to serve the new data."
             ),
             detail_message=Message(
                 code="health_analytics_stale",
                 values={
-                    "seasons": len(view.players),
+                    "players": len(view.players),
                     "built": view.built_at.isoformat(timespec="seconds"),
                 },
             ),
@@ -237,7 +257,7 @@ def _analytics_status() -> DependencyStatus:
         name="analytics",
         status="ok",
         detail=(
-            f"{len(view.players)} player-seasons across {len(view.competitions)} "
+            f"{len(view.players)} players across {len(view.competitions)} "
             f"competitions, built at {view.built_at.isoformat(timespec='seconds')}.{excluded}"
         ),
         detail_message=Message(
@@ -247,7 +267,7 @@ def _analytics_status() -> DependencyStatus:
                 else "health_analytics_ok"
             ),
             values={
-                "seasons": len(view.players),
+                "players": len(view.players),
                 "competitions": len(view.competitions),
                 "built": view.built_at.isoformat(timespec="seconds"),
                 "excluded": view.players_without_position,

@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core import database as database_module
+from app.services.analytics_service import get_analytics_view
 from tests.conftest import build_client, build_settings
 
 
@@ -78,6 +79,35 @@ class TestReadiness:
         body = response.json()
         assert body["status"] == "ok"
         assert body["schema_revision"] == "0001_baseline"
+
+    def test_the_analytics_sentence_names_the_unit_of_each_figure(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Two counters, two units, and they used to share a name.
+
+        The served figure is one row per PLAYER; the excluded figure counts
+        PLAYER-SEASONS. This sentence called both "player-seasons", so they
+        read as addable - and `docs/current_state.md` added them, differenced
+        two such sums a day apart, and reported 610 player-seasons as having
+        arrived from a promotion that published none. The database total had
+        not moved at all.
+
+        The missing term is `superseded`, which reaches a log line and no
+        endpoint, so a reader cannot see that the sum is short. Until it is
+        published, the least this can do is say which unit each figure is in.
+        """
+        monkeypatch.setattr("app.api.v1.health.check_database_connection", lambda: (True, None))
+        monkeypatch.setattr("app.api.v1.health.get_schema_revision", lambda: "0001_baseline")
+        view = get_analytics_view()
+        monkeypatch.setattr(view, "players_without_position", 9432)
+
+        body = client.get("/health").json()
+        analytics = next(d for d in body["dependencies"] if d["name"] == "analytics")
+
+        assert f"{len(view.players)} players across" in analytics["detail"]
+        assert "9432 player-seasons excluded" in analytics["detail"]
+        assert analytics["detail_message"]["values"]["players"] == len(view.players)
+        assert analytics["detail_message"]["values"]["excluded"] == 9432
 
     def test_footystats_absent_key_is_not_configured_not_failed(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
