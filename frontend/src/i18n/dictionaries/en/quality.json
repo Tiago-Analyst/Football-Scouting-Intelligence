@@ -87,7 +87,15 @@
     "stale": "The database has moved since",
     "current": "Current with the database",
     "staleTitle": "The database has changed since this view was built",
-    "staleBody": "A refreshed load reaches readers when the pipeline asks the API to rebuild. Until then the previous figures are served — consistent, and behind."
+    "staleBody": "A refreshed load reaches readers when the pipeline asks the API to rebuild. Until then the previous figures are served — consistent, and behind.",
+    "reconciliationTitle": "And the player-seasons behind them",
+    "excluded": "Excluded player-seasons",
+    "excludedHint": "Their player has no position group, so there is no population to rank them against.",
+    "superseded": "Superseded player-seasons",
+    "supersededHint": "A player's other seasons. They shape the comparisons; the one shown is the season with the most minutes.",
+    "playerSeasons": "Player-seasons loaded",
+    "playerSeasonsHint": "The three figures above summed, and the same number as the database total at the top of this page.",
+    "reconciliationBody": "The served figure is one row per player and these three count player-seasons, which is why only the last three add up. Reported without that distinction, the first two were once added together and the sum, short by the superseded seasons, was read as the whole universe."
   },
   "freshness": {
     "title": "Source freshness",

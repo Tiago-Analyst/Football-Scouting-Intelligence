@@ -1391,9 +1391,26 @@ class CompetitionIdentityCoverageOut(BaseModel):
 class AnalyticsFreshnessOut(BaseModel):
     """Whether the API is serving what the database currently holds."""
 
+    #: One row per PLAYER - the season the view chose to show them by - and so
+    #: not addable to the two counts below, which are player-seasons. The two
+    #: used to be reported without their units anywhere, on this endpoint and
+    #: on `/health`, and adding them produced a universe short by `superseded`
+    #: and, from that, 610 arrivals that never happened. The story is in
+    #: `docs/current_state.md`.
     players: int
     competitions: int
     built_at: datetime | None
+    #: Player-seasons whose player has no position group, so they can be
+    #: ranked against nobody and are not in the view at all.
+    excluded: int
+    #: Player-seasons belonging to a player who has more than one, less the one
+    #: shown. They still shape the comparison populations.
+    superseded: int
+    #: The three above, summed: every player-season the pipeline loaded. Equal
+    #: to `volumes.player_seasons`, and published here so that one payload
+    #: closes its own arithmetic rather than requiring a subtraction across
+    #: two sections of it.
+    player_seasons: int
     #: True when the database has moved since this view was built. Reporting it
     #: rather than rebuilding on a timer: a view that changes under a reader
     #: mid-session is worse than one that is briefly behind and says so.

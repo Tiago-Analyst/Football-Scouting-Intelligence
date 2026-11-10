@@ -1022,9 +1022,29 @@ export interface CompetitionIdentityCoverage {
 }
 
 export interface AnalyticsFreshness {
+  /**
+   * One row per PLAYER - the season the view shows them by - and so not
+   * addable to the two counts below, which are player-seasons. Both were once
+   * reported with no unit anywhere; adding them gave a universe short by
+   * `superseded`, and 610 arrivals that never happened.
+   */
   players: number;
   competitions: number;
   built_at: string | null;
+  /**
+   * Player-seasons whose player has no position group.
+   *
+   * These three are optional because an older backend does not send them: the
+   * frontend deploys minutes before the backend, and this row of the page
+   * either states an arithmetic that closes or is not there at all. A missing
+   * figure must produce no tile, never a tile reading NaN beside a total that
+   * nothing adds up to.
+   */
+  excluded?: number;
+  /** A player's other seasons, less the one shown. */
+  superseded?: number;
+  /** The three above summed; equal to `volumes.player_seasons`. */
+  player_seasons?: number;
   /** True when the database has moved since this view was built. */
   is_stale: boolean;
 }

@@ -109,6 +109,11 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             players=len(view.players),
             competitions=len(view.competitions),
             built_at=view.built_at,
+            excluded=view.players_without_position,
+            superseded=view.superseded_player_seasons,
+            player_seasons=(
+                len(view.players) + view.players_without_position + view.superseded_player_seasons
+            ),
             is_stale=view_is_stale(),
         ),
         refresh=_refresh_out(svc.refresh_status(db)),

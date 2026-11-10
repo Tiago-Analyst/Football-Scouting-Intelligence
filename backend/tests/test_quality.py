@@ -526,6 +526,34 @@ class TestQualityEndpoint:
         assert isinstance(analytics["is_stale"], bool)
         assert analytics["players"] >= 0
 
+    def test_the_served_figures_close_their_own_arithmetic(self, client: TestClient) -> None:
+        """Three terms and the total, in one payload, with their units apart.
+
+        `players` is one row per PLAYER; `excluded` and `superseded` count
+        PLAYER-SEASONS. This endpoint and `/health` reported the first two with
+        no unit anywhere, so they were added - and the sum, short by
+        `superseded`, was differenced against another such sum a day older. It
+        produced 610 player-seasons that no promotion had published.
+
+        A reader closing the arithmetic had to subtract across two sections of
+        this response, or two endpoints. Now the total is stated, and this test
+        is what keeps it the sum of the parts rather than a fourth figure that
+        can drift from them.
+        """
+        body = client.get("/api/v1/data-quality").json()
+        analytics = body["analytics"]
+
+        assert (
+            analytics["players"] + analytics["excluded"] + analytics["superseded"]
+            == analytics["player_seasons"]
+        )
+        if not analytics["is_stale"]:
+            # The cross-check that matters: the view's own total against the
+            # database's. Only meaningful while the view is current with it -
+            # when it is stale the two SHOULD differ, which is what stale
+            # means.
+            assert analytics["player_seasons"] == body["volumes"]["player_seasons"]
+
     def test_it_exposes_no_credentials_or_internals(self, client: TestClient) -> None:
         """Operational, not privileged. A public page must not leak the estate."""
         raw = client.get("/api/v1/data-quality").text.lower()
