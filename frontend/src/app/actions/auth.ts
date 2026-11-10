@@ -56,11 +56,19 @@ function refusal(error: unknown): FormState {
     if (error.status === 0) {
       return { error: "The service is unavailable right now.", errorCode: "auth_unavailable" };
     }
+    // Two numbers a refusal can carry, and the form's sentence needs whichever
+    // arrived: a password length rule, or the seconds left on the sign-in
+    // throttle. A refusal that says "try again shortly" and cannot say when is
+    // the reason to pass it through rather than drop it here.
     const length = error.details?.length;
+    const retryAfter = error.details?.retry_after;
+    const values: Record<string, number> = {};
+    if (typeof length === "number") values.length = length;
+    if (typeof retryAfter === "number") values.seconds = retryAfter;
     return {
       error: error.message,
       errorCode: error.code,
-      ...(typeof length === "number" ? { errorValues: { length } } : {}),
+      ...(Object.keys(values).length > 0 ? { errorValues: values } : {}),
     };
   }
   return { error: GENERIC_FAILURE, errorCode: "auth_generic_failure" };

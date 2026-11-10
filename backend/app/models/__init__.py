@@ -5,7 +5,7 @@ Importing this package registers every table on `Base.metadata`, which is what
 not reachable from here is invisible to migrations.
 """
 
-from app.models.accounts import UserAccount, UserSession
+from app.models.accounts import LoginAttempt, UserAccount, UserSession
 from app.models.dimensions import (
     BridgePlayerSource,
     DimClub,
@@ -37,6 +37,7 @@ __all__ = [
     "FactSourceLoad",
     "FactSourcePublication",
     "FactTransfer",
+    "LoginAttempt",
     "Shortlist",
     "ShortlistEntry",
     "UserAccount",

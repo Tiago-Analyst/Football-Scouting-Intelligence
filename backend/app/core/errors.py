@@ -29,6 +29,12 @@ class AppError(Exception):
     status_code: int = status.HTTP_400_BAD_REQUEST
     code: str = "app_error"
 
+    #: Response headers this error must carry. Empty for almost everything;
+    #: a refusal that tells the caller when to come back needs `Retry-After`,
+    #: and putting the number only in the body would leave every ordinary HTTP
+    #: client unable to see it.
+    headers: dict[str, str] | None = None
+
     def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.message = message
@@ -83,10 +89,12 @@ class AuthFailureError(AppError):
         code: str,
         status_code: int,
         details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message, details=details)
         self.code = code
         self.status_code = status_code
+        self.headers = headers
 
 
 def _envelope(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -110,6 +118,7 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_envelope(exc.code, exc.message, exc.details),
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)
