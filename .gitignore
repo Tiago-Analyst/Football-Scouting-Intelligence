@@ -128,3 +128,17 @@ docs/identity_resolution*.csv
 # name.
 /auditoria[-_]*
 /qa[-_]*
+
+# ---- Security review -----------------------------------------------------
+# The 10 November security review, kept outside the repository by the owner's
+# decision. Not because its findings are secret - every one of them is either
+# fixed and in the history, or a property of code anybody can read - but
+# because a full report dates badly. Six months from now it would still say
+# "0 critical" about dependencies that have moved on, and a reader would take
+# that for the current state.
+#
+# What survives here instead is a dated paragraph in `docs/current_state.md`:
+# that the review happened, what it established, and that the detail lives
+# with the owner. That is the part worth keeping and the part that does not
+# go stale.
+/SECURITY_REPORT.md
