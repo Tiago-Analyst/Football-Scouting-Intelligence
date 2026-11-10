@@ -151,3 +151,51 @@ jobs:
           the payload above says which dependency is unhappy."
             exit 1
           fi
+
+      - name: Ask whether anybody can still sign in
+        run: |
+          set -o pipefail
+
+          # WHY /health IS NOT ENOUGH, MEASURED ON 10 NOVEMBER
+          #
+          # Sign-in answered 503 in production from 15:25 to 15:59 - a deploy
+          # shipped code reading a table whose migration had not run. For all
+          # thirty-four minutes `/health` answered `ok` with `postgresql: ok`,
+          # because it checks a connection and the analytical view, and neither
+          # touches the table the login path reads. Nothing in this repository
+          # would have noticed; a person reading the schema revision did.
+          #
+          # So this asks the question `/health` cannot: does the sign-in path
+          # work end to end. A deliberately invalid address, so the only
+          # possible answer is a refusal - and WHICH refusal is the point. 401
+          # means the path works and said no. 429 means the guess throttle
+          # spoke, which is also a working path. Anything else means nobody
+          # can get in.
+          #
+          # It writes one failed-attempt row per beat, against an address
+          # nobody owns, inside a fifteen-minute window that forgets it. Three
+          # beats a day cannot throttle themselves.
+          status=$(curl --silent --show-error --location \
+                        --max-time 90 --retry 2 --retry-delay 15 --retry-all-errors \
+                        --output /dev/null --write-out '%{http_code}' \
+                        -X POST https://fri-backend.onrender.com/api/v1/auth/login \
+                        -H 'content-type: application/json' \
+                        -d '{"email":"heartbeat@invalid.invalid","password":"not-a-password"}') || {
+            echo "::error::The sign-in endpoint did not answer at all."
+            exit 1
+          }
+
+          echo "POST /api/v1/auth/login -> $status"
+
+          case "$status" in
+            401|429)
+              echo "A refusal, which is what a wrong password earns. The path works."
+              ;;
+            *)
+              echo "::error::Sign-in answered $status. A refusal is 401, or 429 when \
+          throttled; anything else means nobody can get in. A 503 here is the \
+          schema lagging the code - compare the Alembic revision in /health \
+          with the migrations on main."
+              exit 1
+              ;;
+          esac

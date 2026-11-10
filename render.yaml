@@ -51,6 +51,36 @@ services:
     # thing with the power to restart the service.
     healthCheckPath: /health/live
 
+    # WHY A DEPLOY MIGRATES BEFORE IT SERVES
+    #
+    # 10 November 2026, 15:25 to 15:59: every sign-in in production answered
+    # 503. The deploy had shipped code whose first act on `/api/v1/auth/login`
+    # is to read `login_attempt`, and that table did not exist yet, because
+    # NOTHING IN A DEPLOY APPLIED THE MIGRATION. The only `alembic upgrade
+    # head` that reached production lived inside the data pipeline, so the
+    # schema arrived whenever that next ran - hours later, or on a schedule
+    # GitHub delivers a fraction of.
+    #
+    # It had never shown before because no previous deploy carried a
+    # migration. The window was open at every one of them.
+    #
+    # Render runs this after the build and BEFORE the new version takes
+    # traffic, and a non-zero exit cancels the deploy - so a migration that
+    # fails leaves the old version serving rather than a new one that cannot
+    # answer. That is the property worth having: the two orders are "briefly
+    # old" and "briefly broken", and only one of them is recoverable without
+    # somebody watching.
+    #
+    # `alembic upgrade head` is a no-op when the schema is current, which is
+    # most deploys. It derives its own unpooled connection from DATABASE_URL -
+    # see `migration_url()` in `backend/alembic/env.py`, which refuses to run
+    # through a pooler rather than failing obscurely on a startup parameter.
+    #
+    # This does not make the pipeline's own migration step redundant: a schema
+    # change that arrives with no backend deploy - a pipelines-only commit -
+    # still needs applying, and that step is where it happens.
+    preDeployCommand: alembic upgrade head
+
     envVars:
       - key: APP_ENV
         value: production
