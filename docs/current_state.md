@@ -215,9 +215,22 @@ called two of them un-refreshable and left them at their 8 November values,
 and the 610 above is what came of differencing across the gap. Both were
 re-readable the whole time.
 
-**The sentence above is the code's, not production's.** The deployed service
-says it from the next backend deploy; until then `/health` still reports the
-first two figures only.
+`/api/v1/data-quality` reports the same three under `analytics`, with the
+total, and the public data-quality page shows them in a row of their own —
+**away from the served players tile, because that figure is not in their
+unit**, with each tile's hint naming what it counts. The page's own total is
+checked against the database total it already showed at the top: on the local
+database, 7,190 + 3,144 + 95 = 10,429, which is `volumes.player_seasons`.
+
+Three figures or none, on that page. They arrive in one backend release and
+Vercel reaches production minutes before Render, so the row is behind a guard
+and the fields are optional in the frontend's type: a row claiming to close an
+arithmetic with a term missing would be worse than the gap it replaces.
+
+**Production says the `/health` sentence as of 10 November 14:10:24 UTC** —
+confirmed by reading it, and it gave 4,751 superseded and 29,204 in the
+database, the figures this file had derived. The data-quality half reaches
+production on the next backend deploy.
 
 ## The pre-release correction pass
 

@@ -87,7 +87,15 @@
     "stale": "A base de dados avançou desde então",
     "current": "Em dia com a base de dados",
     "staleTitle": "A base de dados mudou desde que esta vista foi construída",
-    "staleBody": "Um carregamento actualizado chega aos leitores quando o pipeline pede à API que reconstrua. Até lá são servidos os valores anteriores — consistentes, e atrasados."
+    "staleBody": "Um carregamento actualizado chega aos leitores quando o pipeline pede à API que reconstrua. Até lá são servidos os valores anteriores — consistentes, e atrasados.",
+    "reconciliationTitle": "E as épocas de jogador por trás delas",
+    "excluded": "Épocas de jogador excluídas",
+    "excludedHint": "O jogador não tem grupo posicional, pelo que não existe população contra a qual compará-lo.",
+    "superseded": "Épocas de jogador substituídas",
+    "supersededHint": "As outras épocas do jogador. Moldam as comparações; a mostrada é a época com mais minutos.",
+    "playerSeasons": "Épocas de jogador carregadas",
+    "playerSeasonsHint": "A soma das três figuras acima, e o mesmo número que o total da base de dados no topo desta página.",
+    "reconciliationBody": "A figura servida é uma linha por jogador e estas três contam épocas de jogador, razão pela qual só as três últimas somam. Reportadas sem essa distinção, as duas primeiras foram somadas uma vez, e a soma - a menos das épocas substituídas - foi lida como o universo inteiro."
   },
   "freshness": {
     "title": "Actualidade das fontes",

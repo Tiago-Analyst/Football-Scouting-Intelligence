@@ -67,6 +67,12 @@ async function Report({
   // `checks` is the published set - candidates are excluded by the service -
   // so a failure here is a failure in the data readers are being served.
   const failing = report.checks.filter((c) => c.status === "fail");
+  // Present only on a backend that sends all three - see `AnalyticsFreshness`.
+  const a = report.analytics;
+  const reconciliation =
+    a && a.excluded !== undefined && a.superseded !== undefined && a.player_seasons !== undefined
+      ? { excluded: a.excluded, superseded: a.superseded, player_seasons: a.player_seasons }
+      : null;
 
   return (
     <>
@@ -324,6 +330,41 @@ async function Report({
                 hint={report.analytics.is_stale ? q.served.stale : q.served.current}
               />
             </div>
+
+            {/* The three player-season figures, kept in their own row and
+                away from the players tile above, because they are not in the
+                same unit. The served figure is one row per player; these
+                count player-seasons. Reported without that distinction, the
+                first two were added, and the sum - short by the superseded -
+                was read as the universe.
+
+                All three or none. They arrived together in one backend
+                release, and this frontend reaches production minutes before
+                it: a row claiming to close an arithmetic while one of its
+                terms is missing would be worse than the gap it replaced. */}
+            {reconciliation ? (
+              <>
+                <p className="mt-6 font-medium">{q.served.reconciliationTitle}</p>
+                <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                  <StatTile
+                    label={q.served.excluded}
+                    value={f.count(reconciliation.excluded)}
+                    hint={q.served.excludedHint}
+                  />
+                  <StatTile
+                    label={q.served.superseded}
+                    value={f.count(reconciliation.superseded)}
+                    hint={q.served.supersededHint}
+                  />
+                  <StatTile
+                    label={q.served.playerSeasons}
+                    value={f.count(reconciliation.player_seasons)}
+                    hint={q.served.playerSeasonsHint}
+                  />
+                </div>
+                <p className="mt-3 text-muted">{q.served.reconciliationBody}</p>
+              </>
+            ) : null}
             {report.analytics.is_stale ? (
               <Callout tone="note" title={q.served.staleTitle}>
                 {q.served.staleBody}
