@@ -357,6 +357,54 @@ def change_password(
     log.info("password_changed", user_id=user.user_id)
 
 
+def delete_account(session: Session, user: UserAccount, *, password: str) -> None:
+    """Erase an account and everything that belongs to it.
+
+    THE MOST IRREVERSIBLE OPERATION IN THIS SYSTEM
+
+    There is no undo, no soft-delete flag to flip back, and no copy kept. The
+    shortlists, the notes, the assessments and the sessions go with the row,
+    through `ON DELETE CASCADE` on `shortlist.user_id`, `user_session.user_id`
+    and `shortlist_entry.shortlist_id` - one statement, no orphans, and nothing
+    left behind that a later registration of the same address could inherit.
+
+    WHY IT ASKS FOR THE PASSWORD
+
+    A session is enough to read and change this account's data, and that is a
+    deliberate trade: a stolen cookie is bad and recoverable. Erasure is not
+    recoverable, so it is not something a stolen cookie may do. The password is
+    the second factor this product has, and it is verified here against the
+    same Argon2 hash sign-in uses, with the same generic failure.
+
+    WHY `is_active` IS NOT ENOUGH, AND WHY IT IS NOT USED HERE
+
+    Deactivating stops sign-in and invalidates every session - `authenticate`
+    and `resolve_session` both refuse an inactive account - but the notes stay
+    in the database. Somebody asking to be deleted is not asking to be hidden.
+    Deactivation is the right answer to a *compromised* account, which is a
+    different request with a different remedy.
+
+    WHAT IT DELIBERATELY DOES NOT TAKE
+
+    A user id, an email, or anything else naming whose account to erase. The
+    caller is the account. There is no argument an attacker could substitute,
+    because there is no argument.
+    """
+    if not verify_password(user.password_hash, password):
+        raise InvalidCredentials
+
+    user_id = user.user_id
+    # Before the row goes: the throttle counts an ADDRESS, not an account, and
+    # has no foreign key to cascade through. Leaving the rows would start a
+    # fresh registration at the same address inside somebody else's wait.
+    clear_failed_logins(session, user.email)
+    session.delete(user)
+    session.flush()
+    # The id, and nothing else. A log line naming the address would outlive the
+    # deletion it records, which is the opposite of what was asked for.
+    log.info("account_deleted", user_id=user_id)
+
+
 # ---------------------------------------------------------------------------
 # Sessions
 # ---------------------------------------------------------------------------

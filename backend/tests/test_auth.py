@@ -30,6 +30,7 @@ from app.services.auth_service import (
     change_password,
     clear_failed_logins,
     create_session,
+    delete_account,
     hash_email,
     hash_password,
     hash_token,
@@ -325,6 +326,101 @@ class TestChangePassword:
 @pytest.fixture
 def api(client: TestClient) -> TestClient:
     return client
+
+
+class TestErasingAnAccount:
+    """The most irreversible operation here, and the one that must not slip.
+
+    Everything else in this file can be undone by signing in again. This
+    cannot be undone at all, which changes what the tests have to prove: not
+    only that it works, but that it cannot be made to work on somebody else,
+    and that it refuses when it should rather than erasing on a technicality.
+    """
+
+    @staticmethod
+    def _email() -> str:
+        import secrets
+
+        return f"erase-{secrets.token_hex(6)}@example.test"
+
+    def test_it_takes_the_account_and_everything_in_it(self, db_session: Session) -> None:
+        from app.models.shortlists import Shortlist
+
+        user = make_user(db_session, email=self._email())
+        user_id = user.user_id
+        db_session.add(Shortlist(user_id=user_id, name="gone with it"))
+        create_session(db_session, user)
+        db_session.flush()
+
+        delete_account(db_session, user, password=PASSWORD)
+
+        assert db_session.get(UserAccount, user_id) is None
+        assert db_session.scalars(select(Shortlist).where(Shortlist.user_id == user_id)).all() == []
+        assert (
+            db_session.scalars(select(UserSession).where(UserSession.user_id == user_id)).all()
+            == []
+        )
+
+    def test_a_wrong_password_erases_nothing(self, db_session: Session) -> None:
+        """The refusal has to leave the account exactly where it was.
+
+        An erasure that half-happens is worse than one that does not happen.
+        """
+        user = make_user(db_session, email=self._email())
+        user_id = user.user_id
+
+        with pytest.raises(InvalidCredentials):
+            delete_account(db_session, user, password="not the right password")
+
+        assert db_session.get(UserAccount, user_id) is not None
+
+    def test_it_forgets_the_throttle_count_for_that_address(self, db_session: Session) -> None:
+        """The count names an address and has no foreign key to cascade through.
+
+        Left behind, it would start a fresh registration at the same address
+        inside the wait earned by whoever held it before.
+        """
+        email = self._email()
+        user = make_user(db_session, email=email)
+        for _ in range(FREE_LOGIN_ATTEMPTS + 2):
+            record_failed_login(db_session, email)
+        assert login_retry_after(db_session, email) > 0
+
+        delete_account(db_session, user, password=PASSWORD)
+
+        assert login_retry_after(db_session, email) == 0
+
+    def test_it_reaches_no_other_account(self, db_session: Session) -> None:
+        """The property the whole design rests on.
+
+        The endpoint takes no id, no email and no argument naming an account -
+        the caller IS the account - so this asserts what that buys: a deletion
+        leaves every other account, and everything in it, untouched.
+        """
+        from app.models.shortlists import Shortlist
+
+        mine = make_user(db_session, email=self._email())
+        theirs = make_user(db_session, email=self._email())
+        theirs_id = theirs.user_id
+        db_session.add(Shortlist(user_id=theirs_id, name="not yours to erase"))
+        create_session(db_session, theirs)
+        db_session.flush()
+
+        delete_account(db_session, mine, password=PASSWORD)
+
+        assert db_session.get(UserAccount, theirs_id) is not None
+        assert (
+            len(db_session.scalars(select(Shortlist).where(Shortlist.user_id == theirs_id)).all())
+            == 1
+        )
+        assert (
+            len(
+                db_session.scalars(
+                    select(UserSession).where(UserSession.user_id == theirs_id)
+                ).all()
+            )
+            == 1
+        )
 
 
 class TestTheGuessThrottle:
@@ -644,6 +740,90 @@ class TestAuthEndpoints:
         # again rather than landing on a wait.
         for _ in range(FREE_LOGIN_ATTEMPTS):
             assert api.post("/api/v1/auth/login", json=wrong).status_code == 401
+
+    def test_deleting_the_account_needs_the_password(self, api: TestClient) -> None:
+        """A session is enough to change this account's data, and deliberately
+        not enough to erase it: a stolen cookie is recoverable and this is
+        not."""
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+
+        refused = api.request(
+            "DELETE", "/api/v1/auth/me", json={"password": "not the right password"}
+        )
+        assert refused.status_code == 401
+        assert refused.json()["error"]["message"] == GENERIC_SIGNIN_ERROR
+        # Still signed in, still there.
+        assert api.get("/api/v1/auth/me").status_code == 200
+
+    def test_deleting_the_account_ends_it_everywhere(self, api: TestClient) -> None:
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+
+        gone = api.request("DELETE", "/api/v1/auth/me", json={"password": PASSWORD})
+        assert gone.status_code == 204
+        # The cookie is cleared rather than left to be presented and refused.
+        assert "fri_session=" in gone.headers.get("set-cookie", "")
+
+        assert api.get("/api/v1/auth/me").status_code == 401
+        # And the credentials no longer open anything.
+        again = api.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
+        assert again.status_code == 401
+
+    def test_erasure_requires_a_session(self, api: TestClient) -> None:
+        api.post("/api/v1/auth/logout")
+        response = api.request("DELETE", "/api/v1/auth/me", json={"password": PASSWORD})
+        assert response.status_code == 401
+
+    def test_erasure_is_not_reachable_by_anything_that_prefetches(self, api: TestClient) -> None:
+        """A link, a crawler or a prefetch must not be able to destroy an
+        account. DELETE is the only verb that answers."""
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+
+        assert api.post("/api/v1/auth/me", json={"password": PASSWORD}).status_code == 405
+        # GET /me is the profile read, which must still work and erase nothing.
+        assert api.get("/api/v1/auth/me").status_code == 200
+
+    @pytest.mark.parametrize(
+        ("method", "path", "body"),
+        [
+            ("POST", "/api/v1/auth/logout", None),
+            ("POST", "/api/v1/auth/logout-everywhere", None),
+            (
+                "POST",
+                "/api/v1/auth/change-password",
+                {"current_password": PASSWORD, "new_password": "a-new-long-password"},
+            ),
+            ("DELETE", "/api/v1/auth/me", {"password": PASSWORD}),
+        ],
+    )
+    def test_every_endpoint_that_ends_a_session_clears_the_cookie(
+        self, api: TestClient, method: str, path: str, body: dict | None
+    ) -> None:
+        """All four said they cleared it and three of them did not.
+
+        Each called `clear_session_cookie` against the INJECTED response and
+        then returned a new `Response(204)`. FastAPI merges the injected
+        response's headers only when the handler returns a model, so the
+        `Set-Cookie` was dropped - and nothing noticed, because each of these
+        also revokes the session server-side and the frontend clears its own
+        copy on its own origin. The browser simply kept a cookie that was
+        already dead.
+
+        Parametrised rather than written four times, so the next endpoint that
+        ends a session is one line here and cannot quietly skip the header.
+        """
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+
+        response = api.request(method, path, json=body)
+        assert response.status_code == 204, response.text
+
+        set_cookie = response.headers.get("set-cookie", "")
+        assert "fri_session=" in set_cookie, f"{path} did not clear the session cookie"
+        # Cleared, not reissued: an expiry in the past is what removes it.
+        assert "Max-Age=0" in set_cookie or "expires=" in set_cookie.lower()
 
     def test_me_requires_a_session(self, api: TestClient) -> None:
         assert api.get("/api/v1/auth/me").status_code == 401

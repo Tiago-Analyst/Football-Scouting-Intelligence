@@ -42,6 +42,7 @@ from app.services.auth_service import (
     change_password,
     clear_failed_logins,
     create_session,
+    delete_account,
     login_retry_after,
     record_failed_login,
     register_user,
@@ -65,6 +66,16 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str = Field(max_length=320)
+    password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+class DeleteAccountRequest(BaseModel):
+    """Erasure asks for the password again, not for a confirmation checkbox.
+
+    A session is enough to change this account's data and is deliberately not
+    enough to erase it: a stolen cookie is recoverable and this is not.
+    """
+
     password: str = Field(max_length=MAX_PASSWORD_LENGTH)
 
 
@@ -106,6 +117,29 @@ def set_session_cookie(response: Response, token: str, settings: Settings) -> No
         samesite="lax",
         path="/",
     )
+
+
+def cleared_session_response(settings: Settings) -> Response:
+    """A 204 that actually carries the `Set-Cookie` clearing the session.
+
+    WHY THIS EXISTS RATHER THAN A CALL AT EACH SITE
+
+    Four handlers wrote `clear_session_cookie(response, settings)` against the
+    INJECTED `Response` and then returned a new `Response(status_code=204)`.
+    FastAPI merges the injected response's headers only when the handler
+    returns a model; return a Response object and it is used as it stands, so
+    the `Set-Cookie` was dropped every time. Sign-out, change-password and
+    sign-out-everywhere all did this, and nothing noticed, because each of them
+    also revokes the session server-side - the browser kept a cookie that was
+    already dead, and the frontend clears its own copy on its own origin.
+
+    So the bug was invisible from the product and real in the API. Building the
+    response first and setting the cookie on the thing actually returned is the
+    shape that cannot come apart.
+    """
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    clear_session_cookie(response, settings)
+    return response
 
 
 def clear_session_cookie(response: Response, settings: Settings) -> None:
@@ -251,7 +285,6 @@ def login(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    response: Response,
     db: SessionDep,
     settings: SettingsDep,
     fri_session: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
@@ -264,8 +297,7 @@ def logout(
     if fri_session:
         revoke_session(db, fri_session)
         db.commit()
-    clear_session_cookie(response, settings)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return cleared_session_response(settings)
 
 
 @router.get("/me", response_model=UserOut)
@@ -277,7 +309,6 @@ def me(user: CurrentUser) -> UserOut:
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 def change_own_password(
     request: ChangePasswordRequest,
-    response: Response,
     user: CurrentUser,
     db: SessionDep,
     settings: SettingsDep,
@@ -296,16 +327,41 @@ def change_own_password(
         raise _refused(exc, 422) from exc
 
     db.commit()
-    clear_session_cookie(response, settings)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return cleared_session_response(settings)
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_own_account(
+    request: DeleteAccountRequest,
+    user: CurrentUser,
+    db: SessionDep,
+    settings: SettingsDep,
+) -> Response:
+    """Erase this account and everything in it. There is no undo.
+
+    DELETE on `/me`, because the resource being destroyed is the caller. No id
+    is accepted anywhere: the account is whoever the session says it is, so
+    there is no argument to substitute and no other account this can reach.
+
+    Not reachable by anything that prefetches - a GET or a POST here is a 405.
+
+    The password is required, and a wrong one answers exactly as a wrong
+    password does at sign-in: `401` and the same sentence for every cause.
+    """
+    try:
+        delete_account(db, user, password=request.password)
+    except InvalidCredentials as exc:
+        raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
+
+    db.commit()
+    # The session it was holding is gone with the row; this clears the cookie
+    # that would otherwise be presented once more and refused.
+    return cleared_session_response(settings)
 
 
 @router.post("/logout-everywhere", status_code=status.HTTP_204_NO_CONTENT)
-def logout_everywhere(
-    response: Response, user: CurrentUser, db: SessionDep, settings: SettingsDep
-) -> Response:
+def logout_everywhere(user: CurrentUser, db: SessionDep, settings: SettingsDep) -> Response:
     """End every session for this account, on every device."""
     revoke_all_sessions(db, user.user_id)
     db.commit()
-    clear_session_cookie(response, settings)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return cleared_session_response(settings)
