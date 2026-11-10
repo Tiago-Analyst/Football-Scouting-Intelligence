@@ -92,6 +92,46 @@ readable from a pipeline log or a published endpoint. **A figure that cannot
 be re-read is a figure that cannot be checked, and this file had four of them
 standing in one sum.**
 
+## The security review, 10 November 2026
+
+**A full pre-release security review was carried out on 10 November.** It read
+the repository and its whole history, ran the dependency audits, probed the
+production endpoints at low volume, and exercised the complete stack locally
+with accounts created for it.
+
+**It found one release-blocking issue, and it was a dependency rather than
+this project's code**: `next@16.3.3` carried three critical and two high
+published advisories. Patched to `16.4.6` - a patch bump - merged as `#120`
+and serving the same day, after which the audits reported zero critical and
+zero high.
+
+What it established, by testing rather than by reading:
+
+- **nineteen cross-account authorization probes, every one refused
+  server-side**, and with 404 rather than 403, so the API does not confirm
+  that another person's shortlist exists;
+- **escaping intact end to end** - a stored `<img src=x onerror=…>` reaches
+  the rendered page as `&lt;img …`;
+- **no credential in the repository or in any commit of its history**, and
+  nothing privileged in the browser bundle;
+- `/docs` disabled in production, exact-origin CORS, clean error envelopes,
+  and no SSRF surface in any request handler.
+
+Two things it found were fixed the same day and have their own sections below:
+the sign-in throttle (`#119`) and the deploy that now migrates before it
+serves (`#121`). A third - that nothing could erase its own account - became
+`#122`.
+
+**The full report is not in this repository, by decision.** A detailed review
+dates badly: six months from now it would still say "zero critical" about
+dependencies that have moved on, and be read as the current state. It is held
+by the owner. What belongs here is this paragraph: that the question was
+asked, on this date, and what the answer was.
+
+**What would make this paragraph wrong:** any dependency audit after this date
+disagreeing with it, which is the expected case rather than a surprise - it
+describes 10 November and nothing after.
+
 ## What is serving right now
 
 `GET https://fri-backend.onrender.com/health`, read 10 November at 14:46 UTC,
