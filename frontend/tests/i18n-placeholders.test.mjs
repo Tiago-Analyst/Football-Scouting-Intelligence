@@ -153,9 +153,14 @@ function samples(locale) {
     transfers: 9800,
     valuations: 24100,
     valued: 5300,
-    seasons: 14677,
-    competitions: 43,
-    excluded: 8830,
+    // One row per player, and `excluded` below counts player-seasons. They
+    // were both called "seasons" until the sum of the two was read as the
+    // whole universe - see `docs/current_state.md`.
+    players: 15021,
+    competitions: 44,
+    excluded: 9432,
+    superseded: 4751,
+    player_seasons: 29204,
     derived_count: 12,
     role_count: 18,
     score_count: 9,
