@@ -4,9 +4,11 @@
 release-candidate QA pass, **again on 9 November at 15:45** with the three
 P2 fixes and one finding that outranks all of them, **a third time at 17:45**
 when acting on that finding took production down twice and turned up the
-defect underneath it, **and a fourth at 19:30**, after which the live figures
-in the next section are the pipeline's own rather than a restart's. Rows
-re-read at a later time say so. Every number below was read from a live source
+defect underneath it, **a fourth at 19:30**, after which the live figures in
+the next section are the pipeline's own rather than a restart's, **and a fifth
+on 10 November at 14:45**, when the one open question those figures left was
+answered by measurement and turned out to be about this file rather than about
+the data. Rows re-read at a later time say so. Every number below was read from a live source
 at one of those moments — the production health endpoint, the public
 data-quality endpoint, the production search endpoint, the GitHub Actions API,
 `git ls-remote`, the test suite, and a browser pointed at the deployed site —
@@ -63,27 +65,62 @@ project has, somebody should operate once, on purpose, while watching.**
 The day's work, for a reader who wants the ledger rather than the story:
 `#111` fixed the reload, `#112` and `#113` brought this file and the
 monitoring story up to date, `#114` recorded a decision not to build a monitor
-that would not have helped. The data loop is proven end to end for the first
-time.
+that would not have helped, `#115` re-read the live figures the pipeline now
+sets. The data loop is proven end to end for the first time.
+
+**10 November found an eleventh, and this one was in the reporting rather than
+in the product.** `#115` left an open question: 610 player-seasons appeared
+between two readings and no promotion could be found for them. Nothing had
+arrived. The database total had not moved since 8 November at 22:00, which
+three separate pipeline view builds logged and the promotion itself printed —
+the 610 was a difference taken across a seam between two readings of two
+different datasets, and this file was where the seam was.
+
+It survived a day of snapshots because `/health` reported **two counters in
+different units under one name**, and the term that would have shown the sum
+was short reached a log line and no endpoint at all. So the figures looked
+addable, their sum looked like the universe, and differencing two such sums
+invented arrivals. `#116` named the units and published the third term;
+`#117` did the same for `/api/v1/data-quality` and the public page, where a
+reader could previously see only the first figure.
+
+**The habit that found it was neither of the two above.** Not a browser and
+not a hand-run integration: it was taking a number this file reported and
+asking which single moment it was read at. Three of the four figures in the
+reconciliation block had been labelled un-re-readable, and all three were
+readable from a pipeline log or a published endpoint. **A figure that cannot
+be re-read is a figure that cannot be checked, and this file had four of them
+standing in one sum.**
 
 ## What is serving right now
 
-`GET https://fri-backend.onrender.com/health`:
+`GET https://fri-backend.onrender.com/health`, read 10 November at 14:46 UTC,
+and every figure in this table is now the endpoint's own sentence rather than
+partly this file's arithmetic:
 
 | | |
 | --- | --- |
 | status | `ok`, `app_mode=production` |
 | schema revision | `0015_quality_detail_message` |
 | PostgreSQL | `ok` |
-| analytics | **15,021** players across **44** competitions, built 9 Nov **17:40:07** UTC |
+| analytics | **15,021** players across **44** competitions, built 10 Nov **14:10:24** UTC |
 | excluded | 9,432 player-seasons, for having no position group |
-| superseded | 4,751 player-seasons — derived here, and published by the endpoint itself from the next deploy |
+| superseded | 4,751 player-seasons — a player's other seasons |
+| in the database | **29,204** player-seasons, the three above summed |
 | FootyStats metrics | 36 of 39 canonical metrics usable — 34 native, 2 derived, 3 unavailable |
 
 `is_stale` is false. The site answers 200 in both locales.
 
-**That build timestamp is the first one in this project's history that a
-pipeline put there.** Every previous figure in this section moved when the
+**The data has not moved since 8 November at 22:00** — three of those four
+figures are what the FootyStats promotion left, and the two Transfermarkt
+promotions of 9 November changed them by five, six and one. The section below
+is the measurement.
+
+**The build timestamp is a restart again, and this one is honest about it:**
+14:10:24 is the backend deploy of `#116`. The pipeline's own 17:40:07 on
+9 November was the first timestamp in this project's history that a load put
+there, which is the next section, and it stands as a dated fact rather than as
+a property of this row. Every previous figure in this section moved when the
 backend restarted; 17:40:07 is the second the reload call completed, 26.3
 seconds after the pipeline made it. The sentence this table used to carry —
 "this figure moves when the backend restarts, not when the pipeline loads" —
@@ -98,9 +135,13 @@ read at              served   excluded   superseded   in the database
 8 Nov 22:00:37       15,016      9,438        4,750       29,204
 9 Nov 16:59:33       15,021      9,432        4,751       29,204
 9 Nov 17:39:32       15,021      9,432        4,751       29,204
-now, from /health + /api/v1/data-quality
-                     15,021      9,432       (4,751)      29,204
+10 Nov 14:46         15,021      9,432        4,751       29,204   /health, one sentence
 ```
+
+The last row needed two endpoints and a subtraction when this was written, and
+needs neither now: `#116` published the third term and the total beside the
+other two. It is the same four figures the pipeline logs, read from the
+product rather than from its logs.
 
 The first row is the FootyStats promotion's own build
 (`players_excluded_without_position count=9438 of=29204`, run `42524803893`);
@@ -229,8 +270,25 @@ arithmetic with a term missing would be worse than the gap it replaces.
 
 **Production says the `/health` sentence as of 10 November 14:10:24 UTC** —
 confirmed by reading it, and it gave 4,751 superseded and 29,204 in the
-database, the figures this file had derived. The data-quality half reaches
-production on the next backend deploy.
+database, the figures this file had derived. The derivation stopped being a
+derivation at that moment.
+
+**And the data-quality half is serving too, as of 14:47:31.** `#117` landed at
+14:43 and the deploy was watched rather than assumed:
+
+```
+14:45:00  502                                            restarting
+14:46:02  502
+14:46:32  200, old shape: excluded None, superseded None  the #116 build
+14:47:31  200, excluded 9,432, superseded 4,751, total 29,204
+```
+
+The last row's total equals `volumes.player_seasons` in the same response, so
+the endpoint closes its own arithmetic in production and not only in a test.
+**The window at 14:46:32 is the one the page's guard exists for**: a frontend
+already carrying the row, served by a backend that had not yet deployed it.
+It lasted about a minute, which is how long such a window always is and why a
+row that renders half of an arithmetic was not worth the risk.
 
 ## The pre-release correction pass
 
@@ -1279,19 +1337,30 @@ was real; the arithmetic that first reached for it was not.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at 4ebec15 when this was read
+GitHub:     main only, at 64b111f when this was read (10 Nov 17:05)
 Local:      main, in sync
 Worktrees:  1
-Untracked:  4 audit artefacts in the repository root
+Untracked:  SECURITY_REPORT.md
 ```
 
-**"Working tree clean" is what this block said, and it was not.** Sitting in
-the root, untracked and un-ignored: `auditoria_producao_2026-11-08{,.zip}` and
-`qa_final_2026-11-08{,.zip}` — the audit bundles and their screenshots,
-produced on 8 November and never tidied. They are untracked, so nothing can
-have committed them by accident, and `.gitignore` does not mention them, so
-nothing stops the next `git add -A` either. Worth a decision: ignore them, or
-move them out of the repository.
+**"Working tree clean" is what this block said, and it was not.** Four audit
+bundles sat in the root, untracked and un-ignored — `auditoria_producao_*` and
+`qa_final_*`, 36 MB of production captures produced on 8 November and never
+tidied. `.gitignore` excluded captures by shape, `/prints[-_]*` and
+`/capturas[-_]*`, and neither pattern reaches those two names.
+
+**Closed 10 November, and by being looked at rather than by being found.** The
+editor was showing a "+2,545" badge with a *create PR* button beside it, which
+is what the un-ignored state looks like from the other end: one click away from
+publishing real players' names to a public repository. The two unpacked folders
+were deleted after verifying byte-for-byte that each zip holds every one of its
+files — 41 and 18, none missing — so the evidence `docs/current_state.md` cites
+still exists. The zips stay, now ignored by shape (`/auditoria[-_]*`,
+`/qa[-_]*`), because the next bundle will have a third name.
+
+What remains untracked is this review's own `SECURITY_REPORT.md`, deliberately:
+publishing a security report to a public repository is the owner's decision to
+make, not a side effect of tidying.
 
 **That sha is the tip this snapshot was read at, and not the current one.** The
 commit that files any correction to this file moves `main` past it, so the
@@ -1365,8 +1434,19 @@ Any of these, and it should be re-read against its sources rather than trusted:
   with 30,424 players across 45 competitions, and the figures were replaced on
   9 November at 19:21. The generation to watch now is **`20261109T124935Z`**,
   opened 9 Nov 12:49 and in flight, which does the same thing again
-- **the audit artefacts in the repository root are committed by anybody.**
-  Four untracked, un-ignored bundles; see "The repository"
+- **a figure in this file cannot be traced to one moment and one source.**
+  The reconciliation block held four figures from two different days with two
+  of them labelled un-re-readable, and the difference across that seam was
+  reported as 610 arriving player-seasons. All four were readable — three from
+  a pipeline log, the fourth from a published endpoint. A figure that cannot be
+  re-read cannot be checked, and a sum of such figures will eventually be
+  differenced against another one
+- **two figures are added in this file and their units are not stated beside
+  them.** That is what the 610 was: served players plus excluded
+  player-seasons, two units under one name, short by a third term nothing
+  published. The endpoints say the units now; this file is the other place the
+  mistake can be made
+- ~~**the audit artefacts in the repository root are committed by anybody.**~~ — **closed 10 November.** The two unpacked folders are gone, the two archives stay and are ignored by shape. The trigger is kept rather than deleted because it was right: the editor was offering to commit them
 - **the heartbeat fails and no backend deploy has happened since.** It failed
   four times between 8 Nov 22:41 and 9 Nov 11:02, truthfully each time, and
   the cause was the unplugged loop. **The loop is closed and demonstrated as
