@@ -120,3 +120,11 @@ docs/identity_resolution*.csv
 # was not covered by the rule written for exactly this.
 /prints[-_]*
 /capturas[-_]*
+# And the lesson had to be learnt twice. The 8 November bundles are the same
+# thing under two more names - `auditoria_producao_*` and `qa_final_*` - and
+# neither pattern above reaches them, so 36 MB of production captures sat
+# untracked in the root for two days with the editor offering a commit button
+# beside them. Covered by shape too, because the next one will have a third
+# name.
+/auditoria[-_]*
+/qa[-_]*

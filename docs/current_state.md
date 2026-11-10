@@ -1337,19 +1337,30 @@ was real; the arithmetic that first reached for it was not.
 Public since 27 October 2026 — see `docs/publication_clearance.md`.
 
 ```
-GitHub:     main only, at 2f33947 when this was read (10 Nov 14:47)
+GitHub:     main only, at 64b111f when this was read (10 Nov 17:05)
 Local:      main, in sync
 Worktrees:  1
-Untracked:  4 audit artefacts in the repository root
+Untracked:  SECURITY_REPORT.md
 ```
 
-**"Working tree clean" is what this block said, and it was not.** Sitting in
-the root, untracked and un-ignored: `auditoria_producao_2026-11-08{,.zip}` and
-`qa_final_2026-11-08{,.zip}` — the audit bundles and their screenshots,
-produced on 8 November and never tidied. They are untracked, so nothing can
-have committed them by accident, and `.gitignore` does not mention them, so
-nothing stops the next `git add -A` either. Worth a decision: ignore them, or
-move them out of the repository.
+**"Working tree clean" is what this block said, and it was not.** Four audit
+bundles sat in the root, untracked and un-ignored — `auditoria_producao_*` and
+`qa_final_*`, 36 MB of production captures produced on 8 November and never
+tidied. `.gitignore` excluded captures by shape, `/prints[-_]*` and
+`/capturas[-_]*`, and neither pattern reaches those two names.
+
+**Closed 10 November, and by being looked at rather than by being found.** The
+editor was showing a "+2,545" badge with a *create PR* button beside it, which
+is what the un-ignored state looks like from the other end: one click away from
+publishing real players' names to a public repository. The two unpacked folders
+were deleted after verifying byte-for-byte that each zip holds every one of its
+files — 41 and 18, none missing — so the evidence `docs/current_state.md` cites
+still exists. The zips stay, now ignored by shape (`/auditoria[-_]*`,
+`/qa[-_]*`), because the next bundle will have a third name.
+
+What remains untracked is this review's own `SECURITY_REPORT.md`, deliberately:
+publishing a security report to a public repository is the owner's decision to
+make, not a side effect of tidying.
 
 **That sha is the tip this snapshot was read at, and not the current one.** The
 commit that files any correction to this file moves `main` past it, so the
@@ -1435,8 +1446,7 @@ Any of these, and it should be re-read against its sources rather than trusted:
   player-seasons, two units under one name, short by a third term nothing
   published. The endpoints say the units now; this file is the other place the
   mistake can be made
-- **the audit artefacts in the repository root are committed by anybody.**
-  Four untracked, un-ignored bundles; see "The repository"
+- ~~**the audit artefacts in the repository root are committed by anybody.**~~ — **closed 10 November.** The two unpacked folders are gone, the two archives stay and are ignored by shape. The trigger is kept rather than deleted because it was right: the editor was offering to commit them
 - **the heartbeat fails and no backend deploy has happened since.** It failed
   four times between 8 Nov 22:41 and 9 Nov 11:02, truthfully each time, and
   the cause was the unplugged loop. **The loop is closed and demonstrated as
