@@ -8,6 +8,12 @@ the deployment is not local http.
 Public reading stays public (spec section 19): browsing, search, profiles and
 similarity need no account. Only the things that belong to a person — shortlists,
 notes, saved searches — require one.
+
+Sign-in is throttled per address, which is the one defence the rest of the
+authentication code could not provide: hashing, a generic message and timing
+equalisation all make a single guess costly and uninformative, and none of them
+limit how many arrive. See `login_retry_after` for what it counts and what it
+deliberately does not.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import SessionDep, SettingsDep
 from app.core.config import Settings
 from app.core.errors import AuthFailureError
+from app.core.logging import get_logger
 from app.models.accounts import UserAccount
 from app.services.auth_service import (
     MAX_PASSWORD_LENGTH,
@@ -33,12 +40,17 @@ from app.services.auth_service import (
     WeakPassword,
     authenticate,
     change_password,
+    clear_failed_logins,
     create_session,
+    login_retry_after,
+    record_failed_login,
     register_user,
     resolve_session,
     revoke_all_sessions,
     revoke_session,
 )
+
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -188,12 +200,49 @@ def register(
 def login(
     request: LoginRequest, response: Response, db: SessionDep, settings: SettingsDep
 ) -> UserOut:
-    """Sign in. Every failure gives the same answer."""
+    """Sign in. Every failure gives the same answer, and they are counted.
+
+    The order here is load-bearing. The wait is checked BEFORE the password is
+    verified, because a throttle that still does the work it is meant to be
+    rationing is not a throttle - Argon2 is deliberately expensive, and sixty
+    refused guesses a minute would cost sixty hashes a minute all the same.
+
+    A refusal for waiting and a refusal for a wrong password are different
+    answers, and that is deliberate too: the wait has to be reported, or the
+    caller cannot know to come back. It tells an attacker only that an address
+    has been tried recently - which they know, having tried it - and never
+    whether it exists, because an unregistered address is counted and refused
+    exactly the same way.
+    """
+    retry_after = login_retry_after(db, request.email)
+    if retry_after:
+        # Not recorded as a failure. A refusal that counted itself would let
+        # anybody hold somebody else's address at the ceiling indefinitely by
+        # submitting wrong passwords in a loop, which is the denial of service
+        # the ceiling exists to avoid. The wait is measured from the last real
+        # failure and runs down whether or not anyone keeps knocking.
+        log.warning("login_throttled", retry_after=retry_after, path="/api/v1/auth/login")
+        raise AuthFailureError(
+            "Too many sign-in attempts. Try again shortly.",
+            code="auth_too_many_attempts",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
+
     try:
         user = authenticate(db, email=request.email, password=request.password)
     except InvalidCredentials as exc:
+        # Committed, because the request session is closed without one and the
+        # count would otherwise be rolled back with the failure that caused it
+        # - which is the whole of what this endpoint has to remember.
+        record_failed_login(db, request.email)
+        db.commit()
         raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
 
+    # Only consecutive failures accumulate: somebody who mistypes six times and
+    # then succeeds starts from zero, rather than meeting a wait tomorrow.
+    clear_failed_logins(db, request.email)
     issued = create_session(db, user)
     db.commit()
     set_session_cookie(response, issued.token, settings)

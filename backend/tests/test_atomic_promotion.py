@@ -68,6 +68,11 @@ OPERATIONAL = {
     "shortlist_entry",
     "user_account",
     "user_session",
+    # The sign-in throttle's count. Operational for the same reason the
+    # sessions are: it belongs to people rather than to a dataset, and a
+    # promotion swapping it away would hand an attacker a cleared counter
+    # every time the pipeline published.
+    "login_attempt",
 }
 
 

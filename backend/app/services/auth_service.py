@@ -14,6 +14,9 @@ Several behaviours below look like small details and are the whole point:
   answers to an attacker.
 - **The session token is returned exactly once.** Only its hash is stored, so it
   cannot be recovered afterwards - by us or by anyone reading the table.
+- **Guesses are rate-limited per address.** Everything above makes one guess
+  expensive and uninformative; none of it limits how many arrive. See
+  `login_retry_after`.
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.models.accounts import UserAccount, UserSession
+from app.models.accounts import LoginAttempt, UserAccount, UserSession
 
 log = get_logger(__name__)
 
@@ -62,6 +65,27 @@ MAX_PASSWORD_LENGTH = 512
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 GENERIC_SIGNIN_ERROR = "Email or password is incorrect."
+
+#: Failed sign-ins older than this are not counted and may be deleted.
+FAILED_LOGIN_WINDOW = timedelta(minutes=15)
+
+#: Failures allowed in that window before any wait is imposed. A person
+#: mistyping a password they do know should never meet this.
+FREE_LOGIN_ATTEMPTS = 5
+
+#: The wait imposed before the next attempt, by how far past the free ones the
+#: caller is: the 6th failure buys 5 seconds, the 7th fifteen, then a minute,
+#: then two - and two is the ceiling.
+#:
+#: WHY THERE IS A CEILING, AND WHY IT IS LOW
+#:
+#: Anyone can submit a wrong password for somebody else's address, so a
+#: throttle keyed on the address is also a way to make that person wait. A
+#: lockout would make it a way to deny them their account entirely, which
+#: trades a brute-force risk for a denial-of-service one. Two minutes keeps
+#: the owner's worst case short while still cutting an attacker from thousands
+#: of guesses an hour to about thirty.
+LOGIN_BACKOFF_SECONDS = (5, 15, 60, 120)
 
 
 class AuthError(Exception):
@@ -229,6 +253,93 @@ def authenticate(session: Session, *, email: str, password: str) -> UserAccount:
     user.last_login_at = datetime.now(UTC)
     session.flush()
     return user
+
+
+def hash_email(email: str) -> str:
+    """SHA-256 of a normalised address, for the throttle's bookkeeping.
+
+    The attempt table needs equality and nothing else, and storing addresses
+    would accumulate a list of real ones - see `LoginAttempt`.
+    """
+    return hashlib.sha256(normalise_email(email).encode("utf-8")).hexdigest()
+
+
+def login_retry_after(session: Session, email: str) -> int:
+    """Seconds the caller must wait before this address may be tried again.
+
+    Zero means go ahead. A positive number is a wait, not a lockout: it always
+    expires, and every success clears the count behind it.
+
+    Counted per address and not per account, so an address nobody has
+    registered is throttled exactly like one that exists. Slowing down only
+    real accounts would turn this into the account oracle that
+    `GENERIC_SIGNIN_ERROR` and the dummy-hash verification exist to prevent.
+
+    WHAT THIS DOES NOT COVER
+
+    One password tried against many addresses. Each address keeps its own
+    count, so spraying never meets this at all; the only brake on that is the
+    process-wide limiter, which cannot tell callers apart. Stopping it needs a
+    per-caller count, and the caller's address is not visible to this service -
+    see `app.core.middleware.RateLimitMiddleware`.
+    """
+    since = datetime.now(UTC) - FAILED_LOGIN_WINDOW
+    key = hash_email(email)
+
+    recent = session.scalars(
+        select(LoginAttempt)
+        .where(LoginAttempt.email_hash == key, LoginAttempt.occurred_at > since)
+        .order_by(LoginAttempt.occurred_at.desc())
+    ).all()
+
+    if len(recent) <= FREE_LOGIN_ATTEMPTS:
+        return 0
+
+    step = min(len(recent) - FREE_LOGIN_ATTEMPTS - 1, len(LOGIN_BACKOFF_SECONDS) - 1)
+    required = timedelta(seconds=LOGIN_BACKOFF_SECONDS[step])
+    waited = datetime.now(UTC) - recent[0].occurred_at
+    if waited >= required:
+        return 0
+    # Rounded up, so a reported wait of 1 second is never a wait of 0.4 that
+    # the next attempt still refuses.
+    return max(1, -(-int((required - waited).total_seconds() * 1000) // 1000))
+
+
+def record_failed_login(session: Session, email: str) -> None:
+    """Count one failed attempt against an address."""
+    session.add(LoginAttempt(email_hash=hash_email(email), occurred_at=datetime.now(UTC)))
+    session.flush()
+
+
+def clear_failed_logins(session: Session, email: str) -> int:
+    """Forget an address's failures. Called on every successful sign-in.
+
+    So the wait can only ever be reached by consecutive failures, and somebody
+    who mistypes a password six times and then gets it right starts from zero.
+    """
+    records = session.scalars(
+        select(LoginAttempt).where(LoginAttempt.email_hash == hash_email(email))
+    ).all()
+    for record in records:
+        session.delete(record)
+    session.flush()
+    return len(records)
+
+
+def purge_login_attempts(session: Session) -> int:
+    """Delete failures too old to count. Nothing reads them after the window.
+
+    Not load-bearing, and nothing calls it yet - exactly as nothing calls
+    `purge_expired_sessions`. `login_retry_after` reads only the last window,
+    so an unpurged row is ignored rather than wrong; the rows accumulate until
+    something runs this, and that something does not exist.
+    """
+    cutoff = datetime.now(UTC) - FAILED_LOGIN_WINDOW
+    records = session.scalars(select(LoginAttempt).where(LoginAttempt.occurred_at <= cutoff)).all()
+    for record in records:
+        session.delete(record)
+    session.flush()
+    return len(records)
 
 
 def change_password(

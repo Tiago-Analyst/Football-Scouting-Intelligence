@@ -100,3 +100,51 @@ class UserSession(Base):
         Index("ix_user_session_user", "user_id"),
         Index("ix_user_session_expiry", "expires_at"),
     )
+
+
+class LoginAttempt(Base):
+    """One failed sign-in, kept only long enough to slow the next one down.
+
+    WHY THIS TABLE EXISTS
+
+    Password hashing, generic errors and timing equalisation all make a single
+    guess expensive and uninformative. None of them limit how MANY guesses
+    arrive. The rate limiter in `app.core.middleware` cannot: it keys on the
+    peer of the TCP connection, which in production is the frontend's platform,
+    so it is one bucket for every visitor rather than a per-caller brake.
+
+    WHY THE EMAIL IS STORED AS A HASH
+
+    The throttle needs equality and nothing else. Storing the address itself
+    would accumulate a list of real email addresses - most of them belonging to
+    people with no account here, since a failed attempt is often a typo or
+    somebody else's address - for no gain. SHA-256 is the right hash for the
+    same reason it is right for session tokens two classes up: there is no
+    low-entropy secret here to slow an attacker down against, and the value is
+    never shown to anybody.
+
+    WHY FAILURES ARE RECORDED FOR ADDRESSES THAT DO NOT EXIST
+
+    Recording only real accounts would make the throttle itself an account
+    oracle: an attacker would learn that an address exists from being slowed
+    down. Every failure is recorded, whoever it was for.
+    """
+
+    __tablename__ = "login_attempt"
+
+    attempt_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+
+    #: SHA-256 of the normalised email the attempt was made against. Not a
+    #: foreign key: most of these name no account, which is the point above.
+    email_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        # The throttle's only query: this address, since a moment. Ordered so
+        # the window scan is an index range rather than a filter over every
+        # failure ever recorded.
+        Index("ix_login_attempt_email_time", "email_hash", "occurred_at"),
+    )

@@ -380,12 +380,46 @@ test("every auth refusal the actions can return has copy on both sides", () => {
   ]) {
     codes.add(code);
   }
-  assert.ok(codes.size >= 10, `expected the auth codes, found ${codes.size}`);
+  // And the ones the router raises itself rather than re-raising from the
+  // service, which the list above cannot keep up with by hand: the sign-in
+  // throttle's refusal is raised at the endpoint, so neither this list nor
+  // the service scan below would have seen it.
+  const router = readFileSync(
+    fileURLToPath(new URL("../../backend/app/api/v1/auth.py", import.meta.url)),
+    "utf8",
+  );
+  const atEndpoint = [...router.matchAll(/code="(auth_[a-z_]+)"/g)].map((m) => m[1]);
+  assert.ok(atEndpoint.length >= 1, "found no codes raised in the auth router");
+  for (const code of atEndpoint) codes.add(code);
+
+  assert.ok(codes.size >= 11, `expected the auth codes, found ${codes.size}`);
 
   for (const locale of ["en", "pt"]) {
     const errors = JSON.parse(readFileSync(path.join(DICT, locale, "auth.json"), "utf8")).errors;
     const missing = [...codes].filter((code) => !errors[code]);
     assert.deepEqual(missing, [], `${locale} has no copy for: ${missing.join(", ")}`);
+  }
+});
+
+test("the throttle's wait reaches the reader in both languages", () => {
+  // The refusal carries the seconds left, and a sentence without the
+  // placeholder would tell somebody to come back without saying when. The
+  // action passes `retry_after` through as `seconds`; these two have to agree
+  // about the name.
+  const actions = readFileSync(
+    fileURLToPath(new URL("../src/app/actions/auth.ts", import.meta.url)),
+    "utf8",
+  );
+  assert.match(actions, /values\.seconds = retryAfter/);
+
+  for (const locale of ["en", "pt"]) {
+    const errors = JSON.parse(readFileSync(path.join(DICT, locale, "auth.json"), "utf8")).errors;
+    const sentence = errors.auth_too_many_attempts;
+    assert.ok(sentence, `${locale} has no copy for auth_too_many_attempts`);
+    assert.ok(
+      sentence.includes("{seconds}"),
+      `${locale} does not say when to come back: ${sentence}`,
+    );
   }
 });
 

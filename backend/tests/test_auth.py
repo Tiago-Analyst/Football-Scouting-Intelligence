@@ -14,9 +14,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.accounts import UserAccount, UserSession
+from app.models.accounts import LoginAttempt, UserAccount, UserSession
 from app.services.auth_service import (
+    FAILED_LOGIN_WINDOW,
+    FREE_LOGIN_ATTEMPTS,
     GENERIC_SIGNIN_ERROR,
+    LOGIN_BACKOFF_SECONDS,
     MIN_PASSWORD_LENGTH,
     SESSION_IDLE_TIMEOUT,
     EmailAlreadyRegistered,
@@ -25,11 +28,16 @@ from app.services.auth_service import (
     WeakPassword,
     authenticate,
     change_password,
+    clear_failed_logins,
     create_session,
+    hash_email,
     hash_password,
     hash_token,
+    login_retry_after,
     normalise_email,
     purge_expired_sessions,
+    purge_login_attempts,
+    record_failed_login,
     register_user,
     resolve_session,
     revoke_all_sessions,
@@ -319,6 +327,133 @@ def api(client: TestClient) -> TestClient:
     return client
 
 
+class TestTheGuessThrottle:
+    """How many guesses arrive, which nothing else here limited.
+
+    Argon2, one generic message and a dummy-hash verification make a single
+    guess expensive and uninformative. None of them is a limit. The only limit
+    the service had was `RateLimitMiddleware`, which keys on the peer of the
+    TCP connection - the frontend's platform in production - and is therefore
+    one bucket for every visitor rather than a per-caller brake.
+    """
+
+    @staticmethod
+    def _email() -> str:
+        import secrets
+
+        return f"throttle-{secrets.token_hex(6)}@example.test"
+
+    def _fail(self, session: Session, email: str, times: int) -> None:
+        for _ in range(times):
+            record_failed_login(session, email)
+
+    def _attempts(self, session: Session, email: str) -> list[LoginAttempt]:
+        return list(
+            session.scalars(
+                select(LoginAttempt).where(LoginAttempt.email_hash == hash_email(email))
+            ).all()
+        )
+
+    def test_an_address_with_no_history_is_not_throttled(self, db_session: Session) -> None:
+        assert login_retry_after(db_session, self._email()) == 0
+
+    def test_the_free_attempts_are_free(self, db_session: Session) -> None:
+        """A person mistyping a password they do know must not meet this."""
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS)
+        assert login_retry_after(db_session, email) == 0
+
+    def test_one_more_than_free_buys_a_wait(self, db_session: Session) -> None:
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 1)
+        wait = login_retry_after(db_session, email)
+        assert 0 < wait <= LOGIN_BACKOFF_SECONDS[0]
+
+    def test_the_wait_grows_with_the_failures(self, db_session: Session) -> None:
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 1)
+        first = login_retry_after(db_session, email)
+        self._fail(db_session, email, 1)
+        assert login_retry_after(db_session, email) > first
+
+    def test_the_wait_is_capped(self, db_session: Session) -> None:
+        """A wait that grows without bound is a lockout, and a lockout on an
+        address anybody may submit is a way to deny somebody their own
+        account."""
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 50)
+        assert login_retry_after(db_session, email) <= LOGIN_BACKOFF_SECONDS[-1]
+
+    def test_a_wait_expires_on_its_own(self, db_session: Session) -> None:
+        """The difference between a throttle and a lockout, asserted."""
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 2)
+        assert login_retry_after(db_session, email) > 0
+
+        for attempt in self._attempts(db_session, email):
+            attempt.occurred_at -= timedelta(seconds=LOGIN_BACKOFF_SECONDS[-1] + 1)
+        db_session.flush()
+
+        assert login_retry_after(db_session, email) == 0
+
+    def test_failures_outside_the_window_are_not_counted(self, db_session: Session) -> None:
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 10)
+        for attempt in self._attempts(db_session, email):
+            attempt.occurred_at -= FAILED_LOGIN_WINDOW + timedelta(seconds=1)
+        db_session.flush()
+        assert login_retry_after(db_session, email) == 0
+
+    def test_an_unregistered_address_is_throttled_identically(self, db_session: Session) -> None:
+        """Otherwise the throttle is the account oracle that the generic
+        message and the dummy-hash verification exist to prevent: being slowed
+        down would tell an attacker the address is real."""
+        registered = self._email()
+        make_user(db_session, email=registered)
+        stranger = self._email()
+
+        self._fail(db_session, registered, FREE_LOGIN_ATTEMPTS + 1)
+        self._fail(db_session, stranger, FREE_LOGIN_ATTEMPTS + 1)
+
+        assert login_retry_after(db_session, stranger) == login_retry_after(db_session, registered)
+
+    def test_a_success_clears_the_count(self, db_session: Session) -> None:
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 3)
+        assert login_retry_after(db_session, email) > 0
+        assert clear_failed_logins(db_session, email) == FREE_LOGIN_ATTEMPTS + 3
+        assert login_retry_after(db_session, email) == 0
+
+    def test_the_address_itself_is_never_stored(self, db_session: Session) -> None:
+        """The table would otherwise accumulate real email addresses, most of
+        them belonging to people with no account here."""
+        email = self._email()
+        self._fail(db_session, email, 1)
+        rows = self._attempts(db_session, email)
+        assert len(rows) == 1
+        assert email not in rows[0].email_hash
+        assert email.split("@")[0] not in rows[0].email_hash
+
+    def test_the_count_is_not_held_in_the_process(self, db_session: Session) -> None:
+        """In-process state resets on deploy and multiplies by worker, which is
+        the limitation the existing rate limiter carries. A count an attacker
+        can clear by waiting for a deploy is not a count."""
+        email = self._email()
+        self._fail(db_session, email, FREE_LOGIN_ATTEMPTS + 1)
+        db_session.expire_all()
+        assert login_retry_after(db_session, email) > 0
+
+    def test_old_failures_are_purged(self, db_session: Session) -> None:
+        email = self._email()
+        self._fail(db_session, email, 3)
+        for attempt in self._attempts(db_session, email):
+            attempt.occurred_at -= FAILED_LOGIN_WINDOW + timedelta(minutes=1)
+        db_session.flush()
+
+        assert purge_login_attempts(db_session) >= 3
+        assert self._attempts(db_session, email) == []
+
+
 class TestAuthEndpoints:
     @staticmethod
     def _email() -> str:
@@ -388,6 +523,127 @@ class TestAuthEndpoints:
         )
         assert wrong.status_code == unknown.status_code == 401
         assert wrong.json()["error"]["message"] == unknown.json()["error"]["message"]
+
+    def test_repeated_wrong_passwords_are_eventually_refused_with_a_wait(
+        self, api: TestClient
+    ) -> None:
+        """The guess limit, from outside.
+
+        Everything else about this endpoint makes one guess costly and
+        uninformative. This is the part that makes the thousandth guess
+        impossible, and it has to be visible from the wire: a refusal with no
+        `Retry-After` leaves an ordinary client with nothing to wait for.
+        """
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+        api.post("/api/v1/auth/logout")
+
+        wrong = {"email": email, "password": "not the right password"}
+        for _ in range(FREE_LOGIN_ATTEMPTS + 1):
+            assert api.post("/api/v1/auth/login", json=wrong).status_code == 401
+
+        refused = api.post("/api/v1/auth/login", json=wrong)
+        assert refused.status_code == 429
+        assert refused.json()["error"]["code"] == "auth_too_many_attempts"
+        assert int(refused.headers["retry-after"]) > 0
+        assert refused.json()["error"]["details"]["retry_after"] > 0
+
+    def test_a_throttled_attempt_is_refused_without_checking_the_password(
+        self, api: TestClient
+    ) -> None:
+        """The correct password is refused too, and that is the design.
+
+        A throttle that still verifies is not rationing anything: Argon2 is
+        deliberately expensive, and the hashes would go on being computed at
+        whatever rate the guesses arrive. The cost is that somebody else's
+        failed attempts can make the owner wait, which is why the wait is
+        capped at two minutes and cleared by any success.
+        """
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+        api.post("/api/v1/auth/logout")
+
+        wrong = {"email": email, "password": "not the right password"}
+        for _ in range(FREE_LOGIN_ATTEMPTS + 1):
+            api.post("/api/v1/auth/login", json=wrong)
+
+        right = api.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
+        assert right.status_code == 429
+        assert api.get("/api/v1/auth/me").status_code == 401
+
+    def test_the_wait_says_nothing_about_whether_the_address_exists(self, api: TestClient) -> None:
+        """A registered address and a stranger are refused identically.
+
+        The 429 differs from the 401 - it must, or the caller cannot know to
+        come back - and it tells an attacker only that this address has been
+        tried lately, which they know, having tried it.
+        """
+        wrong = "not the right password"
+        registered = self._email()
+        api.post("/api/v1/auth/register", json={"email": registered, "password": PASSWORD})
+        api.post("/api/v1/auth/logout")
+        stranger = self._email()
+
+        for email in (registered, stranger):
+            for _ in range(FREE_LOGIN_ATTEMPTS + 1):
+                api.post("/api/v1/auth/login", json={"email": email, "password": wrong})
+
+        first = api.post("/api/v1/auth/login", json={"email": registered, "password": wrong})
+        second = api.post("/api/v1/auth/login", json={"email": stranger, "password": wrong})
+        assert first.status_code == second.status_code == 429
+        assert first.json()["error"]["code"] == second.json()["error"]["code"]
+        assert first.json()["error"]["message"] == second.json()["error"]["message"]
+
+    def test_a_refused_attempt_does_not_deepen_the_wait(self, api: TestClient) -> None:
+        """Hammering a throttled address must not hold its owner out.
+
+        A refusal is not recorded as a failure, so the count stops growing the
+        moment the wait begins. Were it otherwise, anybody could keep somebody
+        else's address at the two-minute ceiling indefinitely by submitting
+        wrong passwords in a loop - which would turn a brute-force defence
+        into the denial of service the ceiling exists to avoid.
+        """
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+        api.post("/api/v1/auth/logout")
+
+        wrong = {"email": email, "password": "not the right password"}
+        for _ in range(FREE_LOGIN_ATTEMPTS + 1):
+            api.post("/api/v1/auth/login", json=wrong)
+
+        first = api.post("/api/v1/auth/login", json=wrong)
+        assert first.status_code == 429
+        for _ in range(10):
+            api.post("/api/v1/auth/login", json=wrong)
+        last = api.post("/api/v1/auth/login", json=wrong)
+
+        assert last.status_code == 429
+        assert (
+            last.json()["error"]["details"]["retry_after"]
+            <= first.json()["error"]["details"]["retry_after"]
+        )
+
+    def test_signing_in_resets_the_count(self, api: TestClient) -> None:
+        """Only consecutive failures accumulate, so a forgetful morning does
+        not become a wait in the afternoon."""
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+        api.post("/api/v1/auth/logout")
+
+        wrong = {"email": email, "password": "not the right password"}
+        for _ in range(FREE_LOGIN_ATTEMPTS):
+            assert api.post("/api/v1/auth/login", json=wrong).status_code == 401
+
+        assert (
+            api.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD}).status_code
+            == 200
+        )
+        api.post("/api/v1/auth/logout")
+
+        # The count is back to zero, so the same number of failures is free
+        # again rather than landing on a wait.
+        for _ in range(FREE_LOGIN_ATTEMPTS):
+            assert api.post("/api/v1/auth/login", json=wrong).status_code == 401
 
     def test_me_requires_a_session(self, api: TestClient) -> None:
         assert api.get("/api/v1/auth/me").status_code == 401
