@@ -1511,6 +1511,10 @@ class DataQualityResponse(BaseModel):
     #: Mean share of played minutes carrying detailed statistics, across every
     #: loaded player-season that has both figures. `None` when unmeasurable.
     average_detailed_coverage_pct: float | None = None
+    #: How many of those player-seasons the provider reported MORE detail-minutes
+    #: than played-minutes for. Each is capped at 100% inside the average above,
+    #: so this is where the excess is still visible.
+    seasons_recording_more_than_played: int = 0
     #: Canonical metrics the configured provider cannot supply at all. Empty in
     #: demo mode, where everything is fabricated.
     unavailable_metrics: list[str] = Field(default_factory=list)

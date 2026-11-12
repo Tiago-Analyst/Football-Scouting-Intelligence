@@ -92,6 +92,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
             for c in svc.identity_coverage_by_competition(db)
         ],
         average_detailed_coverage_pct=svc.average_detailed_coverage(db),
+        seasons_recording_more_than_played=svc.seasons_recording_more_than_played(db),
         unavailable_metrics=svc.unavailable_metrics(settings),
         unavailable_detail=[
             MetricAvailabilityOut(

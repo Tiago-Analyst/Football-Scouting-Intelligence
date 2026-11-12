@@ -644,13 +644,24 @@ def average_detailed_coverage(session: Session) -> float | None:
     Rows without a recorded figure are excluded rather than counted as zero
     coverage: the provider not telling us is not the same as it telling us
     nothing was recorded.
+
+    **Each row is capped at 100 before it is averaged.** The provider sometimes
+    reports more detail-minutes than played-minutes, so the raw ratio can pass
+    100, and the mean of raw ratios did: this page printed 101%. The profile
+    already presents the capped figure (`coverage_display_pct`); the module
+    that defines that cap says the raw value is for data quality to *count*,
+    not to average into a share of something. Those rows are counted instead,
+    by `seasons_recording_more_than_played`, so the cap hides nothing.
     """
     value = session.scalar(
         select(
             func.avg(
-                100.0
-                * FactPlayerSeasonStats.recorded_minutes
-                / func.nullif(FactPlayerSeasonStats.minutes, 0)
+                func.least(
+                    100.0,
+                    100.0
+                    * FactPlayerSeasonStats.recorded_minutes
+                    / func.nullif(FactPlayerSeasonStats.minutes, 0),
+                )
             )
         ).where(
             FactPlayerSeasonStats.recorded_minutes.is_not(None),
@@ -659,6 +670,26 @@ def average_detailed_coverage(session: Session) -> float | None:
         )
     )
     return float(value) if value is not None else None
+
+
+def seasons_recording_more_than_played(session: Session) -> int:
+    """Player-seasons where the provider recorded more detail than was played.
+
+    Not an error here and not corrected: the raw figure is what the provider's
+    own per-90 rates reproduce against. It is counted so that capping each row
+    in `average_detailed_coverage` loses nothing - the average cannot pass 100,
+    and the rows that would have pushed it past are named beside it.
+    """
+    return int(
+        session.scalar(
+            select(func.count()).where(
+                FactPlayerSeasonStats.recorded_minutes.is_not(None),
+                FactPlayerSeasonStats.minutes.is_not(None),
+                FactPlayerSeasonStats.recorded_minutes > FactPlayerSeasonStats.minutes,
+            )
+        )
+        or 0
+    )
 
 
 @dataclass(frozen=True)

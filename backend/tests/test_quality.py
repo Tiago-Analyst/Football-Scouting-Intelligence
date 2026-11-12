@@ -477,6 +477,7 @@ class TestQualityEndpoint:
             "identity",
             "identity_by_competition",
             "average_detailed_coverage_pct",
+            "seasons_recording_more_than_played",
             "unavailable_metrics",
             # The same metrics with the profiling behind each absence, and -
             # separately - the ones the provider has no field for and the
