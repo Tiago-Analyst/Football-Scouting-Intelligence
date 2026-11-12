@@ -211,9 +211,19 @@ async function Report({
           <CardHeader title={q.coverage.title} description={q.coverage.description} />
           <CardBody>
             {report.average_detailed_coverage_pct !== null ? (
-              <p className="text-3xl font-semibold tabular">
-                {Math.round(report.average_detailed_coverage_pct)}%
-              </p>
+              <div>
+                <p className="text-3xl font-semibold tabular">
+                  {Math.round(report.average_detailed_coverage_pct)}%
+                </p>
+                {report.seasons_recording_more_than_played ? (
+                  <p className="mt-2 text-xs text-subtle tabular">
+                    {q.coverage.overPlayed.replace(
+                      "{count}",
+                      f.count(report.seasons_recording_more_than_played),
+                    )}
+                  </p>
+                ) : null}
+              </div>
             ) : (
               <p className="text-sm text-muted">{q.coverage.notMeasurable}</p>
             )}

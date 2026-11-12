@@ -55,7 +55,8 @@
   "coverage": {
     "title": "Cobertura de estatísticas detalhadas",
     "description": "O fornecedor regista eventos detalhados apenas para alguns jogos, e as taxas construídas a partir desses eventos — passe, desarme, remate, npxG, xA — dividem pelos minutos que registou e não por todos os minutos jogados. Golos, assistências e golos sofridos são contadores de topo e dividem pelos minutos jogados. Esta é a proporção média entre as duas contagens em todas as épocas de jogador carregadas que trazem ambas.",
-    "notMeasurable": "Não mensurável: nenhuma época de jogador carregada traz as duas contagens de minutos."
+    "notMeasurable": "Não mensurável: nenhuma época de jogador carregada traz as duas contagens de minutos.",
+    "overPlayed": "Cada época é limitada a 100% antes da média. Em {count} delas o fornecedor registou mais minutos de detalhe do que minutos jogados; contam como 100% e ficam aqui nomeadas em vez de empurrarem a média acima disso."
   },
   "unavailable": {
     "title": "Métricas que o fornecedor não pode fornecer",

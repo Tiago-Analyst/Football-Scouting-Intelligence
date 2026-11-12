@@ -55,7 +55,8 @@
   "coverage": {
     "title": "Detailed statistics coverage",
     "description": "The provider records detailed events for only some matches, and the rates built from those events — passing, tackling, shooting, npxG, xA — divide by the minutes it recorded rather than by all minutes played. Goals, assists and goals conceded are top-level counters and divide by minutes played. This is the mean share between the two counts across every loaded player-season carrying both.",
-    "notMeasurable": "Not measurable: no loaded player-season carries both minute counts."
+    "notMeasurable": "Not measurable: no loaded player-season carries both minute counts.",
+    "overPlayed": "Each season is capped at 100% before averaging. In {count} of them the provider reported more detail-minutes than minutes played; they count as 100%, and are named here rather than averaged past it."
   },
   "unavailable": {
     "title": "Metrics the provider cannot supply",

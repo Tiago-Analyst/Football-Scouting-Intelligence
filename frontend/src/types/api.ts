@@ -1114,6 +1114,7 @@ export interface DataQualityResponse {
   /** The same reconciliation split by competition, thinnest first. */
   identity_by_competition?: CompetitionIdentityCoverage[];
   average_detailed_coverage_pct: number | null;
+  seasons_recording_more_than_played?: number;
   /** What the provider cannot supply at all. Empty in demo mode. */
   unavailable_metrics: string[];
   /** The same metrics with the evidence that established each absence. */
