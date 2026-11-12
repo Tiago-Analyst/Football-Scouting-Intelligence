@@ -128,17 +128,31 @@ dependencies that have moved on, and be read as the current state. It is held
 by the owner. What belongs here is this paragraph: that the question was
 asked, on this date, and what the answer was.
 
-**Both of the review's outstanding actions were closed the same evening.** The
-QA account whose password had been exposed in a chat was deleted by the owner,
-which is the remedy that leaves nothing to rotate. And the `certifi` advisory
-that stood against the backend image: CI resolves **2026.10.23** from this
-project's dependency ranges, against an advisory asking for 2026.10.19 or
-later, and the production image was rebuilt the same day from the same ranges.
+**Both of the review's outstanding actions were closed.** The QA account whose
+password had been exposed in a chat was deleted by the owner, which is the
+remedy that leaves nothing to rotate.
 
-That second one is evidence rather than a reading. The image resolves its own
-dependencies in its own build, and nothing here opened it to look. What is
-known is that the ranges resolve to a fixed version today and that the image
-was built today.
+**The `certifi` advisory took two attempts, and the first one was wrong.** It
+was closed on 10 November with this argument: CI resolves `2026.10.23` from
+this project's ranges, the advisory asks for 2026.10.19 or later, and the
+image had been rebuilt that day from the same ranges. **The argument does not
+hold.** `backend/Dockerfile` installs dependencies from `backend/pyproject.toml`
+alone, deliberately, so that the layer caches across source edits — and that
+file had not changed since **27 August**. The 10 November deploys changed
+`backend/app/**` and `render.yaml`, so a warm build cache would have skipped
+`pip` entirely and kept whatever August resolved, which was the vulnerable
+`2026.7.22` on the machine this was measured from.
+
+So the floor is now written in `backend/pyproject.toml` as
+`certifi>=2026.10.19`. That does two things at once: it fixes the version a
+resolver may choose, and it changes the manifest — the only thing that makes
+the cached layer rebuild.
+
+**Worth keeping as a general caution**, because it generalises past this
+advisory: *"the image was rebuilt" does not mean "the image re-resolved its
+dependencies".* A Dockerfile that caches its install layer on a manifest
+reuses that layer until the manifest changes, so a dependency advisory is
+closed by editing the manifest, never by deploying.
 
 **What would make this paragraph wrong:** any dependency audit after this date
 disagreeing with it, which is the expected case rather than a surprise - it
@@ -1452,7 +1466,7 @@ test fixes this direction and explains it in place.
 | The player profile is 11.2 phone screens | 9,439px at 390px, on the page a scout opens most. Data quality was the worse number and was fixed to 9.3 screens in `#101`; the profile was measured in the same pass and deliberately left, because collapsing a profile's methodology is a bigger decision than collapsing a reference table. Measured 6 November |
 | Players cannot be saved from Search, Similarity or Opportunities | The player profile is the only surface with the control, which the empty state says plainly. A scout scanning a 25-row result has to open each profile. Judged a feature rather than a defect, and left out of the smoke test's narrow scope - recorded so the next reader finds a decision |
 | One provider's value and its own history disagree | A profile can show EUR 200.0m beside "Historical valuation data is not available for this player", both from Transfermarkt. Coverage is genuinely partial - 8 of 20 profiles carry history - and `#101` reworded both empty states to describe availability rather than assert absence. What the copy still does not say is that the two come from the same source. Both panels name Transfermarkt, so a reader can see it; judged not worth a further clause |
-| ~~The QA account password is in a conversation transcript~~ | **Closed 10 November.** The account was deleted by the owner, which is the remedy that leaves nothing to rotate. It had been provisioned for the 8 November smoke test and pasted into the chat that ran it; it owned nothing but its own shortlists. Recorded rather than deleted so a later reader finds the decision. The deletion is the owner's statement — this file did not read it, because the session that would have had no permission to query the database |
+| ~~The QA account password is in a conversation transcript~~ | **Closed 10 November.** The account was deleted by the owner, which is the remedy that leaves nothing to rotate. It had been provisioned for the 8 November smoke test and pasted into the chat that ran it; it owned nothing but its own shortlists. Recorded rather than deleted so a later reader finds the decision. The deletion is the owner's statement — this file did not read it, because the session that would have read it had no permission to query the database |
 | The relay ate a fix for two hours, and nothing failed | `#102` shipped a UTF-8 BOM from the backend; `new Response(await upstream.text())` in the Next relay stripped it before any reader saw it. Fixed in `#104`. **Closed as a defect, kept as an open item about testing:** the backend test asserted the backend's bytes and passed, and there was no test of the relay at all. Any fix whose value depends on a second hop needs a test at the hop |
 | The CSV BOM is not confirmed end to end | `#104` is merged and the frontend is deployed, but the download is behind authentication, so the bytes have not been read on production. The mechanism, the route and the backend are each verified separately. One signed-in export closes it |
 | ~~Methodology quotes a measurement it does not date~~ | **Closed 9 November** in `#108`. The paragraph now reads `getCompetitions()` — the same endpoint the maturity note on every search page reads, so the two cannot disagree — and the share goes through the reader's formatter, which is what made it print `33,4%` in Portuguese rather than `33.4%`. The paragraph beside it, 17.4% against 2.1%, is a property of the method rather than of a load and was deliberately left written down |
