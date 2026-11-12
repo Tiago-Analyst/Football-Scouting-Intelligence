@@ -18,6 +18,17 @@ dependencies = [
     # cryptography, and this is the one part of the system where a subtle
     # mistake is silently catastrophic.
     "argon2-cffi>=23.1",
+    # Not imported anywhere here: a floor on a transitive dependency.
+    #
+    # certifi before 2026.10.19 ships `emSign ECC Root CA - G3`, whose
+    # intermediates had their private keys stolen (PYSEC-2026-4320), so an
+    # on-path attacker holding one could present a certificate this service
+    # would accept. The image installs from this file alone and caches that
+    # layer across source edits - see `backend/Dockerfile` - and this file had
+    # not changed since 27 August, so every deploy since was free to reuse an
+    # August resolution. Writing the floor here fixes the version AND changes
+    # the manifest, which is the only thing that makes the layer rebuild.
+    "certifi>=2026.10.19",
 ]
 
 [project.optional-dependencies]
