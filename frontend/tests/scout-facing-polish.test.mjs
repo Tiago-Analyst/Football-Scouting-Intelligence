@@ -112,3 +112,50 @@ test("the highlights stay apart from Role Fit", () => {
     assert.doesNotMatch(copy[lang].comp.interpretation.strengthsNote, /role|função|papel/i);
   }
 });
+
+/**
+ * The shortlist comparison shows the same server interpretation as the
+ * profile (`interpretation.strengths`), so it must call it the same thing. It
+ * read its own "Strengths" key; it now reads the profile's, so the wording
+ * cannot drift apart again.
+ */
+const comparison = read("src/components/shortlists/ComparisonTable.tsx");
+const shortlists = {
+  en: json("src/i18n/dictionaries/en/shortlists.json"),
+  pt: json("src/i18n/dictionaries/pt/shortlists.json"),
+};
+
+test("the shortlist comparison uses the profile's heading for the same data", () => {
+  assert.match(comparison, /heading=\{t\.components\.interpretation\.strengths\}/);
+  assert.match(comparison, /reading\.strengths\.map/);
+  assert.match(interpretation, /heading=\{c\.strengths\}/);
+  assert.match(interpretation, /findings=\{strengths\}/);
+});
+
+test("no second 'strengths' label survives in either language", () => {
+  for (const lang of ["en", "pt"]) {
+    assert.equal(
+      "strengths" in shortlists[lang].comparison,
+      false,
+      `${lang}: shortlists.comparison still defines its own strengths label`,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(shortlists[lang].comparison),
+      /Strengths|Pontos fortes/,
+      `${lang}: the comparison still says strengths`,
+    );
+  }
+});
+
+test("watch-outs keep their wording on the comparison", () => {
+  assert.equal(shortlists.en.comparison.watchOuts, "Watch-outs");
+  assert.equal(shortlists.pt.comparison.watchOuts, "Pontos de atenção");
+});
+
+test("the empty state says why unknown-valued players vanish under a budget", () => {
+  assert.match(copy.en.rep.empty.description, /market value is unknown are not shown/);
+  assert.match(copy.pt.rep.empty.description, /sem valor de mercado conhecido não são mostrados/);
+  // Still the original advice, not replaced by it.
+  assert.match(copy.en.rep.empty.description, /raising the budget/);
+  assert.match(copy.pt.rep.empty.description, /aumentar o orçamento/);
+});

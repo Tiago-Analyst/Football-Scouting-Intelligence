@@ -646,6 +646,68 @@ class TestReplacement:
         ).json()
         assert any(c["market_fit"] is not None for c in body["items"])
 
+    def test_a_budget_never_lets_through_a_player_of_unknown_value(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
+        """A hard maximum cannot be confirmed for a player with no value.
+
+        At EUR 100k the list used to be four players whose value was unknown:
+        "unknown" read as "within budget". With a budget, everybody shown has a
+        known value inside it; with none, unknown-valued players stay eligible.
+        """
+        budget = 3_000_000
+        constrained = api.post(
+            "/api/v1/replacement/search",
+            json={
+                "player_id": a_replaceable_player["player_id"],
+                "filters": {"max_market_value_eur": budget},
+                "limit": 20,
+            },
+        ).json()["items"]
+        assert constrained, "the fixture player has no candidate inside 3M"
+        for entry in constrained:
+            value = entry["player"]["market_value_eur"]
+            assert value is not None and value <= budget
+
+    def test_a_budget_nobody_known_fits_is_an_empty_list_not_unknowns(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
+        body = api.post(
+            "/api/v1/replacement/search",
+            json={
+                "player_id": a_replaceable_player["player_id"],
+                "filters": {"max_market_value_eur": 1},
+                "limit": 20,
+            },
+        ).json()
+        assert body["items"] == []
+
+    def test_without_a_budget_unknown_value_stays_eligible(
+        self, api: TestClient, a_replaceable_player: dict
+    ) -> None:
+        body = api.post(
+            "/api/v1/replacement/search",
+            json={"player_id": a_replaceable_player["player_id"], "limit": 100},
+        ).json()["items"]
+        # Not asserting that one exists in this fixture, only that having no
+        # value is not by itself a reason to be dropped: when one is present
+        # it is shown, with no fit rather than a fabricated one.
+        for entry in body:
+            if entry["player"]["market_value_eur"] is None:
+                assert entry["market_fit"] is None
+
+    def test_the_search_filter_applies_the_same_rule(self, api: TestClient) -> None:
+        items = api.get("/api/v1/players", params={"market_value_max": 1, "limit": 50}).json()[
+            "items"
+        ]
+        assert items == []
+        capped = api.get(
+            "/api/v1/players", params={"market_value_max": 3_000_000, "limit": 50}
+        ).json()["items"]
+        assert all(
+            p["market_value_eur"] is not None and p["market_value_eur"] <= 3_000_000 for p in capped
+        )
+
     def test_the_meaning_is_returned(self, api: TestClient, a_midfielder: dict) -> None:
         body = api.post(
             "/api/v1/replacement/search",

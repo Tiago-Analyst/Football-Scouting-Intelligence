@@ -37,7 +37,12 @@ from app.analytics.percentiles import ComparisonContext, PercentileResult, Perce
 from app.analytics.reliability import RankingAdjustment, rank_by_evidence
 from app.analytics.roles import SECONDARY_COVERAGE_FLOOR, RoleConfigError, RoleScore
 from app.analytics.sample import SAMPLE_BAND_COPY, SAMPLE_BAND_LABEL
-from app.analytics.similarity import FeatureComparison, SimilarityFilters, SimilarityResult
+from app.analytics.similarity import (
+    FeatureComparison,
+    SimilarityFilters,
+    SimilarityResult,
+    within_budget,
+)
 from app.api.v1.messages import ranking_message as _ranking_message
 from app.core.database import get_session_factory
 from app.repositories.market_repository import market_value_history, transfers
@@ -812,10 +817,8 @@ def list_players(
             return False
         if market_value_min is not None and (record.market_value_eur or 0) < market_value_min:
             return False
-        if (
-            market_value_max is not None
-            and record.market_value_eur is not None
-            and record.market_value_eur > market_value_max
+        if market_value_max is not None and not within_budget(
+            record.market_value_eur, market_value_max
         ):
             return False
         if contract_within_months is not None and not expires_within(

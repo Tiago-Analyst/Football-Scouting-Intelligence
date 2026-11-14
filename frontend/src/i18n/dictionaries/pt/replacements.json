@@ -48,7 +48,7 @@
   },
   "empty": {
     "title": "Nenhum substituto corresponde a estas restrições",
-    "description": "Experimente aumentar o orçamento ou aliviar os filtros de idade e competição."
+    "description": "Experimente aumentar o orçamento ou aliviar os filtros de idade e competição. Com um orçamento definido, os jogadores sem valor de mercado conhecido não são mostrados."
   },
   "notes": {
     "valueTitle": "O que é o valor de mercado aqui",

@@ -48,7 +48,7 @@
   },
   "empty": {
     "title": "No replacements match these constraints",
-    "description": "Try raising the budget or relaxing the age and competition filters."
+    "description": "Try raising the budget or relaxing the age and competition filters. With a budget set, players whose market value is unknown are not shown."
   },
   "notes": {
     "valueTitle": "What market value is here",
