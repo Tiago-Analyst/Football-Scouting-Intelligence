@@ -8,23 +8,59 @@
     "explore": "Explore players",
     "how": "How it works"
   },
-  "capabilities": "Capabilities",
   "principlesHeading": "How results are framed",
   "principles": {
     "peerGroupTitle": "Compared against the right peer group",
-    "peerGroup": "A centre-back's tackling means nothing measured against forwards. Every percentile is position-scoped and measured against an explicitly defined comparison population — one competition, a selected group of them, or a cross-competition recruitment pool — and which one is always shown alongside the number.",
+    "peerGroup": "Percentiles are position-scoped and measured against a stated comparison population, shown beside every number.",
     "explainableTitle": "Every recommendation is explainable",
-    "explainable": "A shortlist that cannot be interrogated is not useful to a recruitment department. Each ranked candidate exposes the component percentiles, weights and filters that produced its position.",
+    "explainable": "Every ranked candidate shows the components, weights and filters behind its position.",
     "sampleTitle": "Sample size is never hidden",
-    "sample": "A per-90 figure from 200 minutes looks identical to one from 3,000. Every figure carries the minutes behind it and a sample label saying how much weight that deserves. No player is excluded for playing too little.",
+    "sample": "Every figure carries the minutes behind it and a sample label. Nobody is excluded for playing too little.",
     "fitTitle": "Scores describe fit, not quality",
-    "fit": "A role score measures statistical resemblance to a profile. It is not a scouting grade, not a probability, and not a substitute for watching the player."
+    "fit": "A score is statistical fit to a profile: not a scouting grade and not a probability."
   },
   "limitationsHeading": "Known limitations",
   "limitations": {
     "strengthTitle": "Cross-league percentiles are not strength-adjusted",
-    "strength": "A 90th percentile in one competition is not equivalent to a 90th percentile in another. No competition-strength coefficient is applied, because inventing one would be worse than stating the limitation.",
+    "strength": "A 90th percentile in one competition is not a 90th in another. No competition-strength coefficient is applied.",
     "marketTitle": "Market value is not a transfer fee",
-    "market": "Market values come from Transfermarkt and represent a crowd-sourced estimate. They are not asking prices, and no valuation model is applied on top of them."
+    "market": "Transfermarkt's crowd-sourced estimate: not an asking price, and no valuation model sits on top of it."
+  },
+  "tasksHeading": "What do you want to do?",
+  "tasks": {
+    "find": {
+      "title": "Find players",
+      "description": "Search and filter the whole player universe, with the minutes behind every figure.",
+      "cta": "Explore players"
+    },
+    "similar": {
+      "title": "Find players like this one",
+      "description": "Start from a player you know and see who is statistically alike.",
+      "cta": "Find similar players"
+    },
+    "replace": {
+      "title": "Replace a player",
+      "description": "Start from someone in your squad and find alternatives by profile, role and market context.",
+      "cta": "Find replacements"
+    },
+    "brief": {
+      "title": "Build a recruitment brief",
+      "description": "Weight what the team needs and rank candidates against that brief.",
+      "cta": "Build a recruitment profile"
+    },
+    "opportunities": {
+      "title": "Spot market opportunities",
+      "description": "Screen for younger, cheaper or expiring-contract profiles using criteria you set.",
+      "cta": "Explore opportunities"
+    },
+    "shortlist": {
+      "title": "Keep a shortlist",
+      "description": "Save candidates, note your assessment and compare them side by side.",
+      "cta": "Open shortlists"
+    }
+  },
+  "trustLinks": {
+    "methodology": "Read the methodology",
+    "dataQuality": "See data quality"
   }
 }

@@ -30,10 +30,7 @@
   "states": {
     "chooseTitle": "Choose a role preset or set your own weights",
     "chooseDescription": "Start from one of the named roles, or set the emphasis yourself. Nothing is weighted yet, so there is nothing to rank by.",
-    "readyTitle": "This profile is ready to rank candidates",
-    "readyFallback": "Adjust the filters, then build the shortlist.",
     "readyActionBefore": "Press ",
-    "readyActionButton": "Build shortlist",
     "readyActionAfter": " to run it.",
     "errorTitle": "Could not build the shortlist",
     "errorDescription": "The API did not respond, or no weight was set above zero.",
@@ -82,5 +79,20 @@
     "clauseJoin": ", and ",
     "sentenceJoin": ", ",
     "fullStop": "."
+  },
+  "brief": {
+    "title": "Your recruitment brief",
+    "resultsTitle": "The brief behind these results",
+    "presetFrom": "Starting from {preset}",
+    "priorities": "Priorities (share of the profile)",
+    "constraints": "Filters",
+    "noPriorities": "Nothing is weighted yet. Choose a role preset or set your own weights.",
+    "noConstraints": "No filters set.",
+    "measurable": "{pct}% of this profile's weight is on scores the current data can produce.",
+    "unavailableTag": "unavailable",
+    "cannotScore": "Cannot be scored: {items}.",
+    "age": "Age",
+    "value": "Market value",
+    "minutes": "Minimum minutes"
   }
 }

@@ -90,5 +90,9 @@
     "rejected": "O serviço de análise recusou o pedido. Algo no formulário abaixo não é uma pergunta a que ele consiga responder.",
     "server": "O serviço de análise respondeu com um erro. A falha é do nosso lado, não é algo que o formulário abaixo consiga contornar.",
     "status": "Estado HTTP {status}."
+  },
+  "differentStrengthTip": {
+    "label": "O que é uma força de perfil diferente?",
+    "body": "A semelhança compara a forma de dois perfis. Este jogador é consistentemente mais forte ou mais fraco em todo o perfil, por isso não é uma substituição equivalente."
   }
 }

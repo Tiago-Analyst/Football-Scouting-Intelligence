@@ -179,7 +179,7 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
   return (
     <div className="rounded-md border border-border bg-surface-2 px-3 py-2.5">
       <p className="flex flex-wrap items-baseline gap-2 text-xs font-medium">
-        <span>{t.components.presets.startingFrom}<span className="text-accent">{roleLabel(t, preset.key)}</span>
+        <span>{t.components.presets.startingFrom}{" "}<span className="text-accent">{roleLabel(t, preset.key)}</span>
         </span>
         {coverage?.needsAdaptation ? (
           <span

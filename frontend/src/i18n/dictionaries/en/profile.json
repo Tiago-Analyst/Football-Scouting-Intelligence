@@ -96,5 +96,9 @@
     "limitedEvidence": "Limited evidence",
     "emptyTitle": "No similar players found",
     "emptyDescription": "There may be too few comparable players in this position group."
+  },
+  "evidence": {
+    "title": "Detailed evidence",
+    "description": "The role breakdown, market history, transfers, per-90 metrics and similar players behind the summary above."
   }
 }

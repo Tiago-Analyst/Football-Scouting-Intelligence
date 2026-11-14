@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { Callout } from "@/components/ui/States";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/dictionaries";
 import type { Locale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
-import { navCopy, PRIMARY_NAV } from "@/lib/nav";
 
 /**
  * No `title`: the layout's default is already this page's name, and setting one
@@ -28,9 +26,9 @@ export default async function HomePage() {
   const t = await getDictionary();
 
   return (
-    <div className="space-y-20">
+    <div className="space-y-16 sm:space-y-20">
       <Hero t={t} />
-      <Capabilities t={t} locale={locale} />
+      <Tasks t={t} locale={locale} />
       <Principles t={t} />
       <Limitations t={t} />
     </div>
@@ -67,33 +65,49 @@ function Hero({ t }: { t: Dictionary }) {
   );
 }
 
-function Capabilities({ t, locale }: { t: Dictionary; locale: Locale }) {
+/**
+ * The six things a visitor can come here to do, named for the task rather than
+ * the feature. "Replacements" and "Opportunities" are the product's words; a
+ * first-time scout arrives with a problem ("I need to replace my left-back")
+ * and had to translate it into one of them. The route is the same either way.
+ */
+const TASKS = [
+  { key: "find", href: "/players" },
+  { key: "similar", href: "/similar" },
+  { key: "replace", href: "/replacements" },
+  { key: "brief", href: "/recruitment" },
+  { key: "opportunities", href: "/opportunities" },
+  { key: "shortlist", href: "/shortlists" },
+] as const;
+
+function Tasks({ t, locale }: { t: Dictionary; locale: Locale }) {
   return (
-    <section aria-labelledby="capabilities">
-      <h2
-        id="capabilities"
-        className="text-xs font-semibold tracking-widest text-subtle uppercase"
-      >
-        {t.home.capabilities}
+    <section aria-labelledby="tasks">
+      <h2 id="tasks" className="text-xl font-semibold tracking-tight">
+        {t.home.tasksHeading}
       </h2>
 
       <ul className="mt-6 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-        {PRIMARY_NAV.map((item) => {
-          const copy = navCopy(t, item.key);
+        {TASKS.map((task) => {
+          const copy = t.home.tasks[task.key];
           return (
-          <li key={item.href} className="bg-surface">
-            <a
-              href={localePath(locale, item.href)}
-              className="group flex h-full flex-col gap-2 p-6 transition-colors hover:bg-surface-2"
-            >
-              <span className="text-sm font-semibold tracking-tight group-hover:text-accent">
-                {copy.label}
-              </span>
-              <span className="text-sm leading-relaxed text-muted">
-                {copy.description}
-              </span>
-            </a>
-          </li>
+            <li key={task.key} className="bg-surface">
+              <a
+                href={localePath(locale, task.href)}
+                className="group flex h-full flex-col gap-2 p-6 transition-colors hover:bg-surface-2"
+              >
+                <h3 className="text-sm font-semibold tracking-tight">{copy.title}</h3>
+                <span className="flex-1 text-sm leading-relaxed text-muted">
+                  {copy.description}
+                </span>
+                <span className="mt-1 text-sm font-medium text-accent">
+                  {copy.cta}
+                  <span aria-hidden="true" className="ml-1 transition-transform group-hover:translate-x-0.5 inline-block">
+                    →
+                  </span>
+                </span>
+              </a>
+            </li>
           );
         })}
       </ul>
@@ -130,6 +144,17 @@ function Principles({ t }: { t: Dictionary }) {
           </div>
         ))}
       </dl>
+
+      {/* The long form lives on the two reference pages; these are the way
+          to it. Trust is stated above in one line each, and checked here. */}
+      <div className="mt-8 flex flex-wrap gap-3">
+        <ButtonLink href="/methodology" variant="secondary">
+          {t.home.trustLinks.methodology}
+        </ButtonLink>
+        <ButtonLink href="/data-quality" variant="secondary">
+          {t.home.trustLinks.dataQuality}
+        </ButtonLink>
+      </div>
     </section>
   );
 }
@@ -144,14 +169,20 @@ function Limitations({ t }: { t: Dictionary }) {
         {t.home.limitationsHeading}
       </h2>
 
-      <div className="mt-6 space-y-3">
-        <Callout tone="warning" title={t.home.limitations.strengthTitle}>
-          {t.home.limitations.strength}
-        </Callout>
-        <Callout tone="note" title={t.home.limitations.marketTitle}>
-          {t.home.limitations.market}
-        </Callout>
-      </div>
+      <dl className="mt-6 space-y-4">
+        <div>
+          <dt className="text-sm font-semibold tracking-tight">
+            {t.home.limitations.strengthTitle}
+          </dt>
+          <dd className="mt-1 text-sm leading-relaxed text-muted">
+            {t.home.limitations.strength}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm font-semibold tracking-tight">{t.home.limitations.marketTitle}</dt>
+          <dd className="mt-1 text-sm leading-relaxed text-muted">{t.home.limitations.market}</dd>
+        </div>
+      </dl>
     </section>
   );
 }

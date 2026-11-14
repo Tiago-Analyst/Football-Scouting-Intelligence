@@ -230,17 +230,28 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
         />
       </div>
 
-      {stats?.sample ? (
-        <div className="max-w-md">
-          <DataConfidence sample={stats.sample} />
-        </div>
-      ) : null}
+      {/* THE SUMMARY BAND: what stands out, what to be careful about, how much
+          evidence there is - side by side, before any table.
 
-      {/* Above the tables it reads, so a scout meets the summary first and
-          the evidence underneath it - rather than deriving the summary and
-          then being told it. */}
-      {profile.interpretation ? (
-        <ScoutingInterpretation interpretation={profile.interpretation} />
+          The data-confidence card used to sit alone at a third of the width,
+          with the interpretation below it at full width, so the two things a
+          scout reads together were a screen apart and the space beside the
+          first was empty. Above the tables it reads, so a scout meets the
+          summary first and the evidence underneath it, rather than deriving
+          the summary and then being told it. */}
+      {profile.interpretation || stats?.sample ? (
+        <div
+          className={
+            profile.interpretation && stats?.sample
+              ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start"
+              : "max-w-3xl"
+          }
+        >
+          {profile.interpretation ? (
+            <ScoutingInterpretation interpretation={profile.interpretation} />
+          ) : null}
+          {stats?.sample ? <DataConfidence sample={stats.sample} /> : null}
+        </div>
       ) : null}
 
       {stats?.sample && stats.sample.band !== "established" ? (
@@ -255,6 +266,15 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
           {t.glossary.sampleExplanations[stats.sample.band]}
         </Callout>
       ) : null}
+
+      {/* Everything above answers "is this player worth a closer look?".
+          Everything below is the evidence it was drawn from. The same sections,
+          in the same order; what changes is that the page now says where the
+          summary stops. */}
+      <div className="border-t border-border pt-8">
+        <h2 className="text-lg font-semibold tracking-tight">{t.profile.evidence.title}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">{t.profile.evidence.description}</p>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

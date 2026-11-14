@@ -8,23 +8,59 @@
     "explore": "Explorar jogadores",
     "how": "Como funciona"
   },
-  "capabilities": "O que faz",
   "principlesHeading": "Como os resultados são enquadrados",
   "principles": {
     "peerGroupTitle": "Comparado com o grupo de pares certo",
-    "peerGroup": "O desarme de um defesa-central nada significa medido contra avançados. Cada percentil é delimitado por posição e medido face a uma população de comparação explicitamente definida — uma competição, um conjunto escolhido delas, ou um universo de recrutamento entre competições — e qual delas é sempre mostrado ao lado do número.",
+    "peerGroup": "Os percentis são por posição e medidos contra uma população de comparação indicada, sempre visível junto ao valor.",
     "explainableTitle": "Cada recomendação é explicável",
-    "explainable": "Uma lista que não pode ser interrogada não serve a um departamento de recrutamento. Cada candidato ordenado expõe os percentis componentes, os pesos e os filtros que produziram a sua posição.",
+    "explainable": "Cada candidato ordenado mostra as componentes, os pesos e os filtros que determinaram a sua posição.",
     "sampleTitle": "A dimensão da amostra nunca é escondida",
-    "sample": "Um valor por 90 minutos a partir de 200 minutos parece igual a um a partir de 3000. Cada valor traz consigo os minutos que o sustentam e uma etiqueta de amostra a dizer que peso isso merece. Nenhum jogador é excluído por ter jogado pouco.",
+    "sample": "Cada valor traz os minutos que o sustentam e uma etiqueta de amostra. Ninguém é excluído por ter jogado pouco.",
     "fitTitle": "As pontuações descrevem adequação, não qualidade",
-    "fit": "A pontuação de uma função mede a semelhança estatística com um perfil. Não é uma nota de observação, não é uma probabilidade, e não substitui ver jogar."
+    "fit": "Uma pontuação é adequação estatística a um perfil: não é uma nota de scouting nem uma probabilidade."
   },
   "limitationsHeading": "Limitações conhecidas",
   "limitations": {
     "strengthTitle": "Os percentis entre ligas não são ajustados à força",
-    "strength": "Um percentil 90 numa competição não equivale a um percentil 90 noutra. Não é aplicado nenhum coeficiente de força de competição, porque inventar um seria pior do que declarar a limitação.",
+    "strength": "Um percentil 90 numa competição não equivale a um percentil 90 noutra. Não se aplica nenhum coeficiente de força da competição.",
     "marketTitle": "O valor de mercado não é um valor de transferência",
-    "market": "Os valores de mercado vêm do Transfermarkt e representam uma estimativa colaborativa. Não são preços pedidos, e não lhes é aplicado nenhum modelo de avaliação por cima."
+    "market": "Estimativa recolhida pela comunidade do Transfermarkt: não é um preço pedido, e nenhum modelo de avaliação é aplicado por cima."
+  },
+  "tasksHeading": "O que quer fazer?",
+  "tasks": {
+    "find": {
+      "title": "Encontrar jogadores",
+      "description": "Pesquise e filtre todo o universo de jogadores, com os minutos por trás de cada valor.",
+      "cta": "Explorar jogadores"
+    },
+    "similar": {
+      "title": "Encontrar jogadores parecidos",
+      "description": "Parta de um jogador que conhece e veja quem lhe é estatisticamente semelhante.",
+      "cta": "Procurar semelhantes"
+    },
+    "replace": {
+      "title": "Substituir um jogador",
+      "description": "Parta de alguém do plantel e encontre alternativas por perfil, função e contexto de mercado.",
+      "cta": "Procurar substitutos"
+    },
+    "brief": {
+      "title": "Construir um briefing de recrutamento",
+      "description": "Pondere o que a equipa precisa e ordene os candidatos face a esse briefing.",
+      "cta": "Construir perfil de recrutamento"
+    },
+    "opportunities": {
+      "title": "Descobrir oportunidades de mercado",
+      "description": "Filtre perfis mais jovens, mais baratos ou com contrato a terminar, com critérios definidos por si.",
+      "cta": "Explorar oportunidades"
+    },
+    "shortlist": {
+      "title": "Manter uma shortlist",
+      "description": "Guarde candidatos, registe a sua avaliação e compare-os lado a lado.",
+      "cta": "Abrir shortlists"
+    }
+  },
+  "trustLinks": {
+    "methodology": "Ler a metodologia",
+    "dataQuality": "Ver qualidade dos dados"
   }
 }
