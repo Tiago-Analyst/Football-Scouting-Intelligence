@@ -85,8 +85,15 @@ test("recruitment says whether the profile can run before it is run", () => {
   // The three states the right-hand pane has to tell apart. It used to say
   // "Set your profile weights" to all three.
   const code = strip(recruitment);
-  assert.match(copy("en", "recruitment"), /ready to rank candidates/i);
-  assert.match(copy("pt", "recruitment"), /pronto para ordenar candidatos/i);
+  // The "ready" state is now the live brief's status line - "Press Build
+  // shortlist to run it" - rather than a titled empty state; the other two
+  // states keep their own words.
+  const states = (lang) =>
+    JSON.parse(read(`src/i18n/dictionaries/${lang}/recruitment.json`)).states;
+  assert.equal(states("en").readyActionBefore, "Press ");
+  assert.equal(states("en").readyActionAfter, " to run it.");
+  assert.ok(states("pt").readyActionBefore.trim() && states("pt").readyActionAfter.trim());
+  assert.match(read("src/components/recruitment/LiveBrief.tsx"), /copy\.ready/);
   assert.match(code, /unavailable/i);
   assert.match(copy("en", "recruitment"), /Choose a role preset or set your own weights/i);
   assert.match(copy("pt", "recruitment"), /Escolha uma função predefinida/i);
