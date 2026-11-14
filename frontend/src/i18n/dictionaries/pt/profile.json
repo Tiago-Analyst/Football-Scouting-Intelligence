@@ -96,5 +96,9 @@
     "limitedEvidence": "Evidência limitada",
     "emptyTitle": "Não foram encontrados jogadores semelhantes",
     "emptyDescription": "Poderão existir poucos jogadores comparáveis neste grupo posicional."
+  },
+  "evidence": {
+    "title": "Evidência detalhada",
+    "description": "A decomposição por função, o histórico de mercado, as transferências, as métricas por 90 minutos e os jogadores semelhantes que sustentam o resumo acima."
   }
 }

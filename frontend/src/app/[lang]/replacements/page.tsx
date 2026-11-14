@@ -14,8 +14,9 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Field, Select, TextInput } from "@/components/ui/Field";
-import { Callout, EmptyState } from "@/components/ui/States";
+import { EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { Explainer } from "@/components/ui/Explainer";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { SearchFailed } from "@/components/ui/SearchFailed";
 import { getCompetitions, isSearchFailure, runReplacementSearch, searchPlayers } from "@/lib/players";
@@ -333,8 +334,11 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             {entry.player.name}
                           </Link>
                           {!entry.comparable_strength ? (
-                            <span className="mt-0.5 block">
+                            <span className="mt-0.5 flex items-center gap-1">
                               <Badge tone="warning">{t.replacements.table.differentStrength}</Badge>
+                              <Tooltip label={t.common.differentStrengthTip.label}>
+                                {t.common.differentStrengthTip.body}
+                              </Tooltip>
                             </span>
                           ) : null}
                         </TD>
@@ -406,15 +410,21 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                 </Table>
               </TableWrap>
 
-              <Callout tone="note" title={t.replacements.notes.overallTitle}>
-                {t.replacements.notes.overallBody}
-              </Callout>
             </>
           )}
 
-          <Callout tone="caution" title={t.replacements.notes.ranksTitle}>
-            {t.replacements.notes.ranksBody}
-          </Callout>
+          {/* The two permanent boxes this replaces held the same facts at the
+              same weight as the candidates. What a reader must not miss - this
+              ranks statistical profiles, not transfers - stays on the page;
+              how Overall is built is one press away, and the formula is on a
+              line of its own so it can be read without opening anything. */}
+          <Explainer
+            lines={[t.replacements.notes.overallFormula, t.replacements.notes.summary]}
+            label={t.replacements.notes.more}
+          >
+            <p>{t.replacements.notes.overallBody}</p>
+            <p>{t.replacements.notes.ranksBody}</p>
+          </Explainer>
         </section>
       </div>
     </div>

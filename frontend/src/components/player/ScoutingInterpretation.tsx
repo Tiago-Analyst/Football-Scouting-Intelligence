@@ -134,13 +134,27 @@ export async function ScoutingInterpretation({
       </CardBody>
 
       {notCapturedLines.length > 0 ? (
-        <CardFooter className="block space-y-2 text-subtle">
-          <p className="text-[11px] font-semibold tracking-widest uppercase">{c.notCaptured}</p>
-          <ul className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-            {notCapturedLines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+        <CardFooter className="block text-subtle">
+          {/* A real disclosure: the label says what is behind it, and the list
+              is one press away on a phone as on a desktop. Six lines of
+              "what this model does not see" were permanent at the foot of the
+              card, at the same weight as the findings above them. */}
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded text-[11px] font-semibold tracking-widest uppercase transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              {c.notCaptured}
+              <span
+                aria-hidden="true"
+                className="text-[10px] transition-transform group-open:rotate-180"
+              >
+                ▾
+              </span>
+            </summary>
+            <ul className="mt-2 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+              {notCapturedLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </details>
         </CardFooter>
       ) : null}
     </Card>

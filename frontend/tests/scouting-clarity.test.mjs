@@ -95,14 +95,23 @@ test("recruitment says whether the profile can run before it is run", () => {
 
 test("the blocked state is driven by the weighted unavailable scores", () => {
   // Not by a count typed into the copy, and not by anything the search
-  // returned - the point is that it is known before the search runs.
-  assert.match(recruitment, /blockedNow\.length > 0/);
+  // returned - the point is that it is known before the search runs. The empty
+  // state this used to assert is now the live brief's status line, which reads
+  // the same fact from `brief.unscoreable`: weighted AND unavailable.
+  assert.match(recruitment, /initiallyBlocked=\{blockedNow\.map/);
+  const liveBrief = read("src/components/recruitment/LiveBrief.tsx");
+  assert.match(liveBrief, /brief\.unscoreable\.length/);
+  assert.match(read("src/lib/brief.ts"), /unscoreable: priorities\.filter\(\(priority\) => !priority\.available\)/);
 });
 
 test("the ready state shows the weights read back, not a new sentence", () => {
-  // `describeProfile` is deterministic and derived from the weights alone.
-  // A second description written here would be a second source of truth.
-  assert.match(recruitment, /description=\{summary \?\?/);
+  // `describeProfile` is deterministic and derived from the weights alone. A
+  // second description written here would be a second source of truth. The
+  // brief beside the form is built by `buildBrief` from the SAME `weights`
+  // object the search is run with, and the sentence under the form remains.
+  assert.match(recruitment, /buildBrief\(\s*weights,/);
+  assert.match(recruitment, /runRecruitmentSearch\(\{ weights, filters/);
+  assert.match(recruitment, /describeProfile\(/);
 });
 
 test("the comparison groups metrics without reordering them", () => {

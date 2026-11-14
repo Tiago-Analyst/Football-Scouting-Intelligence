@@ -65,7 +65,9 @@
     "strengthBefore": "A semelhança compara a ",
     "strengthEmphasis": "forma",
     "strengthAfter": " de dois perfis. Um jogador pode ter uma forma muito parecida sendo consistentemente mais forte ou mais fraco em tudo — esse distintivo assinala esses casos, para que um jogador muito mais forte não seja tomado por um substituto directo.",
-    "meaning": "O Índice de Semelhança Estatística descreve o quão próximos são os perfis estatísticos de dois jogadores nos atributos que partilham, numa escala de 0 a 100. Não é uma probabilidade, e nada diz sobre qualidade, adequação táctica ou temperamento. A cobertura de atributos é reportada ao lado e não está incorporada nele: um índice de 92 sobre seis de onze atributos é uma resposta segura a uma pergunta mais estreita do que o mesmo índice sobre onze."
+    "meaning": "O Índice de Semelhança Estatística descreve o quão próximos são os perfis estatísticos de dois jogadores nos atributos que partilham, numa escala de 0 a 100. Não é uma probabilidade, e nada diz sobre qualidade, adequação táctica ou temperamento. A cobertura de atributos é reportada ao lado e não está incorporada nele: um índice de 92 sobre seis de onze atributos é uma resposta segura a uma pergunta mais estreita do que o mesmo índice sobre onze.",
+    "summary": "A semelhança compara a forma de dois perfis estatísticos num índice de 0 a 100. Não é uma probabilidade.",
+    "more": "O que este índice diz e não diz"
   },
   "targetTitle": "Jogadores semelhantes a {player}"
 }

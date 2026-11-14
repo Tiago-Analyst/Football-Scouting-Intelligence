@@ -15,8 +15,9 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Field, Select, TextInput } from "@/components/ui/Field";
-import { Callout, EmptyState } from "@/components/ui/States";
+import { EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { Explainer } from "@/components/ui/Explainer";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { getSimilarPlayers, searchPlayers } from "@/lib/players";
 
@@ -318,10 +319,13 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                                name got. `whitespace-normal` below `sm` lets
                                those three words wrap; above it the badge
                                reads on one line as before. */
-                            <span className="mt-0.5 block">
+                            <span className="mt-0.5 flex items-center gap-1">
                               <Badge tone="warning" className="max-w-28 whitespace-normal sm:max-w-none sm:whitespace-nowrap">
                                 {t.similarity.table.differentStrength}
                               </Badge>
+                              <Tooltip label={t.common.differentStrengthTip.label}>
+                                {t.common.differentStrengthTip.body}
+                              </Tooltip>
                             </span>
                           ) : null}
                         </TD>
@@ -421,10 +425,12 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
             </>
           )}
 
-          <Callout tone="caution" title={t.similarity.notes.notProbabilityTitle}>
-            {t.similarity.notes.meaning}
-          </Callout>
-          <Callout tone="note" title={t.similarity.notes.strengthTitle}>{t.similarity.notes.strengthBefore}<em>{t.similarity.notes.strengthEmphasis}</em>{t.similarity.notes.strengthAfter}</Callout>
+          {/* "Not a probability" stays on the page; the full definition, and
+              what "Different profile strength" means, are behind the control
+              and on the badge itself, where the question arises. */}
+          <Explainer lines={[t.similarity.notes.summary]} label={t.similarity.notes.more}>
+            <p>{t.similarity.notes.meaning}</p>
+          </Explainer>
         </section>
       </div>
     </div>

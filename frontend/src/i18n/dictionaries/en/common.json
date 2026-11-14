@@ -90,5 +90,9 @@
     "rejected": "The analysis service refused the request. Something in the form below is not a question it can answer.",
     "server": "The analysis service answered with an error. This is a fault on our side, not something the form below can be adjusted around.",
     "status": "HTTP status {status}."
+  },
+  "differentStrengthTip": {
+    "label": "What is a different profile strength?",
+    "body": "Similarity compares the shape of two profiles. This player is consistently stronger or weaker across the board, so is not a like-for-like replacement."
   }
 }

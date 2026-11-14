@@ -56,9 +56,12 @@
     "rankedTitle": "Why this column exists",
     "rankedBody": "The list is ordered by this, not by Overall. A score built on part of a season is read closer to the average for this search, in proportion to how much football stands behind it; at a full season's minutes it is used as it stands. Nobody is excluded and no score is rewritten — Overall beside it is the score itself.",
     "overallTitle": "How the overall score is built",
-    "overallBody": "Statistical similarity 55%, role fit 30%, affordability 15%. Affordability is the market value against the budget you set and nothing else — not value for money, and not a judgement about whether the club would sell. It is left out of the calculation entirely when no budget is given, rather than being guessed. Wages, agent fees, registration eligibility and adaptation risk are not inputs to this model and are not represented anywhere in the score.",
+    "overallBody": "Affordability is the market value against the budget you set and nothing else — not value for money, and not a judgement about whether the club would sell. It is left out of the calculation entirely when no budget is given, rather than being guessed. Wages, agent fees, registration eligibility and adaptation risk are not inputs to this model and are not represented anywhere in the score.",
     "ranksTitle": "What this ranks",
-    "ranksBody": "Replacement scores rank a statistical profile within the filters you set. They do not account for tactical system, role in the squad, personality or medical history, and are not a probability."
+    "ranksBody": "Replacement scores rank a statistical profile within the filters you set. They do not account for tactical system, role in the squad, personality or medical history, and are not a probability.",
+    "overallFormula": "Overall = 55% similarity · 30% role fit · 15% affordability",
+    "summary": "Results rank statistical replacement profiles, not transfer recommendations.",
+    "more": "How this is built"
   },
   "targetTitle": "Replacements for {player}"
 }

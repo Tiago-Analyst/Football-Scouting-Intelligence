@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 
 import { apiMessage } from "@/components/player/ApiMessage";
 import { positionName } from "@/components/player/PositionName";
+import { roleLabel } from "@/components/player/RoleName";
 import { playerLine } from "@/lib/playerLine";
-import { getDictionary } from "@/i18n/dictionaries";
+import { getDictionary, getLocale } from "@/i18n/dictionaries";
 import { formatters } from "@/i18n/format";
 import { componentName } from "@/i18n/metricNames";
 import { AppLink as Link } from "@/components/ui/AppLink";
@@ -21,6 +22,10 @@ import { Field, Select, TextInput } from "@/components/ui/Field";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
 import { SeasonMaturityNote } from "@/components/ui/SeasonMaturityNote";
+import { BriefSummary } from "@/components/recruitment/BriefSummary";
+import { LiveBrief } from "@/components/recruitment/LiveBrief";
+import { LOCALE_TAG } from "@/i18n/config";
+import { buildBrief } from "@/lib/brief";
 import { describeProfile } from "@/lib/profile-summary";
 import {
   getCompetitions,
@@ -181,6 +186,43 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
       : undefined,
   );
 
+  // THE BRIEF, FROM THE SAME URL THE FORM WAS RENDERED FROM.
+  //
+  // This is the first paint of the live brief and, once results exist, the
+  // static record of what those results were produced with. In the browser the
+  // live brief re-derives itself from the form's own fields on every edit.
+  const locale = await getLocale();
+  const briefScores = SCORES.map((score) => ({
+    key: score.key,
+    label: t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ?? score.label,
+    available: !unavailable.has(score.key),
+  }));
+  const briefLabels = {
+    positions: t.glossary.positions as Record<string, string>,
+    competitions: Object.fromEntries(competitions.map((c) => [c.competition_id, c.name])),
+    age: t.recruitment.brief.age,
+    value: t.recruitment.brief.value,
+    position: t.recruitment.filters.positionGroup,
+    competition: t.recruitment.filters.competition,
+    minutes: t.recruitment.brief.minutes,
+  };
+  const brief = buildBrief(
+    weights,
+    briefScores,
+    {
+      positionGroup: first(params.position_group) ?? "",
+      competition: first(params.competition) ?? "",
+      minAge: first(params.min_age) ?? "",
+      maxAge: first(params.max_age) ?? "",
+      maxValue: first(params.max_value) ?? "",
+      minMinutes: first(params.min_minutes) ?? "",
+    },
+    briefLabels,
+    f.euro,
+    f.count,
+  );
+  const briefCopy = { ...t.recruitment.brief };
+
   const blockedNow = Object.keys(weights)
     .map((key) => unavailable.get(key))
     .filter((score) => score !== undefined);
@@ -195,6 +237,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <form
+          id="recruitment-brief-form"
           method="get"
           className="space-y-5 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
         >
@@ -426,37 +469,29 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
         document sideways instead of scrolling inside itself. */}
         <section className="min-w-0 space-y-4">
           {!submitted ? (
-            /* Whether the profile on the left can actually be run, said before
-               the button is pressed rather than after. The form already warns
-               beside the weight it is about; this is the same fact where the
-               answer will appear, so the reader does not have to look away to
-               find out they are about to get nothing. */
-            blockedNow.length > 0 ? (
-              <EmptyState
-                title={
-                  blockedNow.length === 1
-                    ? t.recruitment.states.blockedOneTitle
-                    : t.recruitment.states.blockedManyTitle.replace(
-                        "{count}",
-                        String(blockedNow.length),
-                      )
-                }
-                description={t.recruitment.states.blockedDescription}
-              />
-            ) : total <= 0 ? (
-              <EmptyState
-                title={t.recruitment.states.chooseTitle}
-                description={t.recruitment.states.chooseDescription}
-              />
-            ) : (
-              <EmptyState
-                title={t.recruitment.states.readyTitle}
-                description={summary ?? t.recruitment.states.readyFallback}
-                action={
-                  <p className="text-xs text-subtle">{t.recruitment.states.readyActionBefore}<strong>{t.recruitment.filters.build}</strong>{t.recruitment.states.readyActionAfter}</p>
-                }
-              />
-            )
+            /* The right-hand side used to be one of three empty states - ready,
+               blocked, choose a role - in a large box beside a dense form. It is
+               now the brief itself, read back from the form as it is edited,
+               with those same three states as its status line. The words are the
+               ones the empty states used; the space now says what is being
+               asked. */
+            <LiveBrief
+              formId="recruitment-brief-form"
+              initial={brief}
+              scores={briefScores}
+              labels={briefLabels}
+              tag={LOCALE_TAG[locale]}
+              presetLabel={activePreset ? roleLabel(t, activePreset.key) : undefined}
+              copy={{
+                ...briefCopy,
+                build: t.recruitment.filters.build,
+                choose: t.recruitment.states.chooseDescription,
+                ready: `${t.recruitment.states.readyActionBefore}${t.recruitment.filters.build}${t.recruitment.states.readyActionAfter}`,
+                blockedOne: t.recruitment.states.blockedOneTitle,
+                blockedMany: t.recruitment.states.blockedManyTitle,
+                blockedDescription: t.recruitment.states.blockedDescription,
+              }}
+            />
           ) : isSearchFailure(results) ? (
             // The builder above this is untouched: every weight and filter
             // the reader typed is still on the page. Only the section that
@@ -484,6 +519,19 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
             />
           ) : (
             <>
+              {/* What these results were produced with, from the URL they were
+                  produced from. Static on purpose: the form beside it can be
+                  edited after the search, and a brief that followed the edits
+                  would describe results it did not produce. */}
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <BriefSummary
+                  brief={brief}
+                  compact
+                  copy={{ ...briefCopy, title: briefCopy.resultsTitle }}
+                  presetLabel={activePreset ? roleLabel(t, activePreset.key) : undefined}
+                />
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted">
                   <span className="tabular font-medium text-text">
@@ -625,7 +673,10 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                 ))}
               </ol>
 
-              <Callout tone="caution" title={t.recruitment.results.rankingTitle}>{t.recruitment.results.rankingBody}</Callout>
+              <p className="text-xs leading-relaxed text-muted">
+                <span className="font-medium text-text">{t.recruitment.results.rankingTitle}.</span>{" "}
+                {t.recruitment.results.rankingBody}
+              </p>
             </>
           )}
         </section>

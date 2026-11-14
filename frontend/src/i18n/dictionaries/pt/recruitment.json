@@ -30,10 +30,7 @@
   "states": {
     "chooseTitle": "Escolha uma função predefinida ou defina os seus próprios pesos",
     "chooseDescription": "Comece por uma das funções nomeadas, ou defina a ênfase manualmente. Ainda nada está ponderado, pelo que não há por que ordenar.",
-    "readyTitle": "Este perfil está pronto para ordenar candidatos",
-    "readyFallback": "Ajuste os filtros e construa a lista.",
     "readyActionBefore": "Prima ",
-    "readyActionButton": "Construir lista",
     "readyActionAfter": " para a executar.",
     "errorTitle": "Não foi possível construir a lista",
     "errorDescription": "A API não respondeu, ou nenhum peso foi definido acima de zero.",
@@ -82,5 +79,20 @@
     "clauseJoin": ", e ",
     "sentenceJoin": ", ",
     "fullStop": "."
+  },
+  "brief": {
+    "title": "O seu briefing de recrutamento",
+    "resultsTitle": "O briefing por trás destes resultados",
+    "presetFrom": "A partir de {preset}",
+    "priorities": "Prioridades (parte do perfil)",
+    "constraints": "Filtros",
+    "noPriorities": "Nada está ponderado. Escolha uma função predefinida ou defina os seus pesos.",
+    "noConstraints": "Sem filtros definidos.",
+    "measurable": "{pct}% do peso deste perfil está em pontuações que os dados actuais conseguem produzir.",
+    "unavailableTag": "indisponível",
+    "cannotScore": "Não podem ser pontuadas: {items}.",
+    "age": "Idade",
+    "value": "Valor de mercado",
+    "minutes": "Minutos mínimos"
   }
 }

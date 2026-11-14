@@ -65,7 +65,9 @@
     "strengthBefore": "Similarity compares the ",
     "strengthEmphasis": "shape",
     "strengthAfter": " of two profiles. A player can match closely in shape while being consistently stronger or weaker across the board — that badge marks those cases, so a much stronger player is not mistaken for a like-for-like replacement.",
-    "meaning": "The Statistical Similarity Index describes how closely two players' statistical profiles resemble each other on the features they share, on a 0-100 scale. It is not a probability, and says nothing about quality, tactical fit or temperament. Feature Coverage is reported beside it and is not folded into it: an index of 92 over six of eleven features is a confident answer to a narrower question than the same index over eleven."
+    "meaning": "The Statistical Similarity Index describes how closely two players' statistical profiles resemble each other on the features they share, on a 0-100 scale. It is not a probability, and says nothing about quality, tactical fit or temperament. Feature Coverage is reported beside it and is not folded into it: an index of 92 over six of eleven features is a confident answer to a narrower question than the same index over eleven.",
+    "summary": "Similarity compares the shape of two statistical profiles on a 0–100 index. It is not a probability.",
+    "more": "What this index does and does not say"
   },
   "targetTitle": "Players similar to {player}"
 }
