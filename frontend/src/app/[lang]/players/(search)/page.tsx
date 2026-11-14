@@ -195,7 +195,11 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     {
       key: "club",
       head: t.players.table.club,
-      className: "whitespace-nowrap",
+      // May wrap. `whitespace-nowrap` made this column as wide as the longest
+      // club name on the page - 435px for one row - and that one row decided
+      // whether the whole table fitted. A two-line club is cheaper than a
+      // cut-off Contract column.
+      className: "min-w-28",
       cell: (p) => p.club ?? "–",
     },
     {
@@ -209,31 +213,45 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     {
       key: "bestRole",
       head: t.players.table.bestRole,
-      className: "whitespace-nowrap",
+      // May wrap, for the same reason as the club: a fixed one-line width is
+      // what pushed the table past its container when Raw fit was sorted by.
+      className: "min-w-28",
       /* A table row: the Portuguese name alone. */
       cell: (p) => (p.best_role_key ? <RoleName role={p.best_role_key} /> : (p.best_role ?? "–")),
     },
-    {
-      /* "Fit" named two different numbers that this product keeps apart
-         everywhere else. The figure here is the Raw Role Fit - the weighted
-         composite - and the percentile under it is where that composite stands
-         among players measured for the same role. Both already arrive in the
-         payload; neither was named. */
-      key: "rawFit",
-      head: t.players.table.rawFit,
-      numeric: true,
-      className: "font-medium",
-      cell: (p) => (
-        <>
-          {p.best_role_score !== null ? Math.round(p.best_role_score) : "–"}
-          {p.best_role_percentile != null ? (
-            <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-              {f.ordinal(p.best_role_percentile)} {t.players.table.percentileSuffix}
-            </span>
-          ) : null}
-        </>
-      ),
-    },
+    // ONLY WHEN THE READER SORTED BY IT, as the Ranked column below.
+    //
+    // It was a permanent ninth column, 60px of a table that needed 1013px
+    // inside 928, so the last column was always cut off. The number lives on
+    // the profile, where it is explained, and the search is for finding people.
+    // When the reader asks to sort by it the column returns - promoted to
+    // second, as every sorted column is - so the order is never without a
+    // visible cause. Nothing about the sort or the score changes.
+    ...(filters.sort === "role_score"
+      ? [
+          {
+            /* "Fit" named two different numbers that this product keeps apart
+               everywhere else. The figure here is the Raw Role Fit - the weighted
+               composite - and the percentile under it is where that composite stands
+               among players measured for the same role. Both already arrive in the
+               payload; neither was named. */
+            key: "rawFit",
+            head: t.players.table.rawFit,
+            numeric: true,
+            className: "font-medium",
+            cell: (p: PlayerSummary) => (
+              <>
+                {p.best_role_score !== null ? Math.round(p.best_role_score) : "–"}
+                {p.best_role_percentile != null ? (
+                  <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                    {f.ordinal(p.best_role_percentile)} {t.players.table.percentileSuffix}
+                  </span>
+                ) : null}
+              </>
+            ),
+          } satisfies Column,
+        ]
+      : []),
     // Only when the reader asked for it. An empty column on every other sort
     // would be worse than no column: it reads as a missing value.
     ...(filters.sort === "role_score_ranked"
@@ -599,10 +617,13 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               <>
                 <TableWrap>
                   <Table>
+                    {/* 12px either side of a cell instead of 16: eight columns
+                        are 64px narrower, which is what lets the whole table sit
+                        inside the page at 1280px. */}
                     <THead>
                       <TR>
                         {columns.map((column) => (
-                          <TH key={column.key} numeric={column.numeric}>
+                          <TH key={column.key} numeric={column.numeric} className="sm:px-3">
                             {column.head}
                           </TH>
                         ))}
@@ -615,7 +636,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                             <TD
                               key={column.key}
                               numeric={column.numeric}
-                              className={column.className}
+                              className={`${column.className ?? ""} sm:px-3`}
                             >
                               {column.cell(player)}
                             </TD>
@@ -646,11 +667,16 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
              * to a flat string. `dangerouslySetInnerHTML` would be the easy
              * way and is not worth the hole; splitting on the tag is.
              */}
-            <Callout tone="note" title={t.players.rawFitNote.title}>
-              <Emphasised text={t.players.rawFitNote.first} />
-              <Emphasised className="mt-2" text={t.players.rawFitNote.second} />
-              <Emphasised className="mt-2" text={t.players.rawFitNote.third} />
-            </Callout>
+            {/* About the Raw fit column, which is only there when the list is
+                sorted by it; a note about a column that is not on screen is
+                noise. */}
+            {filters.sort === "role_score" ? (
+              <Callout tone="note" title={t.players.rawFitNote.title}>
+                <Emphasised text={t.players.rawFitNote.first} />
+                <Emphasised className="mt-2" text={t.players.rawFitNote.second} />
+                <Emphasised className="mt-2" text={t.players.rawFitNote.third} />
+              </Callout>
+            ) : null}
           </section>
       </div>
     </div>

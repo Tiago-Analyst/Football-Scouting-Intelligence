@@ -51,7 +51,11 @@ test("derived metrics are reported separately, with their arithmetic", () => {
 
 test("each count says which population it is", () => {
   // 53,591 players against 5,462 served reads as a contradiction without it.
-  assert.match(said("en"), /Identity records, from every source/);
+  // The label itself now carries the population - "Players" next to "Players in
+  // served view" was the contradiction - and the hint no longer has to.
+  assert.equal(copy.en.volumes.players, "Identity records");
+  assert.equal(copy.pt.volumes.players, "Registos de identidade");
+  assert.notEqual(copy.en.volumes.players, copy.en.served.players);
   assert.match(said("en"), /Performance rows loaded/);
   for (const locale of ["en", "pt"]) {
     for (const key of ["playersHint", "playerSeasonsHint", "clubsHint", "competitionsHint"]) {

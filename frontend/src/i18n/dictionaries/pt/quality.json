@@ -18,8 +18,8 @@
     "fail": "Falhou"
   },
   "volumes": {
-    "players": "Jogadores",
-    "playersHint": "Registos de identidade, de todas as fontes. A maioria traz apenas dados de mercado.",
+    "players": "Registos de identidade",
+    "playersHint": "De todas as fontes carregadas, antes da reconciliação. A maioria traz apenas dados de mercado.",
     "playerSeasons": "Épocas de jogador",
     "playerSeasonsHint": "Linhas de desempenho carregadas. Menos são ordenáveis — ver abaixo.",
     "clubs": "Clubes",

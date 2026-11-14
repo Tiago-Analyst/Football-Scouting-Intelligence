@@ -18,8 +18,8 @@
     "fail": "Fail"
   },
   "volumes": {
-    "players": "Players",
-    "playersHint": "Identity records, from every source. Most carry market data only.",
+    "players": "Identity records",
+    "playersHint": "From every loaded source, before reconciliation. Most carry market data only.",
     "playerSeasons": "Player seasons",
     "playerSeasonsHint": "Performance rows loaded. Fewer are rankable — see below.",
     "clubs": "Clubs",
