@@ -65,10 +65,10 @@ const EXPECTED = [
   "ranked",
   "similarity",
   "rawRoleFit",
+  "value",
   "affordability",
   "age",
   "club",
-  "value",
   "contract",
 ];
 

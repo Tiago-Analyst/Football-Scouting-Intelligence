@@ -25,7 +25,10 @@ import type { ApiMessage, Finding, ScoutingInterpretation as Interpretation } fr
  * supports. Nothing here is rendered that the reader cannot check against the
  * tables below it.
  *
- * The two lists are not symmetrical, deliberately. A strength outside the
+ * The first list is labelled "statistical highlights", not strengths: it is
+ * the metrics at the top of their percentile band, which is a reading of the
+ * numbers and not a scouting verdict. It is not role-dependent and does not
+ * replace Role Fit. The two lists are not symmetrical, deliberately. A highlight outside the
  * player's role is worth knowing; a weakness outside it is a statistic about
  * something nobody asked them to do, so the server draws watch-outs from the
  * role's own components. A goalkeeper is not weak at key passes.
@@ -96,6 +99,7 @@ export async function ScoutingInterpretation({
             heading={c.strengths}
             findings={strengths}
             empty={c.strengthsEmpty}
+            note={c.strengthsNote}
             t={t}
           />
           <FindingList
@@ -162,16 +166,19 @@ function FindingList({
   heading,
   findings,
   empty,
+  note,
   t,
 }: {
   heading: string;
   findings: Finding[];
   empty: string;
+  note?: string;
   t: Dictionary;
 }) {
   return (
     <section>
       <Heading>{heading}</Heading>
+      {note ? <p className="-mt-1 mb-2 text-xs text-subtle">{note}</p> : null}
       {findings.length === 0 ? (
         <p className="text-sm text-subtle">{empty}</p>
       ) : (
