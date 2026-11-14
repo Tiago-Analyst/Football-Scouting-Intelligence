@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { BriefSummary, type BriefCopy } from "@/components/recruitment/BriefSummary";
-import {
-  buildBrief,
-  type Brief,
-  type BriefLabels,
-  type BriefScore,
-} from "@/lib/brief";
+import { buildBrief, type Brief, type BriefLabels, type BriefScore } from "@/lib/brief";
 import { bindFormatters, type LocaleTag } from "@/lib/format";
 
 export interface LiveBriefCopy extends BriefCopy {

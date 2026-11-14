@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { buildBrief } from "../src/lib/brief.ts";
+import { buildBrief, wholePercents } from "../src/lib/brief.ts";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const json = (file) => JSON.parse(read(file));
@@ -406,4 +406,75 @@ test("the build button inside the brief is the form's own submit", () => {
   // Disabled for the same reason the form's own button is: nothing weighted, or
   // a weighted dimension this load cannot produce.
   assert.match(liveBrief, /disabled=\{nothing \|\| blocked > 0\}/);
+});
+
+// ---------------------------------------------------------------------------
+// THE SHARES ADD UP TO 100
+// ---------------------------------------------------------------------------
+
+const sum = (values) => values.reduce((a, b) => a + b, 0);
+const shares = (weights) => brief(weights).priorities.map((p) => p.share);
+
+test("three equal weights read 100%, not 99%", () => {
+  const got = shares({ ball_security: 1, chance_creation: 1, goal_threat: 1 });
+  assert.equal(sum(got), 100);
+  assert.deepEqual([...got].sort((a, b) => b - a), [34, 33, 33]);
+});
+
+test("a split that used to round to 101% reads 100%", () => {
+  // 33.5 + 33.5 + 33.0: Math.round on each gives 34 + 34 + 33 = 101.
+  const weights = { ball_security: 67, chance_creation: 67, goal_threat: 66 };
+  assert.equal(
+    sum(Object.values(weights).map((w) => Math.round((w / 200) * 100))),
+    101,
+    "this case no longer exercises the old defect",
+  );
+  const got = shares(weights);
+  assert.equal(sum(got), 100);
+  assert.deepEqual([...got].sort((a, b) => b - a), [34, 33, 33]);
+});
+
+test("eight equal weights, which used to read 104%, read 100%", () => {
+  const got = wholePercents([1, 1, 1, 1, 1, 1, 1, 1]);
+  assert.equal(sum(got), 100);
+  assert.ok(got.every((share) => share === 12 || share === 13));
+});
+
+test("equivalent scales give the same shares", () => {
+  const small = shares({ ball_security: 1, chance_creation: 1, goal_threat: 1 });
+  const large = shares({ ball_security: 10, chance_creation: 10, goal_threat: 10 });
+  assert.deepEqual(small, large);
+  assert.deepEqual(
+    shares({ ball_security: 2, chance_creation: 1, goal_threat: 1 }),
+    shares({ ball_security: 200, chance_creation: 100, goal_threat: 100 }),
+  );
+});
+
+test("the displayed shares add up to exactly 100 for any weighting", () => {
+  // A deterministic sweep rather than a handful of hand-picked cases: every
+  // weighting of up to four scores with weights 1-9.
+  for (let a = 1; a <= 9; a++)
+    for (let b = 1; b <= 9; b++)
+      for (let c = 0; c <= 9; c++)
+        for (let d = 0; d <= 9; d++) {
+          const got = shares({ ball_security: a, chance_creation: b, goal_threat: c, ball_progression: d });
+          assert.equal(sum(got), 100, `${a}/${b}/${c}/${d} adds up to ${sum(got)}`);
+        }
+});
+
+test("the split is deterministic and keeps the biggest weight on top", () => {
+  const first = shares({ ball_security: 1, chance_creation: 1, goal_threat: 1 });
+  assert.deepEqual(first, shares({ ball_security: 1, chance_creation: 1, goal_threat: 1 }));
+  const ordered = shares({ ball_security: 50, chance_creation: 30, goal_threat: 20 });
+  assert.deepEqual(ordered, [50, 30, 20]);
+  const sorted = [...ordered].sort((a, b) => b - a);
+  assert.deepEqual(ordered, sorted);
+});
+
+test("nothing weighted shares nothing, and the real weights are not rewritten", () => {
+  assert.deepEqual(wholePercents([]), []);
+  assert.deepEqual(wholePercents([0, 0]), [0, 0]);
+  const weights = Object.freeze({ ball_security: 1, chance_creation: 1, goal_threat: 1 });
+  brief(weights);
+  assert.deepEqual({ ...weights }, { ball_security: 1, chance_creation: 1, goal_threat: 1 });
 });

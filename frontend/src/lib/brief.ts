@@ -74,6 +74,34 @@ export interface Brief {
   constraints: BriefConstraint[];
 }
 
+/**
+ * Whole percents that add up to exactly 100.
+ *
+ * Rounding each share on its own does not: three equal weights read 33 + 33 +
+ * 33 = 99, and eight equal ones read 13 x 8 = 104. A brief that says the
+ * profile is 99% of itself invites a question about the other one percent.
+ *
+ * Largest remainder: every share gets its floor, and the points still owed go
+ * to the shares with the biggest fractional part. Ties fall to the larger
+ * weight and then to the score's position in the list, so the same weights
+ * always produce the same split. The weights themselves are untouched - this
+ * only decides how a ratio is printed.
+ */
+export function wholePercents(weights: number[]): number[] {
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  if (!(total > 0)) return weights.map(() => 0);
+
+  const exact = weights.map((weight) => (weight / total) * 100);
+  const shares = exact.map((value) => Math.floor(value));
+  const owed = 100 - shares.reduce((sum, share) => sum + share, 0);
+
+  const order = exact
+    .map((value, index) => ({ index, remainder: value - Math.floor(value), value }))
+    .sort((a, b) => b.remainder - a.remainder || b.value - a.value || a.index - b.index);
+  for (let i = 0; i < owed; i++) shares[order[i].index] += 1;
+  return shares;
+}
+
 const asNumber = (raw: string): number | null => {
   if (raw.trim() === "") return null;
   const value = Number(raw);
@@ -91,11 +119,12 @@ export function buildBrief(
   const weighted = scores.filter((score) => (weights[score.key] ?? 0) > 0);
   const total = weighted.reduce((sum, score) => sum + weights[score.key], 0);
 
+  const shares = wholePercents(weighted.map((score) => weights[score.key]));
   const priorities: BriefPriority[] = weighted
-    .map((score) => ({
+    .map((score, index) => ({
       key: score.key,
       label: score.label,
-      share: total > 0 ? Math.round((weights[score.key] / total) * 100) : 0,
+      share: shares[index],
       available: score.available,
     }))
     .sort((a, b) => b.share - a.share);
