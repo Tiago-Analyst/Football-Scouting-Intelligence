@@ -39,7 +39,7 @@
     "affordability": "Affordability",
     "overall": "Overall",
     "ranked": "Ranked",
-    "value": "Value",
+    "value": "Market value",
     "contract": "Contract",
     "differentStrength": "Different profile strength",
     "seasonShare": "{pct}% of a season",
@@ -48,9 +48,11 @@
   },
   "empty": {
     "title": "No replacements match these constraints",
-    "description": "Try raising the budget or relaxing the age and competition filters."
+    "description": "Try raising the budget or relaxing the age and competition filters. With a budget set, players whose market value is unknown are not shown."
   },
   "notes": {
+    "valueTitle": "What market value is here",
+    "valueBody": "An estimate from the Transfermarkt dataset. It is context: not a transfer fee, not an asking price and not a prediction of either. Affordability beside it is derived from this figure and your budget.",
     "rankedTitle": "Why this column exists",
     "rankedBody": "The list is ordered by this, not by Overall. A score built on part of a season is read closer to the average for this search, in proportion to how much football stands behind it; at a full season's minutes it is used as it stands. Nobody is excluded and no score is rewritten — Overall beside it is the score itself.",
     "overallTitle": "How the overall score is built",

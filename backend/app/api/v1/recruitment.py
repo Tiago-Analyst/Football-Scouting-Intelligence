@@ -20,7 +20,7 @@ from app.analytics.percentiles import PercentileScope
 from app.analytics.presets import get_presets
 from app.analytics.reliability import rank_by_evidence
 from app.analytics.scoring import ScoreComponent, normalise_weights, weighted_score
-from app.analytics.similarity import SimilarityFilters
+from app.analytics.similarity import SimilarityFilters, within_budget
 from app.api.v1.messages import ranking_message as _ranking_message
 from app.api.v1.players import metric_label, require_player, to_summary
 from app.schemas.api import (
@@ -79,10 +79,8 @@ def _passes_filters(record: PlayerRecord, filters: RecruitmentFilters) -> bool:
         return False
     if filters.max_age is not None and (record.age is None or record.age > filters.max_age):
         return False
-    if (
-        filters.max_market_value_eur is not None
-        and record.market_value_eur is not None
-        and record.market_value_eur > filters.max_market_value_eur
+    if filters.max_market_value_eur is not None and not within_budget(
+        record.market_value_eur, filters.max_market_value_eur
     ):
         return False
     if (

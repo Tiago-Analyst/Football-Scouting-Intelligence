@@ -303,10 +303,22 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           The product keeps the two apart everywhere else, and
                           "Role fit" alone is which of them nobody can tell. */}
                       <TH numeric>{t.replacements.table.rawRoleFit}</TH>
+                      {/* The fact, then the signal derived from it. A scout
+                          with a 5M brief reads 1.2M, 3.8M, 4.9M directly
+                          instead of decoding an affordability score. It sat
+                          behind club, off screen on a phone, labelled
+                          "Value". Context, not a fee: the tooltip says so. */}
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">
+                          {t.replacements.table.value}
+                          <Tooltip label={t.replacements.notes.valueTitle}>
+                            {t.replacements.notes.valueBody}
+                          </Tooltip>
+                        </span>
+                      </TH>
                       <TH numeric>{t.replacements.table.affordability}</TH>
                       <TH numeric>{t.replacements.table.age}</TH>
                       <TH>{t.replacements.table.club}</TH>
-                      <TH numeric>{t.replacements.table.value}</TH>
                       <TH numeric>{t.replacements.table.contract}</TH>
                     </TR>
                   </THead>
@@ -372,15 +384,15 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           {entry.role_fit !== null ? Math.round(entry.role_fit) : "–"}
                         </TD>
                         <TD numeric>
-                          {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
-                        </TD>
-                        <TD numeric>{entry.player.age ?? "–"}</TD>
-                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
-                        <TD numeric>
                           {entry.player.market_value_eur !== null
                             ? f.euro(entry.player.market_value_eur)
                             : "–"}
                         </TD>
+                        <TD numeric>
+                          {entry.market_fit !== null ? Math.round(entry.market_fit) : "–"}
+                        </TD>
+                        <TD numeric>{entry.player.age ?? "–"}</TD>
+                        <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD numeric className="text-muted">
                           <ContractDate
                             date={entry.player.contract_expires}

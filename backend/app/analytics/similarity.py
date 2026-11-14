@@ -146,6 +146,24 @@ class SimilarityCandidate:
     nationality: str | None = None
 
 
+def within_budget(market_value_eur: int | None, maximum_eur: int) -> bool:
+    """Whether a player can be confirmed to be inside a hard maximum value.
+
+    An unknown value cannot. "We do not know what he is worth" is not "he is
+    worth less than the budget", and a list that answered a EUR 100k brief with
+    four players of unknown value was reporting the first as the second. The
+    caller applies this only when the user supplied a maximum; with none,
+    unknown-valued players stay eligible.
+
+    The same rule on every surface with a maximum-value filter (player search,
+    similar players, recruitment, replacements). Market opportunities already
+    required a known value, and keeps its own funnel because it states the
+    criterion it applied. Nothing here converts unknown to zero or touches
+    affordability: this decides who is shown, not how anybody scores.
+    """
+    return market_value_eur is not None and market_value_eur <= maximum_eur
+
+
 @dataclass(frozen=True)
 class SimilarityFilters:
     """Constraints on which candidates may be returned (spec section 12)."""
@@ -173,15 +191,17 @@ class SimilarityFilters:
         tests. Dropping players for *missing* data would silently narrow results
         to whoever happens to be best covered, which is a different search from
         the one the user asked for.
+
+        One exception, deliberately: a maximum market value. That is a hard
+        budget, and a player of unknown value is not confirmed to be inside it
+        (`within_budget`).
         """
         if self.min_age is not None and candidate.age is not None and candidate.age < self.min_age:
             return False
         if self.max_age is not None and candidate.age is not None and candidate.age > self.max_age:
             return False
-        if (
-            self.max_market_value_eur is not None
-            and candidate.market_value_eur is not None
-            and candidate.market_value_eur > self.max_market_value_eur
+        if self.max_market_value_eur is not None and not within_budget(
+            candidate.market_value_eur, self.max_market_value_eur
         ):
             return False
         if self.competitions is not None and candidate.competition_id not in self.competitions:
@@ -609,4 +629,5 @@ __all__ = [
     "get_feature_sets",
     "load_feature_sets",
     "to_similarity_index",
+    "within_budget",
 ]

@@ -97,7 +97,7 @@ function ComparisonSummary({ t, players }: { t: Dictionary; players: ComparedPla
             ) : null}
 
             <SummaryList
-              heading={t.shortlists.comparison.strengths}
+              heading={t.components.interpretation.strengths}
               items={reading.strengths.map(
                 (finding) =>
                   t.glossary.metrics[finding.metric as keyof typeof t.glossary.metrics] ??

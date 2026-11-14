@@ -91,7 +91,6 @@
     "headingPlural": "Comparing {count} players",
     "scopeLabel": "Compare percentiles within:",
     "scopeCompetition": "Each competition",
-    "strengths": "Strengths",
     "strengthsEmpty": "Nothing in the upper band.",
     "watchOuts": "Watch-outs",
     "watchOutsEmpty": "Nothing in the lower band of this role.",

@@ -39,7 +39,7 @@
     "affordability": "Comportabilidade",
     "overall": "Global",
     "ranked": "Ordenado",
-    "value": "Valor",
+    "value": "Valor de mercado",
     "contract": "Contrato",
     "differentStrength": "Força de perfil diferente",
     "seasonShare": "{pct}% de uma época",
@@ -48,9 +48,11 @@
   },
   "empty": {
     "title": "Nenhum substituto corresponde a estas restrições",
-    "description": "Experimente aumentar o orçamento ou aliviar os filtros de idade e competição."
+    "description": "Experimente aumentar o orçamento ou aliviar os filtros de idade e competição. Com um orçamento definido, os jogadores sem valor de mercado conhecido não são mostrados."
   },
   "notes": {
+    "valueTitle": "O que é o valor de mercado aqui",
+    "valueBody": "Uma estimativa do conjunto de dados do Transfermarkt. É contexto: não é um valor de transferência, nem um preço pedido, nem uma previsão de qualquer um deles. A comportabilidade ao lado é derivada deste valor e do orçamento definido.",
     "rankedTitle": "Porque existe esta coluna",
     "rankedBody": "A lista é ordenada por este valor, e não pelo Global. Uma pontuação construída sobre parte de uma época é lida mais perto da média desta pesquisa, na proporção de quanto futebol a sustenta; com os minutos de uma época inteira é usada tal como está. Ninguém é excluído e nenhuma pontuação é reescrita — o Global ao lado é a pontuação em si.",
     "overallTitle": "Como a pontuação global é construída",
