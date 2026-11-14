@@ -38,7 +38,6 @@
     "rankedNote": "ranked {score} · {pct}% of a season",
     "why": "Why this player appeared",
     "minutes": "{minutes} min",
-    "marketValueNote": "Market value {value} — a crowd-sourced estimate, not an asking price.",
     "emptyDescription": "Try lowering the minimum role fit, raising the age limit, or widening the market value ceiling.",
     "stepRemaining": "{remaining} left",
     "stepRemoved": " (−{removed})"

@@ -393,6 +393,10 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                       />
                       <CardBody>
                         <p className="mb-2 text-xs font-medium text-muted">{t.opportunities.results.why}</p>
+                        {/* The caveat about what a market value is lives once, in the
+                            note above the list. It used to be repeated under every
+                            card, beside a "Valued at" badge that already carried the
+                            number - the same fact twice per player. */}
                         <ul className="flex flex-wrap gap-2">
                           {/* The API decided which reasons apply; the words are
                               this side's, because a euro amount and a month
@@ -403,14 +407,6 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                             </li>
                           ))}
                         </ul>
-                        {entry.player.market_value_eur !== null ? (
-                          <p className="mt-3 text-xs text-subtle">
-                            {t.opportunities.results.marketValueNote.replace(
-                              "{value}",
-                              f.euro(entry.player.market_value_eur),
-                            )}
-                          </p>
-                        ) : null}
                       </CardBody>
                     </Card>
                   </li>
