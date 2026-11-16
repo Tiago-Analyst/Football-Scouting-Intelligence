@@ -378,6 +378,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                 show: t.players.filters.show,
                 hide: t.players.filters.hide,
                 active: t.players.filters.activeCount,
+                activeOne: t.players.filters.activeCountOne,
               }}
             >
 
@@ -663,6 +664,13 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               />
             ) : (
               <>
+                {/* Above the table, not under it. Under it the line sat after
+                    25 rows - about 2,700px down on a phone - so nobody saw it
+                    until they had already scrolled past everything it
+                    explains. Only where the table cannot show its own width:
+                    the columns past the club are there, and a phone gives no
+                    other sign. */}
+                <p className="text-[11px] text-subtle sm:hidden">{t.players.table.scrollHint}</p>
                 <TableWrap>
                   <Table>
                     {/* 12px either side of a cell instead of 16: eight columns
@@ -694,9 +702,6 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                     </TBody>
                   </Table>
                 </TableWrap>
-                {/* Only where the table cannot show its own width: the columns
-                    past the club are there, and a phone gives no other sign. */}
-                <p className="text-[11px] text-subtle sm:hidden">{t.players.table.scrollHint}</p>
 
                 <Pagination
                   total={results.total}
