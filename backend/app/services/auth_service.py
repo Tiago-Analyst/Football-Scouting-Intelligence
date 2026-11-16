@@ -22,6 +22,7 @@ Several behaviours below look like small details and are the whole point:
 from __future__ import annotations
 
 import hashlib
+import hmac
 import re
 import secrets
 from dataclasses import dataclass
@@ -86,6 +87,12 @@ FREE_LOGIN_ATTEMPTS = 5
 #: the owner's worst case short while still cutting an attacker from thousands
 #: of guesses an hour to about thirty.
 LOGIN_BACKOFF_SECONDS = (5, 15, 60, 120)
+
+#: Failures allowed from ONE caller, across every address it tries, before a
+#: wait is imposed. Well above the per-address figure: a shared office or
+#: university address is one caller, and a handful of colleagues mistyping must
+#: not meet it. The same waits apply, and the same two-minute ceiling.
+FREE_CALLER_ATTEMPTS = 20
 
 
 class AuthError(Exception):
@@ -264,6 +271,57 @@ def hash_email(email: str) -> str:
     return hashlib.sha256(normalise_email(email).encode("utf-8")).hexdigest()
 
 
+def hash_caller(address: str, token: str) -> str:
+    """HMAC-SHA256 of a caller's address, keyed with the shared secret.
+
+    Keyed, unlike `hash_email`, because the space of addresses is small enough
+    to enumerate: a plain hash of an IPv4 address is a list of addresses with
+    extra steps. Without the secret the stored value cannot be reversed, and
+    the `caller:` prefix keeps it from ever equal to an email's hash.
+    """
+    digest = hmac.new(token.encode("utf-8"), f"caller:{address}".encode(), hashlib.sha256)
+    return digest.hexdigest()
+
+
+def _retry_after(session: Session, key: str, free: int) -> int:
+    since = datetime.now(UTC) - FAILED_LOGIN_WINDOW
+    recent = session.scalars(
+        select(LoginAttempt)
+        .where(LoginAttempt.email_hash == key, LoginAttempt.occurred_at > since)
+        .order_by(LoginAttempt.occurred_at.desc())
+    ).all()
+
+    if len(recent) <= free:
+        return 0
+
+    step = min(len(recent) - free - 1, len(LOGIN_BACKOFF_SECONDS) - 1)
+    required = timedelta(seconds=LOGIN_BACKOFF_SECONDS[step])
+    waited = datetime.now(UTC) - recent[0].occurred_at
+    if waited >= required:
+        return 0
+    # Rounded up, so a reported wait of 1 second is never a wait of 0.4 that
+    # the next attempt still refuses.
+    return max(1, -(-int((required - waited).total_seconds() * 1000) // 1000))
+
+
+def caller_retry_after(session: Session, caller_key: str) -> int:
+    """Seconds this CALLER must wait, whatever address it is trying.
+
+    Counts failures from one visitor across all the accounts it has tried, which
+    is the one thing the per-address count cannot see: one password sprayed over
+    many addresses gives each address a single failure. Unlike the per-address
+    count it is NOT cleared by a success. A caller holding one valid account
+    could otherwise interleave a success between guesses and reset it forever.
+    """
+    return _retry_after(session, caller_key, FREE_CALLER_ATTEMPTS)
+
+
+def record_failed_caller(session: Session, caller_key: str) -> None:
+    """Count one failed sign-in against a caller."""
+    session.add(LoginAttempt(email_hash=caller_key, occurred_at=datetime.now(UTC)))
+    session.flush()
+
+
 def login_retry_after(session: Session, email: str) -> int:
     """Seconds the caller must wait before this address may be tried again.
 
@@ -278,31 +336,13 @@ def login_retry_after(session: Session, email: str) -> int:
     WHAT THIS DOES NOT COVER
 
     One password tried against many addresses. Each address keeps its own
-    count, so spraying never meets this at all; the only brake on that is the
-    process-wide limiter, which cannot tell callers apart. Stopping it needs a
-    per-caller count, and the caller's address is not visible to this service -
-    see `app.core.middleware.RateLimitMiddleware`.
+    count, so spraying never meets this at all. That is what `caller_retry_after`
+    is for: a count per visitor, which exists only when the frontend forwards the
+    visitor's address with `CALLER_TOKEN` (see `_trusted_caller_key`). Without
+    that secret this is the only brake and spraying is limited by the shared
+    process-wide bucket alone.
     """
-    since = datetime.now(UTC) - FAILED_LOGIN_WINDOW
-    key = hash_email(email)
-
-    recent = session.scalars(
-        select(LoginAttempt)
-        .where(LoginAttempt.email_hash == key, LoginAttempt.occurred_at > since)
-        .order_by(LoginAttempt.occurred_at.desc())
-    ).all()
-
-    if len(recent) <= FREE_LOGIN_ATTEMPTS:
-        return 0
-
-    step = min(len(recent) - FREE_LOGIN_ATTEMPTS - 1, len(LOGIN_BACKOFF_SECONDS) - 1)
-    required = timedelta(seconds=LOGIN_BACKOFF_SECONDS[step])
-    waited = datetime.now(UTC) - recent[0].occurred_at
-    if waited >= required:
-        return 0
-    # Rounded up, so a reported wait of 1 second is never a wait of 0.4 that
-    # the next attempt still refuses.
-    return max(1, -(-int((required - waited).total_seconds() * 1000) // 1000))
+    return _retry_after(session, hash_email(email), FREE_LOGIN_ATTEMPTS)
 
 
 def record_failed_login(session: Session, email: str) -> None:

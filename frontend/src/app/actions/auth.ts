@@ -12,9 +12,11 @@
  * "that password is wrong" would replace the form the person needs to correct.
  */
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ApiError, apiFetchWithHeaders } from "@/lib/api";
+import { callerHeaders } from "@/lib/caller";
 import {
   SESSION_MAX_AGE,
   adoptSession,
@@ -85,6 +87,9 @@ export async function signInAction(_previous: FormState, data: FormData): Promis
     const { setCookie, data } = await apiFetchWithHeaders<AuthUser>("/api/v1/auth/login", {
       method: "POST",
       body: { email, password },
+      // Who is asking, so one visitor trying one password across many accounts
+      // is counted as one. Sign-in only: nothing else here guesses a password.
+      headers: callerHeaders(await headers()),
     });
     await adoptSession(setCookie, SESSION_MAX_AGE, data);
   } catch (error) {

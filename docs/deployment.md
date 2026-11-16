@@ -357,6 +357,30 @@ that run as an unprivileged user and carry a healthcheck. The frontend relies on
 
 Neither is needed on Vercel, which builds Next itself.
 
+### The backend's dependencies are locked, with hashes
+
+**Added 16 November 2026.** `backend/requirements.lock` pins every package the
+backend image installs, runtime only, with `sha256` hashes, and the Dockerfile
+installs it with `pip install --require-hashes --no-deps`. Two builds of one
+commit therefore install the same code, and a release published (or tampered
+with) in between is refused rather than picked up.
+
+It is generated for what the image runs - Python 3.12 on Linux x86-64 - not for
+the machine you edit on. After changing `dependencies` in
+`backend/pyproject.toml`, from `backend/`:
+
+```bash
+pip install uv==0.13.8
+uv pip compile pyproject.toml --generate-hashes --python-version 3.12 --python-platform x86_64-manylinux_2_28 --no-header -o requirements.lock
+```
+
+CI runs the same command and fails on any difference, so a dependency edited in
+one file and not the other cannot reach production. To **upgrade** a pin, add
+`--upgrade-package <name>` (or `--upgrade` for all) and run the tests: the lock
+fixes the versions CI and production use, and nothing else does. The `[dev]` and
+`[pipelines]` extras are not locked here; CI and the data pipeline still resolve
+those fresh, and `pip` itself is upgraded unpinned at image build.
+
 `docker-compose.yml` is for local use and is not a production topology: it has
 no TLS termination, no backups and no secret management.
 
@@ -510,6 +534,7 @@ prompts for:
 | `FOOTYSTATS_API_KEY` | only if a subscription is in use |
 | `BUILD_TOKEN` | any long random string; the same value goes to Vercel |
 | `INTERNAL_TOKEN` | a different long random string; also to Vercel and GitHub |
+| `CALLER_TOKEN` | a third long random string; also to Vercel. Optional: unset, sign-in is limited per account only |
 
 `CORS_ALLOW_ORIGINS` is a chicken-and-egg: Vercel has to exist first to have an
 origin. Deploy the frontend, then come back and set it. A wildcard is not an
@@ -595,6 +620,7 @@ carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
 | `SITE_INDEXABLE` | leave unset; set to `false` to close indexing again |
 | `BUILD_TOKEN` | the same value set on Render |
 | `INTERNAL_TOKEN` | the same value set on Render |
+| `CALLER_TOKEN` | the same value set on Render (optional; see `docs/rate_limiting.md`) |
 
 `API_BASE_URL` is deliberately not `NEXT_PUBLIC_`. The browser never talks to
 the API; Next reads it server-side. Renaming it would put the API's address in

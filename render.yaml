@@ -165,3 +165,12 @@ services:
       # 404 to everybody.
       - key: INTERNAL_TOKEN
         sync: false
+
+      # Lets the frontend say WHICH visitor is signing in, so one password tried
+      # against many accounts is counted per visitor. A third secret on
+      # purpose: BUILD_TOKEN only lifts a rate limit and INTERNAL_TOKEN drives
+      # the service, and neither should stand in for this. Set the same value as
+      # CALLER_TOKEN in the Vercel project. Unset, the forwarded address is
+      # ignored and sign-in is limited per account only.
+      - key: CALLER_TOKEN
+        sync: false
