@@ -84,6 +84,10 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
  */
 export const revalidate = 3600;
 
+/** The middle of the players measured for the role: a percentile under it is a
+ * below-average fit. A display line, not a scoring threshold. */
+const BELOW_MEDIAN = 50;
+
 export async function generateMetadata(props: PageProps<"/[lang]/players/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
   // The same request the page makes, so the fetch cache serves both from one
@@ -100,6 +104,13 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
   if (!profile) notFound();
 
   const { player, stats, roles, similar } = profile;
+  // A role is always named - the highest of the eight fits - but "best" reads as
+  // a recommendation, and a player whose best fit is still below the middle of
+  // the players measured for that role (about a third of a typical page of
+  // results) has been recommended for nothing. Below the median the tile says
+  // "closest" and drops the accent. The fit itself is not touched.
+  const bestPercentile = roles?.best?.role_fit_percentile ?? null;
+  const fitIsBelowMedian = bestPercentile !== null && bestPercentile < BELOW_MEDIAN;
   const locale = await getLocale();
   const t = await getDictionary();
   const f = await formatters();
@@ -181,7 +192,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label={t.profile.tiles.bestRole}
+          label={fitIsBelowMedian ? t.profile.tiles.closestRole : t.profile.tiles.bestRole}
           // The standing, not the raw score. Raw role scores from differently
           // weighted roles do not share a scale, so the headline number is the
           // one that can be compared. The raw fit is shown in full below.
@@ -214,7 +225,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                 : roleLabel(t, roles.best.key)
               : t.profile.tiles.notAvailable
           }
-          tone="accent"
+          tone={fitIsBelowMedian ? "default" : "accent"}
         />
         <StatTile
           label={t.profile.tiles.minutesPlayed}

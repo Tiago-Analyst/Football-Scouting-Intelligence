@@ -18,6 +18,7 @@
   },
   "tiles": {
     "bestRole": "Best role",
+    "closestRole": "Closest role",
     "notAvailable": "Not available",
     "percentileUnit": "percentile",
     "rawFit": "raw fit {score}",

@@ -18,6 +18,7 @@
   },
   "tiles": {
     "bestRole": "Melhor função",
+    "closestRole": "Função mais próxima",
     "notAvailable": "Indisponível",
     "percentileUnit": "percentil",
     "rawFit": "adequação bruta {score}",
