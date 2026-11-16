@@ -18,10 +18,11 @@ deliberately does not.
 
 from __future__ import annotations
 
+import hmac
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Response, status
+from fastapi import APIRouter, Cookie, Depends, Request, Response, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import SessionDep, SettingsDep
@@ -39,11 +40,14 @@ from app.services.auth_service import (
     InvalidEmail,
     WeakPassword,
     authenticate,
+    caller_retry_after,
     change_password,
     clear_failed_logins,
     create_session,
     delete_account,
+    hash_caller,
     login_retry_after,
+    record_failed_caller,
     record_failed_login,
     register_user,
     resolve_session,
@@ -230,9 +234,32 @@ def register(
     return to_user(user)
 
 
+def _trusted_caller_key(http_request: Request, settings: Settings) -> str | None:
+    """Who is signing in, if the frontend said so and can be believed.
+
+    The address this service sees is Vercel's. The frontend knows the visitor's
+    and forwards it, with a shared secret, because anyone can send a header and
+    an unproven one would let a caller choose which bucket it falls into. No
+    secret configured, no header, or a wrong secret: None, and sign-in is
+    limited per account only, exactly as before.
+    """
+    token = settings.caller_token
+    address = http_request.headers.get("x-caller-address", "").strip()
+    offered = http_request.headers.get("x-caller-token", "")
+    if not token or not address or len(address) > 64:
+        return None
+    if not hmac.compare_digest(offered.encode("utf-8"), token.encode("utf-8")):
+        return None
+    return hash_caller(address, token)
+
+
 @router.post("/login", response_model=UserOut)
 def login(
-    request: LoginRequest, response: Response, db: SessionDep, settings: SettingsDep
+    request: LoginRequest,
+    http_request: Request,
+    response: Response,
+    db: SessionDep,
+    settings: SettingsDep,
 ) -> UserOut:
     """Sign in. Every failure gives the same answer, and they are counted.
 
@@ -248,7 +275,11 @@ def login(
     whether it exists, because an unregistered address is counted and refused
     exactly the same way.
     """
-    retry_after = login_retry_after(db, request.email)
+    caller_key = _trusted_caller_key(http_request, settings)
+    retry_after = max(
+        login_retry_after(db, request.email),
+        caller_retry_after(db, caller_key) if caller_key else 0,
+    )
     if retry_after:
         # Not recorded as a failure. A refusal that counted itself would let
         # anybody hold somebody else's address at the ceiling indefinitely by
@@ -271,9 +302,12 @@ def login(
         # count would otherwise be rolled back with the failure that caused it
         # - which is the whole of what this endpoint has to remember.
         record_failed_login(db, request.email)
+        if caller_key:
+            record_failed_caller(db, caller_key)
         db.commit()
         raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
 
+    # The caller's count is deliberately NOT cleared here: see `caller_retry_after`.
     # Only consecutive failures accumulate: somebody who mistypes six times and
     # then succeeds starts from zero, rather than meeting a wait tomorrow.
     clear_failed_logins(db, request.email)

@@ -149,6 +149,20 @@ class Settings(BaseSettings):
     #: reach in.
     internal_token: str | None = None
 
+    #: A shared secret that lets the frontend say WHO is signing in.
+    #:
+    #: The address this service sees is Vercel's, so one password tried against
+    #: many accounts - each address keeping its own count - never meets any
+    #: limit. The frontend does see the visitor's address, and passes it on with
+    #: this secret; only then is it believed, because anyone can send a header.
+    #: Its own secret, not `build_token` (which only lifts a limit) and not
+    #: `internal_token` (which drives the service), so none can stand in for
+    #: another.
+    #:
+    #: Unset means the forwarded address is ignored and sign-in is limited per
+    #: account only, as before.
+    caller_token: str | None = None
+
     # -- FootyStats -----------------------------------------------------------
     # A real key has been used and the mapping validated against real responses;
     # see docs/footystats_provider_status.md. Never logged, never serialised

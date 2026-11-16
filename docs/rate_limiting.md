@@ -134,14 +134,39 @@ nothing else, and storing the addresses would accumulate a list of real email
 addresses - most of them belonging to people with no account here, since a
 failed sign-in is often a typo or somebody else's address.
 
-### What it does not cover
+### One password tried against many addresses
 
-**One password tried against many addresses.** Each address keeps its own
-count, so spraying never meets this at all. The only brake on that is the
-shared bucket above, which cannot tell callers apart - and the reason is the
-same reason as everywhere else on this page: the address FastAPI sees is
-Vercel's. Closing it needs a per-caller count at Next.js, which is the section
-above this one.
+**Added 16 November 2026.** Each address keeps its own count, so spraying never
+met the throttle above: every address saw a single failure. The shared bucket
+could not tell callers apart either, because the address FastAPI sees is
+Vercel's.
+
+The sign-in server action now forwards the visitor's address (`x-real-ip`, else
+the first `x-forwarded-for` entry) in `X-Caller-Address`, together with
+`CALLER_TOKEN` in `X-Caller-Token`. The backend believes the address only when
+the token matches, because anyone can send a header; otherwise it ignores it.
+It keeps a second count in the same `login_attempt` table, keyed on an HMAC of
+the address (keyed so the stored value cannot be reversed by trying every IPv4
+address), and applies the same waits with a higher free allowance: **20
+failures in 15 minutes from one caller, across any addresses**, then 5, 15, 60
+and 120 seconds.
+
+Three deliberate choices:
+
+- **A success does not clear the caller's count**, unlike an address's. Otherwise
+  somebody with one account of their own could put a success between guesses
+  and never reach the wait.
+- **The allowance is 20, not 5**, because one address can be a whole office or
+  campus.
+- **Unset `CALLER_TOKEN` means off.** The feature needs the same secret set on
+  Render and on Vercel; with either missing, sign-in is limited per account
+  only, as before, and nothing fails.
+
+What it still does not cover: a spray spread over many visitor addresses (a
+botnet) is many callers, and each stays under its own allowance. The
+`x-real-ip`/`x-forwarded-for` behaviour relied on is Vercel's documented one -
+the platform sets it to the connecting client - and was not independently
+verified; behind a different host those headers would be forgeable.
 
 ## Known limitations, stated rather than implied
 
@@ -152,8 +177,9 @@ above this one.
   attacker can clear by waiting for a deploy is not a count.
 - **It is one bucket for the frontend.** Described above. It is an abuse brake,
   not a fairness mechanism.
-- **There is no per-user limiting anywhere**, with one exception: failed
-  sign-ins, per address. Stated so that nobody reads the presence of a limiter
+- **There is no per-user limiting anywhere**, with two exceptions: failed
+  sign-ins, per address, and (when `CALLER_TOKEN` is set) failed sign-ins per
+  visitor. Stated so that nobody reads the presence of a limiter
   as protection it does not offer.
 - **Nothing calls `purge_login_attempts`**, exactly as nothing calls
   `purge_expired_sessions`. Neither is load-bearing: the throttle only ever

@@ -85,6 +85,12 @@ interface ApiFetchOptions {
    * `buildTokenHeader` in `build-access.ts` for why asking is not enough.
    */
   buildAccess?: boolean;
+  /**
+   * Extra request headers. Today only the sign-in caller headers
+   * (`callerHeaders` in `caller.ts`); kept generic so it is not a second
+   * `cookie`-style special case.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface ApiResponse<T> {
@@ -125,6 +131,7 @@ export async function apiFetchWithHeaders<T>(
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(options.cookie ? { Cookie: options.cookie } : {}),
         ...buildTokenHeader(options.buildAccess),
+        ...(options.headers ?? {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(signalTimeoutMs),

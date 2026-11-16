@@ -60,6 +60,16 @@ jobs:
       - name: Install
         run: pip install -e ".[dev,pipelines]"
 
+      # The production image installs from `requirements.lock` with hashes, so a
+      # dependency edited in `pyproject.toml` and not in the lock would ship the
+      # OLD set. Compiling with the lock already in place keeps every pin and
+      # only changes what the manifest changed; any difference fails the build.
+      - name: Lockfile matches pyproject
+        run: |
+          pip install uv==0.13.8
+          uv pip compile pyproject.toml --generate-hashes --python-version 3.12             --python-platform x86_64-manylinux_2_28 --no-header -o requirements.lock
+          git diff --exit-code -- requirements.lock
+
       - name: Lint
         run: ruff check . ../pipelines
 

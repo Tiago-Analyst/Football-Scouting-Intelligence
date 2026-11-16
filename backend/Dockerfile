@@ -17,10 +17,20 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app/backend
 
-# Dependencies are installed from the manifest alone so the layer caches across
-# source edits.
-COPY backend/pyproject.toml ./
-RUN pip install --upgrade pip && pip install .
+# Dependencies are installed from the lockfile alone so the layer caches across
+# source edits - and so two builds of one commit install the same code.
+#
+# `--require-hashes` makes pip refuse anything whose hash is not in the file, and
+# `--no-deps` stops it resolving anything the lock did not already name. Without
+# them a release published between two builds, or a tampered one, would be
+# installed silently. The application itself is not installed as a package: it
+# runs from `/app/backend`, where `app` is importable, which is all `pip install
+# .` ever provided here (the source was copied in only afterwards).
+#
+# Regenerate with the command in `docs/deployment.md`. CI fails if the lock and
+# `pyproject.toml` disagree, so the two cannot drift apart unnoticed.
+COPY backend/requirements.lock ./
+RUN pip install --upgrade pip && pip install --require-hashes --no-deps -r requirements.lock
 
 COPY backend/app ./app
 COPY backend/alembic ./alembic
