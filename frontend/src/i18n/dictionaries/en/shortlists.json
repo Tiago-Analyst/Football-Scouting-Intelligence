@@ -86,7 +86,8 @@
     "thisPlayer": "this player",
     "cancel": "Cancel",
     "savingNote": "Saving records today as the review date. An empty box clears it.",
-    "statusOption": "{label} — {description}"
+    "statusOption": "{label} — {description}",
+    "loading": "Loading"
   },
   "comparison": {
     "heading": "Comparing {count} player",

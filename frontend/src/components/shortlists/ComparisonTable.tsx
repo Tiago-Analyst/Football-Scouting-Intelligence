@@ -313,6 +313,7 @@ export function ComparisonTable({
                 <TH key={column.player.player_id} numeric>
                   <Link
                     href={`/players/${column.player.player_id}`}
+                    pendingLabel={t.common.states.loading}
                     className="hover:text-accent hover:underline"
                   >
                     {column.player.name}

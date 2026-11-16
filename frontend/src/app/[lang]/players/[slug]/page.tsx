@@ -851,6 +851,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         <TD>
                           <Link
                             href={`/players/${entry.player.player_id}`}
+                            pendingLabel={t.common.states.loading}
                             className="font-medium transition-colors hover:text-accent"
                           >
                             {entry.player.name}

@@ -1,6 +1,7 @@
 import NextLink from "next/link";
 import type { ComponentProps } from "react";
 
+import { PendingHint } from "@/components/ui/PendingHint";
 import { getLocale } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 
@@ -27,9 +28,23 @@ import { localePath } from "@/i18n/routing";
  *
  * External links, anchors and `mailto:` are passed through untouched: only an
  * href beginning with a single `/` is a route of this application.
+ *
+ * `pendingLabel`, when given, adds a small waiting sign to the link while its
+ * navigation is in flight (`PendingHint`). It is for links to a page that can be
+ * slow to arrive and cannot have a loading boundary - a player profile.
  */
-export async function AppLink({ href, ...rest }: ComponentProps<typeof NextLink>) {
+export async function AppLink({
+  href,
+  pendingLabel,
+  children,
+  ...rest
+}: ComponentProps<typeof NextLink> & { pendingLabel?: string }) {
   const locale = await getLocale();
   const localised = typeof href === "string" ? localePath(locale, href) : href;
-  return <NextLink href={localised} {...rest} />;
+  return (
+    <NextLink href={localised} {...rest}>
+      {children}
+      {pendingLabel ? <PendingHint label={pendingLabel} /> : null}
+    </NextLink>
+  );
 }
