@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Field, Select, TextInput } from "@/components/ui/Field";
+import { MobileCollapse } from "@/components/ui/MobileCollapse";
 import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { SearchFailed } from "@/components/ui/SearchFailed";
 import { Callout, EmptyState, ErrorState } from "@/components/ui/States";
@@ -81,6 +82,22 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
     contract_within_months: first(params.contract_within_months),
     sort: first(params.sort) ?? "minutes",
   };
+  // How many filters are set, for the folded form on a phone. The sort is
+  // counted only when it is not the default, because that is what changes the
+  // list a reader is looking at.
+  const activeFilterCount =
+    [
+      filters.search,
+      filters.position_group,
+      filters.competition,
+      filters.role,
+      filters.age_min,
+      filters.age_max,
+      filters.minutes_min,
+      filters.sample_band,
+      filters.market_value_max,
+      filters.contract_within_months,
+    ].filter(Boolean).length + (filters.sort !== "minutes" ? 1 : 0);
   /**
    * A URL cannot ask for a page that is not there.
    *
@@ -346,12 +363,23 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             method="get"
             className="space-y-4 self-start rounded-lg border border-border bg-surface p-4 lg:sticky lg:top-20"
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">{t.players.filters.heading}</h2>
-              <Link href="/players" className="text-xs text-muted hover:text-text">
-                {t.players.filters.reset}
-              </Link>
-            </div>
+            {/* Folded behind its heading on a phone, where the form is ~1,350px
+                tall and pushed the first result two screens down. Nothing is
+                removed: the fields stay inside this form and submit as before. */}
+            <MobileCollapse
+              heading={t.players.filters.heading}
+              reset={
+                <Link href="/players" className="text-xs text-muted hover:text-text">
+                  {t.players.filters.reset}
+                </Link>
+              }
+              activeCount={activeFilterCount}
+              labels={{
+                show: t.players.filters.show,
+                hide: t.players.filters.hide,
+                active: t.players.filters.activeCount,
+              }}
+            >
 
             <Field label={t.players.filters.name} htmlFor="search">
               <TextInput
@@ -559,6 +587,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             >
               {t.players.filters.apply}
             </button>
+            </MobileCollapse>
           </form>
 
           {/* `min-w-0` is load-bearing. A `1fr` grid track sizes to its
@@ -665,6 +694,9 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                     </TBody>
                   </Table>
                 </TableWrap>
+                {/* Only where the table cannot show its own width: the columns
+                    past the club are there, and a phone gives no other sign. */}
+                <p className="text-[11px] text-subtle sm:hidden">{t.players.table.scrollHint}</p>
 
                 <Pagination
                   total={results.total}

@@ -41,6 +41,9 @@
     "sortTooltipLabel": "How the evidence weighting works",
     "sortTooltip": "“Role fit, weighted by evidence” pulls each figure toward the average of the players being ranked, in proportion to how little playing time stands behind it. At 900 minutes a figure carries full weight and is returned exactly as it is, so only figures below that threshold move and an established sample is never reduced. On a list where everyone is already established, this sort and the raw one give the same order.",
     "rankedExplainer": "Ranked pulls each score toward the average of the players being ranked, in proportion to how little playing time stands behind it. The percentage under a score is the share of a full season's evidence (900 minutes) that player's minutes amount to; at 100% the score is unchanged. Hover a percentage for that player's figures. The role fit itself is not changed.",
+    "show": "Show",
+    "hide": "Hide",
+    "activeCount": "{count} set",
     "evidenceInert": "Every player on this page already carries full evidence weight, so no figure was adjusted and the ranked column repeats “{raw}”. The adjustment applies below 900 minutes.",
     "sorts": {
       "minutes": "Minutes played",
@@ -71,7 +74,8 @@
     "contract": "Contract",
     "percentileSuffix": "pct",
     "ranked": "Ranked",
-    "rankedEvidence": "{pct}% of a season"
+    "rankedEvidence": "{pct}% of a season",
+    "scrollHint": "Swipe sideways for competition, role, value and contract."
   },
   "pagination": {
     "label": "Pagination",
