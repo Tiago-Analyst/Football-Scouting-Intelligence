@@ -219,3 +219,22 @@ function translateValue(
       return raw;
   }
 }
+
+/**
+ * The coded lines of a reading, in the reader's language, with the API's English
+ * as the fallback.
+ *
+ * The fallback is not decoration: an older backend still returns only the
+ * sentences, and a page that rendered nothing in that case would be worse than
+ * one that renders English. One copy of this rule: the profile and the shortlist
+ * comparison both show the same reading, and the comparison was printing the
+ * English sentences while the profile printed the translated ones.
+ */
+export function messageLines(
+  t: Dictionary,
+  f: Formatters,
+  coded: ApiMessageData[] | undefined,
+  prose: string[],
+): string[] {
+  return coded?.length ? coded.map((m) => apiMessage(t, f, m) ?? "").filter(Boolean) : prose;
+}
