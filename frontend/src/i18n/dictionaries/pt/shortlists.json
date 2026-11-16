@@ -54,6 +54,7 @@
     "compareSrOnly": "Comparar",
     "removeSrOnly": "Remover",
     "player": "Jogador",
+    "role": "Melhor função",
     "age": "Idade",
     "value": "Valor",
     "status": "Estado",
@@ -64,6 +65,7 @@
   "row": {
     "notInData": "Fora dos dados actuais",
     "minutes": "{minutes} min",
+    "rolePercentile": "percentil {ordinal} de adequação",
     "reviewed": "Revisto em {when}",
     "notAssessed": "Ainda sem avaliação",
     "removing": "A remover…",

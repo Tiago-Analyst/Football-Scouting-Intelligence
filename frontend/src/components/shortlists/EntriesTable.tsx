@@ -36,6 +36,7 @@ export function EntriesTable({
   shortlistId,
   statuses,
   sampleCopy,
+  roleLabels,
   copy,
   tag,
 }: {
@@ -45,6 +46,8 @@ export function EntriesTable({
   /** Resolved by the server page and threaded through: neither this
    * component nor the rows it renders can read a dictionary. */
   sampleCopy: Record<string, SampleCopy>;
+  /** The role names in the reader's language, for the same reason. */
+  roleLabels: Record<string, string>;
   /** Same reason as `sampleCopy`: no dictionary reaches the browser. */
   copy: EntriesCopy;
   /** And the locale tag, so the rows format as the rest of the page does. */
@@ -147,6 +150,7 @@ export function EntriesTable({
                 <span className="sr-only">{text(copy.compareSrOnly)}</span>
               </TH>
               <TH>{text(copy.player)}</TH>
+              <TH>{text(copy.role)}</TH>
               <TH numeric>{text(copy.age)}</TH>
               <TH numeric>{text(copy.value)}</TH>
               <TH>{text(copy.status)}</TH>
@@ -167,6 +171,7 @@ export function EntriesTable({
                 selectionDisabled={atLimit}
                 onToggle={toggle}
                 sampleCopy={sampleCopy}
+                roleLabels={roleLabels}
                 copy={copy.row}
                 tag={tag}
               />

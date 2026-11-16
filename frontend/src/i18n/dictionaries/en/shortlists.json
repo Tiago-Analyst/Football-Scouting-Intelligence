@@ -54,6 +54,7 @@
     "compareSrOnly": "Compare",
     "removeSrOnly": "Remove",
     "player": "Player",
+    "role": "Best role",
     "age": "Age",
     "value": "Value",
     "status": "Status",
@@ -64,6 +65,7 @@
   "row": {
     "notInData": "Not in current data",
     "minutes": "{minutes} min",
+    "rolePercentile": "{ordinal} role fit percentile",
     "reviewed": "Reviewed {when}",
     "notAssessed": "Not yet assessed",
     "removing": "Removing…",
