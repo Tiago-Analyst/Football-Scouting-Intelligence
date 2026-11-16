@@ -24,7 +24,7 @@
     "minimumMinutes": "Minimum minutes",
     "minimumMinutesTooltipLabel": "Does this exclude players by default?",
     "minimumMinutesTooltip": "Optional filter. All players are eligible by default regardless of minutes played — this sets a floor only if you want one, and it is empty unless you fill it in.",
-    "build": "Build shortlist",
+    "build": "Rank candidates",
     "reset": "Reset"
   },
   "states": {
@@ -32,7 +32,7 @@
     "chooseDescription": "Start from one of the named roles, or set the emphasis yourself. Nothing is weighted yet, so there is nothing to rank by.",
     "readyActionBefore": "Press ",
     "readyActionAfter": " to run it.",
-    "errorTitle": "Could not build the shortlist",
+    "errorTitle": "Could not rank the candidates",
     "errorDescription": "The API did not respond, or no weight was set above zero.",
     "cannotScoreTitle": "This profile cannot be scored",
     "noMatchTitle": "No players match this profile",
@@ -53,13 +53,13 @@
   },
   "blocked": {
     "willRankNobody": "This profile will rank nobody.",
-    "build": "Build shortlist",
+    "build": "Rank candidates",
     "cannotProduce": "{scores} cannot be produced for any player, so this profile matches nobody.",
     "setOne": "Set that weight to zero to run the search.",
     "setMany": "Set those weights to zero to run the search.",
     "adapt": "Adapt weights to available data",
     "adaptHint": "Sets the unavailable weights to zero and shares what they held across the dimensions that are weighted and available, keeping the total the same.",
-    "adapted": "Weights adapted. Nothing was submitted — review the boxes and build when you are ready.",
+    "adapted": "Weights adapted. Nothing was submitted — review the boxes and rank when you are ready.",
     "adaptedRow": "{score}: {from}% → {to}%",
     "adaptImpossible": "Every weighted dimension is unavailable, so there is nowhere to move the weight to. Give weight to a dimension this dataset can produce.",
     "undo": "Undo"
