@@ -166,6 +166,12 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
 
   const target = results.target;
 
+  // Rows whose score was moved by how little football stands behind it. When none
+  // were, the sort key and the score are the same number and one column serves.
+  const adjusted = results.items.some(
+    (entry) => entry.evidence_weight != null && entry.evidence_weight < 1,
+  );
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -196,7 +202,11 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
           <Field
             label={t.replacements.constraints.budget}
             htmlFor="max_value"
-            hint={t.replacements.constraints.budgetHint}
+            hint={
+              budget && Number.isFinite(Number(budget))
+                ? `${f.euro(Number(budget))} · ${t.replacements.constraints.budgetHint}`
+                : t.replacements.constraints.budgetHint
+            }
           >
             <TextInput
               id="max_value"
@@ -300,12 +310,14 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           minutes is not the same evidence as one from 1,127
                           and the ordering accounts for that. Showing the
                           score and hiding the sort key was the worst of both. */}
+                      {adjusted ? (
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.replacements.table.ranked}<Tooltip label={t.replacements.notes.rankedTitle}>
                             {t.replacements.notes.rankedBody}
                           </Tooltip>
                         </span>
                       </TH>
+                      ) : null}
                       <TH numeric>{t.replacements.table.similarity}</TH>
                       {/* The raw score, as the backend sends it - not the
                           standing among players evaluated for the same role.
@@ -334,7 +346,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                   <TBody>
                     {results.items.map((entry) => (
                       <TR key={entry.player.player_id} interactive>
-                        <TD>
+                        <TD className="min-w-36">
                           <Link
                             href={`/players/${entry.player.player_id}`}
                             className="font-medium transition-colors hover:text-accent"
@@ -350,7 +362,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             </span>
                           ) : null}
                         </TD>
-                        <TD numeric className="font-medium text-accent">
+                        <TD numeric className={adjusted ? "font-medium" : "font-medium text-accent"}>
                           {/* Null when a component the score needs was not
                               available. Renormalising around the gap used to
                               produce a number that looked comparable and was
@@ -378,7 +390,8 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             </span>
                           )}
                         </TD>
-                        <TD numeric className="font-medium">
+                        {adjusted ? (
+                        <TD numeric className="font-medium text-accent">
                           <span title={apiMessage(t, f, entry.ranking_note_message) ?? undefined}>
                             {entry.ranking_value != null ? Math.round(entry.ranking_value) : "–"}
                           </span>
@@ -391,6 +404,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                             </span>
                           ) : null}
                         </TD>
+                        ) : null}
                         <TD numeric>{Math.round(entry.similarity)}</TD>
                         <TD numeric>
                           {entry.role_fit !== null ? Math.round(entry.role_fit) : "–"}
