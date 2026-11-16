@@ -1,4 +1,4 @@
-import { apiMessage } from "@/components/player/ApiMessage";
+import { messageLines } from "@/i18n/apiMessage";
 import { Card, CardBody, CardFooter, CardHeader } from "@/components/ui/Card";
 import { PercentileBar } from "@/components/ui/PercentileBar";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -54,15 +54,8 @@ export async function ScoutingInterpretation({
     not_captured_messages,
   } = interpretation;
 
-  /**
-   * Prefer the coded lines, fall back to the API's English.
-   *
-   * The fallback is not decoration: an older backend still returns only the
-   * sentences, and a page that rendered nothing in that case would be worse
-   * than one that renders English.
-   */
   const lines = (coded: ApiMessage[] | undefined, prose: string[]) =>
-    coded?.length ? coded.map((m) => apiMessage(t, f, m) ?? "").filter(Boolean) : prose;
+    messageLines(t, f, coded, prose);
 
   const profileLines = lines(profile_messages, profile);
   const unavailableLines = lines(unavailable_messages, unavailable);

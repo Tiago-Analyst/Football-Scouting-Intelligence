@@ -1,3 +1,5 @@
+import { positionGroupName, positionName } from "@/components/player/PositionName";
+import { messageLines } from "@/i18n/apiMessage";
 import { hasOwnPopulations, showsGoalkeeping } from "@/lib/comparisonScope";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { AppLink as Link } from "@/components/ui/AppLink";
@@ -77,7 +79,15 @@ function ScopeLink({ label, active, href }: { label: string; active: boolean; hr
   );
 }
 
-function ComparisonSummary({ t, players }: { t: Dictionary; players: ComparedPlayer[] }) {
+function ComparisonSummary({
+  t,
+  f,
+  players,
+}: {
+  t: Dictionary;
+  f: Formatters;
+  players: ComparedPlayer[];
+}) {
   const readable = players.filter((column) => column.interpretation !== null);
   if (readable.length === 0) return null;
 
@@ -118,7 +128,11 @@ function ComparisonSummary({ t, players }: { t: Dictionary; players: ComparedPla
                 // Reliability belongs beside the weaknesses: a figure built on
                 // 90 minutes is a different kind of risk from a low percentile,
                 // and both change whether you would act on this column.
-                ...reading.confidence,
+                // The coded lines, translated, as the profile prints them. This
+                // was `reading.confidence`, the API's English sentences, so a
+                // Portuguese comparison said "Established Sample - 900 minutes
+                // played" under a translated heading.
+                ...messageLines(t, f, reading.confidence_messages, reading.confidence),
               ]}
               empty={t.shortlists.comparison.watchOutsEmpty}
             />
@@ -278,7 +292,7 @@ export function ComparisonTable({
         ) : null}
       </div>
 
-      <ComparisonSummary t={t} players={players} />
+      <ComparisonSummary t={t} f={f} players={players} />
 
       {caveat ? (
         <Callout tone="warning" title={c.caveatTitle}>
@@ -300,7 +314,8 @@ export function ComparisonTable({
                     {column.player.name}
                   </Link>
                   <span className="mt-0.5 block text-[11px] font-normal text-subtle">
-                    {column.player.raw_position ?? column.player.position_group}
+                    {positionName(t, column.player.raw_position) ??
+                      positionGroupName(t, column.player.position_group)}
                     {column.player.club ? ` · ${column.player.club}` : ""}
                     {ownPopulations && column.player.competition
                       ? ` · ${column.player.competition}`
