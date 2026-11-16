@@ -43,6 +43,7 @@ export function EntryRow({
   selectionDisabled,
   onToggle,
   sampleCopy,
+  roleLabels,
   copy,
   tag,
 }: {
@@ -55,6 +56,8 @@ export function EntryRow({
   /** The sample wording for every band, resolved by the server page.
    * A Client Component cannot read the dictionary itself. */
   sampleCopy: Record<string, SampleCopy>;
+  /** Role names in the reader's language; no dictionary reaches the browser. */
+  roleLabels: Record<string, string>;
   /** Same reason: the words come from the server page, not a dictionary. */
   copy: Record<string, string>;
   /** And the locale tag, so the numbers in this row group and the dates
@@ -101,6 +104,10 @@ export function EntryRow({
             <>
               <span>{player.raw_position ?? player.position_group}</span>
               {player.club ? <span>· {player.club}</span> : null}
+              {/* Where the season's football was played, which is not
+                  where the club plays now and is what the percentiles are
+                  ranked inside. */}
+              {player.competition ? <span>· {player.competition}</span> : null}
               {player.minutes !== null ? (
                 <>
                   <span>· {copy.minutes.replace("{minutes}", f.count(player.minutes))}</span>
@@ -118,6 +125,24 @@ export function EntryRow({
         {entry.unavailable_reason ? (
           <p className="mt-1 max-w-md text-xs text-muted">{entry.unavailable_reason}</p>
         ) : null}
+      </TD>
+
+      {/* The role and where it stands, the two things a scout reads a
+          shortlist for after the name. The percentile is the comparable one:
+          a raw fit of 60 means different things in different roles. */}
+      <TD>
+        {player?.best_role_key ? (
+          <>
+            <span className="text-sm">{roleLabels[player.best_role_key] ?? player.best_role_key}</span>
+            {player.best_role_percentile != null ? (
+              <span className="mt-0.5 block text-[11px] text-subtle">
+                {copy.rolePercentile.replace("{ordinal}", f.ordinal(player.best_role_percentile))}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-subtle">—</span>
+        )}
       </TD>
 
       <TD numeric>{player?.age ?? "—"}</TD>

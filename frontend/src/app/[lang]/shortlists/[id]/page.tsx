@@ -101,6 +101,7 @@ export default async function ShortlistPage({
           shortlistId={shortlistId}
           statuses={localisedStatuses(t, statuses)}
           sampleCopy={sampleCopyByBand(t, f)}
+          roleLabels={t.glossary.roles}
           copy={{ ...t.shortlists.entries, row: t.shortlists.row }}
           tag={f.tag}
         />
