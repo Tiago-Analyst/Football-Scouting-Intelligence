@@ -123,6 +123,13 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
 
   const target = similar.target;
 
+  // The Ranked column is there to explain an order that is not the order of the
+  // index beside it. When no row was adjusted for thin evidence it would only
+  // repeat that index, so it is left out.
+  const adjusted = similar.results.some(
+    (entry) => entry.evidence_weight != null && entry.evidence_weight < 1,
+  );
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -256,12 +263,14 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                           column as a broken sort. The index is untouched -
                           this column is the sort key, named as such, in the
                           one place a reader is already looking. */}
+                      {adjusted ? (
                       <TH numeric>
                         <span className="inline-flex items-center gap-1">{t.similarity.table.ranked}<Tooltip label={t.similarity.notes.rankedTitle}>
                             {t.similarity.notes.rankedBody}
                           </Tooltip>
                         </span>
                       </TH>
+                      ) : null}
                       <TH>{t.similarity.table.club}</TH>
                       <TH>{t.similarity.table.competition}</TH>
                       <TH>{t.similarity.table.bestRole}</TH>
@@ -353,6 +362,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             would teach a reader to stop seeing it. The sentence
                             in the tooltip is the backend's own, by code, so a
                             second wording here cannot drift from the first. */}
+                        {adjusted ? (
                         <TD numeric className="font-medium">
                           <span title={apiMessage(t, f, entry.ranking_note_message) ?? undefined}>
                             {entry.ranking_similarity != null
@@ -368,6 +378,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                             </span>
                           ) : null}
                         </TD>
+                        ) : null}
                         <TD className="whitespace-nowrap">{entry.player.club ?? "–"}</TD>
                         <TD className="text-muted">
                           <SeasonCompetition player={entry.player} copy={t.common.seasonContext} />
