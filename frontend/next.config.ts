@@ -4,13 +4,54 @@ import type { NextConfig } from "next";
  * The backend sets its own headers for the JSON API. These are for the pages
  * a browser actually renders, which is a different threat surface: the API
  * cannot be framed into a clickjacking attack, and a page can.
- *
- * No Content-Security-Policy yet. A CSP worth having needs nonces threaded
- * through Next's inline scripts, and a CSP loose enough to avoid that work
- * mostly provides reassurance rather than protection. Left undone and stated
- * rather than added badly.
  */
+
+/**
+ * The Content-Security-Policy, WITHOUT nonces, on purpose.
+ *
+ * A nonce has to be fresh on every response, so every page would be rendered on
+ * every request: no prerendering, no ISR (the Next.js guide says so in as many
+ * words). Player profiles are prerendered precisely so that readers do not each
+ * reach the backend, which is small enough that it has been killed for memory.
+ * A policy that fixed one problem by causing that one was declined.
+ *
+ * WHAT THIS DOES: scripts, styles, images, fonts and connections only from this
+ * origin, so an injected `<script src>` or `fetch` to somebody else's server is
+ * refused - the usual way stolen data leaves. No plugins (`object-src`), no
+ * injected `<base>`, forms only post back here, and nothing may frame the site
+ * (`frame-ancestors`, which supersedes `X-Frame-Options` where both exist).
+ *
+ * WHAT IT DOES NOT DO: `script-src` keeps `'unsafe-inline'`. Next emits inline
+ * scripts whose content differs per page (the data it streams to the client),
+ * and so do two of ours (`ThemeScript`, `SessionScript`); none can be allow-
+ * listed by hash. So an XSS that injects an INLINE script is not stopped by
+ * this header. The application's own escaping is what stops that, and the
+ * 10 November review found no way past it. `style-src` needs `'unsafe-inline'`
+ * for the `style` attributes React renders (progress bars, tooltips).
+ *
+ * Nothing on the site loads from elsewhere: fonts are self-hosted by
+ * `next/font`, there is no analytics, and the browser never talks to the API.
+ * `upgrade-insecure-requests` is left out: HSTS already covers production, and
+ * it would break `next start` over plain http.
+ */
+const isDev = process.env.NODE_ENV === "development";
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  // React reads stack traces with eval in development only.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   // The site is served over https in production; this stops a downgrade on
   // subsequent visits. Harmless locally because it is only sent over https.
   {
