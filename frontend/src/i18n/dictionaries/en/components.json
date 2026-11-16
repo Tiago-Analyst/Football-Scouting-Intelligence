@@ -36,8 +36,8 @@
     "comparedOn": "Compared on {shared} of the {expected} features defined for this position ({pct}% coverage). Percentiles are within the same comparison population as the profile above; two players can share a shape at any level, so read the values and not only the distance between them."
   },
   "radar": {
-    "title": "Intelligence profile",
-    "description": "Composite scores, measured against comparable players.",
+    "title": "Profile shape",
+    "description": "The same composite scores, drawn as a shape.",
     "tooltipLabel": "What is this shape?",
     "tooltip": "Each axis is a composite score built from the player's percentiles among comparable players, on a 0–100 scale. The shape shows where they are strong relative to that group — not how good they are. Scores that could not be computed are left off rather than drawn at zero.",
     "notQuality": "A score describes statistical fit with a profile among comparable players. It is not player quality.",

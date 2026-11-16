@@ -19,7 +19,8 @@
   "tiles": {
     "bestRole": "Best role",
     "notAvailable": "Not available",
-    "percentileUnit": "pctl",
+    "percentileUnit": "percentile",
+    "rawFit": "raw fit {score}",
     "outOfHundred": "/ 100",
     "minutesPlayed": "Minutes played",
     "season": "{season} season",

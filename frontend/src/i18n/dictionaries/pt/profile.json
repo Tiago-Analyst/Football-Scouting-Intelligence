@@ -19,7 +19,8 @@
   "tiles": {
     "bestRole": "Melhor função",
     "notAvailable": "Indisponível",
-    "percentileUnit": "pctl",
+    "percentileUnit": "percentil",
+    "rawFit": "adequação bruta {score}",
     "outOfHundred": "/ 100",
     "minutesPlayed": "Minutos jogados",
     "season": "época {season}",
