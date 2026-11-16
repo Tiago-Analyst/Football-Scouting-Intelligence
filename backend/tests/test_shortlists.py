@@ -866,6 +866,33 @@ class TestExport:
         assert rows[1][EXPORT_COLUMNS.index("concerns")] == "Wage demands."
         assert rows[1][EXPORT_COLUMNS.index("data_status")] == "ok"
 
+    @pytest.mark.parametrize("lead", ["=", "+", "-", "@"])
+    def test_a_note_that_looks_like_a_formula_is_exported_as_text(
+        self, signed_in: TestClient, lead: str
+    ) -> None:
+        """Opened in Excel, LibreOffice or Sheets, a cell starting with one of
+        these runs. The apostrophe makes it text, and the rest is untouched."""
+        shortlist_id, _ = self._shortlist_with_a_player(signed_in)
+        entries = signed_in.get(f"/api/v1/shortlists/{shortlist_id}").json()["entries"]
+        note = f'{lead}HYPERLINK("http://example.test","x")'
+        signed_in.put(
+            f"/api/v1/shortlists/{shortlist_id}/entries/{entries[0]['player_key']}/assessment",
+            json={"status": "rejected", "concerns": note},
+        )
+
+        text = signed_in.get(f"/api/v1/shortlists/{shortlist_id}/export.csv").content.decode(
+            "utf-8-sig"
+        )
+        rows = list(csv.reader(io.StringIO(text)))
+        assert rows[1][EXPORT_COLUMNS.index("concerns")] == "'" + note
+
+    def test_ordinary_cells_and_numbers_are_not_prefixed(self) -> None:
+        from app.api.v1.shortlists import _cell
+
+        assert _cell("Wage demands.") == "Wage demands."
+        assert _cell(-5) == "-5"
+        assert _cell(None) == ""
+
     def test_an_unresolvable_row_writes_exactly_as_many_cells_as_the_header(
         self, signed_in: TestClient
     ) -> None:

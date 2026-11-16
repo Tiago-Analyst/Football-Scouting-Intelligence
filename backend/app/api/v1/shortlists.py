@@ -516,9 +516,20 @@ EXPORT_COLUMNS = [
 ]
 
 
+#: A spreadsheet reads a cell that starts with one of these as a formula. A tab
+#: or carriage return is on the list because Excel strips it before deciding.
+_FORMULA_LEADERS = ("=", "+", "-", "@", "\t", "\r")
+
+
 def _cell(value: object) -> str:
     if value is None:
         return ""
+    if isinstance(value, str) and value.startswith(_FORMULA_LEADERS):
+        # Text only: a note typed as `=HYPERLINK(...)` would run when the file is
+        # opened. The apostrophe is what Excel, LibreOffice and Sheets all treat
+        # as "this is text" and then hide. Numbers never reach this branch, so a
+        # negative figure is not touched.
+        return "'" + value
     if isinstance(value, float):
         return f"{value:.1f}"
     if isinstance(value, datetime):

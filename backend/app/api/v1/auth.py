@@ -348,9 +348,27 @@ def delete_own_account(
     The password is required, and a wrong one answers exactly as a wrong
     password does at sign-in: `401` and the same sentence for every cause.
     """
+    # The same count and the same wait as sign-in, checked before the hash is
+    # computed. A stolen cookie is exactly the case the password is asked for,
+    # so this must not be a way to guess it faster than the sign-in form allows.
+    retry_after = login_retry_after(db, user.email)
+    if retry_after:
+        log.warning("login_throttled", retry_after=retry_after, path="/api/v1/auth/me")
+        raise AuthFailureError(
+            "Too many sign-in attempts. Try again shortly.",
+            code="auth_too_many_attempts",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
+
     try:
         delete_account(db, user, password=request.password)
     except InvalidCredentials as exc:
+        # Committed for the reason sign-in commits: the request session is closed
+        # without one, and the count would be rolled back with the failure.
+        record_failed_login(db, user.email)
+        db.commit()
         raise _refused(exc, status.HTTP_401_UNAUTHORIZED) from exc
 
     db.commit()

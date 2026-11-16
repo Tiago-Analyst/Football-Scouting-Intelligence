@@ -770,6 +770,26 @@ class TestAuthEndpoints:
         again = api.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
         assert again.status_code == 401
 
+    def test_wrong_passwords_at_erasure_are_counted_and_then_refused(self, api: TestClient) -> None:
+        """A stolen cookie must not be a faster way to guess the password.
+
+        The count is the one sign-in keeps, so guesses made here and at the form
+        add up. Past the free attempts even the right password waits, and the
+        account is still there afterwards.
+        """
+        email = self._email()
+        api.post("/api/v1/auth/register", json={"email": email, "password": PASSWORD})
+
+        wrong = {"password": "not the right password"}
+        for _ in range(FREE_LOGIN_ATTEMPTS + 1):
+            assert api.request("DELETE", "/api/v1/auth/me", json=wrong).status_code == 401
+
+        refused = api.request("DELETE", "/api/v1/auth/me", json={"password": PASSWORD})
+        assert refused.status_code == 429
+        assert refused.json()["error"]["code"] == "auth_too_many_attempts"
+        assert int(refused.headers["retry-after"]) > 0
+        assert api.get("/api/v1/auth/me").status_code == 200
+
     def test_erasure_requires_a_session(self, api: TestClient) -> None:
         api.post("/api/v1/auth/logout")
         response = api.request("DELETE", "/api/v1/auth/me", json={"password": PASSWORD})

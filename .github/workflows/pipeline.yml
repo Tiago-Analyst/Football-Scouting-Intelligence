@@ -129,6 +129,9 @@ on:
         options: [transfermarkt, demo, footystats]
         default: transfermarkt
 
+permissions:
+  contents: read
+
 concurrency:
   # Two loads writing the same tables at once is the one way to get a
   # half-published dataset past a transactional loader. And with an hourly
