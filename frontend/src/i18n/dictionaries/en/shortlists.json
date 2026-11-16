@@ -95,6 +95,7 @@
     "watchOuts": "Watch-outs",
     "watchOutsEmpty": "Nothing in the lower band of this role.",
     "caveatTitle": "These columns are not measured against the same population",
+    "ownPopulation": "Each column is ranked against its own group: its position and competition are named under the player.",
     "metric": "Metric",
     "minutes": "Minutes",
     "age": "Age",
