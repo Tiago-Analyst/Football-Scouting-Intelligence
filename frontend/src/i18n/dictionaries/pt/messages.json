@@ -104,5 +104,7 @@
   "rows_refused_by_a_constraint": "{rows} linhas fornecidas pelos fornecedores foram recusadas pela base de dados e não estão incluídas: {constraints}.",
   "absent:progressive_passes": "{field} existe como chave e está nulo em todos os {sampled} registos amostrados. Vale {share_of_score}% da pontuação {score}, e é por isso que a sua ausência é a mais cara das três.",
   "absent:aerial_duels": "Só {supplied} é fornecido. A contagem de tentativas está ausente, e {percentage_field} - que permitiria derivá-la - devolve 0 em todos os registos amostrados. A chave {missing_field} nunca aparece.",
-  "absent:successful_tackles": "{field} está declarado e nunca preenchido: não-nulo em 0 dos {sampled} registos amostrados que têm a chave. {not_a_substitute} é fornecido e NÃO é um substituto - tentativas e sucessos são medidas diferentes, e trocar uma pela outra mudaria o significado de todas as pontuações construídas sobre ela."
+  "absent:successful_tackles": "{field} está declarado e nunca preenchido: não-nulo em 0 dos {sampled} registos amostrados que têm a chave. {not_a_substitute} é fornecido e NÃO é um substituto - tentativas e sucessos são medidas diferentes, e trocar uma pela outra mudaria o significado de todas as pontuações construídas sobre ela.",
+  "comparison_caveat_mixed_position": "Estes jogadores são comparados com populações diferentes, porque os percentis são calculados dentro de cada grupo posicional. As colunas de percentis não são directamente comparáveis entre jogadores de posições diferentes.",
+  "comparison_caveat_mixed_competition": "Estes jogadores jogam em competições diferentes. Os percentis são calculados dentro de cada competição e não são ajustados às diferenças de força entre competições."
 }

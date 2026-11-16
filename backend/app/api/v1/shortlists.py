@@ -42,6 +42,7 @@ from app.models.shortlists import STATUS_LABELS, ShortlistStatus
 from app.schemas.api import (
     ComparedPlayer,
     ComparisonResponse,
+    Message,
     ShortlistDetail,
     ShortlistEntryOut,
     ShortlistOut,
@@ -68,6 +69,13 @@ MIXED_COMPETITION_CAVEAT = (
     "These players play in different competitions. Percentiles are calculated within "
     "each competition and are not adjusted for differences in competition strength."
 )
+
+#: The same two warnings as message codes, so the interface can say them in the
+#: reader's language. The prose above stays for any client already reading it.
+_CAVEAT_CODES = {
+    "comparison_caveat_mixed_position": MIXED_POSITION_CAVEAT,
+    "comparison_caveat_mixed_competition": MIXED_COMPETITION_CAVEAT,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -424,11 +432,12 @@ def compare(
         context=context,
         players=columns,
         caveat=_comparison_caveat(columns, percentile_scope),
+        caveat_messages=_comparison_caveat_messages(columns, percentile_scope),
     )
 
 
-def _comparison_caveat(columns: list[ComparedPlayer], scope: PercentileScope) -> str | None:
-    """Say so when the columns are not measured against the same population.
+def _comparison_caveat_codes(columns: list[ComparedPlayer], scope: PercentileScope) -> list[str]:
+    """Which warnings apply, as message codes, in the order they are read.
 
     Percentiles are computed within a position group and a competition. Putting
     two such columns beside each other invites reading across them, and section
@@ -436,16 +445,40 @@ def _comparison_caveat(columns: list[ComparedPlayer], scope: PercentileScope) ->
     """
     positions = {c.player.position_group for c in columns}
     competitions = {c.player.competition for c in columns}
-    caveats = []
+    codes = []
     if len(positions) > 1:
-        caveats.append(MIXED_POSITION_CAVEAT)
+        codes.append("comparison_caveat_mixed_position")
     # Only while each column is ranked inside its own competition. Asked for
     # global percentiles they share one population, and repeating the warning
     # would be a false one - which is worse than none, because it trains a
     # reader to scroll past the warnings that are true.
     if len(competitions) > 1 and scope is PercentileScope.COMPETITION:
-        caveats.append(MIXED_COMPETITION_CAVEAT)
-    return " ".join(caveats) if caveats else None
+        codes.append("comparison_caveat_mixed_competition")
+    return codes
+
+
+def _comparison_caveat_messages(
+    columns: list[ComparedPlayer], scope: PercentileScope
+) -> list[Message]:
+    """The same warnings as `Message`s, in the same order as the prose.
+
+    Written with literal codes rather than a comprehension over the list above:
+    `test_message_placeholders` reads the `Message(` call sites with `ast`, and
+    a code taken from a variable is a call site it cannot check.
+    """
+    codes = _comparison_caveat_codes(columns, scope)
+    messages: list[Message] = []
+    if "comparison_caveat_mixed_position" in codes:
+        messages.append(Message(code="comparison_caveat_mixed_position"))
+    if "comparison_caveat_mixed_competition" in codes:
+        messages.append(Message(code="comparison_caveat_mixed_competition"))
+    return messages
+
+
+def _comparison_caveat(columns: list[ComparedPlayer], scope: PercentileScope) -> str | None:
+    """Say so when the columns are not measured against the same population."""
+    codes = _comparison_caveat_codes(columns, scope)
+    return " ".join(_CAVEAT_CODES[code] for code in codes) if codes else None
 
 
 # ---------------------------------------------------------------------------
