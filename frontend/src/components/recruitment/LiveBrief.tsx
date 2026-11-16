@@ -12,7 +12,6 @@ export interface LiveBriefCopy extends BriefCopy {
   ready: string;
   blockedOne: string;
   blockedMany: string;
-  blockedDescription: string;
 }
 
 /**
@@ -122,11 +121,9 @@ export function LiveBrief({
           {nothing
             ? copy.choose
             : blocked > 0
-              ? `${
-                  blocked === 1
-                    ? copy.blockedOne
-                    : copy.blockedMany.replace("{count}", String(blocked))
-                }. ${copy.blockedDescription}`
+              ? blocked === 1
+                ? copy.blockedOne
+                : copy.blockedMany.replace("{count}", String(blocked))
               : copy.ready}
         </p>
       </div>

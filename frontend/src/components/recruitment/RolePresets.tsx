@@ -1,8 +1,6 @@
-import { apiMessage } from "@/components/player/ApiMessage";
 import { roleLabel } from "@/components/player/RoleName";
 import { AppLink as Link } from "@/components/ui/AppLink";
 import { getDictionary } from "@/i18n/dictionaries";
-import { formatters } from "@/i18n/format";
 import { componentName } from "@/i18n/metricNames";
 import { presetCoverage } from "@/lib/presetCoverage";
 
@@ -170,7 +168,6 @@ export async function RolePresets({
  */
 export async function ActivePreset({ preset }: { preset: RolePreset }) {
   const t = await getDictionary();
-  const f = await formatters();
   /* The same derivation the list above uses, so the badge a reader saw before
      the click and the badge they see after it cannot disagree. This panel used
      to round and threshold the number itself; two copies of that arithmetic is
@@ -208,37 +205,19 @@ export async function ActivePreset({ preset }: { preset: RolePreset }) {
           ] ?? preset.description}
         </p>
       ) : null}
-      {preset.unavailable_scores.length > 0 ? (
-        <div className="mt-2 space-y-1">
-          <p className="text-[11px] font-medium text-warning">{t.components.presets.cannotScore}</p>
-          {preset.unavailable_scores.map((score) => (
-            <p key={score.key} className="text-[11px] leading-relaxed text-subtle">
-              {apiMessage(t, f, {
-                code: score.missing?.length
-                  ? "score_unavailable_missing"
-                  : "score_unavailable_no_candidate",
-                values: { score: score.key, metrics: (score.missing ?? []).join(",") },
-              }) ?? score.reason}
-            </p>
-          ))}
-          {/* How much of the role survives the amputation, said as a number
-              before the search is run. "Setting that weight to zero" removes
-              55% of the Ball-Playing Centre-Back definition and leaves the
-              name on it; a reader should know that in advance, not deduce it
-              from results that no longer look like the role. */}
-          {preset.coverage_note ? (
-            <p className="text-[11px] leading-relaxed text-subtle">
-              {/* Composed here from the same two numbers the API used, rather
-                  than printing its sentence: the note names the role, and the
-                  role's name is translated. */}
-              {t.components.presets.coverageNote
-                .replace("{pct}", String(coverage?.pct ?? 0))
-                .replace("{role}", roleLabel(t, preset.key))}
-            </p>
-          ) : (
-            <p className="text-[11px] leading-relaxed text-subtle">{t.components.presets.setToZero}</p>
-          )}
-        </div>
+      {/* What the role loses, said once and as a number. WHICH score cannot be
+          produced, and why, is said beside the button that answers it, in the
+          form's own warning: the same sentences used to be printed here and
+          there, one under the other, in a column about 230px wide. */}
+      {preset.unavailable_scores.length > 0 && preset.coverage_note ? (
+        <p className="mt-2 text-[11px] leading-relaxed text-subtle">
+          {/* Composed here from the same two numbers the API used, rather
+              than printing its sentence: the note names the role, and the
+              role's name is translated. */}
+          {t.components.presets.coverageNote
+            .replace("{pct}", String(coverage?.pct ?? 0))
+            .replace("{role}", roleLabel(t, preset.key))}
+        </p>
       ) : null}
 
       {preset.unmapped.length > 0 ? (

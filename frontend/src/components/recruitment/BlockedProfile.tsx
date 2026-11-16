@@ -54,7 +54,6 @@ export function BlockedProfile({
    * where the dictionary does not go. */
   copy: {
     willRankNobody: string;
-    setToZero: string;
     build: string;
     cannotProduce: string;
     setOne: string;
@@ -175,9 +174,6 @@ export function BlockedProfile({
               {score.reason}
             </p>
           ))}
-          <p className="text-[11px] leading-relaxed text-subtle">
-            {copy.setToZero}
-          </p>
           {/* Offered, not applied: a secondary button inside the warning it
               answers, rather than a primary action competing with Build. */}
           <button
