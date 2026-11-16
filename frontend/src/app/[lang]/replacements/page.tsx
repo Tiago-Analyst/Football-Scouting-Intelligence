@@ -39,9 +39,17 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
   const playerId = first(params.player);
   const search = first(params.search);
   const club = first(params.club);
+  const browse = first(params.competition);
 
   if (!playerId) {
-    const results = search || club ? await searchPlayers({ search, club, limit: 20 }) : null;
+    // `competition` was in the form and in the URL and never in this call, so
+    // "Or browse a competition" returned nothing at all. The API's default
+    // order is minutes played, which is what a list of players to pick from
+    // wants.
+    const results =
+      search || club || browse
+        ? await searchPlayers({ search, club, competition: browse, limit: 20 })
+        : null;
     const competitions = await getCompetitions();
 
     return (
@@ -63,7 +71,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             />
           </Field>
           <Field label={t.replacements.picker.browse} htmlFor="competition">
-            <Select id="competition" name="competition" defaultValue="">
+            <Select id="competition" name="competition" defaultValue={browse ?? ""}>
               <option value="">{t.replacements.constraints.any}</option>
               {competitions.map((competition) => (
                 <option key={competition.competition_id} value={competition.competition_id}>
@@ -100,7 +108,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
               </li>
             ))}
           </ul>
-        ) : search ? (
+        ) : search || browse ? (
           <EmptyState title={t.replacements.picker.noneFoundTitle} description={t.replacements.picker.noneFoundDescription} />
         ) : null}
       </div>

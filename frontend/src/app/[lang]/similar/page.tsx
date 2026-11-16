@@ -17,9 +17,10 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 import { Explainer } from "@/components/ui/Explainer";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { getSimilarPlayers, searchPlayers } from "@/lib/players";
+import { getCompetitions, getSimilarPlayers, searchPlayers } from "@/lib/players";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getDictionary();
@@ -42,7 +43,11 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
     // No minutes floor: this is a name lookup, not a ranking. Filtering it
     // hid players the search page had just shown - Victor Froholdt was
     // findable in one place and not the other, with nothing to explain why.
-    const results = search ? await searchPlayers({ search, limit: 15 }) : null;
+    const browse = first(params.competition);
+    const results =
+      search || browse ? await searchPlayers({ search, competition: browse, limit: 15 }) : null;
+    // Only when it is needed: a name search does not wait on the list.
+    const competitions = await getCompetitions();
     return (
       <div className="max-w-2xl space-y-8">
         <PageHeader
@@ -51,8 +56,11 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
           description={t.similarity.meta.description}
         />
 
-        <form method="get" className="flex items-end gap-3">
-          <Field label={t.similarity.picker.title} htmlFor="search" className="flex-1">
+        {/* The same two ways in as the replacement finder: a name, or the most
+            played players of a competition. A page with one box and nothing
+            else gave a reader who did not have a name in mind nowhere to go. */}
+        <form method="get" className="space-y-4 rounded-lg border border-border bg-surface p-4">
+          <Field label={t.similarity.picker.title} htmlFor="search">
             <TextInput
               id="search"
               name="search"
@@ -61,9 +69,20 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
               defaultValue={search ?? ""}
             />
           </Field>
+          <Field label={t.similarity.picker.browse} htmlFor="competition">
+            <Select id="competition" name="competition" defaultValue={browse ?? ""}>
+              <option value="">{t.similarity.picker.any}</option>
+              {competitions.map((competition) => (
+                <option key={competition.competition_id} value={competition.competition_id}>
+                  {competition.name}
+                </option>
+              ))}
+            </Select>
+            <CompetitionCoverageNote copy={t.common.competitionCoverage} />
+          </Field>
           <button
             type="submit"
-            className="h-9 shrink-0 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+            className="h-9 w-full rounded-md bg-accent text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
           >{t.similarity.picker.search}</button>
         </form>
 
@@ -88,7 +107,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
               </li>
             ))}
           </ul>
-        ) : search ? (
+        ) : search || browse ? (
           <EmptyState title={t.similarity.picker.noneFoundTitle} description={t.similarity.picker.noneFoundDescription} />
         ) : null}
       </div>
