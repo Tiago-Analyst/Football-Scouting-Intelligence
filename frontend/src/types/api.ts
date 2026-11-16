@@ -896,6 +896,8 @@ export interface ComparisonResponse {
   players: ComparedPlayer[];
   /** Present when the columns are not measured against the same population. */
   caveat: string | null;
+  /** The same warnings as codes, one per sentence in `caveat`. */
+  caveat_messages?: ApiMessage[];
 }
 
 // ---------------------------------------------------------------------------

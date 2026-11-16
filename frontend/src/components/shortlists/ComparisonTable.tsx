@@ -296,7 +296,11 @@ export function ComparisonTable({
 
       {caveat ? (
         <Callout tone="warning" title={c.caveatTitle}>
-          {caveat}
+          {/* The coded sentences, translated; the API's English only for a
+              backend that does not send them. The title was translated and the
+              body was not, so a Portuguese reader met a Portuguese heading over
+              an English warning. */}
+          {messageLines(t, f, comparison.caveat_messages, [caveat]).join(" ")}
         </Callout>
       ) : null}
 

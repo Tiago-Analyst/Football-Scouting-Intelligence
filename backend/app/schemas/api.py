@@ -1232,6 +1232,9 @@ class ComparisonResponse(BaseModel):
     #: Present when the selection spans position groups or competitions, where
     #: a straight column-by-column read is misleading.
     caveat: str | None = None
+    #: The same warnings as codes, one per sentence in `caveat`, for an interface
+    #: that composes them in the reader's language. Empty when `caveat` is null.
+    caveat_messages: list[Message] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
