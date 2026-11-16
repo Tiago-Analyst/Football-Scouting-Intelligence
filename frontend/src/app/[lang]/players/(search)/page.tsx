@@ -264,9 +264,19 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
             cell: (p: PlayerSummary) => (
               <>
                 {p.ranking_score != null ? Math.round(p.ranking_score) : "–"}
-                {p.ranking_note_message ? (
-                  <span className="mt-0.5 block text-[10px] font-normal text-subtle">
-                    {apiMessage(t, f, p.ranking_note_message)}
+                {/* Only what is true of THIS player: the share of a full season
+                    their minutes amount to. The method is the same for every
+                    row and is said once, above the table; the full sentence
+                    stays on the element as its title for anyone who wants it. */}
+                {typeof p.ranking_note_message?.values?.pct === "number" ? (
+                  <span
+                    className="mt-0.5 block text-[10px] font-normal text-subtle"
+                    title={apiMessage(t, f, p.ranking_note_message) ?? undefined}
+                  >
+                    {t.players.table.rankedEvidence.replace(
+                      "{pct}",
+                      String(p.ranking_note_message.values.pct),
+                    )}
                   </span>
                 ) : null}
               </>
@@ -600,6 +610,15 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
                   "{raw}",
                   t.players.filters.sorts.role_score,
                 )}
+              </p>
+            ) : null}
+
+            {/* The method behind the Ranked column, once, rather than as a
+                paragraph under every score. Not shown when the sort did
+                nothing, which has its own sentence above. */}
+            {filters.sort === "role_score_ranked" && !rankingIsInert(results.items) ? (
+              <p className="text-[11px] leading-relaxed text-subtle">
+                {t.players.filters.rankedExplainer}
               </p>
             ) : null}
 

@@ -24,7 +24,7 @@
     "playerSeasonsHint": "Linhas de desempenho carregadas. Menos são ordenáveis — ver abaixo.",
     "clubs": "Clubes",
     "clubsHint": "Clubes referidos por qualquer registo carregado.",
-    "competitions": "Competições",
+    "competitions": "Competições referenciadas",
     "competitionsHint": "Competições referidas por qualquer registo carregado."
   },
   "failing": {
@@ -83,7 +83,7 @@
     "title": "O que a API está a servir",
     "description": "Um carregamento pode ter êxito enquanto o serviço em execução continua a servir a vista que construiu ao arrancar, pelo que isto é um facto sobre o processo e não sobre a base de dados.",
     "players": "Jogadores na vista servida",
-    "competitions": "Competições",
+    "competitions": "Competições na vista servida",
     "builtAt": "Vista construída",
     "stale": "A base de dados avançou desde então",
     "current": "Em dia com a base de dados",

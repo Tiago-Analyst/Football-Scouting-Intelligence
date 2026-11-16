@@ -24,7 +24,7 @@
     "playerSeasonsHint": "Performance rows loaded. Fewer are rankable — see below.",
     "clubs": "Clubs",
     "clubsHint": "Clubs referenced by any loaded record.",
-    "competitions": "Competitions",
+    "competitions": "Referenced competitions",
     "competitionsHint": "Competitions referenced by any loaded record."
   },
   "failing": {
@@ -83,7 +83,7 @@
     "title": "What the API is serving",
     "description": "A load can succeed while the running service keeps serving the view it built at start-up, so this is a fact about the process rather than about the database.",
     "players": "Players in the served view",
-    "competitions": "Competitions",
+    "competitions": "Competitions in served view",
     "builtAt": "View built",
     "stale": "The database has moved since",
     "current": "Current with the database",
