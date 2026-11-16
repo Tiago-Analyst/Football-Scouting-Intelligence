@@ -78,8 +78,6 @@
     "recommended": "Ponto de partida recomendado",
     "fills": "Preenche os pesos abaixo a partir da definição da própria função. Ajuste-os depois — nada fica bloqueado.",
     "startingFrom": "A partir de",
-    "cannotScore": "Este perfil não pode ser pontuado com os dados carregados.",
-    "setToZero": "Pôr esse peso a zero produz uma ordenação, face a uma leitura mais estreita da função do que a aqui nomeada.",
     "positions": {
       "GK": "Guarda-redes",
       "CB": "Defesa-central",

@@ -78,8 +78,6 @@
     "recommended": "Recommended start",
     "fills": "Fills the weights below from the role's own definition. Adjust them afterwards — nothing is locked.",
     "startingFrom": "Starting from",
-    "cannotScore": "This profile cannot be scored against the loaded data.",
-    "setToZero": "Setting that weight to zero will produce a ranking, against a narrower reading of the role than the one named above.",
     "positions": {
       "GK": "Goalkeeper",
       "CB": "Centre-back",

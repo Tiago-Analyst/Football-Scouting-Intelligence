@@ -38,8 +38,7 @@
     "noMatchTitle": "No players match this profile",
     "noMatchDescription": "Try widening the filters or lowering the minimum minutes.",
     "blockedOneTitle": "1 weighted dimension is unavailable",
-    "blockedManyTitle": "{count} weighted dimensions are unavailable",
-    "blockedDescription": "This load cannot produce them for anybody, so the ranking would be empty however wide the filters are. Set those weights to zero to rank on the rest of the profile."
+    "blockedManyTitle": "{count} weighted dimensions are unavailable"
   },
   "results": {
     "matching": "players match · showing the top {shown}",
@@ -54,7 +53,6 @@
   },
   "blocked": {
     "willRankNobody": "This profile will rank nobody.",
-    "setToZero": "Set that weight to zero to get a ranking from the rest of the profile.",
     "build": "Build shortlist",
     "cannotProduce": "{scores} cannot be produced for any player, so this profile matches nobody.",
     "setOne": "Set that weight to zero to run the search.",

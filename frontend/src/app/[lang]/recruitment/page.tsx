@@ -489,7 +489,6 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                 ready: `${t.recruitment.states.readyActionBefore}${t.recruitment.filters.build}${t.recruitment.states.readyActionAfter}`,
                 blockedOne: t.recruitment.states.blockedOneTitle,
                 blockedMany: t.recruitment.states.blockedManyTitle,
-                blockedDescription: t.recruitment.states.blockedDescription,
               }}
             />
           ) : isSearchFailure(results) ? (

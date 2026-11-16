@@ -38,8 +38,7 @@
     "noMatchTitle": "Nenhum jogador corresponde a este perfil",
     "noMatchDescription": "Experimente alargar os filtros ou baixar os minutos mínimos.",
     "blockedOneTitle": "1 dimensão ponderada está indisponível",
-    "blockedManyTitle": "{count} dimensões ponderadas estão indisponíveis",
-    "blockedDescription": "Este carregamento não as consegue produzir para ninguém, pelo que a ordenação ficaria vazia por mais amplos que fossem os filtros. Ponha esses pesos a zero para ordenar pelo resto do perfil."
+    "blockedManyTitle": "{count} dimensões ponderadas estão indisponíveis"
   },
   "results": {
     "matching": "jogadores correspondem · a mostrar os {shown} melhores",
@@ -54,7 +53,6 @@
   },
   "blocked": {
     "willRankNobody": "Este perfil não vai ordenar ninguém.",
-    "setToZero": "Ponha esse peso a zero para obter uma ordenação a partir do resto do perfil.",
     "build": "Construir lista",
     "cannotProduce": "{scores} não pode ser produzido para nenhum jogador, pelo que este perfil não corresponde a ninguém.",
     "setOne": "Ponha esse peso a zero para executar a pesquisa.",
