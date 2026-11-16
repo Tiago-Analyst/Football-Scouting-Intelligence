@@ -41,6 +41,9 @@
     "sortTooltipLabel": "Como funciona a ponderação pela evidência",
     "sortTooltip": "A opção «Adequação à função, ponderada pela evidência» aproxima cada valor da média dos jogadores que estão a ser ordenados, na proporção do pouco tempo de jogo que o sustenta. A partir de 900 minutos o valor tem peso total e é devolvido exactamente como está, pelo que só se movem os valores abaixo desse limiar e uma amostra estabelecida nunca é reduzida. Numa lista em que todos já estão estabelecidos, esta ordenação e a bruta dão a mesma ordem.",
     "rankedExplainer": "Ordenado aproxima cada pontuação da média dos jogadores ordenados, na proporção do pouco tempo de jogo que a sustenta. A percentagem sob a pontuação é a parte da evidência de uma época completa (900 minutos) que os minutos desse jogador representam; a 100% a pontuação não muda. Passe o rato por cima de uma percentagem para ver os valores desse jogador. A adequação ao papel em si não é alterada.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "activeCount": "{count} definidos",
     "evidenceInert": "Todos os jogadores desta página já têm peso total de evidência, pelo que nenhum valor foi ajustado e a coluna ordenada repete «{raw}». O ajuste aplica-se abaixo dos 900 minutos.",
     "sorts": {
       "minutes": "Minutos jogados",
@@ -71,7 +74,8 @@
     "contract": "Contrato",
     "percentileSuffix": "pct",
     "ranked": "Ordenado",
-    "rankedEvidence": "{pct}% de uma época"
+    "rankedEvidence": "{pct}% de uma época",
+    "scrollHint": "Deslize para o lado para ver competição, função, valor e contrato."
   },
   "pagination": {
     "label": "Paginação",
