@@ -35,7 +35,8 @@ export function MobileCollapse({
   /** The "Reset" link, rendered by the server so it keeps its locale handling. */
   reset: ReactNode;
   activeCount: number;
-  labels: { show: string; hide: string; active: string };
+  /** `activeOne` is the singular: "1 definido", not "1 definidos". */
+  labels: { show: string; hide: string; active: string; activeOne: string };
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -48,7 +49,7 @@ export function MobileCollapse({
           <h2 className="text-sm font-semibold">{heading}</h2>
           {activeCount > 0 ? (
             <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
-              {labels.active.replace("{count}", String(activeCount))}
+              {(activeCount === 1 ? labels.activeOne : labels.active).replace("{count}", String(activeCount))}
             </span>
           ) : null}
         </div>

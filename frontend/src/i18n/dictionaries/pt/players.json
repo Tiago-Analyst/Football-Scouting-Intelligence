@@ -44,6 +44,7 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "activeCount": "{count} definidos",
+    "activeCountOne": "{count} definido",
     "evidenceInert": "Todos os jogadores desta página já têm peso total de evidência, pelo que nenhum valor foi ajustado e a coluna ordenada repete «{raw}». O ajuste aplica-se abaixo dos 900 minutos.",
     "sorts": {
       "minutes": "Minutos jogados",
