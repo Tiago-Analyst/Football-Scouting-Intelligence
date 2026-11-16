@@ -9,6 +9,7 @@ import {
   setAssessmentAction,
 } from "@/app/actions/shortlists";
 import { StatusBadge } from "@/components/shortlists/StatusBadge";
+import { PendingHint } from "@/components/ui/PendingHint";
 import { Badge } from "@/components/ui/Badge";
 import {
   SampleSizeBadgeView,
@@ -95,6 +96,7 @@ export function EntryRow({
             className="font-medium hover:text-accent hover:underline"
           >
             {player.name}
+            <PendingHint label={copy.loading} />
           </Link>
         ) : (
           <span className="font-medium text-muted">{entry.saved_as ?? entry.player_key}</span>

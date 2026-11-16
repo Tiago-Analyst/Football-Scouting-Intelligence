@@ -292,6 +292,7 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
                         title={
                           <Link
                             href={`/players/${entry.player.player_id}`}
+                            pendingLabel={t.common.states.loading}
                             className="transition-colors hover:text-accent"
                           >
                             {entry.player.name}

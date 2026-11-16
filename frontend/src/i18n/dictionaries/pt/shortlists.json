@@ -86,7 +86,8 @@
     "thisPlayer": "este jogador",
     "cancel": "Cancelar",
     "savingNote": "Guardar regista hoje como data de revisão. Uma caixa vazia limpa-a.",
-    "statusOption": "{label} — {description}"
+    "statusOption": "{label} — {description}",
+    "loading": "A carregar"
   },
   "comparison": {
     "heading": "A comparar {count} jogador",

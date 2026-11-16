@@ -185,6 +185,7 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
         <>
           <Link
             href={`/players/${player.player_id}`}
+            pendingLabel={t.common.states.loading}
             className="font-medium transition-colors hover:text-accent"
           >
             {player.name}

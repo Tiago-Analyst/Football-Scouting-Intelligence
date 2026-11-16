@@ -349,6 +349,7 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                         <TD className="min-w-36">
                           <Link
                             href={`/players/${entry.player.player_id}`}
+                            pendingLabel={t.common.states.loading}
                             className="font-medium transition-colors hover:text-accent"
                           >
                             {entry.player.name}

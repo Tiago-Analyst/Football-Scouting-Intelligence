@@ -585,6 +585,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
                             <span className="tabular text-xs text-subtle">{index + 1}.</span>
                             <Link
                               href={`/players/${candidate.player.player_id}`}
+                              pendingLabel={t.common.states.loading}
                               className="transition-colors hover:text-accent"
                             >
                               {candidate.player.name}

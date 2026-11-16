@@ -335,6 +335,7 @@ export default async function SimilarPlayersPage(props: PageProps<"/[lang]/simil
                         <TD>
                           <Link
                             href={`/players/${entry.player.player_id}`}
+                            pendingLabel={t.common.states.loading}
                             className="block max-w-28 min-w-24 font-medium break-words transition-colors hover:text-accent sm:max-w-none sm:min-w-0"
                           >
                             {entry.player.name}
