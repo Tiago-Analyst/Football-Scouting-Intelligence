@@ -9,6 +9,8 @@
   "picker": {
     "title": "Find a player to compare",
     "placeholder": "Search by name…",
+    "browse": "Or browse a competition",
+    "any": "Any",
     "search": "Search",
     "startOver": "Start over",
     "viewProfile": "View profile",
