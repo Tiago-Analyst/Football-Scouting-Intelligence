@@ -83,7 +83,13 @@ export function EntriesTable({
     } else {
       next.delete("compare");
     }
-    router.push(localised(`/shortlists/${shortlistId}?${next.toString()}`), { scroll: false });
+    // The comparison is rendered below the list and below the fold, so applying
+    // it and staying at the top looked like nothing had happened. The fragment
+    // takes the reader to it; clearing it (below) keeps the place instead.
+    const hash = selected.length > 0 ? "#comparison" : "";
+    router.push(localised(`/shortlists/${shortlistId}?${next.toString()}${hash}`), {
+      scroll: selected.length > 0,
+    });
   }
 
   function clear() {

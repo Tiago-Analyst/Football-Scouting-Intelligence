@@ -1,3 +1,4 @@
+import { hasOwnPopulations, showsGoalkeeping } from "@/lib/comparisonScope";
 import { ComparisonPopulation } from "@/components/player/ComparisonPopulation";
 import { AppLink as Link } from "@/components/ui/AppLink";
 import { Fragment } from "react";
@@ -55,7 +56,8 @@ function comparisonHref(
   const params = new URLSearchParams();
   if (compared.length > 0) params.set("compare", compared.join(","));
   params.set("scope", scope);
-  return `/shortlists/${shortlistId}?${params.toString()}`;
+  // The fragment keeps the reader on the comparison when the scope changes.
+  return `/shortlists/${shortlistId}?${params.toString()}#comparison`;
 }
 
 function ScopeLink({ label, active, href }: { label: string; active: boolean; href: string }) {
@@ -203,11 +205,24 @@ export function ComparisonTable({
   const c = t.shortlists.comparison;
   const { players, context, caveat } = comparison;
 
+  // One "Compared with" line describes ONE population: the API builds it from
+  // the first player's ranked metric. It is only true of every column when they
+  // share a position group and, in the per-competition scope, a competition.
+  // Otherwise each column is ranked against its own group, and the line is
+  // replaced by saying so and by naming the group under each name.
+  const ownPopulations = hasOwnPopulations(players, scope);
+
+  // A goalkeeping row in a comparison of outfield players is a team statistic
+  // wearing a player's percentile ("goals conceded /90" for a midfielder), so
+  // the family only appears when somebody being compared is a goalkeeper.
+  const anyKeeper = showsGoalkeeping(players);
+
   const metricOrder: string[] = [];
   const labels = new Map<string, string>();
   const families = new Map<string, string | null>();
   for (const column of players) {
     for (const metric of column.metrics) {
+      if (!anyKeeper && metric.family === "Goalkeeping") continue;
       if (!labels.has(metric.metric)) {
         labels.set(metric.metric, metric.label);
         families.set(metric.metric, metric.family ?? null);
@@ -219,7 +234,7 @@ export function ComparisonTable({
   const leaders = leadingValues(players);
 
   return (
-    <section className="space-y-3">
+    <section id="comparison" className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold tracking-tight">
           {(players.length === 1 ? c.heading : c.headingPlural).replace(
@@ -227,7 +242,11 @@ export function ComparisonTable({
             String(players.length),
           )}
         </h2>
-        {context ? <ComparisonPopulation context={context} /> : null}
+        {ownPopulations ? (
+          <p className="max-w-sm text-xs leading-relaxed text-subtle">{c.ownPopulation}</p>
+        ) : context ? (
+          <ComparisonPopulation context={context} />
+        ) : null}
       </div>
 
       {/* The answer to the warning below, rather than a second opinion beside
@@ -283,6 +302,9 @@ export function ComparisonTable({
                   <span className="mt-0.5 block text-[11px] font-normal text-subtle">
                     {column.player.raw_position ?? column.player.position_group}
                     {column.player.club ? ` · ${column.player.club}` : ""}
+                    {ownPopulations && column.player.competition
+                      ? ` · ${column.player.competition}`
+                      : ""}
                   </span>
                 </TH>
               ))}

@@ -95,6 +95,7 @@
     "watchOuts": "Pontos de atenção",
     "watchOutsEmpty": "Nada na faixa inferior desta função.",
     "caveatTitle": "Estas colunas não são medidas face à mesma população",
+    "ownPopulation": "Cada coluna é ordenada face ao seu próprio grupo: a posição e a competição estão indicadas sob o jogador.",
     "metric": "Métrica",
     "minutes": "Minutos",
     "age": "Idade",
