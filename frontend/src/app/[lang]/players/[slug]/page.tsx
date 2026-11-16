@@ -199,9 +199,19 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
               ? t.profile.tiles.percentileUnit
               : t.profile.tiles.outOfHundred
           }
+          // The role, and the raw fit the percentile above was taken from. The
+          // two sit a few points apart (57 and 55 on one goalkeeper) and the
+          // second used to be four screens down, so the same role seemed to
+          // carry two scores. Only when the headline is the percentile: with no
+          // percentile the headline already is the raw score.
           hint={
             roles?.best?.key
-              ? roleLabel(t, roles.best.key)
+              ? roles.best.role_fit_percentile != null && roles.best.score != null
+                ? `${roleLabel(t, roles.best.key)} · ${t.profile.tiles.rawFit.replace(
+                    "{score}",
+                    String(Math.round(roles.best.score)),
+                  )}`
+                : roleLabel(t, roles.best.key)
               : t.profile.tiles.notAvailable
           }
           tone="accent"

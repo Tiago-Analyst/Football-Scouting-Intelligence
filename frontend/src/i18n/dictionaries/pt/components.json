@@ -36,8 +36,8 @@
     "comparedOn": "Comparados em {shared} dos {expected} atributos definidos para esta posição ({pct}% de cobertura). Os percentis são dentro da mesma população de comparação do perfil acima; dois jogadores podem partilhar uma forma a qualquer nível, por isso leia os valores e não apenas a distância entre eles."
   },
   "radar": {
-    "title": "Perfil de inteligência",
-    "description": "Pontuações compostas, medidas face a jogadores comparáveis.",
+    "title": "Forma do perfil",
+    "description": "As mesmas pontuações compostas, desenhadas como uma forma.",
     "tooltipLabel": "O que é esta forma?",
     "tooltip": "Cada eixo é uma pontuação composta construída a partir dos percentis do jogador entre jogadores comparáveis, numa escala de 0 a 100. A forma mostra onde é forte em relação a esse grupo — não o quão bom é. As pontuações que não puderam ser calculadas são omitidas em vez de desenhadas a zero.",
     "notQuality": "Uma pontuação descreve a adequação estatística a um perfil entre jogadores comparáveis. Não é qualidade do jogador.",
