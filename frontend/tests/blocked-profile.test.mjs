@@ -81,6 +81,6 @@ test("a weight of zero is not a weighted dimension", () => {
 });
 
 test("the old always-enabled button is gone from the page", () => {
-  const button = /<button\s+type="submit"[\s\S]{0,400}?Build shortlist/;
+  const button = /<button\s+type="submit"[\s\S]{0,400}?Rank candidates/;
   assert.equal(button.test(page), false, "the page still renders its own submit button");
 });
