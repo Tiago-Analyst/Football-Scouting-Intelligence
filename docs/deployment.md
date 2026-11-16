@@ -661,8 +661,11 @@ render each one through Next to FastAPI, and 5,462 requests would meet the
   next deploy, whichever comes first.
 - **No error tracking.** Structured logs go to the platform's log viewer and
   nowhere else.
-- **No Content-Security-Policy.** A CSP worth having needs nonces threaded
-  through Next's inline scripts; the other security headers are set.
+- **The Content-Security-Policy has no nonces.** It limits every load and
+  connection to the site's own origin, but keeps `'unsafe-inline'` for scripts,
+  so it does not stop an injected inline script. A nonce would, at the price of
+  rendering every page on every request - revisit once the backend has more
+  memory.
 - **Restores are untested.** Neon can restore; nobody has tried it here, and an
   untested backup is a belief rather than a plan.
 
@@ -684,9 +687,8 @@ render each one through Next to FastAPI, and 5,462 requests would meet the
   *stays* unwell, and its failures reach the owner by email — which is why a
   third-party monitor was judged not to be earning its keep until the site has
   readers.
-- No Content-Security-Policy on the frontend. A CSP worth having needs nonces
-  threaded through Next's inline scripts; a looser one is reassurance rather
-  than protection.
+- The frontend's Content-Security-Policy keeps `'unsafe-inline'` for scripts
+  (see `next.config.ts`), so it does not stop an injected inline script.
 - ~~The analytical view is built once per process, so a load during a
   deployment window is not picked up until a restart.~~ **Closed 9 November.**
   The pipeline calls `/api/v1/internal/reload-analytics` after a verified

@@ -1809,9 +1809,13 @@ can. `Referrer-Policy` there is `strict-origin-when-cross-origin` rather than
 the API's `no-referrer` — a player URL names a player, and sending that to
 whatever a user clicks through to leaks who was being scouted.
 
-**No Content-Security-Policy.** One worth having needs nonces threaded through
-Next's inline scripts; one loose enough to avoid that work is reassurance rather
-than protection. Left undone and stated rather than added badly.
+**Content-Security-Policy, without nonces** (added 16 November 2026). Same
+origin only for scripts, styles, images, fonts and connections; no plugins, no
+injected `<base>`, forms only back to the site, and nobody may frame it. Scripts
+keep `'unsafe-inline'`, so it does NOT stop an injected inline script. A nonce
+would, but needs every page rendered on every request - no prerendering, no ISR
+- which puts all the load on a backend small enough to have been killed for
+memory. See `frontend/next.config.ts`; revisit with a larger backend.
 
 ### Containers
 
@@ -1939,8 +1943,8 @@ anyone has waited on it.
 
 ### Left undone, on purpose
 
-No Content-Security-Policy — one worth having needs nonces threaded through
-Next's inline scripts, and a looser one is reassurance rather than protection.
+A nonce-based Content-Security-Policy: it would end prerendering (see the
+policy that was added instead, in `next.config.ts`).
 
 No frontend test runner, so `lib/site.ts` has no unit tests; its two branches
 were verified by running the site both ways. That gap has been open since
