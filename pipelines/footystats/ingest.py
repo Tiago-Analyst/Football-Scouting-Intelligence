@@ -136,6 +136,15 @@ class CompetitionResult:
     #: reporting it as a competition that "could not be read" and inviting the
     #: re-run that kept this pipeline from publishing for five days.
     not_subscribed: bool = False
+    #: True when the provider answered, successfully, with no players at all.
+    #:
+    #: A competition that was there and then is not - FootyStats re-issued
+    #: Colombia's 2026 season id in November 2026, and the old one began
+    #: answering `data: null` - used to be accepted as an empty, complete,
+    #: successful competition. The generation was promoted without the league
+    #: and nothing said so. It is now an error the verdict names, and the
+    #: fix is a decision (a new id, or a declared exclusion), not a re-run.
+    empty_roster: bool = False
 
     @property
     def ok(self) -> bool:
@@ -361,6 +370,18 @@ def ingest_competition(
         result.error = f"roster failed: {type(exc).__name__}: {exc}"
         result.seconds = time.monotonic() - started
         log.error("footystats_roster_failed", season_id=season_id, error=result.error)
+        return result
+
+    if not roster:
+        # Not "nothing to fetch": a configured competition with no players is a
+        # competition that has moved, been withdrawn or was never filled, and
+        # publishing the universe without it is how a whole league leaves the
+        # site unannounced. A competition that is legitimately empty is declared
+        # under `excluded` in config/competitions.yaml, where it is not asked for.
+        result.error = "roster is empty: the provider answered with no players for this season id"
+        result.empty_roster = True
+        result.seconds = time.monotonic() - started
+        log.error("footystats_roster_empty", season_id=season_id, name=name)
         return result
 
     player_ids = [str(row["id"]) for row in roster if row.get("id") is not None]
@@ -679,6 +700,20 @@ def verdict(report: RunReport) -> int:
             "FootyStats account, or move them to `excluded` in config/competitions.yaml\n"
             "with the reason - an exclusion recorded there is declared, and a\n"
             "competition quietly dropped is not."
+        )
+        return 1
+
+    empty = [c for c in report.competitions if c.empty_roster]
+    if empty:
+        print("\nExiting non-zero: the provider returned no players for a configured competition.")
+        for competition in empty:
+            print(f"  {competition.season_id}  {competition.name}")
+        print(
+            "\nRe-running will not change this. The season id in config/competitions.yaml\n"
+            "may have been re-issued - look the competition up in /league-list and use its\n"
+            "current id (Colombia's 2026 season moved from 16614 to 18081 in November\n"
+            "2026) - or, if it truly has no players, move it to `excluded` with the\n"
+            "reason. Publishing without it would drop the league from the site unannounced."
         )
         return 1
 
