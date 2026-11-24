@@ -96,15 +96,10 @@ refresh:
 # FootyStats competitions to ingest
 # ---------------------------------------------------------------------------
 #
-# 45 competitions, being those with a 2026 or later season in the catalogue
-# that the subscription actually carries. Five are excluded below, for two
-# different reasons - read them before adding anything back.
+# 44 competitions, being those with a 2026 or later season in the catalogue
+# that the subscription actually carries and the provider fills. Six are excluded
+# below, for three different reasons - read them before adding anything back.
 footystats:
-  - season_id: 17550
-    name: Africa CAF Champions League
-    country: Africa
-    season: 20262027
-    added_on: 2026-08-29
   - season_id: 17381
     name: Asia AFC Champions League
     country: Asia
@@ -140,7 +135,14 @@ footystats:
     country: China
     season: 2026
     added_on: 2026-08-29
-  - season_id: 16614
+  # FootyStats re-issued this competition's 2026 season id. It was 16614 until
+  # November 2026: the 29 August catalogue lists 16614 as 2026, the November one
+  # lists 18081 as 2026 and no longer has 16614 at all, and `/league-players`
+  # for 16614 now answers 200 with `data: null`. The generation that started on
+  # 2026-11-16 therefore fetched nothing for Colombia and was published without
+  # it: 238 players and the whole league gone from the site, unannounced.
+  # 18081 returns 753 players, 197 of the first 200 with minutes played.
+  - season_id: 18081
     name: Colombia Categoria Primera A
     country: Colombia
     season: 2026
@@ -331,9 +333,9 @@ footystats:
 # ---------------------------------------------------------------------------
 #
 # Recorded here rather than dropped so nobody has to rediscover why they are
-# missing. Two different reasons, and the difference matters: the first three
-# are absent from the catalogue, and the last two are absent from *this
-# subscription*. Choosing those two leagues on the FootyStats account is all
+# missing. Three different reasons, and the difference matters: the first three
+# are absent from the catalogue, the next two are absent from *this
+# subscription*, and the last has a season but no players in it. Choosing those two leagues on the FootyStats account is all
 # it would take to move them back up.
 #
 # The first three are on the subscription, and the catalogue carries no season
@@ -381,6 +383,20 @@ excluded:
     season: 20262027
     excluded_on: 2026-10-19
     reason: not chosen on the FootyStats subscription - /league-players answers HTTP 417
+
+  # THIS ONE HAS A CURRENT SEASON AND NO PLAYERS IN IT.
+  #
+  # `/league-players` answers HTTP 200 with `data: []` for this season, and has
+  # done since it was first asked for (2026-08-29): the league is on the account
+  # and the id is in the catalogue, but the provider carries no roster. It is
+  # served as an empty competition, which the pipeline now refuses to do
+  # silently - an empty roster fails the run unless the competition is declared
+  # here. Move it back up if the provider ever fills it.
+  - name: Africa CAF Champions League
+    season_id: 17550
+    season: 20262027
+    excluded_on: 2026-11-24
+    reason: the provider returns no players for this season - /league-players answers 200 with data []
 
 # ---------------------------------------------------------------------------
 # Transfermarkt
