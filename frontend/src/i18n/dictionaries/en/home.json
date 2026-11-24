@@ -1,10 +1,10 @@
 {
   "meta": {
-    "description": "Recruitment intelligence for football. Contextual percentiles measured against a stated peer group, role fits, statistical similarity and ranked shortlists - with the reasoning behind every result kept visible."
+    "description": "Recruitment intelligence for football. Contextual percentiles measured against a stated peer group, role fits, statistical similarity and candidates ranked against your own profile - with the reasoning behind every result kept visible."
   },
   "hero": {
     "title": "Recruitment decisions need context, not just statistics.",
-    "body": "A scouting and market-analysis platform that turns raw match data into contextual percentiles, player roles, statistical similarity and ranked recruitment shortlists — with the reasoning behind every result kept visible.",
+    "body": "A scouting and market-analysis platform that turns raw match data into contextual percentiles, player roles, statistical similarity and candidates ranked against the profile you define — with the reasoning behind every result kept visible.",
     "explore": "Explore players",
     "how": "How it works"
   },

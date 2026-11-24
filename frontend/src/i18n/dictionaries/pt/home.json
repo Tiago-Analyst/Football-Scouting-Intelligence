@@ -1,10 +1,10 @@
 {
   "meta": {
-    "description": "Inteligência de recrutamento para o futebol. Percentis contextuais medidos face a um grupo de pares declarado, adequações às funções, semelhança estatística e listas ordenadas — com o raciocínio por trás de cada resultado à vista."
+    "description": "Inteligência de recrutamento para o futebol. Percentis contextuais medidos face a um grupo de pares declarado, adequações às funções, semelhança estatística e candidatos ordenados segundo o perfil que definir — com o raciocínio por trás de cada resultado à vista."
   },
   "hero": {
     "title": "As decisões de recrutamento precisam de contexto, não só de estatísticas.",
-    "body": "Uma plataforma de observação e análise de mercado que transforma dados de jogo em bruto em percentis contextuais, funções de jogador, semelhança estatística e listas de recrutamento ordenadas — com o raciocínio por trás de cada resultado à vista.",
+    "body": "Uma plataforma de observação e análise de mercado que transforma dados de jogo em bruto em percentis contextuais, funções de jogador, semelhança estatística e candidatos ordenados segundo o perfil que definir — com o raciocínio por trás de cada resultado à vista.",
     "explore": "Explorar jogadores",
     "how": "Como funciona"
   },
