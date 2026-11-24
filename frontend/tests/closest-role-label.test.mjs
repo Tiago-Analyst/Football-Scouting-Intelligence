@@ -16,24 +16,27 @@ import test from "node:test";
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const dict = (lang) => JSON.parse(read(`src/i18n/dictionaries/${lang}/profile.json`));
 const page = read("src/app/[lang]/players/[slug]/page.tsx");
+const roleFit = read("src/lib/roleFit.ts");
 
 test("below the median the tile says closest, and above it still says best", () => {
-  assert.match(page, /const BELOW_MEDIAN = 50;/);
-  assert.match(page, /const fitIsBelowMedian = bestPercentile !== null && bestPercentile < BELOW_MEDIAN;/);
+  // The line itself lives in `lib/roleFit.ts`, shared with the Search table and
+  // the shortlist, so the three cannot disagree.
+  assert.match(roleFit, /export const BELOW_MEDIAN = 50;/);
+  assert.match(page, /const closestFit = fitIsBelowMedian\(bestPercentile\);/);
   assert.match(
     page,
-    /label=\{fitIsBelowMedian \? t\.profile\.tiles\.closestRole : t\.profile\.tiles\.bestRole\}/,
+    /label=\{closestFit \? t\.profile\.tiles\.closestRole : t\.profile\.tiles\.bestRole\}/,
   );
 });
 
 test("a fit with no percentile is not called weak: best stays, as it was", () => {
   // `null` is "not computed", which is not the same thing as "low".
-  assert.match(page, /bestPercentile !== null && bestPercentile < BELOW_MEDIAN/);
+  assert.match(roleFit, /percentile != null && percentile < BELOW_MEDIAN/);
   assert.match(page, /roles\?\.best\?\.role_fit_percentile \?\? null/);
 });
 
 test("the accent colour goes with the recommendation, not with the weak fit", () => {
-  assert.match(page, /tone=\{fitIsBelowMedian \? "default" : "accent"\}/);
+  assert.match(page, /tone=\{closestFit \? "default" : "accent"\}/);
 });
 
 test("the number, the unit and the raw fit are not touched by the relabel", () => {
@@ -42,8 +45,9 @@ test("the number, the unit and the raw fit are not touched by the relabel", () =
 });
 
 test("the line is a display line, not a scoring threshold: nothing else reads it", () => {
-  const uses = [...page.matchAll(/BELOW_MEDIAN/g)].length;
-  assert.equal(uses, 2, "declared once and used once");
+  // Declared once and used once, in the helper; the profile holds no copy of it.
+  assert.equal([...roleFit.matchAll(/BELOW_MEDIAN/g)].length, 2);
+  assert.equal(page.includes("BELOW_MEDIAN"), false, "the profile imports the helper, not the number");
 });
 
 test("both languages name it", () => {

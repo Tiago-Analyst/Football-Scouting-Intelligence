@@ -47,6 +47,10 @@
     "loadingPage": "Loading page",
     "loadingResults": "Loading results"
   },
+  "roleFit": {
+    "closest": "Closest fit",
+    "closestHint": "Even this player's best role fit is below the median for the role."
+  },
   "freshness": {
     "label": "Data freshness",
     "published": "published {date}",

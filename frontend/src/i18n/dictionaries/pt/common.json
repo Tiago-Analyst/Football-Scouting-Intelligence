@@ -47,6 +47,10 @@
     "loadingPage": "A carregar a página",
     "loadingResults": "A carregar resultados"
   },
+  "roleFit": {
+    "closest": "Mais próxima",
+    "closestHint": "Mesmo a melhor adequação deste jogador fica abaixo da mediana da função."
+  },
   "freshness": {
     "label": "Actualidade dos dados",
     "published": "publicado em {date}",

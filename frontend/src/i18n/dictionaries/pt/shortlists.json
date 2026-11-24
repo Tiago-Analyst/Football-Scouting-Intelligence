@@ -87,7 +87,9 @@
     "cancel": "Cancelar",
     "savingNote": "Guardar regista hoje como data de revisão. Uma caixa vazia limpa-a.",
     "statusOption": "{label} — {description}",
-    "loading": "A carregar"
+    "loading": "A carregar",
+    "closest": "Mais próxima",
+    "closestHint": "Mesmo a melhor adequação deste jogador fica abaixo da mediana da função."
   },
   "comparison": {
     "heading": "A comparar {count} jogador",
