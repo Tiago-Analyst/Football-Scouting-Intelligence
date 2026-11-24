@@ -23,6 +23,11 @@ secrets/
 /pass*.txt
 /*password*.txt
 /*credentials*.txt
+# Recovery and backup codes for an account (a Vercel one was sitting in the root,
+# untracked and uncovered by any pattern above). Same rule: anchored to the root
+# and limited to `.txt`.
+/*recovery*.txt
+/*backup-codes*.txt
 
 # ---- Python --------------------------------------------------------------
 __pycache__/
