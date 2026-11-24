@@ -21,6 +21,7 @@ import { localePath } from "@/i18n/routing";
 import { rankingIsInert } from "@/lib/evidenceSort";
 import { canonicalOffset, pageHref, parseOffset } from "@/lib/pagination";
 import { getCompetitions, getRoles, isSearchFailure, runPlayerSearch } from "@/lib/players";
+import { fitIsBelowMedian } from "@/lib/roleFit";
 import { apiMessage } from "@/components/player/ApiMessage";
 import { ContractDate } from "@/components/player/ContractDate";
 import { SeasonCompetition } from "@/components/player/SeasonCompetition";
@@ -234,8 +235,25 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
       // May wrap, for the same reason as the club: a fixed one-line width is
       // what pushed the table past its container when Raw fit was sorted by.
       className: "min-w-28",
-      /* A table row: the Portuguese name alone. */
-      cell: (p) => (p.best_role_key ? <RoleName role={p.best_role_key} /> : (p.best_role ?? "–")),
+      /* A table row: the Portuguese name alone. Where even the best fit is below
+         the median for the role, the cell says so: "best" would be a
+         recommendation nobody made (see `lib/roleFit.ts`). */
+      cell: (p) =>
+        p.best_role_key ? (
+          <>
+            <RoleName role={p.best_role_key} />
+            {fitIsBelowMedian(p.best_role_percentile) ? (
+              <span
+                className="mt-0.5 block text-[10px] font-normal text-subtle"
+                title={t.common.roleFit.closestHint}
+              >
+                {t.common.roleFit.closest}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          (p.best_role ?? "–")
+        ),
     },
     // ONLY WHEN THE READER SORTED BY IT, as the Ranked column below.
     //

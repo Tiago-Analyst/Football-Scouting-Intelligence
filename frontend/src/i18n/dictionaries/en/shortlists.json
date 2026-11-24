@@ -87,7 +87,9 @@
     "cancel": "Cancel",
     "savingNote": "Saving records today as the review date. An empty box clears it.",
     "statusOption": "{label} — {description}",
-    "loading": "Loading"
+    "loading": "Loading",
+    "closest": "Closest fit",
+    "closestHint": "Even this player's best role fit is below the median for the role."
   },
   "comparison": {
     "heading": "Comparing {count} player",

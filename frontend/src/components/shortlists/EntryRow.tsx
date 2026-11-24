@@ -18,6 +18,7 @@ import {
 import { TD, TR } from "@/components/ui/Table";
 import { bindFormatters, type LocaleTag } from "@/lib/format";
 import { EMPTY_FORM_STATE } from "@/lib/forms";
+import { fitIsBelowMedian } from "@/lib/roleFit";
 import type { ShortlistEntry, ShortlistStatus } from "@/types/api";
 
 /**
@@ -136,6 +137,11 @@ export function EntryRow({
         {player?.best_role_key ? (
           <>
             <span className="text-sm">{roleLabels[player.best_role_key] ?? player.best_role_key}</span>
+            {fitIsBelowMedian(player.best_role_percentile) ? (
+              <span className="mt-0.5 block text-[10px] text-subtle" title={copy.closestHint}>
+                {copy.closest}
+              </span>
+            ) : null}
             {player.best_role_percentile != null ? (
               <span className="mt-0.5 block text-[11px] text-subtle">
                 {copy.rolePercentile.replace("{ordinal}", f.ordinal(player.best_role_percentile))}
