@@ -59,15 +59,17 @@ import type { Score } from "@/types/api";
  * Vercel ends a build at 45 minutes. Measured on 25 November: the build made
  * about 128 pages a minute, and every profile is two pages (EN and PT), so all
  * 14,790 players (29,616 pages) needed about 3h20 and the build was cut at
- * 45m38s with a failed deployment. 1,500 players is 3,000 pages, about 23
- * minutes, which leaves room for install, compile and a slower backend. The
+ * 45m38s with a failed deployment. The first cap, 1,500 players (3,000 pages),
+ * deployed in at most 26 minutes start to finish (merge 17:09:06, deployment
+ * complete 17:34:58). Scaling that to 2,000 players (4,000 pages) gives about
+ * 35 minutes, ten under the limit, which is room for a slower backend. The
  * list is ordered by minutes, so the profiles most likely to be opened are the
- * ones made ahead. shortcut: raise it only after timing the build's start-up;
- * 2,000 leaves about four minutes of margin on that measurement.
+ * ones made ahead. shortcut: above about 2,600 the build fails again; time the
+ * 2,000 deploy before raising it further.
  *
  * Not exported: a page may only export the names Next knows.
  */
-const PRERENDERED_PROFILES = 1500;
+const PRERENDERED_PROFILES = 2000;
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   // Nothing, rather than a build that dies partway through against the rate
