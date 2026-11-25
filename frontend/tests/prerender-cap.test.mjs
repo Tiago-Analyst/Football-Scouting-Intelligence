@@ -16,9 +16,10 @@ const page = readFileSync(
 test("the number of prerendered profiles is capped, and the cap fits the build", () => {
   const cap = Number(/^const PRERENDERED_PROFILES = (\d+);/m.exec(page)?.[1]);
   assert.ok(Number.isInteger(cap) && cap > 0, "a cap is declared");
-  // Two pages per player at the measured ~128 pages a minute, against a
-  // 45-minute build: past this the deploy fails again.
-  assert.ok(cap * 2 <= 4500, `${cap} profiles is ${cap * 2} pages, too many for one build`);
+  // Two pages per player. 3,000 pages deployed in at most 26 minutes, so about
+  // 5,200 pages is the 45-minute edge; 5,000 is a ceiling that still leaves
+  // little margin, and the cap itself sits below it.
+  assert.ok(cap * 2 <= 5000, `${cap} profiles is ${cap * 2} pages, too many for one build`);
 });
 
 test("the loop stops at the cap and the result is cut to it", () => {
