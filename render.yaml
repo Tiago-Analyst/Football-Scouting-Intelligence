@@ -17,11 +17,16 @@
 #   3. Fill in the prompted secrets.
 #   4. Run the migrations and the first load (see docs/deployment.md).
 #
-# `plan: starter` because the free plan sleeps after 15 minutes idle and takes
-# roughly 50 seconds to wake, during which the site shows its error state
-# rather than data. That is survivable for a site people visit deliberately
-# and wrong for one anybody is shown a link to: the first visitor after a
-# quiet hour waits 50 seconds, and does not wait.
+# Not the free plan: it sleeps after 15 minutes idle and takes roughly 50
+# seconds to wake, during which the site shows its error state rather than
+# data. That is survivable for a site people visit deliberately and wrong for
+# one anybody is shown a link to: the first visitor after a quiet hour waits
+# 50 seconds, and does not wait.
+#
+# `plan: 1c-2g` (1 CPU, 2 GB; the legacy name is `standard`) since November
+# 2026: on 512 MB the analytics view took about 78% at rest and the process was
+# killed for memory. Change the plan here as well as in the dashboard, or a
+# blueprint sync puts the old one back.
 
 services:
   - type: web
@@ -31,7 +36,7 @@ services:
     # The repository root, not `backend/`: the image needs `config/`, which sits
     # beside it, and Docker cannot copy from outside its context.
     dockerContext: .
-    plan: starter
+    plan: 1c-2g
     region: frankfurt
     branch: main
     # Only rebuild when the backend or its pipelines change. A frontend commit
