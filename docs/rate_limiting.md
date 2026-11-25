@@ -77,9 +77,12 @@ through the public API by anyone at all.
 
 Two callers are exempt, and both identify themselves:
 
-- the **deploy**, with `BUILD_TOKEN`, because prerendering five and a half
-  thousand profiles is thousands of requests in minutes and is
-  indistinguishable from extraction otherwise;
+- the **deploy**, with `BUILD_TOKEN`, because prerendering profiles is
+  thousands of requests in minutes and is indistinguishable from extraction
+  otherwise. The build makes the 1,500 most-played profiles
+  (`PRERENDERED_PROFILES`), not all of them: all 14,790 players is 29,616 pages
+  (two languages), ran past Vercel's 45-minute build limit on 25 November and
+  failed the deployment. The rest are built on first request;
 - **health and docs paths**, so a probe cannot be rate-limited into declaring a
   healthy service dead.
 

@@ -53,6 +53,22 @@ import type { Score } from "@/types/api";
  * background an hour after it is served, so a pipeline load reaches the site
  * without a deploy, and nobody waits for it.
  */
+/**
+ * How many profiles are built at deploy; the rest are built on first request.
+ *
+ * Vercel ends a build at 45 minutes. Measured on 25 November: the build made
+ * about 128 pages a minute, and every profile is two pages (EN and PT), so all
+ * 14,790 players (29,616 pages) needed about 3h20 and the build was cut at
+ * 45m38s with a failed deployment. 1,500 players is 3,000 pages, about 23
+ * minutes, which leaves room for install, compile and a slower backend. The
+ * list is ordered by minutes, so the profiles most likely to be opened are the
+ * ones made ahead. shortcut: raise it only after timing the build's start-up;
+ * 2,000 leaves about four minutes of margin on that measurement.
+ *
+ * Not exported: a page may only export the names Next knows.
+ */
+const PRERENDERED_PROFILES = 1500;
+
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   // Nothing, rather than a build that dies partway through against the rate
   // limit. An empty list is a working deployment: every profile is then built
@@ -63,7 +79,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   const PAGE = 100;
   const params: { slug: string }[] = [];
 
-  for (let offset = 0; ; offset += PAGE) {
+  for (let offset = 0; params.length < PRERENDERED_PROFILES; offset += PAGE) {
     const page = await searchPlayers(
       { offset, limit: PAGE, sort: "minutes" },
       {
@@ -75,7 +91,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
     if (params.length >= page.total) break;
   }
 
-  return params;
+  return params.slice(0, PRERENDERED_PROFILES);
 }
 
 /**
