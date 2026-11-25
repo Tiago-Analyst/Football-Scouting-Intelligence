@@ -632,7 +632,7 @@ crawling and the sitemap lists the nine public routes. Setting it to `false`
 closes it again.
 
 What stayed closed is the individual player profiles. `robots.txt` disallows
-`/players/`, so a search engine is not offered five and a half thousand pages
+`/players/`, so a search engine is not offered fifteen thousand pages
 about named people built from datasets whose terms are still unreviewed. They
 are not hidden - anyone with the URL reads them, and no login is involved -
 they are simply not indexed. The list lives in `DISALLOWED` in
