@@ -255,6 +255,23 @@ def _write_progress(path: Path, done: set[str]) -> None:
     )
 
 
+def fetched_on_disk(generation: Any) -> int:
+    """How many of the generation's expected players are already fetched.
+
+    Counted from the disk, not from what this run has walked past. The sum over
+    the run's competitions restarted near nought each run and climbed back, so
+    the public refresh panel went from 11,751 players to 11,088 in a day.
+    """
+    total = 0
+    for season_id in generation.metadata.competitions_expected:
+        # Progress without a snapshot is not trusted - the next visit starts over.
+        if not generation.snapshot_path(season_id).exists():
+            continue
+        done = _read_progress(generation.progress_path(season_id))
+        total += len(done & set(generation.expected_players(season_id)))
+    return total
+
+
 def _load_progress(season_id: str) -> set[str]:
     """Which players this competition already has, in the flat layout."""
     return _read_progress(progress_path(season_id))
@@ -916,7 +933,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 generation.mark_competition_incomplete(result.season_id)
             generation.refresh_counts(
-                completed=sum(c.fetched + c.skipped for c in report.competitions),
+                completed=fetched_on_disk(generation),
                 failed=report.failed_player_ids,
             )
             generation.evaluate_completeness()
@@ -943,7 +960,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if generation is not None:
         generation.refresh_counts(
-            completed=sum(c.fetched + c.skipped for c in report.competitions),
+            completed=fetched_on_disk(generation),
             failed=report.failed_player_ids,
         )
         # `report.complete` also accounts for competitions this run never
