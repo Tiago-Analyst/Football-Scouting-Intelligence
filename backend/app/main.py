@@ -6,6 +6,7 @@ Run locally:
 
 from __future__ import annotations
 
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,7 @@ from app.core.database import check_database_connection, dispose_engine
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import register_middleware
+from app.services.analytics_service import get_analytics_view
 
 log = get_logger(__name__)
 
@@ -51,10 +53,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             detail="Performance data features will be unavailable.",
         )
 
+    # In the background, so the service answers its health check at once and the
+    # first reader after a deploy does not pay for the build (about 11 seconds
+    # on 1 CPU, measured). Production only: elsewhere it would build on every
+    # reload and under every test client.
+    if db_ok and settings.is_production:
+        threading.Thread(target=_build_view_early, name="analytics-view", daemon=True).start()
+
     yield
 
     dispose_engine()
     log.info("shutdown")
+
+
+def _build_view_early() -> None:
+    try:
+        get_analytics_view()
+    except Exception as error:  # a failure is not cached: the next request retries
+        log.error("analytics_view_prewarm_failed", error=type(error).__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
