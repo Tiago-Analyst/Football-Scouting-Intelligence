@@ -148,7 +148,7 @@ class TestWhatItRefusesToSay:
         reading = read(
             role=RoleReading(label="Defensive Stopper", score=81.0, percentile=93.0, coverage=1.0)
         )
-        assert "aligns best with a Defensive Stopper role" in reading.profile[0]
+        assert "aligns best with the Defensive Stopper role" in reading.profile[0]
 
     def test_a_role_that_could_not_be_ranked_says_so(self) -> None:
         reading = read(role=RoleReading(label="Defensive Stopper", score=81.0, percentile=None))
@@ -388,7 +388,10 @@ class TestTheRoleLineSaysWhy:
             detailed_coverage_pct=None,
         )
         line = reading.profile[0]
-        assert "driven mainly by interceptions and blocks" in line
+        assert "Highest percentiles within it: interceptions and blocks." in line
+        # Never a claim about what produced the score: the highest percentile
+        # may carry 5% of the weight.
+        assert "driven" not in line
         # Only the two strongest, and nothing merely average.
         assert "clearances" not in line.lower()
 
@@ -431,7 +434,7 @@ class TestTheRoleLineSaysWhy:
             sample_band_label=None,
             detailed_coverage_pct=None,
         )
-        assert "driven mainly by" not in reading.profile[0]
+        assert "Highest percentiles" not in reading.profile[0]
 
     def test_a_lower_is_better_component_is_judged_on_merit(self) -> None:
         reading = interpret(
@@ -448,7 +451,7 @@ class TestTheRoleLineSaysWhy:
             sample_band_label=None,
             detailed_coverage_pct=None,
         )
-        assert "driven mainly by dispossessed" in reading.profile[0]
+        assert "Highest percentiles within it: dispossessed" in reading.profile[0]
 
     def test_the_scores_are_called_what_the_rest_of_the_site_calls_them(self) -> None:
         reading = interpret(

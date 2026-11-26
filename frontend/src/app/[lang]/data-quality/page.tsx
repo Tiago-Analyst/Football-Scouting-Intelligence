@@ -319,7 +319,14 @@ async function Report({
         </CardBody>
       </Card>
 
-      {report.refresh ? <RefreshProgress t={t} f={f} refresh={report.refresh} /> : null}
+      {report.refresh ? (
+        <RefreshProgress
+          t={t}
+          f={f}
+          refresh={report.refresh}
+          configured={report.analytics?.configured_competitions}
+        />
+      ) : null}
 
       {report.analytics ? (
         <Card>
@@ -336,10 +343,20 @@ async function Report({
               />
               <StatTile
                 label={q.served.builtAt}
-                value={report.analytics.built_at ? f.date(report.analytics.built_at) : "–"}
+                value={report.analytics.built_at ? f.dateTime(report.analytics.built_at) : "–"}
                 hint={report.analytics.is_stale ? q.served.stale : q.served.current}
               />
             </div>
+
+            {/* A smaller count says nothing on its own; the names do. */}
+            {report.analytics.missing_competitions?.length ? (
+              <p className="mt-3 text-xs text-warning">
+                {q.served.missing
+                  .replace("{count}", f.count(report.analytics.missing_competitions.length))
+                  .replace("{total}", f.count(report.analytics.configured_competitions ?? 0))
+                  .replace("{competitions}", report.analytics.missing_competitions.join(", "))}
+              </p>
+            ) : null}
 
             {/* The three player-season figures, kept in their own row and
                 away from the players tile above, because they are not in the
@@ -469,7 +486,7 @@ function SourceRow({ t, f, source }: { t: Dictionary; f: Formatters; source: Sou
             staging load that may not have reached production. */}
         {source.last_published_at !== null ? (
           <span className={dataStale ? "text-warning" : undefined} title={source.last_published_at}>
-            {f.date(source.last_published_at)}
+            {f.dateTime(source.last_published_at)}
           </span>
         ) : (
           <span className="text-subtle" title={q.freshness.unknownTitle}>
@@ -557,7 +574,7 @@ function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provid
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
                 <Field label={q.providers.lastPublished}>
                   {published.published_at ? (
-                    f.date(published.published_at)
+                    f.dateTime(published.published_at)
                   ) : (
                     /* Not a gap in the page: the publication ledger holds no
                        row for this dataset, because it was promoted before
@@ -623,7 +640,7 @@ function ProviderCard({ t, f, provider }: { t: Dictionary; f: Formatters; provid
                   </Field>
                 ) : null}
                 <Field label={q.providers.lastValidation}>
-                  {f.date(candidate.executed_at)}
+                  {f.dateTime(candidate.executed_at)}
                 </Field>
               </dl>
               <p className="text-xs text-muted">{q.providers.candidateNote}</p>
@@ -716,7 +733,7 @@ function CheckRow({ t, f, check }: { t: Dictionary; f: Formatters; check: Qualit
       <TD className="text-xs text-muted">
         {check.source}
         <span className="mt-0.5 block text-[11px] text-subtle">
-          {t.quality.checksTable.measured.replace("{date}", f.date(check.executed_at))}
+          {t.quality.checksTable.measured.replace("{date}", f.dateTime(check.executed_at))}
         </span>
       </TD>
       <TD numeric>{f.count(check.record_count)}</TD>

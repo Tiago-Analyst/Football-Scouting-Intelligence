@@ -22,14 +22,30 @@ export function RefreshProgress({
   t,
   f,
   refresh,
+  configured = 0,
 }: {
   t: Dictionary;
   /** Resolved by the page, like the dictionary beside it. */
   f: Formatters;
   refresh: RefreshStatus;
+  /** How many competitions are configured; 0 when the backend does not say. */
+  configured?: number;
 }) {
   const copy = t.quality.refresh;
   const { current, published } = refresh;
+  // A generation learns a competition's players when it visits it, so until it
+  // has visited them all both totals cover only part of the work: 89% of the
+  // players "expected" was shown with 27 competitions still to come.
+  const partial =
+    current !== null &&
+    current !== undefined &&
+    current.status === "IN_PROGRESS" &&
+    configured > current.competitions_expected;
+  const pct = !current
+    ? 0
+    : partial
+      ? (100 * current.competitions_complete) / configured
+      : current.completion_pct;
   // The heading followed the section, not the state, so a generation whose
   // fetch had finished and was waiting on promotion was filed under "In
   // progress" beneath a full progress bar — which reads as a stall.
@@ -60,14 +76,24 @@ export function RefreshProgress({
             <div className="grid gap-4 sm:grid-cols-3">
               <StatTile
                 label={copy.fetched}
-                value={`${f.count(current.completed_players)} / ${f.count(
-                  current.total_expected_players,
-                )}`}
-                hint={copy.fetchedHint.replace("{pct}", current.completion_pct.toFixed(1))}
+                value={
+                  partial
+                    ? f.count(current.completed_players)
+                    : `${f.count(current.completed_players)} / ${f.count(
+                        current.total_expected_players,
+                      )}`
+                }
+                hint={
+                  partial
+                    ? copy.fetchedSoFar
+                    : copy.fetchedHint.replace("{pct}", current.completion_pct.toFixed(1))
+                }
               />
               <StatTile
                 label={copy.competitions}
-                value={`${current.competitions_complete} / ${current.competitions_expected}`}
+                value={`${current.competitions_complete} / ${
+                  partial ? configured : current.competitions_expected
+                }`}
               />
               <StatTile
                 label={copy.failed}
@@ -75,7 +101,7 @@ export function RefreshProgress({
                 hint={current.failed_players > 0 ? copy.failedRetried : copy.failedNone}
               />
             </div>
-            <Progress pct={current.completion_pct} label={copy.progressLabel} />
+            <Progress pct={pct} label={copy.progressLabel} />
             <p className="text-xs text-muted">
               {copy.generation} <span className="font-mono">{current.generation_id}</span>
               {current.last_updated_at ? (
@@ -104,7 +130,7 @@ export function RefreshProgress({
               {copy.generation} <span className="font-mono">{published.generation_id}</span>
               {published.published_at ? (
                 <span className="text-muted">
-                  {copy.publishedOn.replace("{date}", f.date(published.published_at))}
+                  {copy.publishedOn.replace("{date}", f.dateTime(published.published_at))}
                 </span>
               ) : null}
               <span className="text-muted">

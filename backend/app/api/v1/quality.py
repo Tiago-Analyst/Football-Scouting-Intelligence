@@ -12,9 +12,12 @@ field name.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from fastapi import APIRouter
 
 from app.api.deps import SessionDep, SettingsDep
+from app.providers.footystats import configured_competition_names
 from app.schemas.api import (
     AnalyticsFreshnessOut,
     CandidateChecksOut,
@@ -71,6 +74,7 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
     identity = svc.identity_coverage(db)
     unavailable, derived = svc.metric_availability(settings)
     view = get_analytics_view()
+    configured = {} if view.is_mock else configured_competition_names()
 
     return DataQualityResponse(
         identity=IdentityCoverageOut(
@@ -109,6 +113,8 @@ def get_data_quality(db: SessionDep, settings: SettingsDep) -> DataQualityRespon
         analytics=AnalyticsFreshnessOut(
             players=len(view.players),
             competitions=len(view.competitions),
+            configured_competitions=len(configured),
+            missing_competitions=_missing_competitions(configured, view.competitions),
             built_at=view.built_at,
             excluded=view.players_without_position,
             superseded=view.superseded_player_seasons,
@@ -227,6 +233,13 @@ def _generation_out(summary) -> RefreshGenerationOut:  # type: ignore[no-untyped
         competitions_expected=summary.competitions_expected,
         complete=summary.complete,
     )
+
+
+def _missing_competitions(configured: dict[str, str], served: Iterable[str]) -> list[str]:
+    """Configured competitions with nobody in the view. Served ids carry the
+    source (`footystats:17381`); the configuration holds the season id alone."""
+    present = {key.rsplit(":", 1)[-1] for key in served}
+    return sorted(name for season_id, name in configured.items() if season_id not in present)
 
 
 def _refresh_out(status) -> RefreshStatusOut | None:  # type: ignore[no-untyped-def]

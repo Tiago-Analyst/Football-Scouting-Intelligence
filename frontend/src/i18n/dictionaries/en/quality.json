@@ -85,6 +85,7 @@
     "players": "Players in the served view",
     "competitions": "Competitions in served view",
     "builtAt": "View built",
+    "missing": "Configured but with no players on this site ({count} of {total}): {competitions}.",
     "stale": "The database has moved since",
     "current": "Current with the database",
     "staleTitle": "The database has changed since this view was built",
@@ -154,7 +155,8 @@
   },
   "refresh": {
     "title": "FootyStats refresh",
-    "description": "A full refresh takes about a day. The published data is served unchanged until a new one finishes.",
+    "description": "A full refresh takes several days, often more than a week. The published data is served unchanged until a new one finishes.",
+    "fetchedSoFar": "Total not known until every competition has been visited",
     "states": {
       "idle": "Idle",
       "fetching": "Fetching",
@@ -179,7 +181,7 @@
     "noneRunning": "No refresh is running. The next one begins on its scheduled cadence.",
     "publishedHeading": "Currently published",
     "publishedOn": " · published {date}",
-    "publishedCounts": " · {players} players across {competitions} competitions",
+    "publishedCounts": " · {players} players from {competitions} requested competitions",
     "noGeneration": "Nothing has been published through a refresh generation yet. The data currently served was loaded before generations were introduced.",
     "footer": "A refresh is never published until every expected player is on disk. An unfinished generation cannot replace the data above.",
     "progressLabel": "Refresh progress"

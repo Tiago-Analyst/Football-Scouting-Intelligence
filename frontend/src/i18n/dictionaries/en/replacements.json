@@ -24,6 +24,7 @@
     "any": "Any",
     "budget": "Budget (€)",
     "maxAge": "Maximum age",
+    "minMinutes": "Minimum minutes",
     "competition": "Competition",
     "contractWithin": "Contract expires within",
     "months": "{count} months",
@@ -42,6 +43,7 @@
     "value": "Market value",
     "contract": "Contract",
     "differentStrength": "Different profile strength",
+    "minutes": "{minutes} min",
     "seasonShare": "{pct}% of a season",
     "limited": "Limited",
     "noComparable": "No comparable overall: {components} could not be computed for this player."

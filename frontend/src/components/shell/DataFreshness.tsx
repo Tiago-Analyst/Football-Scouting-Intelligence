@@ -39,7 +39,7 @@ export async function DataFreshness({
           <dt>{copy.updated.replace("{source}", copy[entry.source] ?? entry.source)}</dt>
           <dd className="font-medium text-muted">
             <time dateTime={entry.last_published_at}>
-              {f.date(entry.last_published_at)}
+              {f.dateTime(entry.last_published_at)}
             </time>
           </dd>
         </div>

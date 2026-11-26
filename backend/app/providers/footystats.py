@@ -261,6 +261,14 @@ def _load_position_mapping(path: Path = POSITION_MAPPING_PATH) -> dict[str, Posi
     return {str(label): PositionGroup(group) for label, group in block.items()}
 
 
+def configured_competition_names(path: Path = COMPETITIONS_PATH) -> dict[str, str]:
+    """Every competition this deployment is configured to serve, id to name."""
+    return {
+        str(entry["season_id"]): str(entry.get("name") or entry["season_id"])
+        for entry in _load_competitions(path)
+    }
+
+
 def _load_competitions(path: Path = COMPETITIONS_PATH) -> list[dict[str, Any]]:
     """The competitions to serve, with season ids observed in a real response."""
     if not path.exists():

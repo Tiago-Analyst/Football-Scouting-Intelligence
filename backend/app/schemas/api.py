@@ -1402,6 +1402,12 @@ class AnalyticsFreshnessOut(BaseModel):
     #: `docs/current_state.md`.
     players: int
     competitions: int
+    #: How many competitions are configured, and which of them have nobody in
+    #: this view. The counts above cannot show an absence: a league that
+    #: vanished upstream left a smaller number that nobody was told to compare.
+    #: Zero and empty in demo mode, whose competitions are not the configured ones.
+    configured_competitions: int = 0
+    missing_competitions: list[str] = Field(default_factory=list)
     built_at: datetime | None
     #: Player-seasons whose player has no position group, so they can be
     #: ranked against nobody and are not in the view at all.

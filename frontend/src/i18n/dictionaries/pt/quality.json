@@ -85,6 +85,7 @@
     "players": "Jogadores na vista servida",
     "competitions": "Competições na vista servida",
     "builtAt": "Vista construída",
+    "missing": "Configuradas mas sem jogadores neste site ({count} de {total}): {competitions}.",
     "stale": "A base de dados avançou desde então",
     "current": "Em dia com a base de dados",
     "staleTitle": "A base de dados mudou desde que esta vista foi construída",
@@ -154,7 +155,8 @@
   },
   "refresh": {
     "title": "Actualização do FootyStats",
-    "description": "Uma actualização completa demora cerca de um dia. Os dados publicados são servidos sem alteração até uma nova terminar.",
+    "description": "Uma actualização completa demora vários dias, muitas vezes mais de uma semana. Os dados publicados são servidos sem alteração até uma nova terminar.",
+    "fetchedSoFar": "O total só se conhece depois de visitadas todas as competições",
     "states": {
       "idle": "Parado",
       "fetching": "A obter",
@@ -179,7 +181,7 @@
     "noneRunning": "Não há nenhuma actualização a correr. A próxima começa na sua cadência agendada.",
     "publishedHeading": "Actualmente publicada",
     "publishedOn": " · publicada em {date}",
-    "publishedCounts": " · {players} jogadores em {competitions} competições",
+    "publishedCounts": " · {players} jogadores de {competitions} competições pedidas",
     "noGeneration": "Ainda nada foi publicado através de uma geração de actualização. Os dados actualmente servidos foram carregados antes de as gerações serem introduzidas.",
     "footer": "Uma actualização nunca é publicada antes de todos os jogadores esperados estarem em disco. Uma geração inacabada não pode substituir os dados acima.",
     "progressLabel": "Progresso da actualização"

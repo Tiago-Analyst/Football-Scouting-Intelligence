@@ -42,7 +42,8 @@ const copy = (locale) => JSON.parse(read(`i18n/dictionaries/${locale}/quality.js
 test("every check row carries the date it was measured", () => {
   assert.match(
     PAGE,
-    /f\.date\(check\.executed_at\)/,
+    // To the day: "Nov 2026" could not tell three days old from three weeks.
+    /f\.dateTime\(check\.executed_at\)/,
     "the checks table no longer dates its rows",
   );
   assert.match(
