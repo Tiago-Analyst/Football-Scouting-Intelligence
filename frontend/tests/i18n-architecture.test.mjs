@@ -91,6 +91,8 @@ test("no translated value is left as the English one by accident", () => {
     "common.meta.title",
     "common.meta.titleTemplate",
     "common.theme.label",
+    // "min" is the unit in both languages.
+    "replacements.table.minutes",
     // Notation, not words. xG, xA and npxG are written the same way by
     // Portuguese analysts, and translating them would make the figures
     // unreadable to the people who use them.

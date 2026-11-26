@@ -19,6 +19,7 @@ import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Tabl
 import { Explainer } from "@/components/ui/Explainer";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { SearchFailed } from "@/components/ui/SearchFailed";
+import { SampleSizeBadge } from "@/components/ui/SampleSizeBadge";
 import { getCompetitions, isSearchFailure, runReplacementSearch, searchPlayers } from "@/lib/players";
 import { CompetitionCoverageNote } from "@/components/ui/CompetitionCoverageNote";
 
@@ -231,6 +232,18 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
             />
           </Field>
 
+          <Field label={t.replacements.constraints.minMinutes} htmlFor="min_minutes">
+            <TextInput
+              id="min_minutes"
+              name="min_minutes"
+              type="number"
+              min={0}
+              step={90}
+              className="tabular"
+              defaultValue={first(params.min_minutes) ?? ""}
+            />
+          </Field>
+
           <Field label={t.replacements.constraints.competition} htmlFor="competition">
             <Select
               id="competition"
@@ -354,6 +367,26 @@ export default async function ReplacementsPage(props: PageProps<"/[lang]/replace
                           >
                             {entry.player.name}
                           </Link>
+                          {/* Which league the figures come from and how much
+                              football is behind them: the two things that rule
+                              a candidate out, and neither was on this page.
+                              Under the name, so a phone shows them unscrolled. */}
+                          <span className="mt-0.5 block text-[11px] text-subtle">
+                            {entry.player.competition}
+                          </span>
+                          {entry.player.minutes !== null ? (
+                            <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-subtle">
+                              {t.replacements.table.minutes.replace(
+                                "{minutes}",
+                                f.count(entry.player.minutes),
+                              )}
+                              <SampleSizeBadge
+                                band={entry.player.sample_band}
+                                minutes={entry.player.minutes}
+                                showTooltip={false}
+                              />
+                            </span>
+                          ) : null}
                           {!entry.comparable_strength ? (
                             <span className="mt-0.5 flex items-center gap-1">
                               <Badge tone="warning">{t.replacements.table.differentStrength}</Badge>

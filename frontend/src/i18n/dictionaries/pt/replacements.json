@@ -24,6 +24,7 @@
     "any": "Qualquer",
     "budget": "Orçamento (€)",
     "maxAge": "Idade máxima",
+    "minMinutes": "Minutos mínimos",
     "competition": "Competição",
     "contractWithin": "Contrato termina dentro de",
     "months": "{count} meses",
@@ -42,6 +43,7 @@
     "value": "Valor de mercado",
     "contract": "Contrato",
     "differentStrength": "Força de perfil diferente",
+    "minutes": "{minutes} min",
     "seasonShare": "{pct}% de uma época",
     "limited": "Limitado",
     "noComparable": "Sem valor global comparável: {components} não pôde ser calculado para este jogador."

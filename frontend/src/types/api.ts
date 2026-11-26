@@ -1032,6 +1032,10 @@ export interface AnalyticsFreshness {
    */
   players: number;
   competitions: number;
+  /** Configured competitions, and those with nobody in the view. Optional: an
+   * older backend does not send them. */
+  configured_competitions?: number;
+  missing_competitions?: string[];
   built_at: string | null;
   /**
    * Player-seasons whose player has no position group.

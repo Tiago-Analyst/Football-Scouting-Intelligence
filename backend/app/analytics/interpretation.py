@@ -197,6 +197,14 @@ class MetricReading:
 #: as something the player did.
 TEAM_CONTEXT_METRICS: frozenset[str] = frozenset({"goals_conceded_per90"})
 
+#: For each score with an evidence rule in `config/intelligence_scores.yaml`,
+#: the components that are rates over the counted event, and so say no more
+#: than the count behind them. A test holds the keys to the config's.
+LOW_EVIDENCE_RATES: dict[str, frozenset[str]] = {
+    "finishing": frozenset({"shot_conversion", "shot_accuracy", "shot_quality"}),
+    "one_v_one_threat": frozenset({"dribble_success_percentage"}),
+}
+
 #: Where a team-context metric is still worth reading as personal.
 TEAM_CONTEXT_EXEMPT_POSITIONS: frozenset[str] = frozenset({"GK"})
 
@@ -268,13 +276,21 @@ def interpret(
     # player to do.
     relevant = frozenset(role.components) if role and role.components else None
 
+    # A rate over a handful of events is not a finding at either end. The score
+    # built on it was already set aside; its rates were still listed as
+    # highlights beside the sentence saying there was too little to go on.
+    thin = frozenset().union(
+        *(LOW_EVIDENCE_RATES.get(s.key, frozenset()) for s in scores if s.low_evidence)
+    )
+    supported = [m for m in metrics if m.metric not in thin]
+
     return ScoutingInterpretation(
-        profile=_profile_lines(role, scores, metrics, position_label),
-        strengths=_findings(metrics, strong=True, position_label=position_label),
-        watch_outs=_findings(metrics, strong=False, only=relevant, position_label=position_label),
+        profile=_profile_lines(role, scores, supported, position_label),
+        strengths=_findings(supported, strong=True, position_label=position_label),
+        watch_outs=_findings(supported, strong=False, only=relevant, position_label=position_label),
         unavailable=_unavailable_lines(role, metrics),
         confidence=_confidence_lines(minutes, sample_band_label, detailed_coverage_pct),
-        profile_messages=_profile_messages(role, scores, metrics),
+        profile_messages=_profile_messages(role, scores, supported),
         unavailable_messages=_unavailable_messages(role, metrics),
         confidence_messages=_confidence_messages(minutes, sample_band, detailed_coverage_pct),
     )
@@ -362,12 +378,13 @@ def _profile_lines(
 
     if role is not None and role.score is not None:
         where = position_label or "their position group"
-        # "driven mainly by interceptions and blocks" rather than a full stop.
-        # Omitted entirely when nothing in the role's own components is strong,
-        # because a driver clause naming a mediocre metric would be explaining
-        # the score with the thing that did not produce it.
+        # The role's components this player ranks highest on, said as exactly
+        # that. It used to read "driven mainly by npxG ...: below-average
+        # output" about a metric weighted 5%: the highest percentile is not what
+        # produced the score, and the standing is the whole role's, not the
+        # metric's. Omitted when nothing in the role's components is strong.
         drivers = _drivers(role, metrics)
-        because = f", driven mainly by {_list_of(drivers)}" if drivers else ""
+        highest = f" Highest percentiles within it: {_list_of(drivers)}." if drivers else ""
 
         if role.percentile is not None:
             standing = _reading(role.percentile)
@@ -375,19 +392,20 @@ def _profile_lines(
                 # The score is real and the label is generous. Say what was
                 # measured rather than what the role is called.
                 lines.append(
-                    f"Scores as a {role.label} on the part of that definition the data "
-                    f"covers{because} - {standing} against others evaluated for the "
-                    f"same role."
+                    f"Scores as {role.label} on the part of that definition the data "
+                    f"covers - {standing} against others evaluated for the same role."
+                    f"{highest}"
                 )
             else:
                 lines.append(
-                    f"The statistical profile aligns best with a {role.label} role"
-                    f"{because}: {standing} against others evaluated for the same role."
+                    f"The statistical profile aligns best with the {role.label} role: "
+                    f"{standing} against others evaluated for the same role.{highest}"
                 )
         else:
             lines.append(
-                f"The statistical profile aligns best with a {role.label} role{because}. "
+                f"The statistical profile aligns best with the {role.label} role. "
                 f"Too few comparable players in {where} to place that score among others."
+                f"{highest}"
             )
 
         if role.alternatives:
