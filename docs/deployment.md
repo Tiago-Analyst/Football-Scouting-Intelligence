@@ -542,9 +542,10 @@ option - the settings validator refuses `*`, because the API answers with a
 signed-in user's shortlists.
 
 `BUILD_TOKEN` lifts the API rate limit for the Vercel build and for nothing
-else. The frontend renders all 5,462 profiles at deploy time, which is one
-request per page in about a minute - a rate the public limit refuses, and
-should, since from the outside it looks like someone draining the database.
+else. The frontend renders the 2,000 most-played profiles at deploy time, in two
+languages, which is thousands of requests in about half an hour - a rate the
+public limit refuses, and should, since from the outside it looks like someone
+draining the database.
 It is not a credential: presenting it grants no access a public caller lacks.
 Leave it unset and the exemption does not exist.
 
@@ -612,6 +613,13 @@ because it is CPU-bound in the matching rather than in the database.
 Import the repository, and set **Root Directory to `frontend`** - the Next app
 is not at the repository root, and this is the one setting `vercel.json` cannot
 carry. Vercel builds Next itself and ignores `frontend/Dockerfile`.
+
+`ignoreCommand` in `vercel.json` skips the build when nothing under `frontend/`
+has changed since the last successful deployment of the branch, and builds
+whenever it cannot tell. **It applies to a manual Redeploy too**: after changing
+an environment variable, redeploy with **"Use project's Ignore Build Step"
+unchecked**, or the build is skipped and the new value never takes effect. A
+skipped build still counts towards Vercel's deployment quota.
 
 | Variable | Value |
 | --- | --- |
