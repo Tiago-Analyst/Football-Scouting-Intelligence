@@ -1,7 +1,7 @@
 {
   "productName": "Football Recruitment Intelligence",
   "tagline": "Análise de recrutamento assente em percentis contextuais, funções de jogador e semelhança estatística. As pontuações descrevem a adequação estatística a um perfil, não a qualidade do jogador.",
-  "attribution": "Dados de desempenho fornecidos pela FootyStats. Dados de mercado e de identidade derivados do conjunto de dados público do Transfermarkt (dcaribou/transfermarkt-datasets). Todos os dados do fornecedor continuam a ser propriedade do respectivo titular e não são redistribuídos em massa.",
+  "attribution": "Dados de desempenho fornecidos pela FootyStats. Dados de mercado e de identidade derivados do conjunto de dados público do Transfermarkt (dcaribou/transfermarkt-datasets). Todos os dados do fornecedor continuam a ser propriedade do respetivo titular e não são redistribuídos em massa.",
   "theme": {
     "label": "Tema de cor",
     "light": "Claro",
@@ -52,7 +52,7 @@
     "closestHint": "Mesmo a melhor adequação deste jogador fica abaixo da mediana da função."
   },
   "freshness": {
-    "label": "Actualidade dos dados",
+    "label": "Atualidade dos dados",
     "published": "publicado em {date}",
     "footystats": "Dados de desempenho",
     "transfermarkt": "Dados de mercado",
@@ -67,13 +67,13 @@
   "metricCensus": {
     "unreachable": "Algumas métricas canónicas não são de todo fornecidas pelo fornecedor, e cada pontuação que dependa de uma delas ou é calculada a partir das restantes com a sua cobertura declarada, ou é desligada e assinalada. Nada indisponível é alguma vez substituído por outra coisa.",
     "notVerified": "Ainda não foi verificado nenhum mapeamento do fornecedor, pelo que não há nada de verdadeiro a dizer sobre quantas métricas estão disponíveis.",
-    "sentence": "Das {total} métricas canónicas que este projecto define, {usable} são utilizáveis: {native} fornecidas como campos próprios e {derived} montadas a partir de campos que o são. As restantes {unavailable} não podem ser produzidas de todo, e cada pontuação que dependa de uma delas ou é calculada a partir das restantes com a sua cobertura declarada, ou é desligada e assinalada. Nada indisponível é alguma vez substituído por outra coisa.",
+    "sentence": "Das {total} métricas canónicas que este projeto define, {usable} são utilizáveis: {native} fornecidas como campos próprios e {derived} montadas a partir de campos que o são. As restantes {unavailable} não podem ser produzidas de todo, e cada pontuação que dependa de uma delas ou é calculada a partir das restantes com a sua cobertura declarada, ou é desligada e assinalada. Nada indisponível é alguma vez substituído por outra coisa.",
     "lineUnreachable": "Contagens de métricas indisponíveis: não foi possível contactar a API",
     "lineNotVerified": "Mapeamento do fornecedor ainda não verificado",
     "line": "{usable} de {total} utilizáveis · {native} fornecidas · {derived} derivadas · {unavailable} indisponíveis"
   },
   "competitionCoverage": {
-    "note": "Esta lista são as competições actualmente carregadas, não todas as ligas. Uma liga ausente não foi pesquisada, em vez de pesquisada e vazia, e os valores entre ligas são calculados sobre o que está aqui.",
+    "note": "Esta lista são as competições atualmente carregadas, não todas as ligas. Uma liga ausente não foi pesquisada, em vez de pesquisada e vazia, e os valores entre ligas são calculados sobre o que está aqui.",
     "link": "Que competições estão cobertas"
   },
   "seasonMaturity": {

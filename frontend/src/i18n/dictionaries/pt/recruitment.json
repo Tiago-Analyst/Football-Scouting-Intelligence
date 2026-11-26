@@ -9,7 +9,7 @@
   "intro": "Comece por uma função, ajuste os pesos, aplique filtros e ordene os candidatos.",
   "weights": {
     "heading": "Pesos do perfil",
-    "normalised": "Os pesos são normalizados, pelo que não têm de somar exactamente 100.",
+    "normalised": "Os pesos são normalizados, pelo que não têm de somar exatamente 100.",
     "unavailable": "indisponível",
     "unavailableTooltip": "Este carregamento não as consegue produzir para ninguém, pelo que a ordenação ficaria vazia por mais amplos que fossem os filtros."
   },
@@ -45,11 +45,11 @@
     "demoData": "Dados de demonstração",
     "partialTitle": "Parte deste perfil não pode ser pontuada",
     "crossLeagueTitle": "Comparação entre ligas",
-    "crossLeagueBody": "Os percentis entre ligas não têm actualmente em conta as diferenças de força entre competições.",
+    "crossLeagueBody": "Os percentis entre ligas não têm atualmente em conta as diferenças de força entre competições.",
     "rankedNote": "ordenado {score} · {pct}% de uma época",
     "why": "Porquê {firstName}?",
     "rankingTitle": "O que esta ordenação é",
-    "rankingBody": "Uma ordenação de adequação estatística face aos pesos que definiu. Não é uma medida de qualidade do jogador, e nada sabe sobre sistema táctico, histórico de lesões ou temperamento."
+    "rankingBody": "Uma ordenação de adequação estatística face aos pesos que definiu. Não é uma medida de qualidade do jogador, e nada sabe sobre sistema tático, histórico de lesões ou temperamento."
   },
   "blocked": {
     "willRankNobody": "Este perfil não vai ordenar ninguém.",
@@ -86,7 +86,7 @@
     "constraints": "Filtros",
     "noPriorities": "Nada está ponderado. Escolha uma função predefinida ou defina os seus pesos.",
     "noConstraints": "Sem filtros definidos.",
-    "measurable": "{pct}% do peso deste perfil está em pontuações que os dados actuais conseguem produzir.",
+    "measurable": "{pct}% do peso deste perfil está em pontuações que os dados atuais conseguem produzir.",
     "unavailableTag": "indisponível",
     "cannotScore": "Não podem ser pontuadas: {items}.",
     "age": "Idade",

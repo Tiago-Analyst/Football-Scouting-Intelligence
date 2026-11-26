@@ -1,17 +1,17 @@
 {
   "meta": {
     "title": "Qualidade dos dados",
-    "description": "Actualidade das fontes, cobertura e as verificações automáticas corridas em cada carregamento."
+    "description": "Atualidade das fontes, cobertura e as verificações automáticas corridas em cada carregamento."
   },
   "eyebrow": "Transparência",
   "title": "Qualidade dos dados",
   "description": "O que foi carregado, quando foi verificado pela última vez, e o que as verificações automáticas encontraram.",
   "unavailableTitle": "O relatório de qualidade está indisponível",
-  "unavailableDescription": "Não foi possível contactar a API. Isso é em si um problema de qualidade dos dados — nada nesta página deve ser dado como actual enquanto não carregar.",
+  "unavailableDescription": "Não foi possível contactar a API. Isso é em si um problema de qualidade dos dados — nada nesta página deve ser dado como atual enquanto não carregar.",
   "noticeTitle": "Ainda nada foi verificado",
   "notice": "Nenhum carregamento registou ainda uma verificação de qualidade. Enquanto não registar, nada nesta página descreve os dados que estão a ser servidos.",
   "meaningTitle": "O que estas verificações dizem e não dizem",
-  "meaning": "Estas verificações descrevem os dados que foram carregados: se chegaram, se são internamente consistentes, e quanto deles está presente. Não avaliam se uma métrica mede aquilo que o seu nome sugere, e não podem dizer que uma ordenação está correcta — apenas que os valores por trás dela estão presentes e são consistentes entre si.",
+  "meaning": "Estas verificações descrevem os dados que foram carregados: se chegaram, se são internamente consistentes, e quanto deles está presente. Não avaliam se uma métrica mede aquilo que o seu nome sugere, e não podem dizer que uma ordenação está correta — apenas que os valores por trás dela estão presentes e são consistentes entre si.",
   "status": {
     "pass": "Passou",
     "warn": "Aviso",
@@ -41,7 +41,7 @@
     "ambiguous": "Correspondidos com evidência mais fraca",
     "ambiguousHint": "Plausível, não assente",
     "manual": "Confirmados à mão",
-    "manualHint": "Correcções curadas"
+    "manualHint": "Correções curadas"
   },
   "identityByCompetition": {
     "title": "Reconciliação por competição",
@@ -89,7 +89,7 @@
     "stale": "A base de dados avançou desde então",
     "current": "Em dia com a base de dados",
     "staleTitle": "A base de dados mudou desde que esta vista foi construída",
-    "staleBody": "Um carregamento actualizado chega aos leitores quando o pipeline pede à API que reconstrua. Até lá são servidos os valores anteriores — consistentes, e atrasados.",
+    "staleBody": "Um carregamento atualizado chega aos leitores quando o pipeline pede à API que reconstrua. Até lá são servidos os valores anteriores — consistentes, e atrasados.",
     "reconciliationTitle": "E as épocas de jogador por trás delas",
     "excluded": "Épocas de jogador excluídas",
     "excludedHint": "O jogador não tem grupo posicional, pelo que não existe população contra a qual compará-lo.",
@@ -100,8 +100,8 @@
     "reconciliationBody": "A figura servida é uma linha por jogador e estas três contam épocas de jogador, razão pela qual só as três últimas somam. Reportadas sem essa distinção, as duas primeiras foram somadas uma vez, e a soma - a menos das épocas substituídas - foi lida como o universo inteiro."
   },
   "freshness": {
-    "title": "Actualidade das fontes",
-    "description": "Quando os dados de cada fonte foram publicados neste site pela última vez, e quando as suas verificações correram pela última vez. Três factos diferentes, mantidos separados: as verificações correm por rotina sobre dados que ninguém substituiu, e uma actualização pode carregar para o ambiente de preparação sem nunca chegar a produção.",
+    "title": "Atualidade das fontes",
+    "description": "Quando os dados de cada fonte foram publicados neste site pela última vez, e quando as suas verificações correram pela última vez. Três factos diferentes, mantidos separados: as verificações correm por rotina sobre dados que ninguém substituiu, e uma atualização pode carregar para o ambiente de preparação sem nunca chegar a produção.",
     "unknownBefore": "Uma data de publicação lê-se ",
     "unknownEmphasis": "desconhecida",
     "unknownAfter": " onde o registo de publicações não tem linha para essa fonte — dados carregados antes de o registo existir. Fica desconhecida em vez de ser preenchida a partir da data de verificação ou de um carregamento de preparação, que respondem a perguntas diferentes.",
@@ -122,25 +122,25 @@
     "footystats": "Dados de desempenho (FootyStats)",
     "transfermarkt": "Dados de mercado (Transfermarkt)",
     "demo": "Dados de demonstração",
-    "description": "O conjunto de dados publicado e, à parte, qualquer actualização que não tenha chegado aos leitores.",
+    "description": "O conjunto de dados publicado e, à parte, qualquer atualização que não tenha chegado aos leitores.",
     "publishedHeading": "Conjunto de dados publicado",
     "servingBadge": "a servir",
     "lastPublished": "Última publicação",
     "notRecorded": "não registada",
-    "notRecordedTitle": "Nenhuma linha no registo de publicações: este conjunto de dados foi promovido antes de as publicações serem registadas. A próxima actualização regista uma.",
-    "refresh": "Actualização",
+    "notRecordedTitle": "Nenhuma linha no registo de publicações: este conjunto de dados foi promovido antes de as publicações serem registadas. A próxima atualização regista uma.",
+    "refresh": "Atualização",
     "generation": "Geração",
     "quality": "Qualidade",
     "summary": "{passing} passaram, {warning} com aviso, {failing} falharam",
-    "noAttributableChecks": "Publicado antes de as verificações trazerem a identidade da actualização; nenhuma verificação é atribuível a este conjunto de dados.",
+    "noAttributableChecks": "Publicado antes de as verificações trazerem a identidade da atualização; nenhuma verificação é atribuível a este conjunto de dados.",
     "nothingPublished": "Nada desta fonte foi publicado.",
-    "candidateHeading": "Última actualização candidata",
+    "candidateHeading": "Última atualização candidata",
     "notPublishedBadge": "não publicada",
     "candidateStatusLabel": "Estado",
     "candidateStatus": "Verificada, a aguardar publicação",
     "lastValidation": "Última validação",
     "candidateNote": "Verificada contra uma cópia de preparação que não chegou aos leitores. Nada aqui descreve os dados deste site; descreve o que seria o próximo conjunto de dados se fosse promovido.",
-    "idle": "Parado — não há nenhuma actualização candidata à espera.",
+    "idle": "Parado — não há nenhuma atualização candidata à espera.",
     "noChecksTitle": "Verificações automáticas",
     "noChecksDescription": "Nada registou ainda uma verificação.",
     "noChecksEmpty": "Nenhuma verificação registada",
@@ -154,8 +154,8 @@
     "measured": "medido em {date}"
   },
   "refresh": {
-    "title": "Actualização do FootyStats",
-    "description": "Uma actualização completa demora vários dias, muitas vezes mais de uma semana. Os dados publicados são servidos sem alteração até uma nova terminar.",
+    "title": "Atualização do FootyStats",
+    "description": "Uma atualização completa demora vários dias, muitas vezes mais de uma semana. Os dados publicados são servidos sem alteração até uma nova terminar.",
     "fetchedSoFar": "O total só se conhece depois de visitadas todas as competições",
     "states": {
       "idle": "Parado",
@@ -178,12 +178,12 @@
     "generation": "Geração",
     "lastCheckpoint": " · último ponto de controlo {when}",
     "finished": "A obtenção terminou. Esta geração só substitui a publicada abaixo depois de ser promovida, e o site serve a publicada até lá.",
-    "noneRunning": "Não há nenhuma actualização a correr. A próxima começa na sua cadência agendada.",
-    "publishedHeading": "Actualmente publicada",
+    "noneRunning": "Não há nenhuma atualização a correr. A próxima começa na sua cadência agendada.",
+    "publishedHeading": "Atualmente publicada",
     "publishedOn": " · publicada em {date}",
     "publishedCounts": " · {players} jogadores de {competitions} competições pedidas",
-    "noGeneration": "Ainda nada foi publicado através de uma geração de actualização. Os dados actualmente servidos foram carregados antes de as gerações serem introduzidas.",
-    "footer": "Uma actualização nunca é publicada antes de todos os jogadores esperados estarem em disco. Uma geração inacabada não pode substituir os dados acima.",
-    "progressLabel": "Progresso da actualização"
+    "noGeneration": "Ainda nada foi publicado através de uma geração de atualização. Os dados atualmente servidos foram carregados antes de as gerações serem introduzidas.",
+    "footer": "Uma atualização nunca é publicada antes de todos os jogadores esperados estarem em disco. Uma geração inacabada não pode substituir os dados acima.",
+    "progressLabel": "Progresso da atualização"
   }
 }

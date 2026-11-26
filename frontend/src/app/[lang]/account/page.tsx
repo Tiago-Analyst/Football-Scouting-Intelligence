@@ -38,7 +38,8 @@ export default async function AccountPage() {
           <CardBody>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
               <dt className="text-muted">{a.email}</dt>
-              <dd className="truncate">{user.email}</dd>
+              {/* Wraps: truncated, a phone showed only part of the address. */}
+              <dd className="min-w-0 break-all">{user.email}</dd>
               <dt className="text-muted">{a.displayName}</dt>
               <dd>
                 {user.display_name ?? <span className="text-subtle">{a.displayNameUnset}</span>}

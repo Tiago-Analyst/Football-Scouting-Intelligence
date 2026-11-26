@@ -239,6 +239,12 @@ export default async function OpportunitiesPage(props: PageProps<"/[lang]/opport
               {apiMessage(t, f, results.disclaimer_message) ?? results.disclaimer}
             </Callout>
 
+            {results.items.length > 1 ? (
+              <p className="text-[11px] leading-relaxed text-subtle">
+                {t.opportunities.results.mixedRoles}
+              </p>
+            ) : null}
+
             {results.funnel.length > 0 ? (
               <details className="rounded-md border border-subtle px-4 py-3">
                 <summary className="cursor-pointer text-xs font-semibold text-muted">{t.opportunities.results.funnel}</summary>

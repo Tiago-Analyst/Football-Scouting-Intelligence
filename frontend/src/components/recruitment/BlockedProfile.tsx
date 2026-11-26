@@ -35,7 +35,13 @@ export function BlockedProfile({
   scores,
   initiallyBlocked,
   copy,
+  children,
 }: {
+  /**
+   * The weights and filters. Wrapped so the warning and its Adapt button sit
+   * above them: below, they were about 2,000px from the top of the page.
+   */
+  children: React.ReactNode;
   /** Every score the data cannot produce for anybody. From the backend. */
   unavailable: BlockedScore[];
   /**
@@ -165,7 +171,7 @@ export function BlockedProfile({
   }
 
   return (
-    <div ref={anchor} className="space-y-4">
+    <div ref={anchor} className="space-y-5">
       {blocked.length > 0 ? (
         <div className="space-y-1 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5">
           <p className="text-[11px] font-medium text-warning">{copy.willRankNobody}</p>
@@ -212,6 +218,8 @@ export function BlockedProfile({
           </button>
         </div>
       ) : null}
+
+      {children}
 
       <button
         type="submit"

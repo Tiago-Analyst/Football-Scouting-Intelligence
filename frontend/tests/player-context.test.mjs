@@ -201,7 +201,7 @@ test("the column that holds the current club says so", () => {
       const tables = dict(locale, file);
       const label = JSON.stringify(tables).match(/"club":"([^"]+)"/)?.[1];
       assert.ok(label, `${locale}/${file} has no club column label`);
-      const marked = locale === "en" ? /current/i : /actual/i;
+      const marked = locale === "en" ? /current/i : /atual/i;
       assert.match(
         label,
         marked,

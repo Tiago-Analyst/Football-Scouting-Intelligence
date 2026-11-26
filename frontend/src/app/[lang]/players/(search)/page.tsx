@@ -662,6 +662,14 @@ export default async function PlayerSearchPage(props: PageProps<"/[lang]/players
               </p>
             ) : null}
 
+            {/* Without a role filter, each row's score belongs to a different
+                role, and roles are weighted differently. */}
+            {!filters.role && filters.sort.startsWith("role_score") ? (
+              <p className="text-[11px] leading-relaxed text-warning">
+                {t.players.filters.mixedRoles.replace("{filter}", t.players.filters.bestRole)}
+              </p>
+            ) : null}
+
             {/* The method behind the Ranked column, once, rather than as a
                 paragraph under every score. Not shown when the sort did
                 nothing, which has its own sentence above. */}
