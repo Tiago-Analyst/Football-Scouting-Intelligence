@@ -47,8 +47,12 @@ DEMO_NOTICE = (
 
 
 @router.get("/health/live", response_model=LivenessResponse)
-def liveness() -> LivenessResponse:
-    """Process liveness. Deliberately performs no I/O."""
+async def liveness() -> LivenessResponse:
+    """Process liveness. Deliberately performs no I/O.
+
+    `async`, so it is not queued behind a thread pool full of requests waiting
+    for the analytical view to be built.
+    """
     return LivenessResponse(status="ok")
 
 

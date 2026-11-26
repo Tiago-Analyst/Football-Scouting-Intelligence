@@ -23,6 +23,7 @@ site.
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
@@ -499,10 +500,33 @@ def build_view(settings: Settings) -> AnalyticsView:
     return view
 
 
-@lru_cache(maxsize=1)
-def get_analytics_view() -> AnalyticsView:
-    """Process-wide analytical view. Tests clear with `.cache_clear()`."""
-    return build_view(get_settings())
+class _SingleBuild:
+    """The cached view, built by one caller at a time.
+
+    `lru_cache` alone does not hold a second caller back: two requests arriving
+    before the view exists each built one, at twice the memory and CPU. Building
+    at startup makes that overlap the normal case, so the others now wait for
+    the one build in progress.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        # A lambda, so a test that replaces `build_view` is honoured.
+        self._cached = lru_cache(maxsize=1)(lambda: build_view(get_settings()))
+
+    def __call__(self) -> AnalyticsView:
+        with self._lock:
+            return self._cached()
+
+    def cache_clear(self) -> None:
+        # Under the same lock: a reload that arrives during a build must not
+        # keep that build's result, which may predate the load.
+        with self._lock:
+            self._cached.cache_clear()
+
+
+get_analytics_view = _SingleBuild()
+"""Process-wide analytical view. Tests clear with `.cache_clear()`."""
 
 
 def refresh_analytics_view() -> AnalyticsView:
