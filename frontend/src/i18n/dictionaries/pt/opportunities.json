@@ -28,6 +28,7 @@
   "results": {
     "meeting": "{count} jogadores cumprem estes critérios",
     "demoData": "Dados de demonstração",
+    "mixedRoles": "Cada adequação bruta é a da melhor função desse jogador, e as funções têm pesos diferentes. Entre funções, leia a ordem com cautela e veja o percentil na função em cada cartão.",
     "disclaimerTitle": "Não é um modelo de avaliação",
     "funnel": "Onde o filtro estreitou",
     "emptyTitle": "Nenhum jogador cumpre estes critérios",
@@ -38,7 +39,7 @@
     "rankedNote": "ordenado {score} · {pct}% de uma época",
     "why": "Porque este jogador apareceu",
     "minutes": "{minutes} min",
-    "emptyDescription": "Experimente baixar a adequação mínima, subir o limite de idade ou alargar o tecto de valor de mercado.",
+    "emptyDescription": "Experimente baixar a adequação mínima, subir o limite de idade ou alargar o teto de valor de mercado.",
     "stepRemaining": "restam {remaining}",
     "stepRemoved": " (−{removed})"
   }

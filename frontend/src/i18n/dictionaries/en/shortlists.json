@@ -113,7 +113,8 @@
     "note": "Your note",
     "for": "For",
     "against": "Against",
-    "footnote": "The highlighted figure in each row is the largest per 90 minutes, not the best player: it compares quantities, which are the same everywhere, rather than percentiles, which are ranks inside each player's own competition."
+    "footnoteMixed": "These players played in different competitions, so it is shown in bold only: nothing here adjusts for league strength.",
+    "footnote":"The highlighted figure in each row is the largest per 90 minutes, not the best player: it compares quantities, which are the same everywhere, rather than percentiles, which are ranks inside each player's own competition."
   },
   "statuses": {
     "longlist": "Longlist",

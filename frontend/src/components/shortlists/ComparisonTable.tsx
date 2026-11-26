@@ -246,6 +246,9 @@ export function ComparisonTable({
   }
 
   const leaders = leadingValues(players);
+  // The accent reads as "best". Across competitions the largest figure is still
+  // marked, but only in bold: nothing here adjusts for league strength.
+  const mixedLeagues = new Set(players.map((column) => column.player.competition)).size > 1;
 
   return (
     <section id="comparison" className="scroll-mt-20 space-y-3">
@@ -464,7 +467,9 @@ export function ComparisonTable({
                               <span
                                 className={
                                   leaders.get(key) === metric.value
-                                    ? "font-semibold text-accent"
+                                    ? mixedLeagues
+                                      ? "font-semibold"
+                                      : "font-semibold text-accent"
                                     : undefined
                                 }
                               >
@@ -526,6 +531,7 @@ export function ComparisonTable({
 
       <p className="text-[11px] leading-relaxed text-subtle">
         {c.footnote}
+        {mixedLeagues ? ` ${c.footnoteMixed}` : null}
       </p>
     </section>
   );

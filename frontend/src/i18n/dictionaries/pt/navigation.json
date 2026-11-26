@@ -36,7 +36,7 @@
     },
     "dataQuality": {
       "label": "Qualidade dos dados",
-      "description": "Actualidade das fontes, cobertura e verificações automáticas de qualidade."
+      "description": "Atualidade das fontes, cobertura e verificações automáticas de qualidade."
     },
     "status": {
       "label": "Estado do sistema",
@@ -44,7 +44,7 @@
     },
     "about": {
       "label": "Sobre",
-      "description": "Enquadramento do projecto."
+      "description": "Enquadramento do projeto."
     }
   }
 }

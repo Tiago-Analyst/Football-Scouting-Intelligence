@@ -32,6 +32,8 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Callout, EmptyState } from "@/components/ui/States";
 import { Table, TableWrap, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { showsGoalkeeping } from "@/lib/comparisonScope";
+import { nationalityName } from "@/lib/nationality";
 import { canPrerenderEverything, getPlayerProfile, searchPlayers } from "@/lib/players";
 import { fitIsBelowMedian } from "@/lib/roleFit";
 import type { Score } from "@/types/api";
@@ -119,6 +121,16 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
   if (!profile) notFound();
 
   const { player, stats, roles, similar } = profile;
+  // "Goals conceded /90" is the team's figure given to whoever was on the
+  // pitch; the goalkeeping rows are for goalkeepers, as in the comparison.
+  const metrics = (stats?.metrics ?? []).filter(
+    (metric) => metric.family !== "Goalkeeping" || showsGoalkeeping([{ player }]),
+  );
+  // The list is ordered by the ranked figure, so it is shown when it differs.
+  const adjusted =
+    similar?.results.some(
+      (entry) => entry.evidence_weight != null && entry.evidence_weight < 1,
+    ) ?? false;
   // A role is always named - the highest of the eight fits - but "best" reads as
   // a recommendation, and a player whose best fit is still below the middle of
   // the players measured for that role (about a third of a typical page of
@@ -151,7 +163,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
             {player.nationality ? (
               <>
                 <Sep />
-                <span>{player.nationality}</span>
+                <span>{nationalityName(player.nationality, locale)}</span>
               </>
             ) : null}
             {/* The club and the competition are NOT here any more.
@@ -717,7 +729,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
               </TR>
             </THead>
             <TBody>
-              {(stats?.metrics ?? []).map((metric) => (
+              {metrics.map((metric) => (
                 <TR key={metric.metric}>
                   <TD>
                     <span className="flex items-center gap-1.5">
@@ -849,6 +861,16 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                     <TH>{t.profile.similar.club}</TH>
                     <TH>{t.profile.similar.bestRole}</TH>
                     <TH numeric>{t.profile.similar.similarity}</TH>
+                    {adjusted ? (
+                      <TH numeric>
+                        <span className="inline-flex items-center gap-1">
+                          {t.similarity.table.ranked}
+                          <Tooltip label={t.similarity.notes.rankedTitle}>
+                            {t.similarity.notes.rankedBody}
+                          </Tooltip>
+                        </span>
+                      </TH>
+                    ) : null}
                     {/* A similarity of 92 from six shared features and one
                         from eleven are not the same claim, and they look
                         identical as a single number. The dedicated page has
@@ -902,6 +924,23 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                             </span>
                           ) : null}
                         </TD>
+                        {adjusted ? (
+                          <TD numeric className="font-medium">
+                            <span
+                              title={apiMessage(t, f, entry.ranking_note_message) ?? undefined}
+                            >
+                              {Math.round(entry.ranking_similarity ?? entry.similarity)}
+                            </span>
+                            {entry.evidence_weight != null && entry.evidence_weight < 1 ? (
+                              <span className="mt-0.5 block text-[10px] font-normal text-subtle">
+                                {t.similarity.table.seasonShare.replace(
+                                  "{pct}",
+                                  String(Math.round(entry.evidence_weight * 100)),
+                                )}
+                              </span>
+                            ) : null}
+                          </TD>
+                        ) : null}
                         <TD numeric className="whitespace-nowrap text-muted">
                           {entry.shared_features} / {entry.expected_features}
                         </TD>
@@ -943,7 +982,7 @@ export default async function PlayerProfilePage(props: PageProps<"/[lang]/player
                         one line; a reader who wants to know why the index
                         came out where it did opens it. */}
                       <TR className="border-t-0!">
-                        <TD colSpan={8} className="pt-0">
+                        <TD colSpan={adjusted ? 9 : 8} className="pt-0">
                           <SimilarityBreakdown entry={entry} targetName={player.name} />
                         </TD>
                       </TR>

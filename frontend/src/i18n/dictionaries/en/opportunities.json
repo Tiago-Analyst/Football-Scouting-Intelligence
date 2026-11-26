@@ -28,6 +28,7 @@
   "results": {
     "meeting": "{count} players meet these criteria",
     "demoData": "Demo data",
+    "mixedRoles": "Each raw fit is for that player's own best role, and roles are weighted differently. Across roles, read the order with care and check the role percentile on each card.",
     "disclaimerTitle": "Not a valuation model",
     "funnel": "Where the screen narrowed",
     "emptyTitle": "No players meet these criteria",

@@ -10,6 +10,6 @@
   },
   "unreachable": {
     "title": "O serviço de análise não está a responder",
-    "description": "Os valores desta página vêm da API, e não foi possível contactá-la. Nada do que fosse mostrado estaria actualizado, por isso nada é mostrado."
+    "description": "Os valores desta página vêm da API, e não foi possível contactá-la. Nada do que fosse mostrado estaria atualizado, por isso nada é mostrado."
   }
 }

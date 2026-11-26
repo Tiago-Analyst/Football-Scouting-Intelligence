@@ -165,5 +165,5 @@ test("the copy claims shrinkage toward a mean, which is what the code does", () 
   // And it says what happens at and above the threshold, which is the thing
   // that puzzled the reader: nothing.
   assert.match(en, /never reduced|exactly as it is/i);
-  assert.match(pt, /nunca é reduzida|exactamente como está/i);
+  assert.match(pt, /nunca é reduzida|exatamente como está/i);
 });

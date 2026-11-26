@@ -6,7 +6,7 @@
   "eyebrow": "Espaço de trabalho",
   "title": "Shortlists",
   "description": "Guarde jogadores, escreva as suas notas, e compare até cinco lado a lado. Nada aqui é visível para mais ninguém.",
-  "exportTitle": "A exportação limita-se às suas próprias selecções",
+  "exportTitle": "A exportação limita-se às suas próprias seleções",
   "exportBody": "Uma shortlist exporta como CSV com as colunas que já consegue ver, mais as suas notas. Não há exportação em massa da base de dados do fornecedor, e nenhuma será acrescentada.",
   "signedOut": {
     "title": "Entre para guardar shortlists",
@@ -63,7 +63,7 @@
     "hiddenMany": "{count} outros jogadores estão escondidos por este filtro. Continuam na shortlist e continuam na exportação."
   },
   "row": {
-    "notInData": "Fora dos dados actuais",
+    "notInData": "Fora dos dados atuais",
     "minutes": "{minutes} min",
     "rolePercentile": "percentil {ordinal} de adequação",
     "reviewed": "Revisto em {when}",
@@ -113,7 +113,8 @@
     "note": "A sua nota",
     "for": "A favor",
     "against": "Contra",
-    "footnote": "O valor destacado em cada linha é o maior por 90 minutos, não o melhor jogador: compara quantidades, que são as mesmas em todo o lado, e não percentis, que são posições dentro da competição de cada jogador."
+    "footnoteMixed": "Estes jogadores jogaram em competições diferentes, por isso o valor aparece apenas a negrito: nada aqui ajusta à força de cada liga.",
+    "footnote":"O valor destacado em cada linha é o maior por 90 minutos, não o melhor jogador: compara quantidades, que são as mesmas em todo o lado, e não percentis, que são posições dentro da competição de cada jogador."
   },
   "statuses": {
     "longlist": "Longlist",
@@ -124,8 +125,8 @@
   },
   "statusDescriptions": {
     "longlist": "Guardado, ainda sem avaliação.",
-    "monitor": "Vale a pena seguir, sem acção por agora.",
-    "scout": "A ser activamente observado e reportado.",
+    "monitor": "Vale a pena seguir, sem ação por agora.",
+    "scout": "A ser ativamente observado e reportado.",
     "priority": "Um alvo por quem se avançaria.",
     "rejected": "Posto de parte, e guardado para a razão não se perder."
   }

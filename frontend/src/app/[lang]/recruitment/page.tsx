@@ -256,6 +256,43 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
 
           {activePreset ? <ActivePreset preset={activePreset} /> : null}
 
+          {/* The warning and the button move together, which they cannot do
+              from the server: the weights are plain form inputs, so a reader
+              who has just typed 20 into an unavailable dimension has not
+              reloaded anything. The server computes the first paint; the
+              component keeps it true afterwards. Which dimensions are
+              unavailable is still the backend's answer - see
+              `BlockedProfile`. */}
+          <BlockedProfile
+            copy={t.recruitment.blocked}
+            unavailable={[...unavailable.values()].map((score) => ({
+              key: score.key,
+              label:
+                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                score.label,
+              // Composed here, where the dictionary is, rather than passed
+              // as the API's English sentence: BlockedProfile renders in the
+              // browser and cannot translate anything itself.
+              reason:
+                apiMessage(t, f, {
+                  code: score.missing?.length
+                    ? "score_unavailable_missing"
+                    : "score_unavailable_no_candidate",
+                  values: {
+                    score: score.key,
+                    metrics: (score.missing ?? []).join(","),
+                  },
+                }) ?? score.reason,
+            }))}
+            scores={SCORES.map((score) => ({
+              key: score.key,
+              label:
+                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
+                score.label,
+              available: !unavailable.has(score.key),
+            }))}
+            initiallyBlocked={blockedNow.map((score) => score.key)}
+          >
           <div>
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">{t.recruitment.weights.heading}</h2>
@@ -424,43 +461,7 @@ export default async function RecruitmentPage(props: PageProps<"/[lang]/recruitm
             </p>
           ) : null}
 
-          {/* The warning and the button move together, which they cannot do
-              from the server: the weights are plain form inputs, so a reader
-              who has just typed 20 into an unavailable dimension has not
-              reloaded anything. The server computes the first paint; the
-              component keeps it true afterwards. Which dimensions are
-              unavailable is still the backend's answer - see
-              `BlockedProfile`. */}
-          <BlockedProfile
-            copy={t.recruitment.blocked}
-            unavailable={[...unavailable.values()].map((score) => ({
-              key: score.key,
-              label:
-                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
-                score.label,
-              // Composed here, where the dictionary is, rather than passed
-              // as the API's English sentence: BlockedProfile renders in the
-              // browser and cannot translate anything itself.
-              reason:
-                apiMessage(t, f, {
-                  code: score.missing?.length
-                    ? "score_unavailable_missing"
-                    : "score_unavailable_no_candidate",
-                  values: {
-                    score: score.key,
-                    metrics: (score.missing ?? []).join(","),
-                  },
-                }) ?? score.reason,
-            }))}
-            scores={SCORES.map((score) => ({
-              key: score.key,
-              label:
-                t.glossary.scores[score.key as keyof typeof t.glossary.scores]?.label ??
-                score.label,
-              available: !unavailable.has(score.key),
-            }))}
-            initiallyBlocked={blockedNow.map((score) => score.key)}
-          />
+          </BlockedProfile>
         </form>
 
         {/* `min-w-0` for the same reason the player search and the

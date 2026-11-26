@@ -45,7 +45,8 @@
     "hide": "Hide",
     "activeCount": "{count} set",
     "activeCountOne": "{count} set",
-    "evidenceInert": "Every player on this page already carries full evidence weight, so no figure was adjusted and the ranked column repeats “{raw}”. The adjustment applies below 900 minutes.",
+    "mixedRoles": "Each score here is for that player's own best role, and roles are weighted differently, so scores from different roles are not directly comparable. Choose a role under “{filter}” to compare like with like.",
+    "evidenceInert":"Every player on this page already carries full evidence weight, so no figure was adjusted and the ranked column repeats “{raw}”. The adjustment applies below 900 minutes.",
     "sorts": {
       "minutes": "Minutes played",
       "role_score": "Role fit (raw)",

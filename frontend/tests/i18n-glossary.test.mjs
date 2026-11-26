@@ -7,8 +7,8 @@
  * single word written quickly in a single file months from now.
  *
  * The forbidden list is vocabulary, not spelling reform. This product writes
- * pre-Acordo forms in some places ("actual", "contacto"); both spellings are
- * valid European Portuguese and neither is checked here. What is checked is
+ * post-Acordo European spellings ("atual", "contacto", "facto"); spelling is
+ * checked in `review-findings.test.mjs`, not here. What is checked here is
  * the words that would tell a Portuguese reader this was written for Brazil.
  */
 import assert from "node:assert/strict";

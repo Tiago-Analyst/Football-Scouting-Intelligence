@@ -20,7 +20,7 @@
   },
   "per90": {
     "title": "Métricas por 90 minutos",
-    "body": "As contagens em bruto são divididas pelos minutos efectivamente jogados e escaladas a 90 minutos, de modo a que um suplente e um titular habitual sejam comparáveis. As métricas percentuais, como o sucesso de passe e o sucesso em duelos, são rácios de tentativas e não taxas por 90 minutos."
+    "body": "As contagens em bruto são divididas pelos minutos efetivamente jogados e escaladas a 90 minutos, de modo a que um suplente e um titular habitual sejam comparáveis. As métricas percentuais, como o sucesso de passe e o sucesso em duelos, são rácios de tentativas e não taxas por 90 minutos."
   },
   "percentiles": {
     "title": "Percentis e contexto de comparação",
@@ -28,14 +28,14 @@
     "alwaysOneOf": "A população de comparação é sempre uma de:",
     "scopeCompetition": "grupo posicional dentro de uma única competição e época, por omissão;",
     "scopeSelected": "grupo posicional num conjunto escolhido de competições;",
-    "scopeAll": "grupo posicional em todas as competições actualmente cobertas.",
+    "scopeAll": "grupo posicional em todas as competições atualmente cobertas.",
     "shown": "A população em uso é mostrada ao lado do número. Nunca é escondida, porque um percentil sem o seu grupo de referência não é interpretável."
   },
   "allLeagues": {
     "title": "Face a que ordena um percentil de todas as ligas",
     "definitionBefore": "A segunda coluna de percentil ordena o ",
     "definitionEmphasis": "valor por 90 minutos observado",
-    "definitionAfter": " de um jogador face a todas as épocas de jogador que o conjunto de dados actualmente serve na sua posição. É essa a definição inteira, e é deliberadamente uma ordenação do que foi observado e não uma estimativa do que um jogador faria ao longo de uma época completa.",
+    "definitionAfter": " de um jogador face a todas as épocas de jogador que o conjunto de dados atualmente serve na sua posição. É essa a definição inteira, e é deliberadamente uma ordenação do que foi observado e não uma estimativa do que um jogador faria ao longo de uma época completa.",
     "spreadBefore": "As competições carregadas em cada momento estão em pontos diferentes das suas épocas, porque não começam no mesmo mês. Neste momento, {established} de {total} contêm um jogador que atingiu os minutos de uma época completa, e ",
     "spreadAfter": " dos jogadores vêm das {early} que não. O jogador mais utilizado em {lowest} tem {lowestMinutes} minutos; em {highest}, {highestMinutes}. Ambos estão na mesma população.",
     "extremeBefore": "Um valor por 90 minutos a partir de um só jogo é tão extremo quanto os dados permitem, e isso vê-se na distribuição. Um jogador com menos de 180 minutos chega ao décimo superior de uma métrica de todas as ligas ",
@@ -50,7 +50,7 @@
   },
   "scores": {
     "title": "Pontuações de inteligência",
-    "what": "As pontuações de inteligência resumem uma faceta do jogo: progressão de bola, segurança de bola, criação de oportunidades, actividade defensiva, domínio nos duelos, ameaça no 1x1, ameaça de golo, finalização e presença aérea.",
+    "what": "As pontuações de inteligência resumem uma faceta do jogo: progressão de bola, segurança de bola, criação de oportunidades, atividade defensiva, domínio nos duelos, ameaça no 1x1, ameaça de golo, finalização e presença aérea.",
     "orderBefore": "As métricas componentes são convertidas em percentis ",
     "orderEmphasis": "antes",
     "orderAfter": " de serem ponderadas, pelo que grandezas em escalas diferentes nunca são somadas. O resultado é uma pontuação de 0 a 100. Os valores das componentes são guardados a par do total, pelo que qualquer pontuação pode ser decomposta nas métricas que a produziram.",
@@ -58,12 +58,12 @@
   },
   "roles": {
     "title": "Funções de jogador",
-    "what": "Uma função é uma combinação ponderada de métricas em percentil que descreve um estilo de jogador: um organizador recuado pondera o passe progressivo e a retenção, um médio recuperador pondera desarmes, intercepções e duelos.",
+    "what": "Uma função é uma combinação ponderada de métricas em percentil que descreve um estilo de jogador: um organizador recuado pondera o passe progressivo e a retenção, um médio recuperador pondera desarmes, interceções e duelos.",
     "best": "Cada jogador é pontuado face a cada função compatível com o seu grupo posicional. A função com pontuação mais alta é apresentado como a sua melhor adequação estatística, com as alternativas mostradas por baixo."
   },
   "similarity": {
     "title": "Semelhança estatística",
-    "body": "A semelhança compara jogadores dentro de um grupo posicional compatível, usando um vector de atributos específico da posição. Os atributos são padronizados para que nenhuma métrica de variância elevada domine sozinha, e o resultado é reportado num Índice de Semelhança de 0 a 100."
+    "body": "A semelhança compara jogadores dentro de um grupo posicional compatível, usando um vetor de atributos específico da posição. Os atributos são padronizados para que nenhuma métrica de variância elevada domine sozinha, e o resultado é reportado num Índice de Semelhança de 0 a 100."
   },
   "sample": {
     "title": "Dimensão da amostra",
@@ -71,7 +71,7 @@
     "establishedBold": "900 minutos ou mais",
     "establishedRest": " — amostra consolidada. Cerca de dez jogos completos; os valores por 90 minutos estão razoavelmente assentes.",
     "developingBold": "450 a 899 minutos",
-    "developingRest": " — amostra em formação. Futebol suficiente para dela se ler uma direcção, ainda que as taxas continuem a mover-se.",
+    "developingRest": " — amostra em formação. Futebol suficiente para dela se ler uma direção, ainda que as taxas continuem a mover-se.",
     "lowBold": "180 a 449 minutos",
     "lowRest": " — amostra baixa. Um golo ou um desarme move uma taxa de forma notória.",
     "veryLowBold": "Menos de 180 minutos",
@@ -81,25 +81,25 @@
   "limits": {
     "heading": "O que estes resultados não significam",
     "notQualityTitle": "As pontuações não são qualidade do jogador",
-    "notQuality": "A pontuação de uma função mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 numa função e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação táctica, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
+    "notQuality": "A pontuação de uma função mede a semelhança estatística com um perfil. Um jogador pode pontuar 90 numa função e continuar a ser uma má contratação: a pontuação nada sabe sobre adequação tática, dados físicos, historial de lesões, temperamento, ou o que um observador vê.",
     "notProbabilityTitle": "A semelhança não é uma probabilidade",
     "notProbability": "O Índice de Semelhança exprime a proximidade entre dois perfis estatísticos. Não é a probabilidade de um jogador reproduzir o rendimento de outro.",
     "finishingTitle": "As métricas de finalização são ruidosas",
     "finishing": "Os golos acima dos golos esperados regridem fortemente nas amostras disponíveis dentro de uma só época. Uma pontuação alta de finalização descreve o que aconteceu, não é uma medição fiável da capacidade de finalização.",
     "notWorldRankingTitle": "Um percentil de todas as ligas não é uma classificação mundial",
-    "notWorldRanking": "É a posição de um valor por 90 minutos observado entre as épocas de jogador actualmente servidas. Não é aplicado nenhum coeficiente de força, porque um coeficiente não validado introduziria erro parecendo autoritário; não é aplicado nenhum ajuste de maturidade de época, porque substituiria um valor observado por um valor modelado que o leitor não poderia confrontar com o valor por 90 minutos impresso ao lado. Nem uma posição alta nem uma baixa são aqui um veredicto sobre um jogador.",
+    "notWorldRanking": "É a posição de um valor por 90 minutos observado entre as épocas de jogador atualmente servidas. Não é aplicado nenhum coeficiente de força, porque um coeficiente não validado introduziria erro parecendo autoritário; não é aplicado nenhum ajuste de maturidade de época, porque substituiria um valor observado por um valor modelado que o leitor não poderia confrontar com o valor por 90 minutos impresso ao lado. Nem uma posição alta nem uma baixa são aqui um veredicto sobre um jogador.",
     "notFeeTitle": "O valor de mercado não é um valor de transferência",
     "notFee": "Os valores de mercado do Transfermarkt são estimativas colaborativas e não preços pedidos, e são usados apenas como um filtro aproximado de comportabilidade.",
     "goalkeepersTitle": "As métricas de guarda-redes dependem da equipa",
-    "goalkeepers": "As estatísticas básicas de guarda-redes reflectem tanto a defesa à frente do guardião como o próprio guardião. Sem uma métrica de golos esperados pós-remate, a excelência na defesa de remates não pode ser inferida da percentagem de defesas."
+    "goalkeepers": "As estatísticas básicas de guarda-redes refletem tanto a defesa à frente do guardião como o próprio guardião. Sem uma métrica de golos esperados pós-remate, a excelência na defesa de remates não pode ser inferida da percentagem de defesas."
   },
   "freshness": {
-    "title": "Actualidade dos dados",
-    "description": "Com que frequência cada fonte é actualizada.",
+    "title": "Atualidade dos dados",
+    "description": "Com que frequência cada fonte é atualizada.",
     "badge": "Lotes agendados",
-    "batches": "As APIs do fornecedor nunca são chamadas enquanto navega. Os dados são carregados em lotes agendados, validados, transformados e só então publicados, pelo que uma actualização falhada ou parcial não pode chegar a estas páginas.",
-    "publishedBefore": "A actualidade publicada de cada fonte é reportada na página de ",
+    "batches": "As APIs do fornecedor nunca são chamadas enquanto navega. Os dados são carregados em lotes agendados, validados, transformados e só então publicados, pelo que uma atualização falhada ou parcial não pode chegar a estas páginas.",
+    "publishedBefore": "A atualidade publicada de cada fonte é reportada na página de ",
     "publishedLink": "qualidade dos dados",
-    "publishedAfter": ", e significa o último conjunto de dados promovido com sucesso para produção — não a última actualização tentada, nem a última vez que as verificações correram. Essas são listadas à parte, porque uma actualização pode carregar para o ambiente de preparação e nunca chegar aos leitores."
+    "publishedAfter": ", e significa o último conjunto de dados promovido com sucesso para produção — não a última atualização tentada, nem a última vez que as verificações correram. Essas são listadas à parte, porque uma atualização pode carregar para o ambiente de preparação e nunca chegar aos leitores."
   }
 }

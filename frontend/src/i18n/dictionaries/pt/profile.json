@@ -7,7 +7,7 @@
   "context": {
     "performance": "Contexto de desempenho",
     "performanceHint": "A época de onde vêm estes números",
-    "market": "Contexto de mercado actual",
+    "market": "Contexto de mercado atual",
     "marketHint": "Onde o jogador está agora",
     "competition": "Competição",
     "season": "Época",
@@ -41,7 +41,7 @@
   "roles": {
     "title": "Compatibilidade com funções",
     "tooltipLabel": "Adequação bruta e percentil de adequação",
-    "tooltip": "A adequação bruta à função é a pontuação ponderada do perfil estatístico, construída a partir dos componentes listados abaixo. O percentil de adequação à função é onde essa pontuação se situa entre todos os jogadores avaliados para a mesma função. As funções ponderam os seus componentes de forma diferente, pelo que as pontuações brutas de duas funções não são directamente comparáveis — o percentil é, e é por ele que a melhor função é escolhido. A cobertura de métricas, mostrada quando está abaixo do total, é a fracção do peso configurado da função sustentada por métricas que o fornecedor disponibiliza; os componentes em falta são deixados de fora e não contados como zero. Nenhuma das três é qualidade do jogador.",
+    "tooltip": "A adequação bruta à função é a pontuação ponderada do perfil estatístico, construída a partir dos componentes listados abaixo. O percentil de adequação à função é onde essa pontuação se situa entre todos os jogadores avaliados para a mesma função. As funções ponderam os seus componentes de forma diferente, pelo que as pontuações brutas de duas funções não são diretamente comparáveis — o percentil é, e é por ele que a melhor função é escolhido. A cobertura de métricas, mostrada quando está abaixo do total, é a fração do peso configurado da função sustentada por métricas que o fornecedor disponibiliza; os componentes em falta são deixados de fora e não contados como zero. Nenhuma das três é qualidade do jogador.",
     "description": "Adequação estatística a cada função compatível com esta posição.",
     "limited": "Limitada",
     "rawRoleFit": "Adequação bruta {score}",
@@ -87,7 +87,7 @@
     "open": "Abrir pesquisa de semelhança",
     "player": "Jogador",
     "age": "Idade",
-    "club": "Clube actual",
+    "club": "Clube atual",
     "bestRole": "Melhor função",
     "similarity": "Semelhança",
     "indexNotPercent": "índice, não %",
