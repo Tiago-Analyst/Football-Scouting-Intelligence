@@ -86,6 +86,17 @@
     "contractExpires": "Contrato até",
     "perNinety": "/90"
   },
+  "metricFamilies": {
+    "Goal threat": "Ameaça de golo",
+    "Shooting": "Remate",
+    "Passing": "Passe",
+    "Creation": "Criação",
+    "Dribbling": "Drible",
+    "Defending": "Defesa",
+    "Duels": "Duelos",
+    "Discipline and ball security": "Disciplina e segurança de bola",
+    "Goalkeeping": "Guarda-redes"
+  },
   "providerPositions": {
     "Goalkeeper": "Guarda-redes",
     "Centre-Back": "Defesa-central",

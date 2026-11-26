@@ -46,6 +46,7 @@ export function EntryRow({
   onToggle,
   sampleCopy,
   roleLabels,
+  positionLabels,
   copy,
   tag,
 }: {
@@ -60,6 +61,8 @@ export function EntryRow({
   sampleCopy: Record<string, SampleCopy>;
   /** Role names in the reader's language; no dictionary reaches the browser. */
   roleLabels: Record<string, string>;
+  /** Positions in the reader's language, both the provider's and the groups. */
+  positionLabels: Record<string, string>;
   /** Same reason: the words come from the server page, not a dictionary. */
   copy: Record<string, string>;
   /** And the locale tag, so the numbers in this row group and the dates
@@ -105,7 +108,11 @@ export function EntryRow({
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-subtle">
           {player ? (
             <>
-              <span>{player.raw_position ?? player.position_group}</span>
+              <span>
+                {positionLabels[player.raw_position ?? player.position_group] ??
+                  player.raw_position ??
+                  player.position_group}
+              </span>
               {player.club ? <span>· {player.club}</span> : null}
               {/* Where the season's football was played, which is not
                   where the club plays now and is what the percentiles are

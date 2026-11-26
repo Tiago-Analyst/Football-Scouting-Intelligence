@@ -444,7 +444,9 @@ export function ComparisonTable({
                         colSpan={players.length + 1}
                         className="sticky left-0 z-10 bg-surface-2 text-[11px] font-semibold tracking-wide text-subtle uppercase"
                       >
-                        {family}
+                        {/* The API names the family in English; one it adds later
+                            shows through unchanged rather than disappearing. */}
+                        {(t.glossary.metricFamilies as Record<string, string>)[family] ?? family}
                       </TH>
                     </TR>
                   ) : null}
