@@ -86,6 +86,17 @@
     "contractExpires": "Contract until",
     "perNinety": "/90"
   },
+  "metricFamilies": {
+    "Goal threat": "Goal threat",
+    "Shooting": "Shooting",
+    "Passing": "Passing",
+    "Creation": "Creation",
+    "Dribbling": "Dribbling",
+    "Defending": "Defending",
+    "Duels": "Duels",
+    "Discipline and ball security": "Discipline and ball security",
+    "Goalkeeping": "Goalkeeping"
+  },
   "providerPositions": {
     "Goalkeeper": "Goalkeeper",
     "Centre-Back": "Centre-Back",

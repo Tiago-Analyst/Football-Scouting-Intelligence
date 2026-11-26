@@ -37,6 +37,7 @@ export function EntriesTable({
   statuses,
   sampleCopy,
   roleLabels,
+  positionLabels,
   copy,
   tag,
 }: {
@@ -48,6 +49,7 @@ export function EntriesTable({
   sampleCopy: Record<string, SampleCopy>;
   /** The role names in the reader's language, for the same reason. */
   roleLabels: Record<string, string>;
+  positionLabels: Record<string, string>;
   /** Same reason as `sampleCopy`: no dictionary reaches the browser. */
   copy: EntriesCopy;
   /** And the locale tag, so the rows format as the rest of the page does. */
@@ -178,6 +180,7 @@ export function EntriesTable({
                 onToggle={toggle}
                 sampleCopy={sampleCopy}
                 roleLabels={roleLabels}
+                positionLabels={positionLabels}
                 copy={copy.row}
                 tag={tag}
               />
